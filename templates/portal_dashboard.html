@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{{ company.name }} — Your Project</title>
+<style>
+  :root{ --brand:{{ company.color_masthead or '#24476C' }}; --accent:{{ company.color_primary or '#4680BF' }};
+         --green:{{ company.color_accent or '#8CC63F' }}; --line:#e2e7ee; --mut:#667085; --txt:#1d2a44; }
+  *{box-sizing:border-box} body{margin:0;background:#eef2f7;color:var(--txt);
+    font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5}
+  a{color:var(--accent);text-decoration:none}
+  .top{background:var(--brand);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:12px}
+  .top img{height:34px;background:#fff;border-radius:6px;padding:3px 6px}
+  .top .nm{font-weight:800;font-size:17px;letter-spacing:.3px}
+  .top .sub{margin-left:auto;font-size:13px;opacity:.85}
+  .wrap{max-width:860px;margin:0 auto;padding:18px 16px 60px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px;
+    box-shadow:0 1px 4px rgba(20,40,80,.05)}
+  .h{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:0 0 12px}
+  .hero h1{margin:0 0 4px;font-size:24px}
+  .hero .addr{color:var(--mut)}
+  .flash{padding:12px 16px;border-radius:10px;margin-bottom:14px;font-weight:600}
+  .flash.ok{background:#e4f6ef;color:#0a7a5f;border:1px solid #bfe6d6}
+  .flash.error{background:#fdeaea;color:#b3322e;border:1px solid #f3c9c7}
+  .flash.info{background:#e8f0ff;color:#2452c0;border:1px solid #c9dbff}
+  /* progress tracker */
+  .track{display:flex;align-items:flex-start;justify-content:space-between;margin-top:6px;gap:4px}
+  .step{flex:1;text-align:center;position:relative}
+  .step .dot{width:30px;height:30px;border-radius:50%;background:#d6dde7;color:#fff;display:flex;
+    align-items:center;justify-content:center;margin:0 auto 6px;font-weight:800;font-size:14px;z-index:2;position:relative}
+  .step.done .dot,.step.cur .dot{background:var(--green)}
+  .step.cur .dot{box-shadow:0 0 0 4px rgba(140,198,63,.3)}
+  .step .lbl{font-size:11px;color:var(--mut);font-weight:600}
+  .step.cur .lbl{color:var(--txt);font-weight:800}
+  .step:not(:first-child):before{content:"";position:absolute;top:15px;left:-50%;width:100%;height:3px;background:#d6dde7;z-index:1}
+  .step.done:before,.step.cur:before{background:var(--green)}
+  .btn{display:inline-block;background:var(--accent);color:#fff;padding:11px 18px;border-radius:9px;
+    font-weight:700;border:0;cursor:pointer;font-size:15px}
+  .btn.green{background:var(--green)}
+  .btn.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .btn.block{display:block;width:100%;text-align:center}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .pill{font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;background:#eef3fb;color:var(--accent)}
+  .pill.green{background:#eaf7d9;color:#4e7d12}
+  input,textarea,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-size:15px;font-family:inherit}
+  label{font-size:12px;font-weight:700;color:var(--mut);display:block;margin-bottom:5px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .draw{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .draw:last-child{border:0} .draw .ck{font-size:18px;width:22px}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+  .gallery img{width:100%;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .doc{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .doc:last-child{border:0}
+  .tl{list-style:none;margin:0;padding:0}
+  .tl li{padding:8px 0 8px 16px;border-left:2px solid var(--line);position:relative;margin-left:3px}
+  .tl li:before{content:"";position:absolute;left:-6px;top:13px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .muted{color:var(--mut);font-size:13px}
+  .foot{text-align:center;color:var(--mut);font-size:12px;margin-top:24px}
+</style>
+</head>
+<body>
+<div class="top">
+  {% if company.logo_path %}<img src="{{ url_for('uploads', subpath=company.logo_path) }}" alt="">{% endif %}
+  <span class="nm">{{ company.name }}</span>
+  <span class="sub">Customer Portal</span>
+</div>
+<div class="wrap">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+
+  <!-- HERO + PROGRESS -->
+  <div class="card hero">
+    <h1>Hi{{ ' ' ~ j.name.split(' ')[0] if j.name }} 👋</h1>
+    <div class="addr">📍 {{ j.address }}{{ ', ' ~ j.city if j.city }} {{ j.state }} {{ j.zip }}</div>
+    <div style="margin:14px 0 4px"><span class="pill green">{{ j._stage_name }}</span>
+      {% if j.work_type %}<span class="pill" style="margin-left:6px">{{ j.work_type }}</span>{% endif %}</div>
+    <div class="track">
+      {% for p in phases %}
+      <div class="step {{ 'done' if loop.index0 < j._phase else ('cur' if loop.index0 == j._phase else '') }}">
+        <div class="dot">{{ '✓' if loop.index0 < j._phase else loop.index }}</div>
+        <div class="lbl">{{ p }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- REP CONTACT -->
+  <div class="card">
+    <div class="h">Your Project Contact</div>
+    <div class="row" style="align-items:center;justify-content:space-between">
+      <div><b>{{ j.rep or company.qualifier or company.name }}</b><div class="muted">{{ company.name }} · Lic. {{ company.license }}</div></div>
+      <div class="row">
+        {% if company.phone %}<a class="btn ghost" href="tel:{{ company.phone }}">📞 Call</a>{% endif %}
+        {% if company.email %}<a class="btn ghost" href="mailto:{{ company.email }}">✉️ Email</a>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ESTIMATE / APPROVE -->
+  <div class="card" id="estimate">
+    <div class="h">Your Proposal</div>
+    {% if not estimates %}<div class="muted">Your proposal will appear here once it's ready.</div>{% endif %}
+    {% for e in estimates %}
+    <div style="padding:8px 0;border-bottom:1px solid var(--line)">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div><b>{{ e.number }}</b> — {{ e.title }}
+          {% if e.status=='signed' %}<span class="pill green">✓ Approved</span>{% else %}<span class="pill">{{ e.status|capitalize }}</span>{% endif %}
+        </div>
+        <a class="btn ghost" href="{{ url_for('estimates.print_view', est_id=e.id) }}" target="_blank">View</a>
+      </div>
+      {% if e.status != 'signed' %}
+      <form method="post" action="{{ url_for('portal.sign', token=token, est_id=e.id) }}" style="margin-top:10px">
+        <label>Approve this proposal — type your full name to e-sign</label>
+        <div class="row"><input name="signed_name" placeholder="Your full name" required style="flex:1;min-width:180px">
+          <button class="btn green" type="submit">✓ Approve & Sign</button></div>
+      </form>
+      {% else %}<div class="muted" style="margin-top:6px">Signed by {{ e.signed_name }} on {{ (e.signed_at or '')[:10] }}.</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- PAYMENTS -->
+  <div class="card" id="payments">
+    <div class="h">Payments</div>
+    <div class="row" style="justify-content:space-between">
+      <div><div class="muted">Contract total</div><b style="font-size:20px">{{ money(j._value) }}</b></div>
+      <div><div class="muted">Balance due</div><b style="font-size:20px">{{ money(j._balance) }}</b></div>
+      <div><div class="muted">Paid</div><b style="font-size:20px;color:var(--green)">{{ (j._paid_pct*100)|round|int }}%</b></div>
+    </div>
+    <div style="margin-top:12px">
+      {% for p in draws %}
+      <div class="draw"><span class="ck">{{ '✅' if j._payments.get(p.key) else '⬜' }}</span>
+        <span style="flex:1">{{ p.label }}{% set amt = draw_amount(j.contract_value, p, j._payments) %}{% if amt %} — <b>{{ amt }}</b>{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% for inv in invoices %}{% if inv.status != 'paid' and inv.payment_link %}
+      <a class="btn green block" style="margin-top:12px" href="{{ url_for('portal.pay', token=token, inv_id=inv.id) }}">💳 Pay {{ money(inv.amount) }} now</a>
+    {% endif %}{% endfor %}
+  </div>
+
+  <!-- PHOTOS -->
+  {% if photos %}
+  <div class="card"><div class="h">Project Photos</div>
+    <div class="gallery">{% for ph in photos %}<a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" title="{{ ph.caption }}"></a>{% endfor %}</div>
+  </div>{% endif %}
+
+  <!-- DOCUMENTS -->
+  {% if documents %}
+  <div class="card"><div class="h">Documents</div>
+    {% for d in documents %}<div class="doc"><span class="pill">{{ d.category }}</span>
+      <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank" style="flex:1">{{ d.original_name }}</a></div>{% endfor %}
+  </div>{% endif %}
+
+  <!-- TIMELINE -->
+  {% if activity %}
+  <div class="card"><div class="h">Project Updates</div>
+    <ul class="tl">{% for a in activity %}<li>{{ a.text }}<div class="muted">{{ a.created[:10] }}</div></li>{% endfor %}</ul>
+  </div>{% endif %}
+
+  <!-- MESSAGE / REQUEST -->
+  <div class="card" id="message">
+    <div class="h">Message Us / Request a Change</div>
+    <form method="post" action="{{ url_for('portal.message', token=token) }}">
+      <div class="grid2" style="margin-bottom:10px">
+        <div><label>Type</label><select name="kind"><option value="message">Question / Message</option><option value="request">Request a change</option></select></div>
+        <div></div>
+      </div>
+      <textarea name="text" rows="3" placeholder="Type your message or change request…" required></textarea>
+      <button class="btn block green" style="margin-top:10px" type="submit">Send to {{ company.name }}</button>
+    </form>
+  </div>
+
+  <div class="foot">{{ company.name }} · {{ company.phone }} · Lic. {{ company.license }}<br>This is your private project link — please don't share it publicly.</div>
+</div>
+</body>
+</html>

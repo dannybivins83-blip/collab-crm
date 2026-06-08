@@ -52,11 +52,13 @@ from modules.orders import bp as orders_bp
 from modules.library import bp as library_bp
 from modules.commissions import bp as commissions_bp
 from modules.customfields import bp as customfields_bp
+from modules.portal import bp as portal_bp
 
 for _bp in (dashboard_bp, settings_bp, contacts_bp, leads_bp, jobs_bp, estimates_bp,
             permits_bp, files_bp, tasks_bp, calendar_bp, invoices_bp, materials_bp,
             reports_bp, comms_bp, templates_bp, measurements_bp, sync_bp, quickbooks_bp,
-            worksheet_bp, customize_bp, orders_bp, library_bp, commissions_bp, customfields_bp):
+            worksheet_bp, customize_bp, orders_bp, library_bp, commissions_bp, customfields_bp,
+            portal_bp):
     app.register_blueprint(_bp)
 
 # Real per-user login (registers its own blueprint + before-request guard).
