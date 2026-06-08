@@ -45,6 +45,7 @@
 {% set seg = request.path %}
 <!-- Masthead (navy) -->
 <header class="masthead">
+  <button class="hamburger" type="button" aria-label="Menu" title="Menu" onclick="document.querySelector('.mainnav').classList.toggle('open')">☰</button>
   <a class="brand" href="{{ url_for('dashboard.home') }}">
     {% if company.logo_path %}
       <img src="{{ url_for('uploads', subpath=company.logo_path) }}" alt="logo" class="brand-logo" />
@@ -183,6 +184,14 @@ document.addEventListener('click', function(e){
   document.querySelectorAll('.notif-menu.open').forEach(function(m){
     if(!m.parentElement.contains(e.target)) m.classList.remove('open');
   });
+});
+/* Wrap wide data tables so they scroll horizontally on small screens
+   instead of overflowing the page. */
+document.querySelectorAll('table.grid').forEach(function(t){
+  var p=t.parentElement;
+  if(p && p.classList.contains('tablewrap')) return;
+  var w=document.createElement('div'); w.className='tablewrap';
+  p.insertBefore(w,t); w.appendChild(t);
 });
 </script>
 {% block scripts %}{% endblock %}

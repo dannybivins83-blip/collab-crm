@@ -100,6 +100,9 @@ table.grid th,table.grid td{text-align:left;padding:10px 12px;border-bottom:1px 
 table.grid th{background:var(--panel2);font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
 table.grid tr:last-child td{border-bottom:0}
 table.grid tr:hover td{background:var(--panel2)}
+/* wide data tables: scroll horizontally instead of overflowing the page
+   (base.html auto-wraps every table.grid in <div class="tablewrap">) */
+.tablewrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
 
 /* pills / badges */
 .pill{font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;white-space:nowrap;display:inline-block}
@@ -305,3 +308,91 @@ table.grid tr:hover td{background:var(--panel2)}
   font-size:12px;padding:5px 11px;border-radius:7px;cursor:pointer;white-space:nowrap}
 .mh-sync:hover{filter:brightness(1.07)}
 .mh-sync:disabled{opacity:.7;cursor:default}
+
+/* hamburger (mobile nav toggle — hidden on desktop) */
+.hamburger{display:none;background:transparent;border:0;color:#fff;font-size:22px;line-height:1;
+  padding:3px 9px;cursor:pointer;border-radius:8px}
+.hamburger:hover{background:rgba(255,255,255,.16);text-decoration:none}
+
+/* ============================================================
+   RESPONSIVE — make the whole CRM usable on phones & tablets
+   ============================================================ */
+
+/* Tablet & down: collapse the primary nav into a hamburger drawer. */
+@media(max-width:980px){
+  .hamburger{display:inline-flex;align-items:center;order:-1}
+  .masthead{flex-wrap:wrap;gap:9px 12px;padding:8px 14px}
+  .masthead .grow{display:none}
+  .mh-lic{display:none}
+  .brand{min-width:0;flex:0 1 auto}
+  .brand-name{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}
+  .dept{padding-left:0;border-left:0}
+
+  /* mainnav becomes a vertical drawer revealed by the hamburger */
+  .mainnav{display:none;position:static;top:auto;flex-direction:column;align-items:stretch;
+    padding:7px;gap:2px;box-shadow:0 8px 18px rgba(20,40,80,.18)}
+  .mainnav.open{display:flex}
+  .mainnav .grow{display:none}
+  .mainnav .navgroup{position:static;flex-direction:column;align-items:stretch}
+  .navitem{height:auto;padding:12px 14px;border-radius:8px}
+  /* only the mainnav dropdowns expand inline in the drawer (no hover for touch);
+     masthead menus (dept picker, notifications) stay click-toggle via .open */
+  .mainnav .dropdown{display:block;position:static;border:0;box-shadow:none;border-radius:8px;
+    background:rgba(0,0,0,.12);margin:1px 0 4px}
+  .mainnav .dropdown a{color:#eaf1fb;padding:10px 14px 10px 28px;font-weight:600}
+  .mainnav .dropdown a:hover{background:rgba(255,255,255,.12)}
+  .navsearch{order:99;width:100%}
+  .navsearch input{width:100%;margin:6px 0}
+  .navitem.help{margin-top:3px;border-radius:8px;text-align:center;justify-content:center}
+}
+
+/* Phones: tighten spacing + make wide content scroll/stack instead of overflow. */
+@media(max-width:760px){
+  .content{padding:16px 13px 64px}
+  .page-head h1{font-size:19px}
+  .page-title{font-size:20px}
+
+  /* wide tables scroll horizontally inside their card instead of cramming */
+  .card{overflow-x:auto}
+  table.grid{width:auto;min-width:100%}
+  table.grid th,table.grid td{padding:9px 10px;font-size:12.5px}
+
+  /* two-column / fixed layouts stack */
+  .tax-profit{grid-template-columns:1fr;gap:14px}
+  .totals{width:100%}
+  .listwrap{grid-template-columns:1fr}
+  .filters{position:static}
+  /* form fields go single-column (each full width) so 2-up rows never overflow */
+  .row>.field{min-width:100%;flex-basis:100%}
+  .grid2{grid-template-columns:1fr}
+
+  /* job workspace header wraps; money block drops below */
+  .jobhead{flex-wrap:wrap}
+  .jh-money{text-align:left;width:100%;display:flex;gap:16px;align-items:baseline}
+
+  /* milestone tracker: shrink + allow horizontal scroll */
+  .mstone{gap:14px}
+  .mstone-left{min-width:0}
+  .mstone-track{min-width:0;overflow-x:auto;padding-bottom:6px}
+  .mcircle{width:42px;height:42px;font-size:19px}
+  .mline{margin-bottom:20px}
+
+  /* kanban: swipe columns horizontally (classic mobile board) */
+  .board{display:flex;overflow-x:auto;gap:12px;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+  .col{min-width:78vw;max-width:80vw;flex:none;max-height:none}
+
+  /* estimate builder line-tables scroll rather than overflow the page */
+  .section,.est-cols{overflow-x:auto}
+  .estimate-total{font-size:16px}
+
+  .toolbar .total{margin-left:0;width:100%;justify-content:space-between}
+}
+
+/* Small phones. */
+@media(max-width:480px){
+  .meas-grid{grid-template-columns:repeat(2,1fr)}
+  .pipe-circle{width:54px;height:54px;font-size:24px}
+  .page-head{gap:8px}
+  .brand-name{font-size:13px}
+  .col{min-width:84vw;max-width:86vw}
+}
