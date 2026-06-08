@@ -90,6 +90,23 @@
   </div>
 
   <div>
+    <div class="card">
+      <div class="panel-head"><span>⚡ Quick Estimate</span>
+        {% if measurement %}<span class="badge" style="color:var(--ok)">📐 {{ measurement.squares }} sq</span>{% endif %}
+      </div>
+      <div class="muted" style="margin-bottom:8px">One click builds the estimate from a template{% if measurement %} and fills quantities from the roof measurement{% endif %} — opens ready to send.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        {% for t in estimate_templates() %}
+        <form method="post" action="{{ url_for('estimates.quick') }}" style="margin:0">
+          <input type="hidden" name="lead_id" value="{{ l.id }}">
+          <input type="hidden" name="template_id" value="{{ t.id }}">
+          <input type="hidden" name="work_type" value="{{ t.work_type or '' }}">
+          <button class="btn sm accent" type="submit">{{ t.name|replace(' Estimating Template','')|replace(' Estimate','') }}</button>
+        </form>
+        {% endfor %}
+      </div>
+      <a class="btn sm ghost" style="margin-top:8px" href="{{ url_for('estimates.new') }}?lead_id={{ l.id }}">+ Custom / pick template…</a>
+    </div>
     {% set cflds = custom_fields('lead') %}
     {% if cflds %}
     <div class="card">

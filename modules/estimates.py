@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Estimates — AccuLynx-style: Estimate → Sections (narrative scope) → cost lines,
 with the Cost / Price / Profit-Margin model. Price = Cost / (1 - margin)."""
+import re
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 
 import db
@@ -135,6 +137,77 @@ def new():
                    "work_type": j.get("work_type"), "title": j.get("name")}
     return render_template("estimate_new.html", pre=pre,
                            templates=db.all_rows("templates", order="name"))
+
+
+def _apply_measurement(est_id, m):
+    """Server-side mirror of the estimate builder's 'Apply measurements' — fills line
+    quantities from a roof measurement so a quick estimate is ready immediately."""
+    if not m:
+        return
+    def num(k):
+        try:
+            return float(m.get(k) or 0)
+        except Exception:
+            return 0.0
+    sq = num("squares")
+    sqW = sq * (1 + num("waste_pct") / 100.0)
+    ridge = num("ridge_lf") + num("hip_lf")
+    valley = num("valley_lf")
+    drip = num("eave_lf") + num("rake_lf")
+    for ln in db.all_rows("estimate_lines", "estimate_id=?", (est_id,)):
+        d = (ln.get("description") or "").lower()
+        u = (ln.get("unit") or "").upper()
+        q = None
+        if re.search(r"ridge|hip", d):
+            q = ridge
+        elif "valley" in d:
+            q = valley
+        elif re.search(r"drip edge|eave|rake", d):
+            q = drip
+        elif u == "SQ" or re.search(r"tear ?off|deck|re-?nail|underlay|shingle|tile|membrane|\biso\b|base sheet|cap|gravel", d):
+            q = sq if "tear" in d else sqW
+        if q and q > 0:
+            db.update("estimate_lines", ln["id"], qty=round(q, 2))
+
+
+@bp.route("/quick", methods=["POST"])
+def quick():
+    """One-click estimate: build from a template, prefill from the lead/job, and
+    auto-apply its roof measurements to the quantities, then open the editor."""
+    lead_id = request.form.get("lead_id") or None
+    job_id = request.form.get("job_id") or None
+    template_id = request.form.get("template_id") or None
+    work_type = request.form.get("work_type", "")
+    name, wt, scope, lines = _resolve_template(template_id, work_type)
+    title, contact_id = name, None
+    if lead_id:
+        l = db.get("leads", lead_id)
+        if l:
+            title = l.get("name") or name
+            contact_id = l.get("contact_id")
+            work_type = work_type or l.get("work_type") or ""
+    elif job_id:
+        j = db.get("jobs", job_id)
+        if j:
+            title = j.get("name") or name
+            contact_id = j.get("contact_id")
+            work_type = work_type or j.get("work_type") or ""
+    eid = db.insert("estimates", {
+        "number": _next_number(), "title": title, "job_id": job_id, "lead_id": lead_id,
+        "contact_id": contact_id, "work_type": work_type, "template_key": template_id or "",
+        "status": "draft", "margin_pct": 30, "tax_pct": 0, "terms": db.get_company().get("terms", "")})
+    sid = db.insert("estimate_sections", {"estimate_id": eid, "sort": 0, "name": name,
+                                          "scope_text": scope, "margin_pct": 30})
+    for i, line in enumerate(lines):
+        db.insert("estimate_lines", {"estimate_id": eid, "section_id": sid, "sort": i,
+                                     "description": line.get("description", ""),
+                                     "unit": line.get("unit", "EA"), "qty": line.get("qty", 0),
+                                     "waste_pct": 0, "cost": line.get("cost", 0)})
+    from modules import measurements as meas
+    m = meas.for_lead(lead_id) if lead_id else (meas.for_job(job_id) if job_id else None)
+    _apply_measurement(eid, m)
+    flash("Quick estimate created from %s%s." % (name, " — measurements applied" if m else ""), "ok")
+    return redirect(url_for("estimates.detail", est_id=eid))
 
 
 @bp.route("/<int:est_id>")

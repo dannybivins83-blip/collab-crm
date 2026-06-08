@@ -26,6 +26,7 @@ app.jinja_env.auto_reload = True
 
 db.init_db()
 theme.register(app)
+from modules import gdrive  # noqa: E402 — ensures drive_id columns + enables Drive storage
 
 # Blueprints (one per module).
 from modules.dashboard import bp as dashboard_bp
@@ -77,11 +78,21 @@ start_auto_sync(app)
 
 @app.route("/uploads/<path:subpath>")
 def uploads(subpath):
-    """Serve uploaded files (photos, docs, logos, estimate/permit PDFs)."""
+    """Serve uploaded files (photos, docs, logos, estimate/permit PDFs).
+    Falls back to Google Drive when the local copy is missing (serverless hosts)."""
     full = os.path.normpath(os.path.join(config.UPLOAD_DIR, subpath))
-    if not full.startswith(config.UPLOAD_DIR) or not os.path.exists(full):
-        abort(404)
-    return send_from_directory(os.path.dirname(full), os.path.basename(full))
+    if full.startswith(config.UPLOAD_DIR) and os.path.exists(full):
+        return send_from_directory(os.path.dirname(full), os.path.basename(full))
+    # Local miss → try Google Drive (if configured + this file was mirrored).
+    try:
+        from modules import gdrive
+        got = gdrive.serve_fallback(subpath)
+        if got:
+            from flask import Response
+            return Response(got[0], mimetype=got[1])
+    except Exception:
+        pass
+    abort(404)
 
 
 @app.route("/favicon.ico")

@@ -183,11 +183,13 @@ def upload_doc(token):
     f = request.files.get("file")
     if f and f.filename:
         fn = "%d_%s" % (int(time.time() * 1000), re.sub(r"[^A-Za-z0-9._-]+", "_", f.filename))
-        f.save(os.path.join(config.DOC_DIR, fn))
+        path = os.path.join(config.DOC_DIR, fn)
+        f.save(path)
         cat = request.form.get("category", "HOA")
+        from modules import gdrive
         db.insert("documents", {"job_id": j["id"], "category": cat, "filename": fn,
-                                "original_name": f.filename,
-                                "size": os.path.getsize(os.path.join(config.DOC_DIR, fn)),
+                                "original_name": f.filename, "drive_id": gdrive.mirror(path, fn),
+                                "size": os.path.getsize(path),
                                 "notes": "Uploaded by homeowner"})
         db.add_activity("job", j["id"], "note", "Homeowner uploaded a document (%s): %s" % (cat, f.filename))
         db.update("jobs", j["id"], next_follow=db.today())
@@ -203,10 +205,12 @@ def upload_photo(token):
     f = request.files.get("file")
     if f and f.filename:
         fn = "%d_%s" % (int(time.time() * 1000), re.sub(r"[^A-Za-z0-9._-]+", "_", f.filename))
-        f.save(os.path.join(config.PHOTO_DIR, fn))
+        path = os.path.join(config.PHOTO_DIR, fn)
+        f.save(path)
+        from modules import gdrive
         db.insert("photos", {"job_id": j["id"], "album": "Homeowner", "phase": "homeowner",
                              "caption": request.form.get("caption", ""), "filename": fn,
-                             "original_name": f.filename})
+                             "original_name": f.filename, "drive_id": gdrive.mirror(path, fn)})
         db.add_activity("job", j["id"], "note", "Homeowner uploaded a photo: %s" % f.filename)
         flash("Thanks — your photo was uploaded.", "ok")
     return redirect(url_for("portal.home", token=token) + "#photos")

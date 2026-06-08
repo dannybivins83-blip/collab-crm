@@ -83,7 +83,18 @@
     <!-- ESTIMATES -->
     <div class="tabpane" data-pane="est" style="display:none">
       <div class="card">
-        <div class="panel-head"><span>Estimates</span><a class="btn sm primary" href="{{ url_for('estimates.new') }}?job_id={{ j.id }}">+ New Estimate</a></div>
+        <div class="panel-head"><span>Estimates</span><a class="btn sm primary" href="{{ url_for('estimates.new') }}?job_id={{ j.id }}">+ Custom…</a></div>
+        <div class="muted" style="margin:2px 0 6px">⚡ Quick estimate{% if measurement %} (measurements applied){% endif %}:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+          {% for t in estimate_templates() %}
+          <form method="post" action="{{ url_for('estimates.quick') }}" style="margin:0">
+            <input type="hidden" name="job_id" value="{{ j.id }}">
+            <input type="hidden" name="template_id" value="{{ t.id }}">
+            <input type="hidden" name="work_type" value="{{ t.work_type or '' }}">
+            <button class="btn sm accent" type="submit">{{ t.name|replace(' Estimating Template','')|replace(' Estimate','') }}</button>
+          </form>
+          {% endfor %}
+        </div>
         {% for e in estimates %}<div class="rowline"><a href="{{ url_for('estimates.detail', est_id=e.id) }}">{{ e.number }} — {{ e.title }}</a> <span class="badge">{{ e.status }}</span></div>{% else %}<div class="muted">No estimates yet.</div>{% endfor %}
       </div>
     </div>

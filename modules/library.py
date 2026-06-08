@@ -71,7 +71,9 @@ def upload():
         fn = "%d_%s" % (int(time.time()), fn)
         dest = os.path.join(LIB_DIR, fn)
     f.save(dest)
+    from modules import gdrive
     db.insert("library_docs", {"created": db.now(), "filename": fn, "original_name": f.filename,
+                               "drive_id": gdrive.mirror(dest, fn),
                                "category": request.form.get("category", "Company / Misc"),
                                "ahj": request.form.get("ahj", ""), "system": request.form.get("system", ""),
                                "size": os.path.getsize(dest), "notes": request.form.get("notes", "")})

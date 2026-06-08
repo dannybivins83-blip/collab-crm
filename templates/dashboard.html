@@ -35,12 +35,16 @@
       <div class="panel-head"><span>⏰ Overdue Follow-Ups</span><span class="badge">{{ overdue|length }}</span></div>
       {% if not overdue %}<div class="muted">All clear — nothing past its follow-up window.</div>{% endif %}
       {% for kind, r, sd, fs in overdue[:12] %}
-        <div class="check" style="justify-content:space-between">
-          <div>
+        <div class="check" style="justify-content:space-between;gap:8px">
+          <div style="min-width:0">
             <a href="{{ url_for('leads.detail', lead_id=r.id) if kind=='lead' else url_for('jobs.detail', job_id=r.id) }}"><b>{{ r.name }}</b></a>
             <span class="muted"> · {{ sd.name }} · {{ fs.days }}d</span>
           </div>
-          <span class="pill" style="background:{{ 'var(--danger)22' if fs.level=='hot' else 'var(--warn)22' }};color:{{ 'var(--danger)' if fs.level=='hot' else 'var(--warn)' }}">{{ fs.label }}</span>
+          <div style="display:flex;align-items:center;gap:6px;flex:none">
+            <span class="pill" style="background:{{ 'var(--danger)22' if fs.level=='hot' else 'var(--warn)22' }};color:{{ 'var(--danger)' if fs.level=='hot' else 'var(--warn)' }}">{{ fs.label }}</span>
+            {% if r.email %}<a class="btn sm accent" href="{{ followup_email(kind, r) }}" target="_blank" title="Draft a follow-up email with balance + payment options">✉️ Email</a>
+            {% elif r.phone %}<a class="btn sm" href="tel:{{ r.phone }}" title="Call">📞</a>{% endif %}
+          </div>
         </div>
       {% endfor %}
     </div>

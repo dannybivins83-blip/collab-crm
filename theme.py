@@ -125,7 +125,8 @@ def register(app):
 
     app.jinja_env.globals.update(
         follow_status=follow_status, paid_pct=paid_pct, draw_amount=draw_amount,
-        load_json=db.load_json, rep_options=rep_options)
+        load_json=db.load_json, rep_options=rep_options,
+        estimate_templates=estimate_templates, followup_email=followup_email)
 
 
 def rep_options():
@@ -135,3 +136,72 @@ def rep_options():
     except Exception:
         names = []
     return names
+
+
+def estimate_templates():
+    """Editable estimate templates for the one-click Quick Estimate buttons."""
+    try:
+        return db.all_rows("templates", order="name")
+    except Exception:
+        return []
+
+
+def _payment_link_for_job(job_id):
+    if not job_id:
+        return ""
+    try:
+        for inv in db.all_rows("invoices", "job_id=?", (job_id,), "id DESC"):
+            if inv.get("payment_link"):
+                return inv["payment_link"]
+    except Exception:
+        pass
+    return ""
+
+
+def followup_email(kind, rec):
+    """Build a one-click Gmail-compose URL for an overdue follow-up: greeting, where
+    it stands + next step, balance due with remaining draws, and a payment link if we
+    have one (else check drop-off / mail-in details). Opens a draft — never sends."""
+    import urllib.parse
+    company = db.get_company()
+    cname = company.get("name", "")
+    phone = company.get("phone", "")
+    email = rec.get("email", "") or ""
+    first = (rec.get("name") or "there").split(" ")[0]
+    lines = []
+    if kind == "job":
+        sd = constants.job_stage(rec.get("stage"))
+        su = "%s — your roof project update & balance" % cname
+        lines.append("Quick update on your roof: we're at the “%s” stage." % sd["name"])
+        if rec.get("todo"):
+            lines.append("Next step: %s" % rec["todo"])
+        val = est_num(rec.get("contract_value"))
+        payments = db.load_json(rec.get("payments"), {})
+        pct = paid_pct(payments)
+        if val:
+            lines.append("")
+            lines.append("Balance due: %s of %s (%d%% collected)." % (money(val * (1 - pct)), money(val), round(pct * 100)))
+            remaining = [p["label"] for p in constants.DRAW_SCHEDULE if p.get("pct") and not payments.get(p["key"])]
+            if remaining:
+                lines.append("Remaining payments: " + "; ".join(remaining) + ".")
+        link = _payment_link_for_job(rec.get("id"))
+        lines.append("")
+        if link:
+            lines.append("Pay securely online here: %s" % link)
+        else:
+            addr = ", ".join([p for p in [company.get("address"), company.get("city"),
+                              ("%s %s" % (company.get("state", ""), company.get("zip", ""))).strip()] if p])
+            lines.append("To pay by check: make it out to %s and drop off / mail to %s, or just reply and we'll schedule a pickup." % (cname, addr))
+    else:
+        sd = constants.lead_stage(rec.get("stage"))
+        su = "Following up on your roof — %s" % cname
+        lines.append("Following up on your roofing project (current stage: %s)." % sd["name"])
+        if rec.get("todo"):
+            lines.append("Next step: %s" % rec["todo"])
+        if rec.get("estimate"):
+            lines.append("")
+            lines.append("Your estimate is %s — happy to answer questions or set up financing." % rec["estimate"])
+    body = "Hi %s,\n\n%s\n\nQuestions? Just reply here or call %s.\n\nThank you,\n%s\n%s\n%s" % (
+        first, "\n".join(lines), phone, rec.get("rep") or company.get("qualifier", ""), cname, phone)
+    return "https://mail.google.com/mail/?view=cm&fs=1&to=%s&su=%s&body=%s" % (
+        urllib.parse.quote(email), urllib.parse.quote(su), urllib.parse.quote(body))

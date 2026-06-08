@@ -4,3 +4,4 @@ pypdf==4.3.1
 requests==2.32.3
 psycopg[binary]==3.3.4
 certifi==2024.8.30
+google-auth==2.34.0
