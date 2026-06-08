@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Jobs / Production{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>🔨 Jobs / Production</h1>
+  <span class="sub">Approved → permit → build → final · per-stage checklists & follow-up clocks</span>
+  <div class="grow"></div>
+  <div class="viewtoggle">
+    <a href="{{ url_for('jobs.list_view') }}">☰ List</a>
+    <a class="on">▦ Board</a>
+  </div>
+  <a class="btn primary" href="{{ url_for('jobs.new') }}">+ New Job</a>
+</div>
+
+<div class="toolbar">
+  <span class="tlabel">Sort</span>
+  <select onchange="location.href='?sort='+this.value">
+    <option value="clock" {{ 'selected' if sort=='clock' }}>Days in stage (worst first)</option>
+    <option value="est" {{ 'selected' if sort=='est' }}>Contract value (high→low)</option>
+    <option value="name" {{ 'selected' if sort=='name' }}>Name (A→Z)</option>
+  </select>
+  <span class="total">
+    {% if overdue %}<span class="od">🔴 {{ overdue }} overdue</span>{% endif %}
+    <span>{{ money_k(grand) }} <small>active contract value</small></span>
+  </span>
+</div>
+
+<div class="board">
+  {% for c in cols %}
+  <div class="col" data-stage="{{ c.stage.key }}"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="dropCard(event,'{{ c.stage.key }}')">
+    <h3><span class="dot" style="background:{{ c.stage.color }}"></span>{{ c.stage.name }}
+      {% if c.total %}<span class="coltot">{{ money_k(c.total) }}</span>{% endif %}
+      <span class="cnt" style="margin-left:{{ '6px' if c.total else 'auto' }}">{{ c.cards|length }}</span>
+    </h3>
+    <div class="cards">
+      {% for j in c.cards %}
+      <div class="kcard {{ j._fs.level if j._fs.level!='ok' }}" draggable="true" data-id="{{ j.id }}"
+           ondragstart="dragCard(event,{{ j.id }})" ondragend="this.classList.remove('dragging')"
+           onclick="location.href='{{ url_for('jobs.detail', job_id=j.id) }}'">
+        {% if j._fs.level!='ok' %}<div class="flag">{{ '🔴' if j._fs.level=='hot' else '🟠' }}</div>{% endif %}
+        {% if j.rid %}<div class="rid">{{ j.rid }}</div>{% endif %}
+        <div class="nm">{{ j.name }}</div>
+        <div class="wt">{{ j.work_type or 'Roofing' }}{% if j.contract_value %} · <span class="est">{{ j.contract_value }}</span>{% endif %}</div>
+        <div class="prog"><i style="width:{{ j._pct }}%"></i></div>
+        <div class="foot">
+          {% set col = 'var(--danger)' if j._fs.level=='hot' else ('var(--warn)' if j._fs.level=='stalled' else 'var(--ok)') %}
+          <span class="spill" style="background:{{ col }}22;color:{{ col }}">{{ j._fs.days }}d</span>
+          <span class="muted">{{ j._done }}/{{ j._total }} done{% if j.contract_value %} · 💵 {{ (j._paid_pct*100)|round|int }}%{% endif %}</span>
+        </div>
+      </div>
+      {% endfor %}
+      {% if not c.cards %}<div class="muted" style="padding:6px">—</div>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+function dragCard(e,id){e.dataTransfer.setData('text/plain',id);e.target.classList.add('dragging')}
+function dropCard(e,stage){
+  e.preventDefault();
+  document.querySelectorAll('.col').forEach(c=>c.classList.remove('dragover'));
+  const id=e.dataTransfer.getData('text/plain');
+  fetch('{{ url_for("jobs.board") }}'+id+'/move',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stage:stage})
+  }).then(r=>r.json()).then(d=>{if(d.ok)location.reload()});
+}
+</script>
+{% endblock %}

@@ -1,0 +1,187 @@
+# -*- coding: utf-8 -*-
+"""Orders + Order Manager (AccuLynx parity).
+
+Material + Labor purchase orders generated from a job's estimate, queued across
+jobs in the Order Manager. Vendors are admin-managed in Settings.
+"""
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+
+import db
+import theme
+
+bp = Blueprint("orders", __name__, url_prefix="/orders")
+
+TYPES = ["Material", "Labor"]
+STATUSES = ["draft", "ordered", "delivered", "received"]
+
+
+@bp.app_context_processor
+def _inject():
+    return {"job_orders": lambda job_id: db.all_rows("orders", "job_id=?", (job_id,), "id DESC")}
+
+
+def lines_for(order_id):
+    return db.all_rows("order_lines", "order_id=?", (order_id,), "sort, id")
+
+
+def order_total(order_id):
+    return sum((l.get("qty") or 0) * (l.get("cost") or 0) for l in lines_for(order_id))
+
+
+def _next_po(otype):
+    rows = db.all_rows("orders", order="id DESC")
+    n = (rows[0]["id"] + 1) if rows else 1
+    return "PO-%s-%04d" % (otype[0].upper(), n)
+
+
+# ---- Order Manager (cross-job queue) --------------------------------------
+
+@bp.route("/")
+def index():
+    dept = theme.current_department()
+    rows = db.all_rows("orders", "department=?", (dept,), "id DESC")
+    status_f = request.args.get("status")
+    type_f = request.args.get("type")
+    vendor_f = request.args.get("vendor")
+    if status_f:
+        rows = [o for o in rows if o["status"] == status_f]
+    if type_f:
+        rows = [o for o in rows if o["type"] == type_f]
+    if vendor_f:
+        rows = [o for o in rows if (o.get("vendor") or "") == vendor_f]
+    jobs = {j["id"]: j for j in db.all_rows("jobs")}
+    for o in rows:
+        o["_job"] = jobs.get(o["job_id"])
+        o["_total"] = order_total(o["id"])
+    counts = {s: len([o for o in db.all_rows("orders", "department=?", (dept,)) if o["status"] == s])
+              for s in STATUSES}
+    vendors = sorted({o.get("vendor") for o in db.all_rows("orders", "department=?", (dept,)) if o.get("vendor")})
+    return render_template("orders_index.html", orders=rows, counts=counts, statuses=STATUSES,
+                           types=TYPES, vendors=vendors, status_f=status_f, type_f=type_f,
+                           vendor_f=vendor_f, total=len(db.all_rows("orders", "department=?", (dept,))))
+
+
+# ---- generate from estimate -----------------------------------------------
+
+@bp.route("/generate/<int:job_id>", methods=["POST"])
+def generate(job_id):
+    """Create a Material PO (material lines) + Labor PO (labor lines) from the
+    job's estimate. Categorizes each estimate line by description."""
+    from modules import estimates as est
+    from modules import worksheet as ws
+    job = db.get("jobs", job_id)
+    if not job:
+        return redirect(url_for("jobs.board"))
+    rows = db.all_rows("estimates", "job_id=?", (job_id,), "id DESC")
+    e = next((x for x in rows if x.get("status") == "signed"), rows[0] if rows else None)
+    if not e:
+        flash("No estimate on this job to generate orders from.", "error")
+        return redirect(url_for("jobs.detail", job_id=job_id))
+    sections = est._load_sections(e["id"])
+    buckets = {"Material": [], "Labor": []}
+    for s in sections:
+        for ln in s["_lines"]:
+            cat = ws._category_for(ln.get("description"), ln.get("unit"))
+            kind = "Labor" if cat == "Labor" else "Material"  # Permit/Overhead/Other -> Material PO
+            buckets[kind].append({"description": ln.get("description", ""), "unit": ln.get("unit", "EA"),
+                                  "qty": ln.get("qty", 0), "cost": ln.get("cost", 0)})
+    made = []
+    for otype, lines in buckets.items():
+        if not lines:
+            continue
+        oid = db.insert("orders", {"job_id": job_id, "type": otype, "po_number": _next_po(otype),
+                                   "status": "draft", "department": job.get("department"),
+                                   "notes": "Generated from %s" % e.get("number", "estimate")})
+        for i, ln in enumerate(lines):
+            db.insert("order_lines", {"order_id": oid, "sort": i, **ln})
+        made.append(otype)
+        db.add_activity("job", job_id, "automation", "%s order generated from %s" % (otype, e.get("number")))
+    if made:
+        flash("Generated %s order(s) from %s." % (" + ".join(made), e.get("number")), "ok")
+    else:
+        flash("Nothing to order from this estimate.", "error")
+    return redirect(url_for("jobs.detail", job_id=job_id))
+
+
+# ---- order detail ----------------------------------------------------------
+
+@bp.route("/<int:order_id>")
+def detail(order_id):
+    o = db.get("orders", order_id)
+    if not o:
+        return redirect(url_for("orders.index"))
+    return render_template("orders_detail.html", o=o, lines=lines_for(order_id),
+                           job=db.get("jobs", o["job_id"]) if o.get("job_id") else None,
+                           total=order_total(order_id), statuses=STATUSES,
+                           vendors=db.all_rows("vendors", order="name"))
+
+
+@bp.route("/<int:order_id>/save", methods=["POST"])
+def save(order_id):
+    data = request.get_json(silent=True) or {}
+    db.update("orders", order_id, vendor=data.get("vendor", ""), po_number=data.get("po_number", ""),
+              notes=data.get("notes", ""))
+    db.execute("DELETE FROM order_lines WHERE order_id=?", (order_id,))
+    for i, ln in enumerate(data.get("lines", [])):
+        if not (ln.get("description") or "").strip():
+            continue
+        db.insert("order_lines", {"order_id": order_id, "sort": i,
+                                  "description": ln.get("description", ""), "unit": ln.get("unit", "EA"),
+                                  "qty": float(ln.get("qty") or 0), "cost": float(ln.get("cost") or 0)})
+    return jsonify({"ok": True, "total": order_total(order_id)})
+
+
+@bp.route("/<int:order_id>/status", methods=["POST"])
+def status(order_id):
+    st = request.form.get("status")
+    o = db.get("orders", order_id)
+    if not o or st not in STATUSES:
+        return redirect(url_for("orders.detail", order_id=order_id))
+    fields = {"status": st}
+    if st == "ordered" and not o.get("ordered_date"):
+        fields["ordered_date"] = db.today()
+    if st in ("delivered", "received") and not o.get("delivery_date"):
+        fields["delivery_date"] = db.today()
+    db.update("orders", order_id, **fields)
+    if o.get("job_id"):
+        db.add_activity("job", o["job_id"], "automation",
+                        "%s order %s marked %s" % (o["type"], o.get("po_number") or "", st))
+    flash("Order marked %s." % st, "ok")
+    return redirect(url_for("orders.detail", order_id=order_id))
+
+
+@bp.route("/<int:order_id>/print")
+def print_view(order_id):
+    o = db.get("orders", order_id)
+    if not o:
+        return redirect(url_for("orders.index"))
+    return render_template("order_print.html", o=o, lines=lines_for(order_id),
+                           job=db.get("jobs", o["job_id"]) if o.get("job_id") else None,
+                           total=order_total(order_id))
+
+
+@bp.route("/<int:order_id>/delete", methods=["POST"])
+def delete(order_id):
+    db.delete("orders", order_id)
+    db.execute("DELETE FROM order_lines WHERE order_id=?", (order_id,))
+    flash("Order deleted.", "ok")
+    return redirect(url_for("orders.index"))
+
+
+# ---- vendors (admin-managed) ----------------------------------------------
+
+@bp.route("/vendors", methods=["GET", "POST"])
+def vendors():
+    if request.method == "POST":
+        db.insert("vendors", {f: request.form.get(f, "").strip()
+                              for f in ("name", "type", "phone", "email", "address")})
+        flash("Vendor added.", "ok")
+        return redirect(url_for("orders.vendors"))
+    return render_template("vendors.html", vendors=db.all_rows("vendors", order="name"), types=TYPES)
+
+
+@bp.route("/vendors/<int:vendor_id>/delete", methods=["POST"])
+def vendor_delete(vendor_id):
+    db.delete("vendors", vendor_id)
+    flash("Vendor removed.", "ok")
+    return redirect(url_for("orders.vendors"))

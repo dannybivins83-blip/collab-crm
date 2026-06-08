@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Permits{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>🏛️ Permits</h1>
+  <div class="grow"></div>
+  <a class="btn primary" href="{{ url_for('permits.new') }}">+ New Permit</a>
+</div>
+<table class="grid">
+  <tr><th>Job</th><th>AHJ</th><th>County</th><th>System</th><th>Permit #</th><th>Status</th><th>Submitted</th><th>Approved</th></tr>
+  {% for p in permits %}
+  <tr onclick="location.href='{{ url_for('permits.detail', permit_id=p.id) }}'" style="cursor:pointer">
+    <td>{% if p._job %}{{ p._job.name }}{% else %}—{% endif %}</td>
+    <td>{{ p.ahj }}</td><td>{{ p.county }}</td><td>{{ p.system }}</td>
+    <td>{{ p.permit_number or '' }}</td><td><span class="badge">{{ p.status }}</span></td>
+    <td class="muted">{{ p.submitted_date or '' }}</td><td class="muted">{{ p.approved_date or '' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="empty">No permits yet.</td></tr>{% endfor %}
+</table>
+{% endblock %}

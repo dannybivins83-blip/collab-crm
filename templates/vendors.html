@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Vendors{% endblock %}
+{% block body %}
+<div class="page-head"><a class="btn ghost" href="{{ url_for('orders.index') }}">← Order Manager</a><h1>🏷️ Vendors</h1></div>
+<div class="card" style="max-width:760px">
+  <table class="grid">
+    <tr><th>Name</th><th>Type</th><th>Phone</th><th>Email</th><th></th></tr>
+    {% for v in vendors %}
+    <tr><td><b>{{ v.name }}</b></td><td>{{ v.type }}</td><td>{{ v.phone }}</td><td>{{ v.email }}</td>
+      <td class="right"><form method="post" action="{{ url_for('orders.vendor_delete', vendor_id=v.id) }}"><button class="btn sm danger" type="submit">Remove</button></form></td></tr>
+    {% else %}<tr><td colspan="5" class="empty">No vendors yet.</td></tr>{% endfor %}
+  </table>
+  <form method="post" class="row" style="margin-top:14px;align-items:flex-end">
+    <div class="field"><label>Name</label><input name="name" required></div>
+    <div class="field"><label>Type</label><select name="type">{% for t in types %}<option>{{ t }}</option>{% endfor %}<option>Supplier</option></select></div>
+    <div class="field"><label>Phone</label><input name="phone"></div>
+    <div class="field"><label>Email</label><input name="email"></div>
+    <div class="field" style="flex:2"><label>Address</label><input name="address"></div>
+    <button class="primary" type="submit">Add vendor</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Sync from AccuLynx{% endblock %}
+{% block body %}
+<div class="page-head"><h1>🔄 Sync from AccuLynx</h1>
+  <span class="sub">{% if company.acculynx_last_sync %}Last sync: {{ company.acculynx_last_sync }}{% else %}Never synced{% endif %}</span>
+</div>
+
+<div class="detail">
+  <div class="card">
+    <h2>API connection</h2>
+    <form method="post" action="{{ url_for('sync.save') }}">
+      <div class="field"><label>AccuLynx API Key (Bearer token)</label>
+        <input name="acculynx_api_key" type="password" value="{{ company.acculynx_api_key or '' }}" placeholder="paste your key">
+        <div class="muted" style="margin-top:6px">Get it at <a href="https://my.acculynx.com/apikeys" target="_blank">my.acculynx.com/apikeys</a> → Create Key (admin only). Each location needs its own key.</div>
+      </div>
+      <div class="field"><label>API base URL</label>
+        <input name="acculynx_api_base" value="{{ company.acculynx_api_base or default_base }}">
+        <div class="muted" style="margin-top:6px">Default: {{ default_base }} — change only if AccuLynx gives you a different host.</div>
+      </div>
+      <label class="check" style="max-width:360px"><input type="checkbox" name="acculynx_auto" {{ 'checked' if company.acculynx_auto }}> <span>Enable scheduled auto-sync</span></label>
+      <button class="primary" type="submit">💾 Save connection</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Run a sync</h2>
+    <p class="muted">Pulls jobs + leads from AccuLynx and upserts them here (matches by name; updates status, creates contacts). Shared across all CRM users.</p>
+    <form method="post" action="{{ url_for('sync.run') }}">
+      <label class="check" style="max-width:420px"><input type="checkbox" name="deep"> <span>Deep sync — also pull each job's <b>notes (messages)</b> + <b>documents</b> via the API</span></label>
+      <button class="accent" type="submit" {{ '' if company.acculynx_api_key else 'disabled' }}>🔄 Sync now</button>
+      {% if not company.acculynx_api_key %}<div class="muted" style="margin-top:8px">Save an API key first.</div>{% endif %}
+      <div class="muted" style="margin-top:8px">Deep sync uses <code>/jobs/{id}/messages</code> and <code>/jobs/{id}/documents</code> — this is Phase 2 (notes + documents), done cleanly via the API instead of the browser.</div>
+    </form>
+    <div class="muted" style="margin-top:14px">
+      <b>Auto-sync:</b> with the checkbox on, the scheduled task runs this on a cron (set up via the <code>/schedule</code> routine). Because it uses the API key, it runs unattended — no browser or login to AccuLynx needed.
+    </div>
+  </div>
+</div>
+{% endblock %}

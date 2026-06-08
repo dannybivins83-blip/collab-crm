@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Order Manager{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>📦 Order Manager</h1>
+  <span class="sub">{{ orders|length }} of {{ total }}</span>
+  <div class="grow"></div>
+  <a class="btn" href="{{ url_for('orders.vendors') }}">Vendors</a>
+</div>
+
+<div class="listwrap">
+  <aside class="filters">
+    <div class="filt-head">Status {% if status_f or type_f or vendor_f %}<a href="{{ url_for('orders.index') }}" class="muted">clear</a>{% endif %}</div>
+    <a class="filt {{ 'on' if not status_f }}" href="{{ url_for('orders.index') }}">All <span>{{ total }}</span></a>
+    {% for s in statuses %}
+    <a class="filt {{ 'on' if status_f==s }}" href="{{ url_for('orders.index') }}?status={{ s }}">{{ s|capitalize }} <span>{{ counts[s] }}</span></a>
+    {% endfor %}
+    <div class="filt-head" style="margin-top:12px">Type</div>
+    {% for t in types %}<a class="filt {{ 'on' if type_f==t }}" href="{{ url_for('orders.index') }}?type={{ t }}">{{ t }}</a>{% endfor %}
+    {% if vendors %}<div class="filt-head" style="margin-top:12px">Vendor</div>
+    {% for v in vendors %}<a class="filt {{ 'on' if vendor_f==v }}" href="{{ url_for('orders.index') }}?vendor={{ v }}">{{ v }}</a>{% endfor %}{% endif %}
+  </aside>
+
+  <div class="results">
+    {% for o in orders %}
+    <a class="result" href="{{ url_for('orders.detail', order_id=o.id) }}">
+      <span class="res-badge" style="background:{{ 'var(--accent2)' if o.type=='Material' else 'var(--warn)' }}">{{ o.type[0] }}</span>
+      <div class="res-main">
+        <div class="res-name">{{ o.po_number or 'Order #' ~ o.id }} · {{ o.type }}</div>
+        <div class="res-sub">{% if o._job %}{{ o._job.name }}{% endif %}{% if o.vendor %} · {{ o.vendor }}{% endif %}</div>
+        <div class="res-sub">{% if o.ordered_date %}Ordered {{ o.ordered_date }}{% endif %}{% if o.delivery_date %} · Delivery {{ o.delivery_date }}{% endif %}</div>
+      </div>
+      <div class="res-meta">
+        <span class="pill" style="background:var(--accent)22;color:var(--accent)">{{ o.status|capitalize }}</span>
+        <div class="est" style="margin-top:6px">{{ money(o._total) }}</div>
+      </div>
+    </a>
+    {% else %}<div class="empty">No orders. Generate one from a job's estimate (Job → Orders tab).</div>{% endfor %}
+  </div>
+</div>
+{% endblock %}

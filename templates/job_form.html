@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New' if mode=='new' else 'Edit' }} Job{% endblock %}
+{% block body %}
+<div class="page-head"><h1>{{ 'New Job' if mode=='new' else 'Edit Job' }}</h1></div>
+<form method="post" class="card" style="max-width:820px">
+  <div class="row">
+    <div class="field"><label>Job name</label><input name="name" value="{{ job.name or '' }}" required></div>
+    <div class="field"><label>Ref #</label><input name="rid" value="{{ job.rid or '' }}" placeholder="J-2002"></div>
+    <div class="field"><label>Contract value</label><input name="contract_value" value="{{ job.contract_value or '' }}" placeholder="$38,900"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Phone</label><input name="phone" value="{{ job.phone or '' }}"></div>
+    <div class="field"><label>Email</label><input name="email" value="{{ job.email or '' }}"></div>
+    <div class="field"><label>Work type</label>
+      <select name="work_type">{% for w in constants.WORK_TYPES %}<option {{ 'selected' if job.work_type==w }}>{{ w }}</option>{% endfor %}</select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Address</label><input name="address" value="{{ job.address or '' }}"></div>
+    <div class="field"><label>City</label><input name="city" value="{{ job.city or '' }}"></div>
+    <div class="field"><label>State</label><input name="state" value="{{ job.state or 'FL' }}"></div>
+    <div class="field"><label>Zip</label><input name="zip" value="{{ job.zip or '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Sales rep</label><input name="rep" value="{{ job.rep or '' }}"></div>
+    <div class="field"><label>County</label><input name="county" value="{{ job.county or company.default_county or '' }}"></div>
+    <div class="field"><label>AHJ (permit office)</label><input name="ahj" value="{{ job.ahj or '' }}"></div>
+    {% if mode=='new' %}
+    <div class="field"><label>Stage</label>
+      <select name="stage">{% for s in constants.JOB_STAGES %}<option value="{{ s.key }}" {{ 'selected' if s.key=='approved' }}>{{ s.name }}</option>{% endfor %}</select>
+    </div>{% endif %}
+  </div>
+  <div class="row">
+    <div class="field"><label>System (shingle/tile/metal/flat)</label><input name="system" value="{{ job.system or '' }}"></div>
+    <div class="field"><label>Roof area (squares)</label><input name="area" value="{{ job.area or '' }}"></div>
+    <div class="field"><label>Pitch / slope</label><input name="slope" value="{{ job.slope or '' }}"></div>
+    <div class="field"><label>Existing roof</label><input name="existing" value="{{ job.existing or '' }}"></div>
+  </div>
+  <div class="field"><label>Link to contact</label>
+    <select name="contact_id"><option value="">— none —</option>
+      {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if job.contact_id==c.id }}>{{ c.first_name }} {{ c.last_name }}{{ ' · ' ~ c.company if c.company }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field"><label>Notes</label><textarea name="narrative">{{ job.narrative or '' }}</textarea></div>
+  <div style="display:flex;gap:10px">
+    <button class="primary" type="submit">Save</button>
+    <a class="btn ghost" href="{{ url_for('jobs.board') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

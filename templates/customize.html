@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Customize{% endblock %}
+{% block body %}
+<div class="page-head"><h1>🎨 Customize Your CRM</h1>
+  <span class="sub">Type the changes you want — branding, text & labels apply instantly</span>
+</div>
+
+<div class="detail">
+  <div>
+    <form method="post" class="card">
+      <h2>Describe your changes</h2>
+      <p class="muted" style="margin-top:-6px">One change per line. Examples:</p>
+      <ul class="muted" style="margin-top:0">
+        <li>Change the primary color to navy</li>
+        <li>Set the masthead color to #1f3e60</li>
+        <li>Company name to Acme Roofing LLC</li>
+        <li>Set tagline to Quality Roofing Since 2005</li>
+        <li>License to CCC9999999 · Phone to (561) 555-1212</li>
+        <li>Rename Leads to Opportunities</li>
+        <li>Rename Jobs to Projects</li>
+      </ul>
+      <textarea name="changes" style="min-height:140px" placeholder="Change the primary color to forest green&#10;Rename Leads to Opportunities&#10;Set tagline to ..."></textarea>
+      <button class="primary" style="margin-top:10px" type="submit">Apply changes</button>
+      <div class="muted" style="margin-top:8px">Recognized branding/text/label changes apply right away. Anything else is logged below for your team to action — nothing here can break the app.</div>
+    </form>
+
+    <div class="card">
+      <h2>Recent change requests</h2>
+      <table class="grid">
+        <tr><th>When</th><th>By</th><th>Request</th><th>Status</th></tr>
+        {% for r in requests %}
+        <tr>
+          <td class="muted">{{ r.created[5:16] }}</td>
+          <td>{{ r.requested_by }}</td>
+          <td>{{ r.raw_text[:80] }}{% if r.result %}<div class="muted">{{ r.result[:120] }}</div>{% endif %}</td>
+          <td><span class="pill" style="background:{{ 'var(--ok)22' if r.status=='applied' else ('var(--warn)22' if r.status=='partial' else 'var(--mut)22') }};color:{{ 'var(--ok)' if r.status=='applied' else ('var(--warn)' if r.status=='partial' else 'var(--mut)') }}">{{ r.status }}</span>
+            {% if r.status!='applied' %}<form method="post" action="{{ url_for('customize.mark_applied', req_id=r.id) }}" style="display:inline"><button class="btn sm" type="submit">✓</button></form>{% endif %}
+          </td>
+        </tr>
+        {% else %}<tr><td colspan="4" class="empty">No requests yet.</td></tr>{% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Live branding</h2>
+      <div class="muted">These reflect what's applied now.</div>
+      <div style="margin-top:10px"><b>{{ company.name }}</b></div>
+      <div class="muted">{{ company.tagline }}</div>
+      <div class="muted">Lic. {{ company.license }} · {{ company.phone }}</div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        {% for lbl, var in [('Masthead', company.color_masthead), ('Primary', company.color_primary), ('Accent', company.color_accent), ('Warn', company.color_warn), ('Danger', company.color_danger)] %}
+        <div style="text-align:center"><div style="width:42px;height:42px;border-radius:8px;border:1px solid var(--line);background:{{ var }}"></div><div class="muted" style="font-size:10px">{{ lbl }}</div></div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Renamed labels</h2>
+      {% if not labels %}<div class="muted">None yet. Try "Rename Leads to Opportunities".</div>{% endif %}
+      {% for old, new in labels.items() %}
+      <div class="rowline" style="display:flex;justify-content:space-between;align-items:center">
+        <span>{{ old }} → <b>{{ new }}</b></span>
+        <form method="post" action="{{ url_for('customize.del_label', old=old) }}"><button class="btn sm danger" type="submit">✕</button></form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

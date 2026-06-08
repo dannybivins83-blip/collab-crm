@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{% block title %}{{ company.name or 'CRM' }}{% endblock %} · {{ company.name or 'CRM' }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}" />
+<style>
+  :root{
+    --masthead: {{ company.color_masthead or '#24476C' }};
+    --accent: {{ company.color_primary or '#4680BF' }};
+    --accent2: {{ company.color_accent or '#8CC63F' }};
+    --warn: {{ company.color_warn or '#F78300' }};
+    --danger: {{ company.color_danger or '#E25050' }};
+  }
+</style>
+</head>
+<body>
+{% set seg = request.path %}
+<!-- Masthead (navy) -->
+<header class="masthead">
+  <a class="brand" href="{{ url_for('dashboard.home') }}">
+    {% if company.logo_path %}
+      <img src="{{ url_for('uploads', subpath=company.logo_path) }}" alt="logo" class="brand-logo" />
+    {% else %}
+      <span class="brand-mark">🌊</span>
+    {% endif %}
+    <span class="brand-name">{{ company.name or 'White-Label CRM' }}</span>
+  </a>
+  <div class="navgroup dept-picker">
+    <span class="dept" onclick="this.parentElement.querySelector('.dept-menu').classList.toggle('open')">{{ current_department }} <span class="caret">▾</span></span>
+    <div class="dropdown dept-menu">
+      {% for d in departments %}
+      <form method="post" action="{{ url_for('settings.set_department') }}">
+        <input type="hidden" name="department" value="{{ d }}">
+        <button type="submit" class="dept-opt {{ 'on' if d==current_department }}">{{ d }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="grow"></div>
+  <form method="post" action="{{ url_for('sync.run') }}" style="margin:0" title="Sync from AccuLynx">
+    <button class="mh-sync" type="submit" onclick="this.textContent='⏳';this.disabled=true;this.form.submit()">🔄 Sync</button>
+  </form>
+  <span class="mh-lic">Lic. {{ company.license or '—' }}</span>
+  <span class="mh-user">
+    {{ current_user.name if current_user else (company.qualifier or 'Admin') }}
+    <a href="{{ url_for('auth.account') }}" style="color:#cdd9e8" title="My account">👤</a>
+    <a href="{{ url_for('settings.index') }}" style="color:#cdd9e8" title="Settings">⚙</a>
+    <a href="{{ url_for('auth.logout') }}" style="color:#cdd9e8" title="Sign out">⏻</a>
+  </span>
+</header>
+
+<!-- Primary nav (blue) -->
+<nav class="mainnav">
+  <div class="navgroup">
+    <a class="navitem dropdown-toggle">＋ New</a>
+    <div class="dropdown">
+      <a href="{{ url_for('leads.new') }}">New Lead</a>
+      <a href="{{ url_for('contacts.new') }}">New Contact</a>
+      <a href="{{ url_for('jobs.new') }}">New Job</a>
+      <a href="{{ url_for('estimates.new') }}">New Estimate</a>
+    </div>
+  </div>
+  <a class="navitem {{ 'on' if seg=='/' }}" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+  <a class="navitem {{ 'on' if seg.startswith('/contacts') }}" href="{{ url_for('contacts.index') }}">Contacts</a>
+  <a class="navitem {{ 'on' if seg.startswith('/leads') }}" href="{{ url_for('leads.list_view') }}">Leads</a>
+  <div class="navgroup">
+    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/jobs') }}" href="{{ url_for('jobs.list_view') }}">Jobs ▾</a>
+    <div class="dropdown">
+      <a href="{{ url_for('jobs.list_view') }}">All Jobs</a>
+      <a href="{{ url_for('jobs.list_view') }}?bucket=approved">Approved</a>
+      <a href="{{ url_for('jobs.list_view') }}?bucket=completed">Completed</a>
+      <a href="{{ url_for('jobs.list_view') }}?bucket=invoiced">Invoiced</a>
+      <a href="{{ url_for('jobs.list_view') }}?stage=closed">Closed</a>
+      <a href="{{ url_for('jobs.list_view') }}?stage=canceled">Canceled</a>
+      <a href="{{ url_for('jobs.board') }}">▦ Board view</a>
+    </div>
+  </div>
+  <a class="navitem {{ 'on' if seg.startswith('/estimates') }}" href="{{ url_for('estimates.index') }}">Estimates</a>
+  <a class="navitem {{ 'on' if seg.startswith('/reports') }}" href="{{ url_for('reports.index') }}">Reports</a>
+  <div class="navgroup">
+    <a class="navitem dropdown-toggle">Tools ▾</a>
+    <div class="dropdown">
+      <a href="{{ url_for('invoices.index') }}">💵 Invoicing</a>
+      <a href="{{ url_for('quickbooks.settings') }}">💳 QuickBooks</a>
+      <a href="{{ url_for('permits.index') }}">🏛️ Permits</a>
+      <a href="{{ url_for('orders.index') }}">📦 Order Manager</a>
+      <a href="{{ url_for('templates.index') }}">🧩 Estimate Templates</a>
+      <a href="{{ url_for('library.index') }}">📚 Document Library</a>
+      <a href="{{ url_for('sync.index') }}">🔄 Sync from AccuLynx</a>
+      <a href="{{ url_for('calendar.index') }}">📅 Calendar</a>
+      <a href="{{ url_for('tasks.index') }}">✅ Tasks</a>
+      <a href="{{ url_for('comms.index') }}">💬 Communications</a>
+      <a href="{{ url_for('customize.index') }}">🎨 Customize (type changes)</a>
+      <a href="{{ url_for('commissions.index') }}">💰 Commissions</a>
+      <a href="{{ url_for('automations.index') }}">🔀 Workflow Manager</a>
+      <a href="{{ url_for('customfields.index') }}">🧰 Custom Fields & Lists</a>
+      <a href="{{ url_for('settings.index') }}">⚙️ Settings</a>
+    </div>
+  </div>
+  <div class="grow"></div>
+  <form class="navsearch" action="{{ url_for('contacts.index') }}" method="get">
+    <input name="q" placeholder="Job #, Customer Name or Address" value="{{ request.args.get('q','') }}" />
+  </form>
+  <a class="navitem help" href="https://support.acculynx.com" target="_blank">Help</a>
+</nav>
+
+<main class="content">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+</main>
+<script>
+/* Apply white-label UI label renames typed in Customize (display text only). */
+(function(){
+  var L; try{ L = {{ (company.labels or '{}')|safe }}; }catch(e){ L = {}; }
+  var keys = Object.keys(L||{}); if(!keys.length) return;
+  function relabel(el){
+    el.querySelectorAll('.navitem, .dropdown a, h1, .page-title, .jtab, .side a').forEach(function(n){
+      keys.forEach(function(k){
+        if(n.childNodes.length===1 && n.firstChild.nodeType===3){
+          var t=n.textContent;
+          var re=new RegExp('\\b'+k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','g');
+          if(re.test(t)) n.textContent=t.replace(re, L[k]);
+        }
+      });
+    });
+  }
+  relabel(document);
+})();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

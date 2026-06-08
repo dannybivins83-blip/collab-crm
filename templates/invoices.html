@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Invoicing{% endblock %}
+{% block body %}
+<div class="page-head"><h1>💵 Invoicing & Payments</h1><div class="grow"></div><a class="btn primary" href="{{ url_for('invoices.new') }}">+ New Invoice</a></div>
+<div class="kpis">
+  <div class="kpi"><div class="v">{{ money(total) }}</div><div class="l">Invoiced</div></div>
+  <div class="kpi"><div class="v accent">{{ money(paid) }}</div><div class="l">Collected</div></div>
+  <div class="kpi"><div class="v danger">{{ money(due) }}</div><div class="l">Outstanding</div></div>
+</div>
+<table class="grid">
+  <tr><th>Invoice</th><th>Job</th><th>Draw</th><th class="right">Amount</th><th>Status</th><th>Due</th></tr>
+  {% for i in invoices %}
+  <tr onclick="location.href='{{ url_for('invoices.detail', inv_id=i.id) }}'" style="cursor:pointer">
+    <td><b>{{ i.number }}</b></td><td>{% if i._job %}{{ i._job.name }}{% endif %}</td><td>{{ i.draw_key }}</td>
+    <td class="right">{{ money(i.amount) }}</td>
+    <td><span class="pill" style="background:{{ 'var(--ok)22' if i.status=='paid' else 'var(--danger)22' }};color:{{ 'var(--ok)' if i.status=='paid' else 'var(--danger)' }}">{{ i.status }}</span></td>
+    <td class="muted">{{ i.due_date or '' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="empty">No invoices yet.</td></tr>{% endfor %}
+</table>
+{% endblock %}

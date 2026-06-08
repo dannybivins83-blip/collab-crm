@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}{{ l.name }}{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a href="{{ url_for('leads.board') }}" class="muted">← Pipeline</a>
+  <h1 style="margin-left:8px">{{ l.name }}</h1>
+  {% set col = 'var(--danger)' if l._fs.level=='hot' else ('var(--warn)' if l._fs.level=='stalled' else 'var(--ok)') %}
+  <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ l._stage.name }} · {{ l._fs.days }}d</span>
+  <div class="grow"></div>
+  <a class="btn" href="{{ url_for('leads.edit', lead_id=l.id) }}">Edit</a>
+  {% if l.stage not in ('won','lost') %}
+  <form method="post" action="{{ url_for('leads.convert', lead_id=l.id) }}" style="display:inline"
+        onsubmit="return confirm('Convert this lead to a production Job?')">
+    <button class="accent" type="submit">✓ Won → Create Job</button>
+  </form>{% endif %}
+</div>
+
+<div class="detail">
+  <div>
+    <div class="card">
+      <div class="row">
+        <div>📍 {{ l.address or '—' }}</div>
+        {% if l.phone %}<div><a href="tel:{{ l.phone }}">📞 {{ l.phone }}</a></div>{% endif %}
+        {% if l.email %}<div><a href="mailto:{{ l.email }}">✉️ {{ l.email }}</a></div>{% endif %}
+      </div>
+      <div class="muted" style="margin-top:8px">{{ l.work_type }}{% if l.source %} · {{ l.source }}{% endif %}{% if l.rep %} · {{ l.rep }}{% endif %}{% if l.estimate %} · <b class="est">{{ l.estimate }}</b>{% endif %}</div>
+      {% if l.narrative %}<p style="margin:12px 0 0">{{ l.narrative }}</p>{% endif %}
+      {% if l.todo %}<div class="check" style="margin-top:10px;background:#fff7e6;border:1px solid #f0c97a">▶ <b>To-do:</b> {{ l.todo }}</div>{% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Stage</h2>
+      <div class="stagebtns">
+        {% for s in constants.LEAD_STAGES %}
+        <form method="post" action="{{ url_for('leads.set_stage', lead_id=l.id) }}" style="display:inline">
+          <input type="hidden" name="stage" value="{{ s.key }}">
+          <button class="{{ 'cur' if s.key==l.stage }}" type="submit">{{ loop.index }}. {{ s.name }}</button>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Checklist — {{ l._stage.name }}</h2>
+      {% for c in l._stage.checklist %}
+        {% set key = l._stage.key ~ ':' ~ loop.index0 %}
+        <form method="post" action="{{ url_for('leads.check', lead_id=l.id) }}">
+          <input type="hidden" name="key" value="{{ key }}">
+          <label class="check {{ 'done' if l._checks.get(key) }}">
+            <input type="checkbox" {{ 'checked' if l._checks.get(key) }} onchange="this.form.submit()">
+            <span>{{ c }}</span>
+          </label>
+        </form>
+      {% endfor %}
+    </div>
+
+    <div class="card" id="meas">
+      <div class="panel-head"><span>📐 Roof Measurements (RoofGraf)</span>
+        {% if measurement and measurement.report_file %}<a class="btn sm" href="{{ url_for('uploads', subpath=measurement.report_file) }}" target="_blank">View report</a>{% endif %}
+      </div>
+      <form method="post" action="{{ url_for('measurements.upload_lead', lead_id=l.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+        <div style="flex:1"><label>Upload RoofGraf report (PDF — auto-parses squares & pitch)</label><input type="file" name="file" accept="application/pdf" required></div>
+        <button class="primary" type="submit">Upload</button>
+      </form>
+      {% set m = measurement or {} %}
+      <form method="post" action="{{ url_for('measurements.save_lead', lead_id=l.id) }}">
+        <div class="row">
+          <div class="field"><label>Squares</label><input name="squares" type="number" step="0.01" value="{{ m.squares or '' }}"></div>
+          <div class="field"><label>Pitch</label><input name="pitch" value="{{ m.pitch or '' }}" placeholder="6:12"></div>
+          <div class="field"><label>Waste %</label><input name="waste_pct" type="number" step="0.1" value="{{ m.waste_pct or 15 }}"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Ridge LF</label><input name="ridge_lf" type="number" step="0.1" value="{{ m.ridge_lf or '' }}"></div>
+          <div class="field"><label>Hip LF</label><input name="hip_lf" type="number" step="0.1" value="{{ m.hip_lf or '' }}"></div>
+          <div class="field"><label>Valley LF</label><input name="valley_lf" type="number" step="0.1" value="{{ m.valley_lf or '' }}"></div>
+          <div class="field"><label>Eave LF</label><input name="eave_lf" type="number" step="0.1" value="{{ m.eave_lf or '' }}"></div>
+          <div class="field"><label>Rake LF</label><input name="rake_lf" type="number" step="0.1" value="{{ m.rake_lf or '' }}"></div>
+        </div>
+        <button class="primary" type="submit">💾 Save measurements</button>
+        <span class="muted" style="margin-left:10px">Feeds estimate quantities (Apply measurements). Carries to the job when this lead is won.</span>
+      </form>
+      {% if documents %}<div style="margin-top:10px">{% for d in documents %}<div><span class="badge">{{ d.category }}</span> <a href="{{ url_for('uploads', subpath='measurements/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a></div>{% endfor %}</div>{% endif %}
+    </div>
+
+    {% if estimates %}
+    <div class="card">
+      <h2>Estimates</h2>
+      {% for e in estimates %}<div><a href="{{ url_for('estimates.detail', est_id=e.id) }}">{{ e.number }} — {{ e.title }}</a> <span class="badge">{{ e.status }}</span></div>{% endfor %}
+    </div>{% endif %}
+  </div>
+
+  <div>
+    {% set cflds = custom_fields('lead') %}
+    {% if cflds %}
+    <div class="card">
+      <div class="panel-head"><span>🧰 Custom Fields</span></div>
+      {% set cvals = custom_values('lead', l.id) %}
+      <form method="post" action="{{ url_for('customfields.save_values', entity_type='lead', entity_id=l.id) }}" class="cf-grid">
+        {% for f in cflds %}
+        <div class="field"><label>{{ f.label }}</label>
+          {% if f.field_type=='select' %}<select name="cf_{{ f.id }}"><option value=""></option>{% for o in field_opts(f) %}<option {{ 'selected' if cvals.get(f.id)==o }}>{{ o }}</option>{% endfor %}</select>
+          {% elif f.field_type=='checkbox' %}<input type="checkbox" name="cf_{{ f.id }}" value="yes" {{ 'checked' if cvals.get(f.id)=='yes' }}>
+          {% elif f.field_type=='number' %}<input type="number" name="cf_{{ f.id }}" value="{{ cvals.get(f.id,'') }}">
+          {% elif f.field_type=='date' %}<input type="date" name="cf_{{ f.id }}" value="{{ cvals.get(f.id,'') }}">
+          {% else %}<input name="cf_{{ f.id }}" value="{{ cvals.get(f.id,'') }}">{% endif %}
+        </div>
+        {% endfor %}
+        <button class="btn sm primary" type="submit">Save fields</button>
+      </form>
+    </div>
+    {% endif %}
+    <div class="card">
+      <h2>Quick actions</h2>
+      <form method="post" action="{{ url_for('leads.assign', lead_id=l.id) }}" style="display:flex;gap:6px;margin-bottom:8px">
+        <select name="rep" style="flex:1">
+          <option value="">— assign rep —</option>
+          {% for r in reps %}<option {{ 'selected' if l.rep==r }}>{{ r }}</option>{% endfor %}
+        </select>
+        <button type="submit">Assign</button>
+      </form>
+      <form method="post" action="{{ url_for('leads.touch', lead_id=l.id) }}"><button class="primary" style="width:100%" type="submit">✓ Log touch (today)</button></form>
+      <a class="btn" style="width:100%;margin-top:8px;text-align:center" href="{{ url_for('estimates.new') }}?lead_id={{ l.id }}">📝 New Estimate</a>
+      <form method="post" action="{{ url_for('leads.delete', lead_id=l.id) }}" onsubmit="return confirm('Delete this lead?')" style="margin-top:8px">
+        <button class="danger" style="width:100%" type="submit">Delete lead</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Log activity</h2>
+      <form method="post" action="{{ url_for('leads.note', lead_id=l.id) }}">
+        <div class="field"><select name="kind"><option value="note">Note</option><option value="call">Call</option><option value="email">Email</option><option value="sms">SMS/Text</option></select></div>
+        <div class="field"><textarea name="text" placeholder="What happened…" required></textarea></div>
+        <button class="primary" type="submit">Add</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Activity timeline</h2>
+      <ul class="timeline">
+        {% for a in activity %}
+        <li><div class="k">{{ a.kind }}</div><div class="t">{{ a.text }}</div><div class="d">{{ a.created }}</div></li>
+        {% else %}<li class="muted">No activity yet.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

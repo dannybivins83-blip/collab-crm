@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Tasks{% endblock %}
+{% block body %}
+<div class="page-head"><h1>✅ Tasks & Follow-ups</h1><span class="sub">{{ tasks|length }} open</span></div>
+<div class="detail">
+  <div class="card">
+    <h2>Open tasks</h2>
+    <table class="grid">
+      <tr><th>Task</th><th>Linked</th><th>Due</th><th>Assignee</th><th></th></tr>
+      {% for t in tasks %}
+      <tr>
+        <td>{{ t.text }}</td>
+        <td><span class="badge">{{ t._link[0] }}</span> <a href="{{ t._link[2] }}">{{ t._link[1] }}</a></td>
+        <td>{% if t.due %}<span class="pill" style="background:{{ 'var(--danger)22' if t._overdue else 'var(--panel2)' }};color:{{ 'var(--danger)' if t._overdue else 'var(--mut)' }}">{{ t.due }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{{ t.assignee or '' }}</td>
+        <td class="right"><form method="post" action="{{ url_for('tasks.done', task_id=t.id) }}"><button class="btn sm accent" type="submit">Done</button></form></td>
+      </tr>
+      {% else %}<tr><td colspan="5" class="empty">No open tasks 🎉</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h2>Add task</h2>
+    <form method="post" action="{{ url_for('tasks.new') }}">
+      <div class="field"><label>Task</label><input name="text" required></div>
+      <div class="field"><label>Link to</label>
+        <select name="target">
+          <optgroup label="Leads">{% for l in leads %}<option value="lead:{{ l.id }}">🎯 {{ l.name }}</option>{% endfor %}</optgroup>
+          <optgroup label="Jobs">{% for j in jobs %}<option value="job:{{ j.id }}">🔨 {{ j.name }}</option>{% endfor %}</optgroup>
+        </select>
+      </div>
+      <div class="row">
+        <div class="field"><label>Due</label><input type="date" name="due"></div>
+        <div class="field"><label>Assignee</label><select name="assignee"><option value=""></option>{% for u in users %}<option>{{ u.name }}</option>{% endfor %}</select></div>
+      </div>
+      <button class="primary" type="submit">Add task</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+# ---- Sensitive: never commit customer data or uploaded files (PII) ----
+data/
+*.db
+*.sqlite
+*.sqlite3
+uploads/
+# (uploads holds driver's licenses, COI, customer docs — keep OUT of git;
+#  on the host these live on the Render persistent disk at /data/uploads)
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ---- Local / editor / OS ----
+.vercel
+.env
+.env.*
+*.log
+/tmp/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ---- Misc scratch ----
+_seabreeze_docs/
+*.zip

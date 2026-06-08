@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block body %}
+<div class="page-head"><h1>📅 Calendar & Scheduling</h1></div>
+<div class="detail">
+  <div>
+    <div class="card">
+      <h2>Upcoming</h2>
+      <table class="grid">
+        <tr><th>When</th><th>Title</th><th>Type</th><th>Who</th><th>Assignee</th><th></th></tr>
+        {% for a in upcoming %}
+        <tr><td><b>{{ a.start }}</b>{% if a.end %}–{{ a.end[11:] or a.end }}{% endif %}</td>
+          <td>{{ a.title }}{% if a.location %}<div class="muted">📍 {{ a.location }}</div>{% endif %}</td>
+          <td><span class="badge">{{ a.kind }}</span></td><td>{{ a._who }}</td><td>{{ a.assignee }}</td>
+          <td class="right"><form method="post" action="{{ url_for('calendar.delete', appt_id=a.id) }}"><button class="btn sm" type="submit">✕</button></form></td></tr>
+        {% else %}<tr><td colspan="6" class="empty">Nothing scheduled.</td></tr>{% endfor %}
+      </table>
+    </div>
+    {% if past %}
+    <div class="card"><h2 class="muted">Past</h2>
+      <table class="grid">{% for a in past %}<tr><td class="muted">{{ a.start }}</td><td>{{ a.title }}</td><td>{{ a._who }}</td></tr>{% endfor %}</table>
+    </div>{% endif %}
+  </div>
+  <div class="card">
+    <h2>New appointment</h2>
+    <form method="post" action="{{ url_for('calendar.new') }}">
+      <div class="field"><label>Title</label><input name="title" required></div>
+      <div class="field"><label>Type</label><select name="kind">{% for k in kinds %}<option>{{ k }}</option>{% endfor %}</select></div>
+      <div class="row">
+        <div class="field"><label>Start</label><input type="datetime-local" name="start" required></div>
+        <div class="field"><label>End</label><input type="datetime-local" name="end"></div>
+      </div>
+      <div class="field"><label>Link to</label>
+        <select name="target"><option value="">— none —</option>
+          <optgroup label="Leads">{% for l in leads %}<option value="lead:{{ l.id }}">🎯 {{ l.name }}</option>{% endfor %}</optgroup>
+          <optgroup label="Jobs">{% for j in jobs %}<option value="job:{{ j.id }}">🔨 {{ j.name }}</option>{% endfor %}</optgroup>
+        </select>
+      </div>
+      <div class="row">
+        <div class="field"><label>Assignee</label><select name="assignee"><option value=""></option>{% for u in users %}<option>{{ u.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Reminder</label><input type="date" name="reminder"></div>
+      </div>
+      <div class="field"><label>Location</label><input name="location"></div>
+      <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
+      <button class="primary" type="submit">Schedule</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

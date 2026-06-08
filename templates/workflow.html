@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Workflow Manager{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a class="btn ghost" href="{{ url_for('settings.index') }}">← Settings</a>
+  <h1>🔀 Workflow Manager</h1>
+  <span class="sub">Rules that fire when a job/lead reaches a milestone — tasks, reminders, email drafts (never auto-sent)</span>
+</div>
+
+<div class="card">
+  <h2>Automations</h2>
+  <table class="grid">
+    <tr><th>Name</th><th>When stage →</th><th>Action</th><th>Offset</th><th>Active</th><th></th></tr>
+    {% for a in autos %}
+    <tr>
+      <td><b>{{ a.name }}</b><div class="muted">{{ a.template_text[:80] }}</div></td>
+      <td><span class="badge">{{ a._stage_name }}</span></td>
+      <td>{{ a.action_type.replace('_',' ') }}</td>
+      <td>{{ a.offset_days }}d</td>
+      <td><form method="post" action="{{ url_for('automations.toggle', auto_id=a.id) }}"><button class="btn sm {{ 'accent' if a.active else '' }}" type="submit">{{ 'On' if a.active else 'Off' }}</button></form></td>
+      <td class="right">
+        <button class="btn sm" onclick="document.getElementById('edit{{ a.id }}').style.display='table-row'">Edit</button>
+        <form method="post" action="{{ url_for('automations.delete', auto_id=a.id) }}" style="display:inline" onsubmit="return confirm('Delete automation?')"><button class="btn sm danger" type="submit">✕</button></form>
+      </td>
+    </tr>
+    <tr id="edit{{ a.id }}" style="display:none"><td colspan="6">
+      <form method="post" action="{{ url_for('automations.save', auto_id=a.id) }}" class="row" style="align-items:flex-end">
+        <div class="field"><label>Name</label><input name="name" value="{{ a.name }}"></div>
+        <div class="field"><label>Trigger stage</label><select name="trigger_stage">{% for ent,key,nm in stages %}<option value="{{ key }}" {{ 'selected' if a.trigger_stage==key }}>{{ ent }}: {{ nm }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Action</label><select name="action_type">{% for act in actions %}<option {{ 'selected' if a.action_type==act }}>{{ act }}</option>{% endfor %}</select></div>
+        <div class="field" style="max-width:90px"><label>Offset days</label><input name="offset_days" type="number" value="{{ a.offset_days }}"></div>
+        <div class="field" style="flex:2"><label>Template (use {customer} {address} {ahj} {stage} {company})</label><input name="template_text" value="{{ a.template_text }}"></div>
+        <button class="primary" type="submit">Save</button>
+      </form>
+    </td></tr>
+    {% else %}<tr><td colspan="6" class="empty">No automations.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="card" style="max-width:900px">
+  <h2>New automation</h2>
+  <form method="post" action="{{ url_for('automations.new') }}" class="row" style="align-items:flex-end">
+    <div class="field"><label>Name</label><input name="name" required></div>
+    <div class="field"><label>Trigger stage</label><select name="trigger_stage">{% for ent,key,nm in stages %}<option value="{{ key }}">{{ ent }}: {{ nm }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Action</label><select name="action_type">{% for act in actions %}<option>{{ act }}</option>{% endfor %}</select></div>
+    <div class="field" style="max-width:90px"><label>Offset days</label><input name="offset_days" type="number" value="0"></div>
+    <div class="field" style="flex:2"><label>Template text</label><input name="template_text" placeholder="Hi {customer}, your permit at {address}..."></div>
+    <button class="primary" type="submit">Add</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block body %}
+<div class="page-head"><h1>📈 Reports & Dashboards</h1></div>
+<div class="kpis">
+  <div class="kpi"><div class="v accent">{{ money_k(pipeline_value) }}</div><div class="l">Open sales pipeline</div></div>
+  <div class="kpi"><div class="v">{{ money_k(job_value) }}</div><div class="l">Active job value</div></div>
+  <div class="kpi"><div class="v">{{ win_rate }}%</div><div class="l">Win rate ({{ won }}W/{{ lost }}L)</div></div>
+  <div class="kpi"><div class="v accent">{{ money_k(revenue_collected) }}</div><div class="l">Revenue collected</div></div>
+  <div class="kpi"><div class="v danger">{{ money_k(outstanding) }}</div><div class="l">Outstanding A/R</div></div>
+</div>
+
+<div class="detail">
+  <div>
+    <div class="card">
+      <h2>Sales pipeline by stage</h2>
+      <table class="grid"><tr><th>Stage</th><th class="right">Count</th><th class="right">Value</th></tr>
+        {% for r in lead_rows %}<tr><td>{{ r.name }}</td><td class="right">{{ r.count }}</td><td class="right">{{ money(r.value) }}</td></tr>{% endfor %}
+      </table>
+    </div>
+    <div class="card">
+      <h2>Production by stage</h2>
+      <table class="grid"><tr><th>Stage</th><th class="right">Count</th><th class="right">Value</th></tr>
+        {% for r in job_rows %}<tr><td>{{ r.name }}</td><td class="right">{{ r.count }}</td><td class="right">{{ money(r.value) }}</td></tr>{% endfor %}
+      </table>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <h2>🏆 Salesperson leaderboard</h2>
+      <table class="grid"><tr><th>Rep</th><th class="right">Deals</th><th class="right">Won $</th></tr>
+        {% for rep, v in leaderboard %}<tr><td>{{ rep }}</td><td class="right">{{ v.deals }}</td><td class="right">{{ money(v.won) }}</td></tr>
+        {% else %}<tr><td colspan="3" class="muted">No won deals yet.</td></tr>{% endfor %}
+      </table>
+    </div>
+    <div class="card">
+      <h2>Lead source performance</h2>
+      <table class="grid"><tr><th>Source</th><th class="right">Open</th><th class="right">Overdue</th><th class="right">Value</th></tr>
+        {% for src, v in source_rows %}<tr><td>{{ src }}</td><td class="right">{{ v.open }}</td><td class="right">{{ v.overdue }}</td><td class="right">{{ money(v.value) }}</td></tr>
+        {% else %}<tr><td colspan="4" class="muted">No open leads.</td></tr>{% endfor %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Document Library{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>📚 Company Document Library</h1>
+  <span class="sub">{{ total }} documents · warranties, product/color charts, permit packages, licenses, sign-up packages & more</span>
+</div>
+
+<div class="toolbar">
+  <form method="get" style="display:flex;gap:8px;flex:1">
+    <input name="q" value="{{ q }}" placeholder="Search documents, AHJ, system…" style="max-width:340px">
+    <select name="cat" onchange="this.form.submit()" style="width:auto">
+      <option value="">All categories</option>
+      {% for c, n in counts.items() %}<option value="{{ c }}" {{ 'selected' if cat==c }}>{{ c }} ({{ n }})</option>{% endfor %}
+    </select>
+    <button class="btn" type="submit">Search</button>
+    {% if q or cat %}<a class="btn ghost" href="{{ url_for('library.index') }}">Clear</a>{% endif %}
+  </form>
+</div>
+
+{% for category, items in groups %}
+<div class="card">
+  <div class="panel-head"><span>{{ category }}</span><span class="badge">{{ items|length }}</span></div>
+  <table class="grid">
+    <tr><th>Document</th><th>Type</th><th>Tags</th><th class="right">Actions</th></tr>
+    {% for d in items %}
+    <tr>
+      <td><a href="{{ url_for('uploads', subpath='library/' ~ d.filename) }}" target="_blank">{{ d._pretty }}</a></td>
+      <td><span class="badge">{{ d._ext }}</span></td>
+      <td>{% if d.ahj %}<span class="tag">{{ d.ahj.replace('_',' ') }}</span>{% endif %}{% for s in (d.system or '').split(',') if s %}<span class="tag">{{ s }}</span>{% endfor %}</td>
+      <td class="right" style="white-space:nowrap">
+        <a class="btn sm" href="{{ url_for('uploads', subpath='library/' ~ d.filename) }}" target="_blank">View</a>
+        <form method="post" action="{{ url_for('library.attach', doc_id=d.id) }}" style="display:inline">
+          <select name="job_id" style="width:auto;max-width:150px"><option value="">Attach to job…</option>{% for j in jobs %}<option value="{{ j.id }}">{{ j.name }}</option>{% endfor %}</select>
+          <button class="btn sm" type="submit">Attach</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% else %}
+<div class="card"><div class="empty">No documents match.</div></div>
+{% endfor %}
+
+<div class="card">
+  <h2>Add a document</h2>
+  <form method="post" action="{{ url_for('library.upload') }}" enctype="multipart/form-data" class="row" style="align-items:flex-end">
+    <div class="field"><label>File</label><input type="file" name="file" required></div>
+    <div class="field"><label>Category</label>
+      <select name="category">{% for c in counts.keys() %}<option>{{ c }}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><label>AHJ (optional)</label><input name="ahj"></div>
+    <div class="field"><label>System (optional)</label><input name="system" placeholder="shingle/tile/metal/flat"></div>
+    <button class="primary" type="submit">Upload</button>
+  </form>
+</div>
+{% endblock %}

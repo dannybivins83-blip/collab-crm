@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Worksheet · {{ job.name }}{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a class="btn ghost" href="{{ url_for('jobs.detail', job_id=job.id) }}">← {{ job.name }}</a>
+  <h1>📒 Worksheet</h1>
+  <div class="grow"></div>
+  <form method="post" action="{{ url_for('worksheet.seed', job_id=job.id) }}" style="display:inline"
+        onsubmit="return confirm('Re-seed budget + actual lines from the estimate? This replaces current lines.')">
+    <button type="submit">↻ Seed from estimate</button>
+  </form>
+  <button class="primary" onclick="saveWs()">💾 Save</button>
+</div>
+
+<div class="detail">
+  <div>
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>Contract value</label><input id="cv" value="{{ money(ws.contract_value) }}" oninput="recalc()"></div>
+      </div>
+      <table class="lines" id="wlines">
+        <thead><tr><th>Category</th><th style="width:40%">Description</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Variance</th><th></th></tr></thead>
+        <tbody>
+          {% for l in lines %}
+          <tr>
+            <td><select class="w-cat" style="width:110px">{% for c in categories %}<option {{ 'selected' if l.category==c }}>{{ c }}</option>{% endfor %}</select></td>
+            <td><input class="w-desc" value="{{ l.description }}"></td>
+            <td class="num"><input class="w-bud num" type="number" step="0.01" value="{{ '%.2f'|format(l.budget_cost or 0) }}" oninput="recalc()" style="width:96px"></td>
+            <td class="num"><input class="w-act num" type="number" step="0.01" value="{{ '%.2f'|format(l.actual_cost or 0) }}" oninput="recalc()" style="width:96px"></td>
+            <td class="num w-var">$0</td>
+            <td><button class="btn sm" type="button" onclick="this.closest('tr').remove();recalc()">✕</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <button type="button" class="btn sm" onclick="addLine()">+ Line</button>
+    </div>
+
+    <div class="card">
+      <h2>💵 Draw schedule (on contract value)</h2>
+      {% for d in draws %}<div class="row" style="justify-content:space-between"><span>{{ d.label }}</span><b class="draw-amt" data-pct="{{ d.pct or 0 }}">—</b></div>{% endfor %}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>📈 Profit Analysis</h2>
+      <div class="row" style="justify-content:space-between"><span>Contract value</span><b id="p_cv">$0</b></div>
+      <div class="row" style="justify-content:space-between"><span>Budget cost</span><b id="p_bud">$0</b></div>
+      <div class="row" style="justify-content:space-between"><span>Actual cost</span><b id="p_act">$0</b></div>
+      <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;margin-top:6px;font-size:17px">
+        <span>Gross profit</span><b id="p_gp" style="color:var(--accent2)">$0</b></div>
+      <div class="row" style="justify-content:space-between"><span>Margin</span><b id="p_pct">0%</b></div>
+      <div class="row" style="justify-content:space-between"><span>Variance (budget − actual)</span><b id="p_var">$0</b></div>
+      <div class="muted" style="margin-top:8px">Positive variance = under budget. Gross profit uses actual cost.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function money(n){return '$'+(Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+function cvNum(){return parseFloat((document.getElementById('cv').value||'').replace(/[^0-9.]/g,''))||0}
+function recalc(){
+  let bud=0, act=0;
+  document.querySelectorAll('#wlines tbody tr').forEach(tr=>{
+    const b=+tr.querySelector('.w-bud').value||0, a=+tr.querySelector('.w-act').value||0;
+    bud+=b; act+=a; tr.querySelector('.w-var').textContent=money(b-a);
+  });
+  const cv=cvNum(), gp=cv-act, pct=cv?gp/cv*100:0;
+  p_cv.textContent=money(cv); p_bud.textContent=money(bud); p_act.textContent=money(act);
+  p_gp.textContent=money(gp); p_pct.textContent=pct.toFixed(1)+'%'; p_var.textContent=money(bud-act);
+  document.querySelectorAll('.draw-amt').forEach(el=>{const p=+el.dataset.pct||0; el.textContent=p?money(cv*p):'—'});
+}
+function rowHTML(){
+  return `<td><select class="w-cat" style="width:110px">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></td>`+
+   `<td><input class="w-desc"></td>`+
+   `<td class="num"><input class="w-bud num" type="number" step="0.01" value="0" oninput="recalc()" style="width:96px"></td>`+
+   `<td class="num"><input class="w-act num" type="number" step="0.01" value="0" oninput="recalc()" style="width:96px"></td>`+
+   `<td class="num w-var">$0</td><td><button class="btn sm" type="button" onclick="this.closest('tr').remove();recalc()">✕</button></td>`;
+}
+function addLine(){const tr=document.createElement('tr');tr.innerHTML=rowHTML();document.querySelector('#wlines tbody').appendChild(tr);recalc()}
+function saveWs(){
+  const lines=[...document.querySelectorAll('#wlines tbody tr')].map(tr=>({
+    category:tr.querySelector('.w-cat').value, description:tr.querySelector('.w-desc').value,
+    budget_cost:+tr.querySelector('.w-bud').value||0, actual_cost:+tr.querySelector('.w-act').value||0}));
+  fetch('{{ url_for("worksheet.save", job_id=job.id) }}',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contract_value:cvNum(), lines})})
+    .then(r=>r.json()).then(d=>{if(d.ok){const b=event.target;b.textContent='✓ Saved';setTimeout(()=>b.textContent='💾 Save',1200)}});
+}
+recalc();
+</script>
+{% endblock %}

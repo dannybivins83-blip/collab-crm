@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}My Account{% endblock %}
+{% block body %}
+<div class="page-head"><a class="btn ghost" href="{{ url_for('dashboard.home') }}">← Back</a><h1>👤 My Account</h1></div>
+<div class="card" style="max-width:520px">
+  <div class="muted" style="margin-bottom:12px">
+    <div><b>{{ u.name }}</b></div>
+    <div>{{ u.email }} · <span class="badge">{{ u.role }}</span></div>
+  </div>
+  <h2>Change password</h2>
+  <form method="post">
+    <div class="field"><label>Current password</label><input name="current" type="password" required></div>
+    <div class="field"><label>New password (min 6 chars)</label><input name="new" type="password" required></div>
+    <button class="primary" type="submit">Update password</button>
+  </form>
+</div>
+{% endblock %}

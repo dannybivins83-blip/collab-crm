@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Custom Fields & Lists{% endblock %}
+{% block body %}
+<div class="page-head"><a class="btn ghost" href="{{ url_for('settings.index') }}">← Settings</a><h1>🧰 Custom Fields & Lists</h1></div>
+
+<div class="detail">
+  <div>
+    <div class="card">
+      <h2>Custom fields</h2>
+      <form method="post" action="{{ url_for('customfields.add') }}" class="row" style="align-items:flex-end">
+        <div class="field"><label>Applies to</label><select name="entity"><option>lead</option><option>job</option><option>contact</option></select></div>
+        <div class="field"><label>Label</label><input name="label" required></div>
+        <div class="field"><label>Type</label><select name="field_type">{% for t in field_types %}<option>{{ t }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Options (for select, comma-sep)</label><input name="options" placeholder="A, B, C"></div>
+        <button class="primary" type="submit">Add field</button>
+      </form>
+      <table class="grid" style="margin-top:12px">
+        <tr><th>Applies to</th><th>Label</th><th>Type</th><th>Options</th><th></th></tr>
+        {% for f in lead_fields + job_fields + contact_fields %}
+        <tr><td><span class="badge">{{ f.entity }}</span></td><td>{{ f.label }}</td><td>{{ f.field_type }}</td><td class="muted">{{ f.options or '' }}</td>
+          <td class="right"><form method="post" action="{{ url_for('customfields.delete', fid=f.id) }}"><button class="btn sm danger" type="submit">✕</button></form></td></tr>
+        {% else %}<tr><td colspan="5" class="empty">No custom fields yet.</td></tr>{% endfor %}
+      </table>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <h2>Lead sources</h2>
+      <form method="post" action="{{ url_for('customfields.source_new') }}" style="display:flex;gap:8px">
+        <input name="name" placeholder="New source" required><button class="primary" type="submit">Add</button>
+      </form>
+      <div style="margin-top:10px">
+        {% for s in sources %}<div class="rowline"><span>{{ s.name }}</span>
+          <form method="post" action="{{ url_for('customfields.source_delete', sid=s.id) }}"><button class="btn sm danger" type="submit">✕</button></form></div>{% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <h2>Contact types</h2>
+      <form method="post" action="{{ url_for('customfields.ctype_new') }}" style="display:flex;gap:8px">
+        <input name="name" placeholder="New type" required><button class="primary" type="submit">Add</button>
+      </form>
+      <div style="margin-top:10px">
+        {% for ct in ctypes %}<div class="rowline"><span>{{ ct.name }}</span>
+          <form method="post" action="{{ url_for('customfields.ctype_delete', cid=ct.id) }}"><button class="btn sm danger" type="submit">✕</button></form></div>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

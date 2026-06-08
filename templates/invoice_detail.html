@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ inv.number }}{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a href="{{ url_for('invoices.index') }}" class="muted">← Invoices</a>
+  <h1 style="margin-left:8px">{{ inv.number }}</h1>
+  <span class="pill" style="background:{{ 'var(--ok)22' if inv.status=='paid' else 'var(--danger)22' }};color:{{ 'var(--ok)' if inv.status=='paid' else 'var(--danger)' }}">{{ inv.status }}</span>
+</div>
+<div class="card" style="max-width:560px">
+  {% if job %}<div>Job: <a href="{{ url_for('jobs.detail', job_id=job.id) }}">{{ job.name }}</a></div>{% endif %}
+  {% if inv.draw_key %}<div class="muted">{{ inv.draw_key }}</div>{% endif %}
+  <div style="font-size:30px;font-weight:800;margin:12px 0">{{ money(inv.amount) }}</div>
+  {% if inv.due_date %}<div class="muted">Due {{ inv.due_date }}</div>{% endif %}
+  {% if inv.paid_date %}<div class="muted">Paid {{ inv.paid_date }}</div>{% endif %}
+  {% if inv.notes %}<p>{{ inv.notes }}</p>{% endif %}
+  <div style="display:flex;gap:10px;margin-top:14px">
+    {% if inv.status!='paid' %}<form method="post" action="{{ url_for('invoices.pay', inv_id=inv.id) }}"><button class="accent" type="submit">Mark paid</button></form>{% endif %}
+    <form method="post" action="{{ url_for('invoices.delete', inv_id=inv.id) }}" onsubmit="return confirm('Delete invoice?')"><button class="danger" type="submit">Delete</button></form>
+  </div>
+</div>
+
+<div class="card" style="max-width:560px">
+  <h2>💳 QuickBooks & Payment Link</h2>
+  {% if not qbo_connected %}
+    <div class="muted">QuickBooks isn't connected. <a href="{{ url_for('quickbooks.settings') }}">Connect it</a> to push invoices and email a Pay-now link.</div>
+  {% else %}
+    {% if not inv.qbo_id %}
+      <form method="post" action="{{ url_for('invoices.push', inv_id=inv.id) }}">
+        <button class="primary" type="submit">⬆ Push to QuickBooks + get payment link</button>
+      </form>
+    {% else %}
+      <div class="muted">QuickBooks invoice ID: <b>{{ inv.qbo_id }}</b></div>
+      {% if inv.payment_link %}
+        <div class="field" style="margin-top:10px"><label>Pay-now link (QuickBooks Payments)</label>
+          <input value="{{ inv.payment_link }}" readonly onclick="this.select()"></div>
+        <a class="btn" href="{{ inv.payment_link }}" target="_blank">Open payment link</a>
+      {% else %}
+        <form method="post" action="{{ url_for('invoices.push', inv_id=inv.id) }}" style="margin-top:8px"><button class="btn" type="submit">↻ Refresh payment link</button></form>
+      {% endif %}
+      <form method="post" action="{{ url_for('invoices.send', inv_id=inv.id) }}" style="margin-top:14px"
+            onsubmit="return confirm('Email this invoice + payment link to the customer via QuickBooks?')">
+        <div class="field"><label>Customer email</label><input name="email" value="{{ default_email }}" required></div>
+        <button class="accent" type="submit">✉️ Send invoice + payment link</button>
+        <div class="muted" style="margin-top:6px">QuickBooks emails the invoice with the Pay-now button. {% if inv.sent_at %}Last sent {{ inv.sent_at }}.{% endif %}</div>
+      </form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

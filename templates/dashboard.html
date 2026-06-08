@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1 class="page-title" style="margin:0">Dashboard</h1>
+  <div class="grow"></div>
+  {% if company.acculynx_last_sync %}<span class="sub">Last AccuLynx sync: {{ company.acculynx_last_sync[:16] }}</span>{% endif %}
+  <form method="post" action="{{ url_for('sync.run') }}" id="syncForm">
+    <button class="btn accent" type="submit" onclick="this.textContent='⏳ Syncing…';this.disabled=true;this.form.submit()">🔄 Sync from AccuLynx</button>
+  </form>
+  <a class="btn ghost" href="{{ url_for('sync.index') }}" title="Sync settings (API key, auto-sync)">⚙</a>
+</div>
+
+<div class="detail">
+  <div>
+    <div class="card panel">
+      <div class="panel-head"><span>Current Pipeline</span><span class="muted">Active Jobs: {{ active_jobs }}</span></div>
+      <div class="pipeline">
+        {% for b in pipeline %}
+        {% if b.def.key in ('lead','prospect') %}
+          {% set href = url_for('leads.list_view') ~ '?bucket=' ~ b.def.key %}
+        {% else %}
+          {% set href = url_for('jobs.list_view') ~ '?bucket=' ~ b.def.key %}
+        {% endif %}
+        <a class="pipe-stage" href="{{ href }}">
+          <span class="pipe-circle" style="background:{{ b.def.color }}">{{ b.def.letter }}</span>
+          <span class="pipe-count">{{ b.count }}</span>
+          <span class="pipe-val">{{ money_k(b.value) if b.value else '--' }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="panel-head"><span>⏰ Overdue Follow-Ups</span><span class="badge">{{ overdue|length }}</span></div>
+      {% if not overdue %}<div class="muted">All clear — nothing past its follow-up window.</div>{% endif %}
+      {% for kind, r, sd, fs in overdue[:12] %}
+        <div class="check" style="justify-content:space-between">
+          <div>
+            <a href="{{ url_for('leads.detail', lead_id=r.id) if kind=='lead' else url_for('jobs.detail', job_id=r.id) }}"><b>{{ r.name }}</b></a>
+            <span class="muted"> · {{ sd.name }} · {{ fs.days }}d</span>
+          </div>
+          <span class="pill" style="background:{{ 'var(--danger)22' if fs.level=='hot' else 'var(--warn)22' }};color:{{ 'var(--danger)' if fs.level=='hot' else 'var(--warn)' }}">{{ fs.label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="card">
+      <div class="panel-head"><span>💵 Outstanding Invoices</span><span class="muted">{{ money(outstanding_total) }} due</span></div>
+      {% if not qbo_connected %}<div class="muted" style="margin-bottom:8px">Connect <a href="{{ url_for('quickbooks.settings') }}">QuickBooks</a> to send payment links.</div>{% endif %}
+      {% if not outstanding %}<div class="muted">No outstanding invoices.</div>{% endif %}
+      {% for inv in outstanding[:10] %}
+      <div class="check" style="justify-content:space-between;gap:8px">
+        <div>
+          <a href="{{ url_for('invoices.detail', inv_id=inv.id) }}"><b>{{ inv.number }}</b></a>
+          <span class="muted">{{ ' · ' ~ inv._job.name if inv._job }} · {{ money(inv.amount) }}</span>
+          {% if inv.payment_link %}<span class="badge" style="color:var(--ok)">link ready</span>{% elif inv.qbo_id %}<span class="badge">in QBO</span>{% endif %}
+        </div>
+        <div style="display:flex;gap:6px">
+          {% if qbo_connected and not inv.qbo_id %}
+            <form method="post" action="{{ url_for('invoices.push', inv_id=inv.id) }}"><button class="btn sm" type="submit">⬆ QBO</button></form>
+          {% endif %}
+          {% if qbo_connected and inv.qbo_id %}
+            <form method="post" action="{{ url_for('invoices.send', inv_id=inv.id) }}" onsubmit="return confirm('Email invoice + payment link to the customer via QuickBooks?')">
+              <input type="hidden" name="email" value="{{ (inv.customer_email or (inv._job.email if inv._job else '')) }}">
+              <button class="btn sm accent" type="submit">✉️ Send</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="v">{{ win_rate }}%</div><div class="l">Win rate ({{ won }}W / {{ lost }}L)</div></div>
+      <div class="kpi"><div class="v">{{ active_jobs }}</div><div class="l">Active jobs</div></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="panel-head"><span>Activity Feed</span></div>
+      <ul class="timeline">
+        {% for a in feed %}
+        <li><div class="k">{{ a.kind }}{% if a._who %} · {{ a._who }}{% endif %}</div><div class="t">{{ a.text[:90] }}</div><div class="d">{{ a.created }}</div></li>
+        {% else %}<li class="muted">No activity yet.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

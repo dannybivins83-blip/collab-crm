@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}New Material Order{% endblock %}
+{% block body %}
+<div class="page-head"><a class="btn ghost" href="javascript:history.back()">← Back</a><h1>📦 New Material Order</h1></div>
+<form method="post" class="card" style="max-width:640px">
+  <div class="row">
+    <div class="field"><label>Job</label><select name="job_id"><option value="">— none —</option>{% for j in jobs %}<option value="{{ j.id }}" {{ 'selected' if job and job.id==j.id }}>{{ j.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Supplier</label><input name="supplier" placeholder="ABC Supply / Beacon / SRS"></div>
+    <div class="field"><label>Status</label><select name="status">{% for s in status_list %}<option>{{ s }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="field"><label>Items — one per line, format: <code>qty | unit | item</code></label>
+    <textarea name="items_raw" style="min-height:160px" placeholder="30 | SQ | OC TruDefinition Duration shingles&#10;12 | EA | Pipe boots&#10;2 | roll | Polystick IR-XE"></textarea>
+  </div>
+  <div class="row">
+    <div class="field"><label>Ordered date</label><input type="date" name="ordered_date"></div>
+    <div class="field"><label>Delivery date</label><input type="date" name="delivery_date"></div>
+  </div>
+  <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
+  <button class="primary" type="submit">Create order</button>
+</form>
+{% endblock %}

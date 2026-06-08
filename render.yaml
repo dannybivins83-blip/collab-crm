@@ -1,0 +1,26 @@
+# Render.com blueprint — one-click deploy of the white-label CRM with a
+# PERSISTENT DISK so SQLite + uploaded photos/docs/permit packets survive deploys.
+# Create the service from this file: Render Dashboard → New → Blueprint → point at
+# this repo (root = whitelabel-crm). Then map crm.collaborativeconceptsfl.com to it.
+services:
+  - type: web
+    name: collab-crm
+    runtime: python
+    rootDir: .
+    plan: starter            # starter has a persistent disk; free tier does NOT
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /login
+    envVars:
+      - key: CRM_DATA_DIR
+        value: /data
+      - key: CRM_UPLOAD_DIR
+        value: /data/uploads
+      - key: CRM_SECRET
+        generateValue: true   # random, stable secret for sessions
+      - key: CRM_NOBROWSER
+        value: "1"
+    disk:
+      name: crm-data
+      mountPath: /data
+      sizeGB: 1

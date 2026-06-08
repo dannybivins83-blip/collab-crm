@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block body %}
+<div class="page-head"><h1>⚙️ White-Label Settings</h1><span class="sub">Everything here re-brands the app + every generated PDF</span></div>
+
+<form method="post" enctype="multipart/form-data" class="card" style="max-width:840px">
+  <h2>Company profile</h2>
+  <div class="row">
+    <div class="field"><label>Company name</label><input name="name" value="{{ c.name or '' }}"></div>
+    <div class="field"><label>Legal name</label><input name="legal_name" value="{{ c.legal_name or '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Tagline</label><input name="tagline" value="{{ c.tagline or '' }}"></div>
+    <div class="field"><label>License #</label><input name="license" value="{{ c.license or '' }}"></div>
+    <div class="field"><label>Qualifier</label><input name="qualifier" value="{{ c.qualifier or '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Address</label><input name="address" value="{{ c.address or '' }}"></div>
+    <div class="field"><label>City</label><input name="city" value="{{ c.city or '' }}"></div>
+    <div class="field"><label>State</label><input name="state" value="{{ c.state or '' }}"></div>
+    <div class="field"><label>Zip</label><input name="zip" value="{{ c.zip or '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Phone</label><input name="phone" value="{{ c.phone or '' }}"></div>
+    <div class="field"><label>Email</label><input name="email" value="{{ c.email or '' }}"></div>
+    <div class="field"><label>Website</label><input name="website" value="{{ c.website or '' }}"></div>
+    <div class="field"><label>Default county</label><input name="default_county" value="{{ c.default_county or '' }}"></div>
+  </div>
+  <div class="field"><label>Departments (comma-separated — shown in the masthead picker)</label>
+    <input name="departments" value="{{ c.departments or 'REROOF Department, Service Department, Warranties' }}" placeholder="REROOF Department, Service Department, Warranties"></div>
+
+  <h2 style="margin-top:18px">Brand logo</h2>
+  <div class="row" style="align-items:center">
+    <div class="field">
+      {% if c.logo_path %}<img src="{{ url_for('uploads', subpath=c.logo_path) }}" style="height:44px;border:1px solid var(--line);border-radius:8px;padding:4px;background:#fff">{% else %}<span class="muted">No logo — emoji mark shown.</span>{% endif %}
+    </div>
+    <div class="field"><label>Upload logo (PNG/JPG/SVG)</label><input type="file" name="logo" accept="image/*"></div>
+  </div>
+
+  <h2 style="margin-top:18px">Theme colors</h2>
+  <div class="row">
+    <div class="field"><label>Masthead (top bar)</label><input type="color" name="color_masthead" value="{{ c.color_masthead or '#24476C' }}" style="height:42px"></div>
+    <div class="field"><label>Primary (nav)</label><input type="color" name="color_primary" value="{{ c.color_primary or '#4680BF' }}" style="height:42px"></div>
+    <div class="field"><label>Accent</label><input type="color" name="color_accent" value="{{ c.color_accent or '#0f9e82' }}" style="height:42px"></div>
+    <div class="field"><label>Warn</label><input type="color" name="color_warn" value="{{ c.color_warn or '#d98200' }}" style="height:42px"></div>
+    <div class="field"><label>Danger</label><input type="color" name="color_danger" value="{{ c.color_danger or '#d93a36' }}" style="height:42px"></div>
+  </div>
+
+  <h2 style="margin-top:18px">Default proposal terms</h2>
+  <div class="field"><textarea name="terms">{{ c.terms or '' }}</textarea></div>
+
+  <button class="primary" type="submit">💾 Save & apply branding</button>
+  {% if c.logo_path %}<button class="btn" formaction="{{ url_for('settings.clear_logo') }}" formnovalidate>Clear logo</button>{% endif %}
+</form>
+
+<div class="card" style="max-width:840px">
+  <h2>👥 Users & roles</h2>
+  <table class="grid">
+    <tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr>
+    {% for u in users %}
+    <tr><td>{{ u.name }}</td><td>{{ u.email }}</td><td><span class="badge">{{ u.role }}</span></td>
+      <td class="right"><form method="post" action="{{ url_for('settings.user_delete', user_id=u.id) }}" style="display:inline"><button class="btn sm danger" type="submit">Remove</button></form></td></tr>
+    {% endfor %}
+  </table>
+  <form method="post" action="{{ url_for('settings.user_new') }}" class="row" style="margin-top:12px;align-items:flex-end">
+    <div class="field"><label>Name</label><input name="name" required></div>
+    <div class="field"><label>Email</label><input name="email"></div>
+    <div class="field"><label>Role</label><select name="role"><option>admin</option><option>sales</option><option>production</option><option>office</option></select></div>
+    <button class="primary" type="submit">Add user</button>
+  </form>
+</div>
+{% endblock %}

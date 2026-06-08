@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}New Invoice{% endblock %}
+{% block body %}
+<div class="page-head"><a class="btn ghost" href="javascript:history.back()">← Back</a><h1>💵 New Invoice</h1></div>
+<form method="post" class="card" style="max-width:560px">
+  <div class="field"><label>Job</label>
+    <select name="job_id"><option value="">— none —</option>
+      {% for j in jobs %}<option value="{{ j.id }}" {{ 'selected' if job and job.id==j.id }}>{{ j.name }} ({{ j.contract_value }})</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field"><label>Draw</label>
+    <select name="draw_key"><option value="">Custom</option>{% for d in draws %}<option value="{{ d.label }}">{{ d.label }}</option>{% endfor %}</select>
+  </div>
+  <div class="row">
+    <div class="field"><label>Amount</label><input name="amount" placeholder="$9,725" required></div>
+    <div class="field"><label>Due date</label><input type="date" name="due_date"></div>
+  </div>
+  <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
+  <button class="primary" type="submit">Create invoice</button>
+</form>
+{% endblock %}

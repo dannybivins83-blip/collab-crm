@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Materials{% endblock %}
+{% block body %}
+<div class="page-head"><h1>📦 Material Orders</h1><div class="grow"></div><a class="btn primary" href="{{ url_for('materials.new') }}">+ New Order</a></div>
+<table class="grid">
+  <tr><th>Job</th><th>Supplier</th><th>Items</th><th>Status</th><th>Ordered</th><th>Delivery</th></tr>
+  {% for m in orders %}
+  <tr onclick="location.href='{{ url_for('materials.detail', order_id=m.id) }}'" style="cursor:pointer">
+    <td>{% if m._job %}{{ m._job.name }}{% endif %}</td><td>{{ m.supplier }}</td>
+    <td>{{ m._items|length }} line(s)</td><td><span class="badge">{{ m.status }}</span></td>
+    <td class="muted">{{ m.ordered_date or '' }}</td><td class="muted">{{ m.delivery_date or '' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="empty">No material orders yet.</td></tr>{% endfor %}
+</table>
+{% endblock %}

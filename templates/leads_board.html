@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Sales Pipeline{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>🎯 Sales Pipeline</h1>
+  <span class="sub">Drag a card to advance · stale leads flagged by days since last contact</span>
+  <div class="grow"></div>
+  <div class="viewtoggle">
+    <a href="{{ url_for('leads.list_view') }}">☰ List</a>
+    <a class="on">▦ Board</a>
+  </div>
+  <a class="btn primary" href="{{ url_for('leads.new') }}">+ New Lead</a>
+</div>
+
+<div class="toolbar">
+  <span class="tlabel">Sort</span>
+  <select onchange="location.href='?sort='+this.value">
+    <option value="clock" {{ 'selected' if sort=='clock' }}>Days on clock (worst first)</option>
+    <option value="est" {{ 'selected' if sort=='est' }}>Estimate value (high→low)</option>
+    <option value="name" {{ 'selected' if sort=='name' }}>Name (A→Z)</option>
+  </select>
+  <span class="total">
+    {% if overdue %}<span class="od">🔴 {{ overdue }} overdue</span>{% endif %}
+    <span>{{ money_k(grand) }} <small>open pipeline</small></span>
+  </span>
+</div>
+
+<div class="board">
+  {% for c in cols %}
+  <div class="col" data-stage="{{ c.stage.key }}"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="dropCard(event,'{{ c.stage.key }}')">
+    <h3><span class="dot" style="background:{{ c.stage.color }}"></span>{{ c.stage.name }}
+      {% if c.total %}<span class="coltot">{{ money_k(c.total) }}</span>{% endif %}
+      <span class="cnt" style="margin-left:{{ '6px' if c.total else 'auto' }}">{{ c.cards|length }}</span>
+    </h3>
+    <div class="cards">
+      {% for l in c.cards %}
+      <div class="kcard {{ l._fs.level if l._fs.level!='ok' }}" draggable="true" data-id="{{ l.id }}"
+           ondragstart="dragCard(event,{{ l.id }})" ondragend="this.classList.remove('dragging')"
+           onclick="if(!event.target.closest('.qa'))location.href='{{ url_for('leads.detail', lead_id=l.id) }}'">
+        {% if l._fs.level!='ok' %}<div class="flag">{{ '🔴' if l._fs.level=='hot' else '🟠' }}</div>{% endif %}
+        {% if l.rid %}<div class="rid">{{ l.rid }}</div>{% endif %}
+        <div class="nm">{{ l.name }}</div>
+        <div class="wt">{{ l.work_type or 'Roofing' }}{% if l.estimate %} · <span class="est">{{ l.estimate }}</span>{% endif %}</div>
+        <div class="prog"><i style="width:{{ l._pct }}%"></i></div>
+        <div class="foot">
+          {% set col = 'var(--danger)' if l._fs.level=='hot' else ('var(--warn)' if l._fs.level=='stalled' else 'var(--ok)') %}
+          <span class="spill" style="background:{{ col }}22;color:{{ col }}">{{ l._fs.days }}d</span>
+          <span class="muted">{{ l.source or '' }}</span>
+        </div>
+        <div class="qa">
+          <form method="post" action="{{ url_for('leads.touch', lead_id=l.id) }}" style="display:inline">
+            <button title="Log touch today" type="submit">✓</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+      {% if not c.cards %}<div class="muted" style="padding:6px">—</div>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+function dragCard(e,id){e.dataTransfer.setData('text/plain',id);e.target.classList.add('dragging')}
+function dropCard(e,stage){
+  e.preventDefault();
+  document.querySelectorAll('.col').forEach(c=>c.classList.remove('dragover'));
+  const id=e.dataTransfer.getData('text/plain');
+  fetch('{{ url_for("leads.board") }}'+id+'/move',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stage:stage})
+  }).then(r=>r.json()).then(d=>{if(d.ok)location.reload()});
+}
+</script>
+{% endblock %}

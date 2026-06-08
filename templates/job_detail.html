@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}{{ j.name }}{% endblock %}
+{% block body %}
+{% set paid = (j._paid_pct*100)|round|int %}
+{% set value = est_num(j.contract_value) %}
+{% set balance = value * (1 - j._paid_pct) %}
+
+<!-- Job header -->
+<div class="jobhead">
+  <a href="{{ url_for('jobs.board') }}" class="back">‹</a>
+  <span class="jh-badge" style="background:{{ constants.job_bucket(j.stage).color }}">{{ constants.job_bucket(j.stage).letter }}</span>
+  <div class="jh-title">
+    <div class="jh-name">{{ j.rid ~ ': ' if j.rid }}{{ j.name }}</div>
+    <a class="jh-addr" href="https://maps.google.com/?q={{ j.address }}" target="_blank">{{ j.address }}{{ ', ' ~ j.city if j.city }} {{ j.state }} {{ j.zip }} ↗</a>
+  </div>
+  <div class="grow"></div>
+  <div class="jh-money">
+    <div class="jh-total">{{ money(value) }}</div>
+    <div class="jh-bal">Balance Due <b>{{ money(balance) }}</b></div>
+  </div>
+  <div class="jh-ring" style="--p:{{ paid }}">{{ paid }}%</div>
+  <a class="btn" href="{{ url_for('jobs.edit', job_id=j.id) }}">Edit</a>
+</div>
+
+<!-- Milestones panel -->
+<div class="card mstone">
+  <div class="mstone-left">
+    <div><span class="muted">STATUS:</span> <b>{{ j._stage.name }}</b></div>
+    {% if next_stage %}<div><span class="muted">NEXT STEP:</span> <b style="color:var(--accent2)">{{ next_stage.name }}</b></div>{% endif %}
+    <form method="post" action="{{ url_for('jobs.advance', job_id=j.id) }}" style="margin-top:8px">
+      <button class="accent" type="submit" {{ 'disabled' if not next_stage }}>Advance Job →</button>
+    </form>
+    <form method="post" action="{{ url_for('jobs.set_stage', job_id=j.id) }}" style="margin-top:8px">
+      <select name="stage" onchange="this.form.submit()" style="width:auto;max-width:230px">
+        {% for s in all_stages %}<option value="{{ s.key }}" {{ 'selected' if s.key==j.stage }}>{{ loop.index }}. {{ s.name }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="mstone-track">
+    {% for b in buckets %}
+    {% set reached = loop.index0 <= cur_bucket_index %}
+    <div class="mnode {{ 'on' if b.key==cur_bucket }}">
+      <span class="mcircle" style="background:{{ b.color if reached else '#c9d2dd' }}">{{ b.letter }}</span>
+      <span class="mlbl">{{ b.name }}</span>
+    </div>
+    {% if not loop.last %}<span class="mline {{ 'done' if loop.index0 < cur_bucket_index }}"></span>{% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Job Activity tabs -->
+<div class="jobtabs" id="jobtabs">
+  <a class="jtab on" data-tab="comm">Communications <span class="jt-n">{{ activity|selectattr('kind','in',['call','email','sms','note'])|list|length }}</span></a>
+  <a class="jtab" data-tab="est">Estimates <span class="jt-n">{{ estimates|length }}</span></a>
+  <a class="jtab" data-tab="work">Worksheet</a>
+  <a class="jtab" data-tab="inv">Invoices <span class="jt-n">{{ invoices|length }}</span></a>
+  <a class="jtab" data-tab="ord">Orders <span class="jt-n">{{ materials|length }}</span></a>
+  <a class="jtab" data-tab="photo">Photos <span class="jt-n">{{ photos|length }}</span></a>
+  <a class="jtab" data-tab="doc">Documents <span class="jt-n">{{ documents|length }}</span></a>
+  <a class="jtab" data-tab="meas">Measurements {% if measurement %}<span class="jt-n">✓</span>{% endif %}</a>
+  <a class="jtab" data-tab="check">Checklist</a>
+</div>
+
+<div class="detail">
+  <div>
+    <!-- COMMUNICATIONS -->
+    <div class="tabpane" data-pane="comm">
+      <div class="card">
+        <h2>Log activity</h2>
+        <form method="post" action="{{ url_for('jobs.note', job_id=j.id) }}" style="display:flex;gap:8px;align-items:flex-end">
+          <div style="flex:none"><select name="kind"><option value="note">Note</option><option value="call">Call</option><option value="email">Email</option><option value="sms">SMS</option></select></div>
+          <div style="flex:1"><textarea name="text" placeholder="What happened…" required style="min-height:44px"></textarea></div>
+          <button class="primary" type="submit">Add</button>
+        </form>
+        <ul class="timeline" style="margin-top:14px">
+          {% for a in activity %}<li><div class="k">{{ a.kind }}</div><div class="t">{{ a.text }}</div><div class="d">{{ a.created }}</div></li>{% else %}<li class="muted">No activity yet.</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+    <!-- ESTIMATES -->
+    <div class="tabpane" data-pane="est" style="display:none">
+      <div class="card">
+        <div class="panel-head"><span>Estimates</span><a class="btn sm primary" href="{{ url_for('estimates.new') }}?job_id={{ j.id }}">+ New Estimate</a></div>
+        {% for e in estimates %}<div class="rowline"><a href="{{ url_for('estimates.detail', est_id=e.id) }}">{{ e.number }} — {{ e.title }}</a> <span class="badge">{{ e.status }}</span></div>{% else %}<div class="muted">No estimates yet.</div>{% endfor %}
+      </div>
+    </div>
+    <!-- WORKSHEET -->
+    <div class="tabpane" data-pane="work" style="display:none">
+      {% set pa = job_profit(j.id) %}
+      <div class="card">
+        <div class="panel-head"><span>📈 Profit Analysis</span><a class="btn sm primary" href="{{ url_for('worksheet.view', job_id=j.id) }}">📒 Open Worksheet</a></div>
+        <div class="kpis" style="margin-bottom:0">
+          <div class="kpi"><div class="v">{{ money(pa.contract_value) }}</div><div class="l">Contract value</div></div>
+          <div class="kpi"><div class="v">{{ money(pa.actual_cost) }}</div><div class="l">Actual cost</div></div>
+          <div class="kpi"><div class="v accent">{{ money(pa.gross_profit) }}</div><div class="l">Gross profit · {{ pa.gross_pct|round(1) }}%</div></div>
+          <div class="kpi"><div class="v {{ 'accent' if pa.variance>=0 else 'danger' }}">{{ money(pa.variance) }}</div><div class="l">Variance (budget − actual)</div></div>
+        </div>
+        {% if not pa.has_ws %}<div class="muted" style="margin-top:8px">No worksheet yet — opening it seeds budget + actual from the signed estimate.</div>{% endif %}
+      </div>
+      <div class="card">
+        <h2>💵 Draw Schedule — {{ j.contract_value or '(set value)' }} · {{ paid }}% collected</h2>
+        {% for p in draws %}
+        <label class="check {{ 'done' if j._payments.get(p.key) }}" style="justify-content:space-between">
+          <form method="post" action="{{ url_for('jobs.pay', job_id=j.id) }}" style="display:flex;align-items:center;gap:9px;flex:1">
+            <input type="hidden" name="key" value="{{ p.key }}">
+            <input type="checkbox" {{ 'checked' if j._payments.get(p.key) }} onchange="this.form.submit()">
+            <span style="flex:1">{{ p.label }}{% set amt = draw_amount(j.contract_value, p, j._payments) %}{% if amt %} — <b>{{ amt }}</b>{% endif %}</span>
+          </form>
+          {% if p.key=='wood' %}<form method="post" action="{{ url_for('jobs.pay', job_id=j.id) }}"><input type="hidden" name="key" value="woodAmt"><input name="value" value="{{ j._payments.get('woodAmt','') }}" placeholder="wood $" style="width:100px" onchange="this.form.submit()"></form>{% endif %}
+        </label>
+        {% endfor %}
+        <div class="rowline" style="font-weight:800;border-top:2px solid var(--txt);margin-top:8px;padding-top:8px"><span>Balance due</span><span>{{ money(balance) }}</span></div>
+      </div>
+    </div>
+    <!-- INVOICES -->
+    <div class="tabpane" data-pane="inv" style="display:none">
+      <div class="card">
+        <div class="panel-head"><span>Invoices</span><a class="btn sm primary" href="{{ url_for('invoices.new') }}?job_id={{ j.id }}">+ New Invoice</a></div>
+        {% for inv in invoices %}<div class="rowline"><a href="{{ url_for('invoices.detail', inv_id=inv.id) }}">{{ inv.number }}</a> <span class="badge">{{ inv.status }}</span> {{ money(inv.amount) }}</div>{% else %}<div class="muted">No invoices yet.</div>{% endfor %}
+      </div>
+    </div>
+    <!-- ORDERS -->
+    <div class="tabpane" data-pane="ord" style="display:none">
+      <div class="card">
+        <div class="panel-head"><span>Orders (Material + Labor)</span>
+          <form method="post" action="{{ url_for('orders.generate', job_id=j.id) }}" style="display:inline">
+            <button class="btn sm primary" type="submit">⚙ Generate from estimate</button>
+          </form>
+        </div>
+        {% for o in job_orders(j.id) %}
+        <div class="rowline"><a href="{{ url_for('orders.detail', order_id=o.id) }}">{{ o.po_number or 'Order #' ~ o.id }}</a>
+          <span class="badge">{{ o.type }}</span> <span class="badge">{{ o.status }}</span>{% if o.vendor %} · {{ o.vendor }}{% endif %}</div>
+        {% else %}<div class="muted">No orders yet — generate Material + Labor POs from the job's estimate.</div>{% endfor %}
+        <a class="muted" style="display:block;margin-top:8px" href="{{ url_for('orders.index') }}">Open Order Manager →</a>
+      </div>
+    </div>
+    <!-- PHOTOS -->
+    <div class="tabpane" data-pane="photo" style="display:none">
+      <div class="card">
+        <h2>📷 Photos</h2>
+        <form method="post" action="{{ url_for('files.upload_photo', job_id=j.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <input type="file" name="file" accept="image/*" required style="flex:1">
+          <select name="phase" style="width:auto"><option value="before">Before</option><option value="during">During</option><option value="after">After</option></select>
+          <input name="caption" placeholder="Caption" style="flex:1">
+          <button class="primary" type="submit">Upload</button>
+        </form>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+          {% for ph in photos %}<a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank" title="{{ ph.caption }}"><img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>{% else %}<div class="muted">No photos yet.</div>{% endfor %}
+        </div>
+      </div>
+    </div>
+    <!-- DOCUMENTS -->
+    <div class="tabpane" data-pane="doc" style="display:none">
+      <div class="card">
+        <h2>📄 Documents</h2>
+        <form method="post" action="{{ url_for('files.upload_doc', job_id=j.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end">
+          <input type="file" name="file" required style="flex:1">
+          <select name="category" style="width:auto"><option>Contract</option><option>Permit</option><option>COI</option><option>NOA</option><option>Measurement</option><option>HOA</option><option>Other</option></select>
+          <button class="primary" type="submit">Upload</button>
+        </form>
+        {% for d in documents %}<div class="rowline"><span class="badge">{{ d.category }}</span> <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a></div>{% else %}<div class="muted" style="margin-top:10px">No documents yet.</div>{% endfor %}
+      </div>
+    </div>
+    <!-- MEASUREMENTS -->
+    <div class="tabpane" data-pane="meas" id="meas" style="display:none">
+      <div class="card">
+        <div class="panel-head"><span>📐 Roof Measurements (RoofGraf)</span>
+          {% if measurement and measurement.report_file %}<a class="btn sm" href="{{ url_for('uploads', subpath=measurement.report_file) }}" target="_blank">View report</a>{% endif %}
+        </div>
+        <form method="post" action="{{ url_for('measurements.upload_job', job_id=j.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+          <div style="flex:1"><label>Upload RoofGraf / EagleView report (PDF — auto-parses squares & pitch)</label><input type="file" name="file" accept="application/pdf" required></div>
+          <button class="primary" type="submit">Upload</button>
+        </form>
+        {% set m = measurement or {} %}
+        <form method="post" action="{{ url_for('measurements.save_job', job_id=j.id) }}">
+          <div class="row">
+            <div class="field"><label>Squares (100 sf)</label><input name="squares" type="number" step="0.01" value="{{ m.squares or '' }}"></div>
+            <div class="field"><label>Predominant pitch</label><input name="pitch" value="{{ m.pitch or '' }}" placeholder="6:12"></div>
+            <div class="field"><label>Stories</label><input name="stories" value="{{ m.stories or '' }}"></div>
+            <div class="field"><label>Facets</label><input name="facets" type="number" value="{{ m.facets or '' }}"></div>
+            <div class="field"><label>Waste %</label><input name="waste_pct" type="number" step="0.1" value="{{ m.waste_pct or 15 }}"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Ridge LF</label><input name="ridge_lf" type="number" step="0.1" value="{{ m.ridge_lf or '' }}"></div>
+            <div class="field"><label>Hip LF</label><input name="hip_lf" type="number" step="0.1" value="{{ m.hip_lf or '' }}"></div>
+            <div class="field"><label>Valley LF</label><input name="valley_lf" type="number" step="0.1" value="{{ m.valley_lf or '' }}"></div>
+            <div class="field"><label>Rake LF</label><input name="rake_lf" type="number" step="0.1" value="{{ m.rake_lf or '' }}"></div>
+            <div class="field"><label>Eave LF</label><input name="eave_lf" type="number" step="0.1" value="{{ m.eave_lf or '' }}"></div>
+            <div class="field"><label>Step flash LF</label><input name="step_flash_lf" type="number" step="0.1" value="{{ m.step_flash_lf or '' }}"></div>
+          </div>
+          <div class="field"><label>Notes</label><input name="notes" value="{{ m.notes or '' }}"></div>
+          <button class="primary" type="submit">💾 Save measurements</button>
+          <span class="muted" style="margin-left:10px">These feed estimate quantities — open an estimate and click <b>Apply measurements</b>.</span>
+        </form>
+      </div>
+    </div>
+    <!-- CHECKLIST -->
+    <div class="tabpane" data-pane="check" style="display:none">
+      <div class="card">
+        <h2>Checklist — {{ j._stage.name }} ({{ j._done }}/{{ j._total }})</h2>
+        {% for c in j._stage.checklist %}{% set key = j._stage.key ~ ':' ~ loop.index0 %}
+        <form method="post" action="{{ url_for('jobs.check', job_id=j.id) }}">
+          <input type="hidden" name="key" value="{{ key }}">
+          <label class="check {{ 'done' if j._checks.get(key) }}"><input type="checkbox" {{ 'checked' if j._checks.get(key) }} onchange="this.form.submit()"><span>{{ c }}</span></label>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right rail -->
+  <div>
+    <div class="card">
+      <h2>Job details</h2>
+      <div class="muted" style="line-height:1.9">
+        {% if j.phone %}<div>📞 <a href="tel:{{ j.phone }}">{{ j.phone }}</a></div>{% endif %}
+        {% if j.email %}<div>✉️ <a href="mailto:{{ j.email }}">{{ j.email }}</a></div>{% endif %}
+        <div>🔨 {{ j.work_type }}</div>
+        {% if j.rep %}<div>👤 {{ j.rep }}</div>{% endif %}
+        {% if j.ahj %}<div>🏛️ AHJ: {{ j.ahj }} ({{ j.county }})</div>{% endif %}
+        {% if j.area %}<div>📐 {{ j.area }} sq · {{ j.slope }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="panel-head"><span>🏛️ Permits</span><a class="btn sm" href="{{ url_for('permits.new') }}?job_id={{ j.id }}">+ Add</a></div>
+      {% for p in permits %}<div class="rowline"><a href="{{ url_for('permits.detail', permit_id=p.id) }}">{{ p.ahj }} — {{ p.system }}</a> <span class="badge">{{ p.status }}</span></div>{% else %}<div class="muted">None.</div>{% endfor %}
+    </div>
+    <form method="post" action="{{ url_for('jobs.delete', job_id=j.id) }}" onsubmit="return confirm('Delete this job?')">
+      <button class="danger" style="width:100%" type="submit">Delete job</button>
+    </form>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.jtab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.jtab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.tabpane').forEach(p=>p.style.display='none');
+  t.classList.add('on');
+  document.querySelector('.tabpane[data-pane="'+t.dataset.tab+'"]').style.display='';
+});
+</script>
+{% endblock %}

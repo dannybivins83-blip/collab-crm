@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in · {{ company.name or 'CRM' }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<style>
+  :root{ --masthead:{{ company.color_masthead or '#24476C' }}; --accent:{{ company.color_primary or '#4680BF' }}; }
+  body{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;
+    background:linear-gradient(135deg,var(--masthead),#16263b)}
+  .login{background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.3);padding:34px 32px;width:360px}
+  .login .brand{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:6px}
+  .login .brand img{height:34px}
+  .login .brand .mark{font-size:26px}
+  .login h1{font-size:18px;text-align:center;margin:6px 0 2px;color:var(--masthead);text-transform:uppercase;letter-spacing:.4px}
+  .login .sub{text-align:center;color:var(--mut);font-size:12px;margin-bottom:20px}
+  .login label{margin-top:10px}
+  .login button{width:100%;margin-top:18px;background:var(--accent);border-color:var(--accent);color:#fff;padding:11px}
+  .login .lic{text-align:center;color:var(--mut);font-size:11px;margin-top:16px}
+</style></head>
+<body>
+<form class="login" method="post">
+  <div class="brand">
+    {% if company.logo_path %}<img src="{{ url_for('uploads', subpath=company.logo_path) }}">{% else %}<span class="mark">🌊</span>{% endif %}
+  </div>
+  <h1>{{ company.name or 'White-Label CRM' }}</h1>
+  <div class="sub">{{ company.tagline or 'Sign in to continue' }}</div>
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  <div class="field"><label>Email</label><input id="email" name="email" type="email" autofocus required></div>
+  <div class="field"><label>Password</label><input id="password" name="password" type="password" required></div>
+  <button type="submit">Sign in</button>
+  <div class="lic">Lic. {{ company.license or '—' }}</div>
+</form>
+</body></html>

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ o.po_number or 'Order' }}{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a class="btn ghost" href="{{ url_for('orders.index') }}">← Order Manager</a>
+  <h1>📦 {{ o.po_number or 'Order #' ~ o.id }} <span class="badge">{{ o.type }}</span></h1>
+  <span class="pill" style="background:var(--accent)22;color:var(--accent)">{{ o.status|capitalize }}</span>
+  {% if job %}<a class="muted" href="{{ url_for('jobs.detail', job_id=job.id) }}">· {{ job.name }}</a>{% endif %}
+  <div class="grow"></div>
+  <a class="btn" target="_blank" href="{{ url_for('orders.print_view', order_id=o.id) }}">🖨 Print PO</a>
+  <button class="primary" onclick="saveOrder()">💾 Save</button>
+</div>
+
+<div class="detail">
+  <div class="card">
+    <div class="row">
+      <div class="field"><label>PO number</label><input id="po" value="{{ o.po_number or '' }}"></div>
+      <div class="field"><label>Vendor</label>
+        <input id="vendor" list="vendorlist" value="{{ o.vendor or '' }}">
+        <datalist id="vendorlist">{% for v in vendors %}<option value="{{ v.name }}">{% endfor %}</datalist>
+      </div>
+    </div>
+    <table class="lines" id="olines">
+      <thead><tr><th style="width:46%">Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Cost</th><th class="num">Amount</th><th></th></tr></thead>
+      <tbody>
+        {% for l in lines %}
+        <tr>
+          <td><input class="o-desc" value="{{ l.description }}"></td>
+          <td class="num"><input class="o-qty num" type="number" step="0.01" value="{{ l.qty }}" oninput="recalc()" style="width:70px"></td>
+          <td><input class="o-unit" value="{{ l.unit }}" style="width:56px"></td>
+          <td class="num"><input class="o-cost num" type="number" step="0.01" value="{{ l.cost }}" oninput="recalc()" style="width:90px"></td>
+          <td class="num o-amt">$0</td>
+          <td><button class="btn sm" type="button" onclick="this.closest('tr').remove();recalc()">✕</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button class="btn sm" type="button" onclick="addLine()">+ Line</button>
+    <div class="totals"><div class="row grand"><span>Order total</span><span id="o_total">$0</span></div></div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Status workflow</h2>
+      <div class="stagebtns">
+        {% for s in statuses %}
+        <form method="post" action="{{ url_for('orders.status', order_id=o.id) }}" style="display:inline">
+          <input type="hidden" name="status" value="{{ s }}">
+          <button class="{{ 'cur' if o.status==s }}" type="submit">{{ s|capitalize }}</button>
+        </form>
+        {% endfor %}
+      </div>
+      <div class="muted" style="margin-top:10px">Marking ordered/delivered logs to the job timeline.</div>
+      {% if o.ordered_date %}<div class="muted">Ordered {{ o.ordered_date }}</div>{% endif %}
+      {% if o.delivery_date %}<div class="muted">Delivery {{ o.delivery_date }}</div>{% endif %}
+    </div>
+    <form method="post" action="{{ url_for('orders.delete', order_id=o.id) }}" onsubmit="return confirm('Delete order?')">
+      <button class="danger" style="width:100%" type="submit">Delete order</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function money(n){return '$'+(Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+function recalc(){let t=0;document.querySelectorAll('#olines tbody tr').forEach(tr=>{
+  const a=(+tr.querySelector('.o-qty').value||0)*(+tr.querySelector('.o-cost').value||0);t+=a;tr.querySelector('.o-amt').textContent=money(a);});
+  o_total.textContent=money(t);}
+function addLine(){const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input class="o-desc"></td><td class="num"><input class="o-qty num" type="number" step="0.01" value="0" oninput="recalc()" style="width:70px"></td>`+
+   `<td><input class="o-unit" value="EA" style="width:56px"></td><td class="num"><input class="o-cost num" type="number" step="0.01" value="0" oninput="recalc()" style="width:90px"></td>`+
+   `<td class="num o-amt">$0</td><td><button class="btn sm" type="button" onclick="this.closest('tr').remove();recalc()">✕</button></td>`;
+  document.querySelector('#olines tbody').appendChild(tr);recalc();}
+function saveOrder(){
+  const lines=[...document.querySelectorAll('#olines tbody tr')].map(tr=>({description:tr.querySelector('.o-desc').value,
+    unit:tr.querySelector('.o-unit').value,qty:+tr.querySelector('.o-qty').value||0,cost:+tr.querySelector('.o-cost').value||0}));
+  fetch('{{ url_for("orders.save", order_id=o.id) }}',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({po_number:document.getElementById('po').value,vendor:document.getElementById('vendor').value,lines})})
+    .then(r=>r.json()).then(d=>{if(d.ok){const b=event.target;b.textContent='✓ Saved';setTimeout(()=>b.textContent='💾 Save',1200)}});}
+recalc();
+</script>
+{% endblock %}

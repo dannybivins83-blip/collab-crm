@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}QuickBooks{% endblock %}
+{% block body %}
+<div class="page-head"><h1>💳 QuickBooks Online</h1>
+  <span class="pill" style="background:{{ 'var(--ok)22' if connected else 'var(--mut)22' }};color:{{ 'var(--ok)' if connected else 'var(--mut)' }}">{{ 'Connected' if connected else 'Not connected' }}</span>
+</div>
+
+<div class="card" style="max-width:720px">
+  <h2>1 · Intuit app credentials</h2>
+  <p class="muted">Create an app at <a href="https://developer.intuit.com" target="_blank">developer.intuit.com</a> (Accounting scope), then paste its keys here. In the Intuit app's <b>Redirect URIs</b>, add exactly:</p>
+  <div class="field"><input value="{{ redirect_uri }}" readonly onclick="this.select()"></div>
+  <form method="post" action="{{ url_for('quickbooks.settings') }}">
+    <div class="field"><label>Client ID</label><input name="qbo_client_id" value="{{ c.qbo_client_id or '' }}"></div>
+    <div class="field"><label>Client Secret</label><input name="qbo_client_secret" type="password" value="{{ c.qbo_client_secret or '' }}" placeholder="{{ '••••••••' if c.qbo_client_secret else '' }}"></div>
+    <div class="field"><label>Environment</label>
+      <select name="qbo_environment"><option value="production" {{ 'selected' if c.qbo_environment!='sandbox' }}>Production</option><option value="sandbox" {{ 'selected' if c.qbo_environment=='sandbox' }}>Sandbox</option></select>
+    </div>
+    <button class="primary" type="submit">Save credentials</button>
+  </form>
+</div>
+
+<div class="card" style="max-width:720px">
+  <h2>2 · Connect</h2>
+  {% if connected %}
+    <div class="muted">Connected to QuickBooks (realm {{ c.qbo_realm_id }}) since {{ c.qbo_connected_at }}.</div>
+    <form method="post" action="{{ url_for('quickbooks.disconnect') }}" style="margin-top:10px"><button class="danger" type="submit">Disconnect</button></form>
+  {% elif configured %}
+    <p class="muted">Click Connect, then approve on Intuit's consent screen (you sign in to QuickBooks there — credentials never touch this app).</p>
+    <a class="btn primary" href="{{ url_for('quickbooks.connect') }}">Connect to QuickBooks →</a>
+  {% else %}
+    <div class="muted">Save your Client ID + Secret above first.</div>
+  {% endif %}
+</div>
+
+<div class="card" style="max-width:720px">
+  <h2>3 · How reps send invoices</h2>
+  <p class="muted">On any invoice: <b>Push to QuickBooks</b> creates it in QBO and pulls the QuickBooks Payments <b>Pay-now</b> link, then <b>Send invoice + payment link</b> has QuickBooks email it to the customer. The dashboard's <b>Outstanding</b> panel lets you do this in one click per job. Requires QuickBooks Payments enabled on the QBO account for the live pay link.</p>
+</div>
+{% endblock %}

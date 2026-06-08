@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Material Order{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a href="{{ url_for('materials.index') }}" class="muted">← Materials</a>
+  <h1 style="margin-left:8px">{{ m.supplier or 'Order' }} <span class="badge">{{ m.status }}</span></h1>
+  {% if job %}<a class="muted" href="{{ url_for('jobs.detail', job_id=job.id) }}">· {{ job.name }}</a>{% endif %}
+</div>
+<div class="detail">
+  <div class="card">
+    <h2>Order sheet</h2>
+    <table class="grid">
+      <tr><th>Qty</th><th>Unit</th><th>Item</th></tr>
+      {% for it in m._items %}<tr><td>{{ it.qty }}</td><td>{{ it.unit }}</td><td>{{ it.item }}</td></tr>{% endfor %}
+    </table>
+  </div>
+  <form method="post" action="{{ url_for('materials.save', order_id=m.id) }}" class="card">
+    <h2>Edit</h2>
+    <div class="row">
+      <div class="field"><label>Supplier</label><input name="supplier" value="{{ m.supplier or '' }}"></div>
+      <div class="field"><label>Status</label><select name="status">{% for s in status_list %}<option {{ 'selected' if m.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="field"><label>Items (qty | unit | item)</label><textarea name="items_raw" style="min-height:140px">{{ m._items_text }}</textarea></div>
+    <div class="row">
+      <div class="field"><label>Ordered date</label><input type="date" name="ordered_date" value="{{ m.ordered_date or '' }}"></div>
+      <div class="field"><label>Delivery date</label><input type="date" name="delivery_date" value="{{ m.delivery_date or '' }}"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea name="notes">{{ m.notes or '' }}</textarea></div>
+    <button class="primary" type="submit">Save</button>
+    <button class="danger" formaction="{{ url_for('materials.delete', order_id=m.id) }}" formnovalidate onclick="return confirm('Delete order?')">Delete</button>
+  </form>
+</div>
+{% endblock %}

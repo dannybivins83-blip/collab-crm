@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}{{ e.number }}{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a href="{{ url_for('estimates.index') }}" class="muted">← Estimates</a>
+  <h1 style="margin-left:8px">{{ e.number }}</h1>
+  <span class="badge">{{ e.status }}</span>
+  {% if lead %}<a class="muted" href="{{ url_for('leads.detail', lead_id=lead.id) }}">· {{ lead.name }}</a>{% endif %}
+  {% if job %}<a class="muted" href="{{ url_for('jobs.detail', job_id=job.id) }}">· {{ job.name }}</a>{% endif %}
+  <div class="grow"></div>
+  <button class="primary" onclick="saveEstimate()">💾 Save</button>
+  <a class="btn" target="_blank" href="{{ url_for('estimates.print_view', est_id=e.id) }}">🖨 Proposal</a>
+  <form method="post" action="{{ url_for('estimates.status', est_id=e.id) }}" style="display:inline">
+    <input type="hidden" name="status" value="sent"><button type="submit">Mark Sent</button>
+  </form>
+</div>
+
+<div class="detail">
+  <div>
+    <div class="card">
+      <div class="row"><div class="field"><label>Estimate title</label><input id="title" value="{{ e.title }}"></div></div>
+      <table class="est-cols"><tr><td></td><td class="num colhead">Cost</td><td class="num colhead">Price</td></tr></table>
+
+      <div id="sections">
+        {% for s in sections %}
+        <div class="section" data-margin="{{ s.margin_pct }}">
+          <div class="section-head">
+            <input class="sec-name" value="{{ s.name }}" placeholder="Section name (e.g. Roofing - Shingle Section)">
+            <button class="btn sm" onclick="this.closest('.section').remove();recalc()">✕ Section</button>
+          </div>
+          <table class="lines">
+            <thead><tr><th style="width:36%">Product / Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Cost/Unit</th><th class="num">Cost</th><th class="num">Price</th><th></th></tr></thead>
+            <tbody>
+              {% for l in s._lines %}
+              <tr>
+                <td><input class="l-desc" value="{{ l.description }}"></td>
+                <td class="num"><input class="l-qty num" type="number" step="0.01" value="{{ l.qty }}" oninput="priceFromMargin(this)" style="width:66px"></td>
+                <td><input class="l-unit" value="{{ l.unit }}" style="width:52px"></td>
+                <td class="num"><input class="l-cost num" type="number" step="0.01" value="{{ l.cost }}" oninput="priceFromMargin(this)" style="width:84px"></td>
+                <td class="num l-amt">$0</td>
+                <td class="num"><input class="l-price num" type="number" step="0.01" value="{{ '%.2f'|format(l._price) }}" oninput="recalc()" style="width:90px"></td>
+                <td><button class="btn sm" onclick="this.closest('tr').remove();recalc()">✕</button></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <button type="button" class="btn sm" onclick="addLine(this)">+ Line</button>
+          <div class="section-foot">
+            <span class="scope-toggle" onclick="toggleScope(this)">▸ Scope of work</span>
+            <div class="sec-totals">
+              <label style="display:inline">Margin
+                <input class="sec-margin" type="number" step="0.1" value="{{ s.margin_pct }}" oninput="applyMargin(this)" style="width:64px">%
+              </label>
+              <span class="sec-cost num">$0</span><span class="sec-price num">$0</span>
+            </div>
+          </div>
+          <textarea class="sec-scope" style="display:none" placeholder="Lettered scope-of-work clauses (a., b., c. …) — prints on the proposal">{{ s.scope_text }}</textarea>
+        </div>
+        {% endfor %}
+      </div>
+
+      <button type="button" class="btn" onclick="addSection()">+ Add Section</button>
+
+      <div class="estimate-total">
+        <span>ESTIMATE TOTAL</span>
+        <span class="num" id="t_cost">$0</span>
+        <span class="num" id="t_price">$0</span>
+      </div>
+      <div class="tax-profit">
+        <div>
+          <div class="tp-head">Taxes &amp; Discounts</div>
+          <div class="row" style="justify-content:space-between"><label style="display:inline">Tax %</label>
+            <input id="tax" type="number" step="0.1" value="{{ e.tax_pct }}" oninput="recalc()" style="width:80px"></div>
+          <div class="row" style="justify-content:space-between"><span>Tax</span><span id="t_tax">$0</span></div>
+        </div>
+        <div>
+          <div class="tp-head">Profit</div>
+          <div class="row" style="justify-content:space-between"><span>Margin</span><span id="t_margin">0%</span></div>
+          <div class="row" style="justify-content:space-between"><span>Net Profit</span><span id="t_net">$0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field"><label>Notes (shown on proposal)</label><textarea id="notes">{{ e.notes or '' }}</textarea></div>
+      <div class="field"><label>Terms / payment schedule</label><textarea id="terms">{{ e.terms or '' }}</textarea></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>💵 Draw schedule (on total)</h2>
+      {% for d in draws %}<div class="row" style="justify-content:space-between"><span>{{ d.label }}</span><b class="draw-amt" data-pct="{{ '%.2f'|format((d.amount/totals.total) if (d.amount and totals.total) else 0) }}">{{ money(d.amount) if d.amount is not none else '—' }}</b></div>{% endfor %}
+    </div>
+    <div class="card">
+      <h2>📐 Roof Measurements</h2>
+      {% if measurement %}
+        {% set m = measurement %}
+        <div class="meas-grid">
+          <div><b>{{ m.squares }}</b><span>squares</span></div>
+          <div><b>{{ m.pitch or '—' }}</b><span>pitch</span></div>
+          <div><b>{{ (m.ridge_lf or 0)|round|int }}</b><span>ridge LF</span></div>
+          <div><b>{{ (m.hip_lf or 0)|round|int }}</b><span>hip LF</span></div>
+          <div><b>{{ (m.valley_lf or 0)|round|int }}</b><span>valley LF</span></div>
+          <div><b>{{ (m.eave_lf or 0)|round|int }}</b><span>eave LF</span></div>
+          <div><b>{{ (m.rake_lf or 0)|round|int }}</b><span>rake LF</span></div>
+          <div><b>{{ m.waste_pct or 15 }}%</b><span>waste</span></div>
+        </div>
+        <button type="button" class="btn accent" style="width:100%;margin-top:10px" onclick="applyMeasurements()">Apply measurements → quantities</button>
+        {% if m.report_file %}<a class="muted" style="display:block;margin-top:6px" href="{{ url_for('uploads', subpath=m.report_file) }}" target="_blank">📄 View RoofGraf report</a>{% endif %}
+      {% else %}
+        <div class="muted">No measurement on the linked {{ 'job' if job else 'lead' }} yet.{% if job %} Add one on the <a href="{{ url_for('jobs.detail', job_id=job.id) }}#meas">Job → Measurements</a> tab,{% endif %} then return here to apply it to quantities.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>✍️ E-signature</h2>
+      {% if e.status=='signed' %}
+        <div class="muted">Signed by <b>{{ e.signed_name }}</b> on {{ e.signed_at }}</div>
+        {% if e.signature %}<img src="{{ e.signature }}" style="max-width:100%;border:1px solid var(--line);border-radius:8px;margin-top:8px">{% endif %}
+      {% else %}
+        <input id="signer" placeholder="Customer name">
+        <canvas id="pad" width="300" height="120" style="border:1px solid var(--line);border-radius:8px;margin-top:8px;width:100%;touch-action:none"></canvas>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button type="button" class="btn sm" onclick="clearPad()">Clear</button>
+          <button type="button" class="btn primary sm" onclick="submitSig()">Accept & Sign</button>
+        </div>
+      {% endif %}
+    </div>
+    <form method="post" action="{{ url_for('estimates.delete', est_id=e.id) }}" onsubmit="return confirm('Delete estimate?')">
+      <button class="danger" style="width:100%" type="submit">Delete estimate</button>
+    </form>
+  </div>
+</div>
+
+<script>
+const SCOPES = {{ scope_templates|tojson }};
+const MEAS = {{ measurement|tojson if measurement else 'null' }};
+function money(n){return '$'+(Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+function applyMeasurements(){
+  if(!MEAS){return}
+  const sq=+MEAS.squares||0, waste=(+MEAS.waste_pct||0)/100, sqW=sq*(1+waste);
+  const ridge=(+MEAS.ridge_lf||0)+(+MEAS.hip_lf||0), valley=(+MEAS.valley_lf||0), drip=(+MEAS.eave_lf||0)+(+MEAS.rake_lf||0);
+  let n=0;
+  document.querySelectorAll('.section tbody tr').forEach(tr=>{
+    const d=(tr.querySelector('.l-desc').value||'').toLowerCase(), u=(tr.querySelector('.l-unit').value||'').toUpperCase();
+    let q=null;
+    if(/ridge|hip/.test(d)) q=ridge;
+    else if(/valley/.test(d)) q=valley;
+    else if(/drip edge|eave|rake/.test(d)) q=drip;
+    else if(u==='SQ'||/tear off|deck|re-?nail|underlay|shingle|tile|membrane|\biso\b|base sheet|cap|gravel/.test(d)) q=(/tear off/.test(d)?sq:sqW);
+    if(q!==null){const qi=tr.querySelector('.l-qty'); qi.value=Math.round(q*100)/100; priceFromMargin(qi); n++;}
+  });
+  recalc();
+  const b=event.target; b.textContent='✓ Applied to '+n+' lines'; setTimeout(()=>b.textContent='Apply measurements → quantities',1500);
+}
+function lineCostOf(tr){return (+tr.querySelector('.l-qty').value||0)*(+tr.querySelector('.l-cost').value||0)}
+function priceFromMargin(inp){ // qty/cost changed → reprice this line from its section margin
+  const tr=inp.closest('tr'), sec=inp.closest('.section');
+  let m=(+sec.querySelector('.sec-margin').value||0)/100; if(m>=0.99)m=0.99;
+  tr.querySelector('.l-price').value=(lineCostOf(tr)/((1-m)||1)).toFixed(2);
+  recalc();
+}
+function applyMargin(inp){ // margin changed → reprice every line in the section
+  const sec=inp.closest('.section'); let m=(+inp.value||0)/100; if(m>=0.99)m=0.99;
+  sec.querySelectorAll('tbody tr').forEach(tr=>{tr.querySelector('.l-price').value=(lineCostOf(tr)/((1-m)||1)).toFixed(2)});
+  recalc();
+}
+function recalc(){
+  let totCost=0, totPrice=0;
+  document.querySelectorAll('.section').forEach(sec=>{
+    let sc=0, sp=0;
+    sec.querySelectorAll('tbody tr').forEach(tr=>{
+      const amt=lineCostOf(tr); const pr=+tr.querySelector('.l-price').value||0;
+      sc+=amt; sp+=pr; tr.querySelector('.l-amt').textContent=money(amt);
+    });
+    const dispMargin=sp?((sp-sc)/sp*100):0;
+    sec.querySelector('.sec-cost').textContent=money(sc);
+    sec.querySelector('.sec-price').textContent=money(sp)+' · '+dispMargin.toFixed(1)+'%';
+    totCost+=sc; totPrice+=sp;
+  });
+  const tax=totPrice*(+document.getElementById('tax').value||0)/100;
+  const total=totPrice+tax, net=total-totCost, margin=total?net/total*100:0;
+  t_cost.textContent=money(totCost); t_price.textContent=money(totPrice);
+  t_tax.textContent=money(tax); t_margin.textContent=margin.toFixed(1)+'%'; t_net.textContent=money(net);
+  document.querySelectorAll('.draw-amt').forEach(el=>{el.textContent=money(total*(+el.dataset.pct||0))});
+}
+function lineRowHTML(){
+  return `<td><input class="l-desc"></td>`+
+   `<td class="num"><input class="l-qty num" type="number" step="0.01" value="0" oninput="priceFromMargin(this)" style="width:66px"></td>`+
+   `<td><input class="l-unit" value="EA" style="width:52px"></td>`+
+   `<td class="num"><input class="l-cost num" type="number" step="0.01" value="0" oninput="priceFromMargin(this)" style="width:84px"></td>`+
+   `<td class="num l-amt">$0</td><td class="num"><input class="l-price num" type="number" step="0.01" value="0" oninput="recalc()" style="width:90px"></td>`+
+   `<td><button class="btn sm" onclick="this.closest('tr').remove();recalc()">✕</button></td>`;
+}
+function addLine(btn){
+  const tb=btn.previousElementSibling.querySelector('tbody');
+  const tr=document.createElement('tr'); tr.innerHTML=lineRowHTML(); tb.appendChild(tr); recalc();
+}
+function addSection(){
+  const wrap=document.getElementById('sections');
+  const div=document.createElement('div'); div.className='section';
+  div.innerHTML=`<div class="section-head"><input class="sec-name" placeholder="Section name (e.g. Roofing - Shingle Section)"><button class="btn sm" onclick="this.closest('.section').remove();recalc()">✕ Section</button></div>`+
+   `<table class="lines"><thead><tr><th style="width:36%">Product / Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Cost/Unit</th><th class="num">Cost</th><th class="num">Price</th><th></th></tr></thead><tbody></tbody></table>`+
+   `<button type="button" class="btn sm" onclick="addLine(this)">+ Line</button>`+
+   `<div class="section-foot"><span class="scope-toggle" onclick="toggleScope(this)">▸ Scope of work</span>`+
+   `<div class="sec-totals"><label style="display:inline">Margin <input class="sec-margin" type="number" step="0.1" value="30" oninput="applyMargin(this)" style="width:64px">%</label>`+
+   `<span class="sec-cost num">$0</span><span class="sec-price num">$0</span></div></div>`+
+   `<textarea class="sec-scope" style="display:none" placeholder="Scope-of-work clauses (a., b., c. …)"></textarea>`;
+  wrap.appendChild(div);
+  addLine(div.querySelector('button[onclick^="addLine"]'));
+}
+function toggleScope(el){const t=el.closest('.section').querySelector('.sec-scope');
+  const open=t.style.display==='none'; t.style.display=open?'block':'none'; el.textContent=(open?'▾':'▸')+' Scope of work';}
+function collect(){
+  const sections=[...document.querySelectorAll('.section')].map(sec=>({
+    name:sec.querySelector('.sec-name').value, scope_text:sec.querySelector('.sec-scope').value,
+    margin_pct:+sec.querySelector('.sec-margin').value||0,
+    lines:[...sec.querySelectorAll('tbody tr')].map(tr=>({
+      description:tr.querySelector('.l-desc').value, unit:tr.querySelector('.l-unit').value,
+      qty:+tr.querySelector('.l-qty').value||0, waste_pct:0,
+      cost:+tr.querySelector('.l-cost').value||0, price:+tr.querySelector('.l-price').value||0}))
+  }));
+  return {title:document.getElementById('title').value, tax_pct:+document.getElementById('tax').value||0,
+    notes:document.getElementById('notes').value, terms:document.getElementById('terms').value, sections};
+}
+function saveEstimate(){
+  fetch('{{ url_for("estimates.save", est_id=e.id) }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collect())})
+   .then(r=>r.json()).then(d=>{if(d.ok){const b=event.target;b.textContent='✓ Saved';setTimeout(()=>b.textContent='💾 Save',1200)}});
+}
+recalc();
+const pad=document.getElementById('pad');
+if(pad){const ctx=pad.getContext('2d');let drawing=false;
+  function pos(e){const r=pad.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(pad.width/r.width),y:(t.clientY-r.top)*(pad.height/r.height)}}
+  function start(e){drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault()}
+  function move(e){if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();e.preventDefault()}
+  ctx.lineWidth=2;ctx.lineCap='round';ctx.strokeStyle='#1d2a44';
+  pad.addEventListener('mousedown',start);pad.addEventListener('mousemove',move);window.addEventListener('mouseup',()=>drawing=false);
+  pad.addEventListener('touchstart',start);pad.addEventListener('touchmove',move);pad.addEventListener('touchend',()=>drawing=false);
+  window.clearPad=()=>ctx.clearRect(0,0,pad.width,pad.height);
+  window.submitSig=()=>{const name=document.getElementById('signer').value.trim();if(!name){alert('Enter the customer name.');return}
+    fetch('{{ url_for("estimates.sign", est_id=e.id) }}',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'signed_name='+encodeURIComponent(name)+'&signature='+encodeURIComponent(pad.toDataURL())}).then(r=>r.json()).then(d=>{if(d.ok)location.reload()});};
+}
+</script>
+{% endblock %}

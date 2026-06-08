@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Communications{% endblock %}
+{% block body %}
+<div class="page-head"><h1>💬 Communication Log</h1><span class="sub">Calls / emails / texts · draft emails for review (never auto-sent)</span></div>
+<div class="detail">
+  <div class="card">
+    <h2>History</h2>
+    <ul class="timeline">
+      {% for a in logs %}
+      <li><div class="k">{{ a.kind }} · {{ a._who }}</div><div class="t" style="white-space:pre-wrap">{{ a.text }}</div><div class="d">{{ a.created }}</div></li>
+      {% else %}<li class="muted">No communications logged yet.</li>{% endfor %}
+    </ul>
+  </div>
+  <div>
+    <div class="card">
+      <h2>Log a call / text / email</h2>
+      <form method="post" action="{{ url_for('comms.log') }}">
+        <div class="field"><label>Contact / record</label>
+          <select name="target">
+            <optgroup label="Leads">{% for l in leads %}<option value="lead:{{ l.id }}">🎯 {{ l.name }}</option>{% endfor %}</optgroup>
+            <optgroup label="Jobs">{% for j in jobs %}<option value="job:{{ j.id }}">🔨 {{ j.name }}</option>{% endfor %}</optgroup>
+            <optgroup label="Contacts">{% for c in contacts %}<option value="contact:{{ c.id }}">👤 {{ c.first_name }} {{ c.last_name }}</option>{% endfor %}</optgroup>
+          </select>
+        </div>
+        <div class="field"><label>Type</label><select name="kind"><option value="call">Call</option><option value="sms">SMS/Text</option><option value="email">Email</option></select></div>
+        <div class="field"><textarea name="text" placeholder="What was said…" required></textarea></div>
+        <button class="primary" type="submit">Log</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>✉️ Draft email (for review)</h2>
+      <form method="post" action="{{ url_for('comms.draft') }}">
+        <div class="field"><label>Contact / record</label>
+          <select name="target">
+            <optgroup label="Leads">{% for l in leads %}<option value="lead:{{ l.id }}">🎯 {{ l.name }}</option>{% endfor %}</optgroup>
+            <optgroup label="Jobs">{% for j in jobs %}<option value="job:{{ j.id }}">🔨 {{ j.name }}</option>{% endfor %}</optgroup>
+            <optgroup label="Contacts">{% for c in contacts %}<option value="contact:{{ c.id }}">👤 {{ c.first_name }} {{ c.last_name }}</option>{% endfor %}</optgroup>
+          </select>
+        </div>
+        <div class="field"><label>Subject</label><input name="subject"></div>
+        <div class="field"><label>Body</label><textarea name="body" style="min-height:120px"></textarea></div>
+        <button class="primary" type="submit">Save draft</button>
+        <div class="muted" style="margin-top:6px">Drafts are saved to the timeline for review — never auto-sent.</div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

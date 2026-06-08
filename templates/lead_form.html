@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New' if mode=='new' else 'Edit' }} Lead{% endblock %}
+{% block body %}
+<div class="page-head">
+  {% if mode=='edit' %}<a class="btn ghost" href="{{ url_for('leads.detail', lead_id=lead.id) }}">← Back</a>
+  {% else %}<a class="btn ghost" href="{{ url_for('leads.list_view') }}">← Back</a>{% endif %}
+  <h1>{{ 'New Lead' if mode=='new' else 'Edit Lead' }}</h1>
+</div>
+<form method="post" class="card" style="max-width:760px">
+  <div class="row">
+    <div class="field"><label>Name</label><input name="name" value="{{ lead.name or '' }}" required></div>
+    <div class="field"><label>Ref #</label><input name="rid" value="{{ lead.rid or '' }}" placeholder="L-1003"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Phone</label><input name="phone" value="{{ lead.phone or '' }}"></div>
+    <div class="field"><label>Email</label><input name="email" value="{{ lead.email or '' }}"></div>
+  </div>
+  <div class="field"><label>Property address</label><input name="address" value="{{ lead.address or '' }}" placeholder="Street, City, FL 33xxx"></div>
+  <div class="row">
+    <div class="field"><label>Work type</label>
+      <select name="work_type">{% for w in constants.WORK_TYPES %}<option {{ 'selected' if lead.work_type==w }}>{{ w }}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><label>Lead source</label>
+      <select name="source"><option value=""></option>{% for s in db_lead_sources() %}<option {{ 'selected' if lead.source==s }}>{{ s }}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><label>Sales rep</label><input name="rep" value="{{ lead.rep or '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Estimate ($)</label><input name="estimate" value="{{ lead.estimate or '' }}" placeholder="$14,500"></div>
+    {% if mode=='new' %}
+    <div class="field"><label>Stage</label>
+      <select name="stage">{% for s in constants.LEAD_STAGES %}<option value="{{ s.key }}" {{ 'selected' if s.key=='new' }}>{{ s.name }}</option>{% endfor %}</select>
+    </div>{% endif %}
+    <div class="field"><label>Link to contact</label>
+      <select name="contact_id"><option value="">— none —</option>
+        {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if lead.contact_id==c.id }}>{{ c.first_name }} {{ c.last_name }}{{ ' · ' ~ c.company if c.company }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="field"><label>Where it stands</label><textarea name="narrative">{{ lead.narrative or '' }}</textarea></div>
+  <div class="field"><label>Next action / to-do</label><input name="todo" value="{{ lead.todo or '' }}"></div>
+  <div style="display:flex;gap:10px">
+    <button class="primary" type="submit">Save</button>
+    <a class="btn ghost" href="{{ url_for('leads.board') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

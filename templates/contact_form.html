@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New' if mode=='new' else 'Edit' }} Contact{% endblock %}
+{% block body %}
+<div class="page-head"><h1>{{ 'New Contact' if mode=='new' else 'Edit Contact' }}</h1></div>
+<form method="post" class="card" style="max-width:720px">
+  <div class="row">
+    <div class="field"><label>Type</label><select name="kind"><option value="person" {{ 'selected' if contact.kind!='company' }}>Person</option><option value="company" {{ 'selected' if contact.kind=='company' }}>Company</option></select></div>
+    <div class="field"><label>First name</label><input name="first_name" value="{{ contact.first_name or '' }}"></div>
+    <div class="field"><label>Last name</label><input name="last_name" value="{{ contact.last_name or '' }}"></div>
+  </div>
+  <div class="field"><label>Company</label><input name="company" value="{{ contact.company or '' }}"></div>
+  <div class="row">
+    <div class="field"><label>Phone</label><input name="phone" value="{{ contact.phone or '' }}"></div>
+    <div class="field"><label>Email</label><input name="email" value="{{ contact.email or '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Address</label><input name="address" value="{{ contact.address or '' }}"></div>
+    <div class="field"><label>City</label><input name="city" value="{{ contact.city or '' }}"></div>
+    <div class="field"><label>State</label><input name="state" value="{{ contact.state or 'FL' }}"></div>
+    <div class="field"><label>Zip</label><input name="zip" value="{{ contact.zip or '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Lead source</label>
+      <select name="source"><option value=""></option>{% for s in db_lead_sources() %}<option {{ 'selected' if contact.source==s }}>{{ s }}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><label>Tags (comma-separated)</label><input name="tags" value="{{ contact.tags or '' }}"></div>
+  </div>
+  <div class="field"><label>Notes</label><textarea name="notes">{{ contact.notes or '' }}</textarea></div>
+  <div style="display:flex;gap:10px">
+    <button class="primary" type="submit">Save</button>
+    <a class="btn ghost" href="{{ url_for('contacts.index') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

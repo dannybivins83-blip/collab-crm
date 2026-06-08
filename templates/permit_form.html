@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}New Permit{% endblock %}
+{% block body %}
+<div class="page-head"><h1>🏛️ New Permit</h1></div>
+<form method="post" class="card" style="max-width:640px">
+  <div class="field"><label>Job</label>
+    <select name="job_id" id="jobSel" onchange="fillFromJob()">
+      <option value="">— none —</option>
+      {% for j in jobs %}<option value="{{ j.id }}"
+        data-ahj="{{ j.ahj or j.city or '' }}"
+        data-county="{{ j.county or company.default_county or '' }}"
+        data-system="{{ j.system or '' }}"
+        {{ 'selected' if permit.job_id==j.id }}>{{ j.rid ~ ' · ' if j.rid }}{{ j.name }}{{ ' (' ~ j.address ~ ')' if j.address }}</option>{% endfor %}
+    </select>
+    <div class="muted" style="margin-top:5px">Pick the job — AHJ, county & system fill in from it automatically.</div>
+  </div>
+  <div class="row">
+    <div class="field"><label>AHJ (permit office)</label><input name="ahj" value="{{ permit.ahj or '' }}"></div>
+    <div class="field"><label>County</label><input name="county" value="{{ permit.county or company.default_county or '' }}"></div>
+    <div class="field"><label>System</label><select name="system">{% for s in systems %}<option {{ 'selected' if permit.system==s }}>{{ s }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Permit #</label><input name="permit_number" value="{{ permit.permit_number or '' }}"></div>
+    <div class="field"><label>Status</label><select name="status"><option>prep</option><option>submitted</option><option>approved</option><option>closed</option></select></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Submitted date</label><input type="date" name="submitted_date"></div>
+    <div class="field"><label>Approved date</label><input type="date" name="approved_date"></div>
+  </div>
+  <div class="field"><label>Notes</label><textarea name="notes">{{ permit.notes or '' }}</textarea></div>
+  <button class="primary" type="submit">Save</button>
+  <a class="btn ghost" href="{{ url_for('permits.index') }}">Cancel</a>
+</form>
+<script>
+function fillFromJob(){
+  var sel=document.getElementById('jobSel');
+  var o=sel.options[sel.selectedIndex];
+  if(!o || !o.value) return;
+  var f=document.forms[0];
+  if(o.dataset.ahj) f.ahj.value=o.dataset.ahj;
+  if(o.dataset.county) f.county.value=o.dataset.county;
+  var sys=o.dataset.system;
+  if(sys){ [].forEach.call(f.system.options,function(op){ if(op.value===sys||op.text===sys) f.system.value=op.value; }); }
+}
+// Auto-fill on load if a job is already selected (e.g. launched from a job).
+document.addEventListener('DOMContentLoaded', function(){
+  var sel=document.getElementById('jobSel');
+  if(sel && sel.value && !document.forms[0].ahj.value) fillFromJob();
+});
+</script>
+{% endblock %}

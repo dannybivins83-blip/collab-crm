@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ c.first_name }} {{ c.last_name }}{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a href="{{ url_for('contacts.index') }}" class="muted">← Contacts</a>
+  <h1 style="margin-left:8px">{{ c.first_name }} {{ c.last_name }}{% if c.company %} <span class="muted">· {{ c.company }}</span>{% endif %}</h1>
+  <div class="grow"></div>
+  <a class="btn" href="{{ url_for('contacts.edit', contact_id=c.id) }}">Edit</a>
+</div>
+<div class="detail">
+  <div>
+    <div class="card">
+      <div class="row">
+        {% if c.phone %}<div><a href="tel:{{ c.phone }}">📞 {{ c.phone }}</a></div>{% endif %}
+        {% if c.email %}<div><a href="mailto:{{ c.email }}">✉️ {{ c.email }}</a></div>{% endif %}
+        <div>📍 {{ c.address }}{{ ', ' ~ c.city if c.city }} {{ c.state }} {{ c.zip }}</div>
+      </div>
+      <div style="margin-top:10px">{% for t in tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>
+      {% if c.notes %}<p style="margin-top:10px">{{ c.notes }}</p>{% endif %}
+    </div>
+
+    <div class="card">
+      <h2>🎯 Leads</h2>
+      {% for l in leads %}<div><a href="{{ url_for('leads.detail', lead_id=l.id) }}">{{ l.name }}</a> <span class="badge">{{ constants.lead_stage(l.stage).name }}</span> {{ l.estimate or '' }}</div>{% else %}<div class="muted">None.</div>{% endfor %}
+      <h2 style="margin-top:16px">🔨 Jobs</h2>
+      {% for j in jobs %}<div><a href="{{ url_for('jobs.detail', job_id=j.id) }}">{{ j.name }}</a> <span class="badge">{{ constants.job_stage(j.stage).name }}</span> {{ j.contract_value or '' }}</div>{% else %}<div class="muted">None.</div>{% endfor %}
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <h2>Log activity</h2>
+      <form method="post" action="{{ url_for('contacts.note', contact_id=c.id) }}">
+        <select name="kind"><option value="note">Note</option><option value="call">Call</option><option value="email">Email</option><option value="sms">SMS</option></select>
+        <textarea name="text" placeholder="What happened…" required style="margin-top:8px"></textarea>
+        <button class="primary" style="margin-top:8px" type="submit">Add</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Activity timeline</h2>
+      <ul class="timeline">
+        {% for a in activity %}<li><div class="k">{{ a.kind }}</div><div class="t">{{ a.text }}</div><div class="d">{{ a.created }}</div></li>{% else %}<li class="muted">No activity yet.</li>{% endfor %}
+      </ul>
+    </div>
+    <form method="post" action="{{ url_for('contacts.delete', contact_id=c.id) }}" onsubmit="return confirm('Delete contact?')">
+      <button class="danger" style="width:100%" type="submit">Delete contact</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

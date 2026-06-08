@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Leads{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>Assigned Leads &amp; Jobs</h1>
+  <span class="sub">{{ rows|length }} of {{ total }}</span>
+  <div class="grow"></div>
+  <div class="viewtoggle">
+    <a class="on">☰ List</a>
+    <a href="{{ url_for('leads.board') }}">▦ Board</a>
+  </div>
+  <a class="btn primary" href="{{ url_for('leads.new') }}">+ New Lead</a>
+</div>
+
+<div class="listwrap">
+  <aside class="filters">
+    <form method="get"><input name="q" value="{{ q }}" placeholder="Search results…" style="margin-bottom:12px"></form>
+    <div class="filt-head">Milestone Pipeline {% if stage_f %}<a href="{{ url_for('leads.list_view') }}" class="muted">clear</a>{% endif %}</div>
+    <a class="filt {{ 'on' if not stage_f }}" href="{{ url_for('leads.list_view') }}">All <span>{{ total }}</span></a>
+    {% for s in constants.LEAD_STAGES %}
+    <a class="filt {{ 'on' if stage_f==s.key }}" href="{{ url_for('leads.list_view') }}?stage={{ s.key }}">
+      <span class="fdot" style="background:{{ s.color }}"></span>{{ s.name }} <span>{{ counts[s.key] }}</span>
+    </a>
+    {% endfor %}
+  </aside>
+
+  <div class="results">
+    {% for l in rows %}
+    {% set col = 'var(--danger)' if l._fs.level=='hot' else ('var(--warn)' if l._fs.level=='stalled' else 'var(--ok)') %}
+    <a class="result" href="{{ url_for('leads.detail', lead_id=l.id) }}">
+      <span class="res-badge" style="background:{{ constants.BUCKET_BY_KEY[l._stage.bucket].color }}">{{ constants.BUCKET_BY_KEY[l._stage.bucket].letter }}</span>
+      <div class="res-main">
+        <div class="res-name">{{ l.rid ~ ': ' if l.rid }}{{ l.name }}</div>
+        <div class="res-sub">{{ l.phone }}{% if l.address %} · {{ l.address }}{% endif %}</div>
+        <div class="res-sub">{{ l.work_type }}{% if l.source %} · {{ l.source }}{% endif %}{% if l.rep %} · {{ l.rep }}{% endif %}</div>
+        <div class="rankbars" title="Lead Rank — click to set">
+          {% for n in [1,2,3,4] %}<span class="rankbar {{ 'on' if (l.rank or 0) >= n }}" onclick="event.preventDefault();event.stopPropagation();setRank({{ l.id }},{{ n }},this)"></span>{% endfor %}
+        </div>
+      </div>
+      <div class="res-meta">
+        <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ l._stage.name }}</span>
+        <div class="muted" style="margin-top:6px">In status <b>{{ l._fs.days }}d</b></div>
+        {% if l.estimate %}<div class="est">{{ l.estimate }}</div>{% endif %}
+      </div>
+    </a>
+    {% else %}<div class="empty">No leads match.</div>{% endfor %}
+  </div>
+</div>
+<script>
+function setRank(id,n,el){
+  fetch('{{ url_for("customfields.set_rank", lead_id=0) }}'.replace('/0','/'+id),
+    {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'rank='+n+'&ajax=1'})
+    .then(r=>r.json()).then(d=>{
+      const bars=el.parentElement.querySelectorAll('.rankbar');
+      bars.forEach((b,i)=>b.classList.toggle('on', i < d.rank));
+    });
+}
+</script>
+{% endblock %}

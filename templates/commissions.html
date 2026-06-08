@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Commissions{% endblock %}
+{% block body %}
+<div class="page-head"><h1>💰 Commissions</h1><span class="sub">Pre-commission on sale → approved on completion → paid</span></div>
+
+<div class="card">
+  <h2>Per-rep summary</h2>
+  <table class="grid">
+    <tr><th>Rep</th><th class="right">Pre-commission</th><th class="right">Approved</th><th class="right">Paid</th><th class="right">Total</th><th class="right">#</th></tr>
+    {% for rep, s in summary %}
+    <tr><td><b>{{ rep }}</b></td>
+      <td class="right">{{ money(s.pre) }}</td>
+      <td class="right">{{ money(s.approved) }}</td>
+      <td class="right">{{ money(s.paid) }}</td>
+      <td class="right"><b>{{ money(s.pre + s.approved + s.paid) }}</b></td>
+      <td class="right">{{ s.count }}</td></tr>
+    {% else %}<tr><td colspan="6" class="empty">No commissions yet.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <div class="panel-head"><span>All commissions</span>
+    <span>
+      <a class="btn sm {{ 'primary' if not status_f }}" href="{{ url_for('commissions.index') }}">All</a>
+      {% for s in statuses %}<a class="btn sm {{ 'primary' if status_f==s }}" href="{{ url_for('commissions.index') }}?status={{ s }}">{{ s|capitalize }}</a>{% endfor %}
+    </span>
+  </div>
+  <table class="grid">
+    <tr><th>Job</th><th>Rep</th><th>Basis</th><th class="right">Rate</th><th class="right">Amount</th><th>Status</th><th></th></tr>
+    {% for c in rows %}
+    <tr>
+      <td>{% if c._job %}<a href="{{ url_for('jobs.detail', job_id=c._job.id) }}">{{ c._job.name }}</a>{% endif %}</td>
+      <td>
+        <form method="post" action="{{ url_for('commissions.save', cid=c.id) }}" style="display:flex;gap:6px;align-items:center">
+          <input name="rep" value="{{ c.rep }}" style="width:120px">
+          <select name="basis" style="width:120px">{% for b in bases %}<option {{ 'selected' if c.basis==b }}>{{ b.replace('_',' ') }}</option>{% endfor %}</select>
+          <input name="rate_pct" type="number" step="0.5" value="{{ c.rate_pct }}" style="width:64px">
+          <button class="btn sm" type="submit">↻</button>
+        </form>
+      </td>
+      <td>{{ c.basis.replace('_',' ') }}</td>
+      <td class="right">{{ c.rate_pct }}%</td>
+      <td class="right"><b>{{ money(c.amount) }}</b></td>
+      <td><span class="pill" style="background:{{ 'var(--ok)22' if c.status=='paid' else 'var(--accent)22' }};color:{{ 'var(--ok)' if c.status=='paid' else 'var(--accent)' }}">{{ c.status|capitalize }}</span></td>
+      <td class="right">
+        {% if c.status=='pre' %}<form method="post" action="{{ url_for('commissions.status', cid=c.id) }}" style="display:inline"><input type="hidden" name="status" value="approved"><button class="btn sm accent" type="submit">Approve</button></form>{% endif %}
+        {% if c.status=='approved' %}<form method="post" action="{{ url_for('commissions.status', cid=c.id) }}" style="display:inline"><input type="hidden" name="status" value="paid"><button class="btn sm accent" type="submit">Mark paid</button></form>{% endif %}
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="empty">No commissions match.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

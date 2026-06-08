@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>{{ o.po_number }} — {{ company.name }}</title>
+<style>
+  body{font-family:'Roboto',Segoe UI,Arial,sans-serif;color:#313131;margin:0;padding:40px;font-size:13px}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid {{ company.color_primary or '#4680BF' }};padding-bottom:14px;margin-bottom:18px}
+  .head h1{margin:6px 0 0;font-size:22px}
+  .head .logo{height:54px}
+  .head .co{font-size:12.5px;line-height:1.5;text-align:right}
+  .meta{display:flex;justify-content:space-between;border:1px solid #d6deeb;border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:12.5px}
+  table{width:100%;border-collapse:collapse;margin-bottom:12px}
+  th,td{padding:7px 9px;border-bottom:1px solid #e6ebf2;font-size:12.5px;text-align:left}
+  th{background:#eef1f5;font-size:10.5px;text-transform:uppercase;color:#5b6b86}
+  .num{text-align:right}
+  .total{display:flex;justify-content:flex-end;font-size:17px;font-weight:800;margin-top:8px;gap:30px}
+  @media print{.noprint{display:none}body{padding:0}}
+</style></head><body>
+<div class="noprint" style="margin-bottom:14px"><button onclick="window.print()">🖨 Print / Save PDF</button></div>
+<div class="head">
+  <div>
+    {% if company.logo_path %}<img class="logo" src="{{ url_for('uploads', subpath=company.logo_path) }}"><br>{% endif %}
+    <h1>Purchase Order</h1>
+    <div>{{ o.po_number or ('Order #' ~ o.id) }} · {{ o.type }} · {{ (o.created or '')[:10] }}</div>
+  </div>
+  <div class="co"><b>{{ company.name }}</b><br>{{ company.address }}<br>{{ company.city }}, {{ company.state }} {{ company.zip }}<br>
+    {{ company.phone }} · {{ company.email }}<br>Lic. {{ company.license }}</div>
+</div>
+<div class="meta">
+  <div><b>Vendor:</b> {{ o.vendor or '—' }}</div>
+  <div><b>Job:</b> {% if job %}{{ job.name }} — {{ job.address }}{{ ', ' ~ job.city if job.city }}{% else %}—{% endif %}</div>
+  <div><b>Status:</b> {{ o.status|capitalize }}</div>
+</div>
+<table>
+  <thead><tr><th>Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Cost</th><th class="num">Amount</th></tr></thead>
+  <tbody>
+    {% for l in lines %}<tr><td>{{ l.description }}</td><td class="num">{{ l.qty }}</td><td>{{ l.unit }}</td>
+      <td class="num">{{ money(l.cost) }}</td><td class="num">{{ money((l.qty or 0)*(l.cost or 0)) }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+<div class="total"><span>Order total</span><span>{{ money(total) }}</span></div>
+{% if o.notes %}<p style="margin-top:18px;color:#444"><b>Notes:</b> {{ o.notes }}</p>{% endif %}
+</body></html>

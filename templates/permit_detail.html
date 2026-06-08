@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Permit{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a href="{{ url_for('permits.index') }}" class="muted">← Permits</a>
+  <h1 style="margin-left:8px">Permit{% if p.permit_number %} {{ p.permit_number }}{% endif %}</h1>
+  <span class="badge">{{ p.status }}</span>
+  {% if job %}<a class="muted" href="{{ url_for('jobs.detail', job_id=job.id) }}">· {{ job.name }}</a>{% endif %}
+</div>
+<div class="detail">
+  <div>
+    <form method="post" action="{{ url_for('permits.save', permit_id=p.id) }}" class="card">
+      <h2>Permit tracking</h2>
+      <div class="row">
+        <div class="field"><label>AHJ</label><input name="ahj" value="{{ p.ahj or '' }}"></div>
+        <div class="field"><label>County</label><input name="county" value="{{ p.county or '' }}"></div>
+        <div class="field"><label>System</label><select name="system">{% for s in systems %}<option {{ 'selected' if p.system==s }}>{{ s }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Permit #</label><input name="permit_number" value="{{ p.permit_number or '' }}"></div>
+        <div class="field"><label>Status</label><select name="status">{% for s in status_list %}<option {{ 'selected' if p.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Submitted date</label><input type="date" name="submitted_date" value="{{ p.submitted_date or '' }}"></div>
+        <div class="field"><label>Approved date</label><input type="date" name="approved_date" value="{{ p.approved_date or '' }}"></div>
+      </div>
+      <div class="field"><label>Notes</label><textarea name="notes">{{ p.notes or '' }}</textarea></div>
+      <button class="primary" type="submit">Save</button>
+    </form>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>🧾 Permit Packet Builder</h2>
+      {% if p.packet_file %}
+        <a class="btn accent" style="width:100%;text-align:center;margin-bottom:10px" href="{{ url_for('uploads', subpath=p.packet_file) }}" target="_blank">⬇ Download current packet</a>
+      {% endif %}
+      {% if meta.available %}
+        <form method="post" action="{{ url_for('permits.build_packet', permit_id=p.id) }}" enctype="multipart/form-data">
+          <div class="field"><label>AHJ (county / municipality)</label>
+            <select name="ahj" required>
+              <option value="">— select —</option>
+              {% for key, label in meta.ahjs %}<option value="{{ key }}" {{ 'selected' if p.ahj==key }}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field"><label>Roof system</label>
+            <select name="system" onchange="location.href='{{ url_for('permits.detail', permit_id=p.id) }}?sys='+this.value" required>
+              {% for s in meta.systems %}<option value="{{ s|lower }}" {{ 'selected' if p.system==(s|lower) }}>{{ s }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="row">
+            <div class="field"><label>Underlayment</label>
+              <select name="underlayment"><option value="">Default</option>{% for u in meta.uls %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select>
+            </div>
+            <div class="field"><label>Product</label>
+              <select name="product"><option value="">Default</option>{% for pr in meta.products %}<option value="{{ pr }}">{{ pr }}</option>{% endfor %}</select>
+            </div>
+          </div>
+          <div class="field"><label>Attach RoofGraf report (optional — pulls squares & pitch)</label>
+            <input type="file" name="attachment" accept="application/pdf"></div>
+          <button class="accent" style="width:100%" type="submit">🧾 Build permit packet</button>
+          <div class="muted" style="margin-top:8px">Pre-fills SeaBreeze contractor info, owner/address from the job, and the county forms + product approvals from the permit library.</div>
+        </form>
+      {% else %}
+        <div class="muted">Permit builder engine not detected on this host. The tracker still works; connect the SeaBreeze_Permit_Library + build.py to enable one-click packet generation.</div>
+      {% endif %}
+    </div>
+    <form method="post" action="{{ url_for('permits.delete', permit_id=p.id) }}" onsubmit="return confirm('Delete permit?')">
+      <button class="danger" style="width:100%" type="submit">Delete permit</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

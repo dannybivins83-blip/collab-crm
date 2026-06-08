@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Contacts{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>👤 Contacts</h1>
+  <span class="sub">{{ contacts|length }} {{ 'result' if q else 'total' }}{% if q %} for “{{ q }}”{% endif %}</span>
+  <div class="grow"></div>
+  <a class="btn primary" href="{{ url_for('contacts.new') }}">+ New Contact</a>
+</div>
+<table class="grid">
+  <tr><th>Name</th><th>Company</th><th>Phone</th><th>Email</th><th>Address</th><th>Source</th><th>Tags</th></tr>
+  {% for c in contacts %}
+  <tr onclick="location.href='{{ url_for('contacts.detail', contact_id=c.id) }}'" style="cursor:pointer">
+    <td><b>{{ c.first_name }} {{ c.last_name }}</b></td>
+    <td>{{ c.company or '' }}</td>
+    <td>{{ c.phone or '' }}</td>
+    <td>{{ c.email or '' }}</td>
+    <td>{{ c.address or '' }}{{ ', ' ~ c.city if c.city }}</td>
+    <td>{{ c.source or '' }}</td>
+    <td>{% for t in (c.tags or '').split(',') if t.strip() %}<span class="tag">{{ t.strip() }}</span>{% endfor %}</td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="empty">No contacts yet.</td></tr>{% endfor %}
+</table>
+{% endblock %}

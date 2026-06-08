@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}New Estimate{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a class="btn ghost" href="javascript:history.back()">← Back</a>
+  <h1>📝 New Estimate</h1>
+</div>
+<form method="post" class="card" style="max-width:640px">
+  <input type="hidden" name="lead_id" value="{{ pre.lead_id or '' }}">
+  <input type="hidden" name="job_id" value="{{ pre.job_id or '' }}">
+  <input type="hidden" name="contact_id" value="{{ pre.contact_id or '' }}">
+  <div class="field"><label>Title</label><input name="title" value="{{ pre.title or '' }}" placeholder="Customer / job name"></div>
+  <div class="field"><label>Work type</label>
+    <select name="work_type">{% for w in constants.WORK_TYPES %}<option {{ 'selected' if pre.work_type==w }}>{{ w }}</option>{% endfor %}</select>
+  </div>
+  <div class="field"><label>Template (auto-selected from work type, or override)</label>
+    <select name="template_id">
+      <option value="">Auto from work type</option>
+      {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select>
+    <div class="muted" style="margin-top:6px">Starter line items + scope load from the template — all editable next. Manage templates under <a href="{{ url_for('templates.index') }}">Tools → Templates</a>.</div>
+  </div>
+  <button class="primary" type="submit">Create estimate →</button>
+</form>
+{% endblock %}

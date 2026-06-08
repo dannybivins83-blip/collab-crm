@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Estimates{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>📝 Estimates & Proposals</h1>
+  <div class="grow"></div>
+  <a class="btn primary" href="{{ url_for('estimates.new') }}">+ New Estimate</a>
+</div>
+<table class="grid">
+  <tr><th>Number</th><th>Title</th><th>Work type</th><th>Status</th><th class="right">Total</th><th>Created</th></tr>
+  {% for e in estimates %}
+  <tr onclick="location.href='{{ url_for('estimates.detail', est_id=e.id) }}'" style="cursor:pointer">
+    <td><b>{{ e.number }}</b></td><td>{{ e.title }}</td><td>{{ e.work_type }}</td>
+    <td><span class="badge">{{ e.status }}</span></td>
+    <td class="right">{{ money(e._total) }}</td><td class="muted">{{ e.created[:10] }}</td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="empty">No estimates yet.</td></tr>{% endfor %}
+</table>
+{% endblock %}

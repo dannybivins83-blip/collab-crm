@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>{{ e.number }} — {{ company.name }}</title>
+<style>
+  body{font-family:'Roboto',Segoe UI,Arial,sans-serif;color:#313131;margin:0;font-size:13px;background:#eef1f5}
+  .wrap{display:flex;gap:0;align-items:flex-start}
+  .opts{width:230px;flex:none;background:#fff;border-right:1px solid #dde2ea;padding:18px 16px;position:sticky;top:0;height:100vh;overflow:auto}
+  .opts h4{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#5b6b86}
+  .opts label{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;cursor:pointer}
+  .opts .sub{padding-left:16px}
+  .opts hr{border:0;border-top:1px solid #eef1f5;margin:10px 0}
+  .opts .barbtn{display:block;width:100%;margin-top:14px;padding:9px;border:0;border-radius:7px;background:#4680BF;color:#fff;font-weight:700;cursor:pointer}
+  .sheet{flex:1;background:#fff;margin:18px auto;max-width:760px;padding:40px;box-shadow:0 1px 8px rgba(20,40,80,.12)}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+  .head .logo{height:64px;margin-bottom:6px}
+  .head .co{font-size:12.5px;line-height:1.5}
+  .head .date{font-size:13px;color:#555}
+  .parties{display:flex;justify-content:space-between;border:1px solid #d6deeb;border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:12.5px;line-height:1.5}
+  .section{margin-bottom:16px}
+  .section h3{margin:0 0 8px;background:#eef1f5;padding:9px 12px;font-size:14px;border-radius:4px}
+  .scope{white-space:pre-wrap;font-size:12.5px;line-height:1.55;color:#333;padding:0 4px 8px}
+  table.li{width:100%;border-collapse:collapse;margin:6px 0}
+  table.li th,table.li td{padding:5px 8px;border-bottom:1px solid #eef1f5;font-size:12px;text-align:left}
+  table.li th{color:#5b6b86;text-transform:uppercase;font-size:10px}
+  table.li .num{text-align:right}
+  .sectot{display:flex;justify-content:space-between;font-weight:700;padding:6px 8px;border-top:1px solid #d6deeb}
+  .sectot .price{color:#3f7d20}
+  .total{display:flex;align-items:center;background:#7cb342;color:#fff;border-radius:8px;padding:14px 16px;font-size:18px;font-weight:800;margin:14px 0}
+  .total span:first-child{flex:1}
+  .terms{font-size:12px;color:#333;background:#f7f9fc;border:1px solid #e1e8f2;border-radius:8px;padding:12px 14px;margin-top:14px}
+  .sign{margin-top:30px;display:flex;gap:40px}
+  .sigbox{flex:1;border-top:1px solid #1d2a44;padding-top:6px;font-size:12px;color:#555}
+  .brandfoot{margin-top:26px;border-top:2px solid {{ company.color_primary or '#4680BF' }};padding-top:10px;text-align:center}
+  .brandfoot .svc{font-size:11.5px;color:#444;font-weight:600}
+  .brandfoot .war{font-size:11px;color:#3f7d20;font-weight:700;margin-top:3px}
+  .brandfoot .lic{font-size:11px;color:#555;margin-top:3px}
+  .brandfoot .soc{font-size:11px;margin-top:4px}
+  .brandfoot .soc a{color:{{ company.color_primary or '#4680BF' }};text-decoration:none}
+  /* toggle classes */
+  body:not(.show-scope) .scope{display:none}
+  body:not(.show-lines) table.li{display:none}
+  body:not(.show-qty) .col-qty{display:none}
+  body:not(.show-price) .col-price{display:none}
+  body:not(.show-sectot) .sectot{display:none}
+  body:not(.show-tax) .row-tax{display:none}
+  @media print{.opts{display:none}body{background:#fff}.sheet{box-shadow:none;margin:0;max-width:none}}
+</style></head>
+<body class="show-scope show-lines show-sectot show-tax">
+<div class="wrap">
+  <div class="opts">
+    <h4>Print Options</h4>
+    <label><input type="checkbox" data-cls="show-scope" checked onchange="tog(this)"> Section Description</label>
+    <label><input type="checkbox" data-cls="show-lines" checked onchange="tog(this)"> Show Line Items</label>
+    <label class="sub"><input type="checkbox" data-cls="show-qty" onchange="tog(this)"> Quantities / Units</label>
+    <label class="sub"><input type="checkbox" data-cls="show-price" onchange="tog(this)"> Line Item Price</label>
+    <label><input type="checkbox" data-cls="show-sectot" checked onchange="tog(this)"> Section Totals</label>
+    <hr>
+    <label><input type="checkbox" data-cls="show-tax" checked onchange="tog(this)"> Tax</label>
+    <button class="barbtn" onclick="window.print()">🖨 Print / Save PDF</button>
+  </div>
+
+  <div class="sheet">
+    <div class="head">
+      <div>
+        {% if company.logo_path %}<img class="logo" src="{{ url_for('uploads', subpath=company.logo_path) }}"><br>{% endif %}
+        <div class="co"><b>{{ company.name }}</b><br>
+          {{ company.address }}<br>{{ company.city }}, {{ company.state }} {{ company.zip }}<br>
+          {{ company.license }}<br>Phone: {{ company.phone }}<br><br>
+          <b>Company Representative</b><br>{{ company.qualifier }}<br>{{ company.email }}</div>
+      </div>
+      <div class="date">{{ e.created[:10] }}</div>
+    </div>
+
+    <div class="parties">
+      <div><b>{{ e.title }}</b><br>{{ e.work_type }}</div>
+      <div>Estimate: {{ e.number }}<br>Status: {{ e.status }}</div>
+    </div>
+
+    {% for s in sections %}
+    {% set m = (s.margin_pct or 0)/100 %}
+    <div class="section">
+      <h3>{{ s.name }}</h3>
+      {% if s.scope_text %}<div class="scope">{{ s.scope_text }}</div>{% endif %}
+      <table class="li">
+        <thead><tr><th>Description</th><th class="num col-qty">Qty</th><th class="col-qty">Unit</th><th class="num col-price">Price</th></tr></thead>
+        <tbody>
+        {% for l in s._lines %}
+          {% set lc = (l.qty or 0) * (l.cost or 0) %}
+          <tr><td>{{ l.description }}</td><td class="num col-qty">{{ l.qty }}</td><td class="col-qty">{{ l.unit }}</td>
+            <td class="num col-price">{{ money(lc/(1-m) if (1-m) else lc) }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <div class="sectot"><span>{{ s.name }} Total</span><span class="price">{{ money(s._price) }}</span></div>
+    </div>
+    {% endfor %}
+
+    <div class="total"><span>ESTIMATE TOTAL</span><span>{{ money(totals.total) }}</span></div>
+
+    <div class="terms">
+      <b>Payment schedule</b>
+      <table style="width:100%">
+        {% for d in draws %}<tr><td>{{ d.label }}</td><td style="text-align:right">{{ money(d.amount) if d.amount is not none else 'TBD' }}</td></tr>{% endfor %}
+      </table>
+      {% if e.tax_pct %}<div class="row-tax" style="margin-top:6px">Tax ({{ e.tax_pct }}%): {{ money(totals.tax) }}</div>{% endif %}
+      {% if e.terms %}<div style="margin-top:8px">{{ e.terms }}</div>{% endif %}
+      {% if e.notes %}<div style="margin-top:8px"><b>Notes:</b> {{ e.notes }}</div>{% endif %}
+    </div>
+
+    <div class="sign">
+      <div class="sigbox">
+        {% if e.signature %}<img src="{{ e.signature }}" style="height:50px"><br>{% endif %}
+        Customer signature{% if e.signed_name %} — {{ e.signed_name }}{% endif %}{% if e.signed_at %} ({{ e.signed_at }}){% endif %}
+      </div>
+      <div class="sigbox">{{ company.name }} — authorized representative</div>
+    </div>
+
+    <div class="brandfoot">
+      {% if company.services %}<div class="svc">{{ company.services }}</div>{% endif %}
+      {% if company.warranty %}<div class="war">{{ company.warranty }}</div>{% endif %}
+      <div class="lic">Lic. {{ company.license }} · {{ company.phone }} · {{ company.email }} · {{ company.website }}</div>
+      <div class="soc">
+        {% if company.social_facebook %}<a href="{{ company.social_facebook }}">Facebook</a>{% endif %}
+        {% if company.social_instagram %} · <a href="{{ company.social_instagram }}">Instagram</a>{% endif %}
+        {% if company.social_twitter %} · <a href="{{ company.social_twitter }}">Twitter</a>{% endif %}
+        {% if company.social_youtube %} · <a href="{{ company.social_youtube }}">YouTube</a>{% endif %}
+        {% if company.social_google %} · <a href="{{ company.social_google }}">Google</a>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function tog(cb){document.body.classList.toggle(cb.dataset.cls, cb.checked)}
+</script>
+</body></html>

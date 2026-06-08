@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Jobs{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>Jobs</h1>
+  <span class="sub">{{ rows|length }} of {{ total }}</span>
+  <div class="grow"></div>
+  <div class="viewtoggle">
+    <a class="on">☰ List</a>
+    <a href="{{ url_for('jobs.board') }}">▦ Board</a>
+  </div>
+  <a class="btn primary" href="{{ url_for('jobs.new') }}">+ New Job</a>
+</div>
+
+<div class="listwrap">
+  <aside class="filters">
+    <form method="get"><input name="q" value="{{ q }}" placeholder="Search results…" style="margin-bottom:12px"></form>
+    <div class="filt-head">Milestone Pipeline {% if stage_f or bucket %}<a href="{{ url_for('jobs.list_view') }}" class="muted">clear</a>{% endif %}</div>
+    <a class="filt {{ 'on' if not stage_f and not bucket }}" href="{{ url_for('jobs.list_view') }}">All <span>{{ total }}</span></a>
+    {% for s in stages %}
+    <a class="filt {{ 'on' if stage_f==s.key }}" href="{{ url_for('jobs.list_view') }}?stage={{ s.key }}" style="{{ 'padding-left:18px;font-size:12px' if s.bucket=='approved' and s.key!='approved' }}">
+      <span class="fdot" style="background:{{ s.color }}"></span>{{ s.name }} <span>{{ counts[s.key] }}</span>
+    </a>
+    {% endfor %}
+  </aside>
+
+  <div class="results">
+    {% for j in rows %}
+    {% set col = 'var(--danger)' if j._fs.level=='hot' else ('var(--warn)' if j._fs.level=='stalled' else 'var(--ok)') %}
+    <a class="result" href="{{ url_for('jobs.detail', job_id=j.id) }}">
+      <span class="res-badge" style="background:{{ constants.job_bucket(j.stage).color }}">{{ constants.job_bucket(j.stage).letter }}</span>
+      <div class="res-main">
+        <div class="res-name">{{ j.rid ~ ': ' if j.rid }}{{ j.name }}</div>
+        <div class="res-sub">{{ j.phone }}{% if j.address %} · {{ j.address }}{{ ', ' ~ j.city if j.city }}{% endif %}</div>
+        <div class="res-sub">{{ j.work_type }}{% if j.rep %} · {{ j.rep }}{% endif %}{% if j.ahj %} · {{ j.ahj }}{% endif %}</div>
+      </div>
+      <div class="res-meta">
+        <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ j._stage.name }}</span>
+        <div class="muted" style="margin-top:6px">In status <b>{{ j._fs.days }}d</b></div>
+        {% if j.contract_value %}<div class="est">{{ j.contract_value }}</div>{% endif %}
+        {% set pa = job_profit(j.id) %}
+        {% if pa.has_ws %}<div class="muted">Profit {{ money(pa.gross_profit) }} · {{ pa.gross_pct|round(0)|int }}%</div>{% endif %}
+      </div>
+    </a>
+    {% else %}<div class="empty">No jobs match.</div>{% endfor %}
+  </div>
+</div>
+{% endblock %}
