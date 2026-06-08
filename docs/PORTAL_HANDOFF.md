@@ -31,10 +31,16 @@ Data = Neon Postgres. Files = Neon blob store (`gdrive.blob_put`/`serve_fallback
 - Payment schedule = 30/30/30/10 (performance-based).
 
 ## Known gaps / polish targets (the "perfecting" list)
-1. **Mobile layout pass** — portal_dashboard.html is desktop-first; verify on phone
-   (the section cards, signature pad sizing, pay buttons).
-2. **Visual design** — it's functional but plain; tighten spacing, hero, progress bar,
-   brand polish to feel premium.
+1. ~~**Mobile layout pass**~~ ✅ DONE (2026-06-08) — both templates reworked mobile-first;
+   verified at 375/390px (no horizontal overflow), forms stack to full-width buttons,
+   tap targets ≥46px, e-sign + initials-progress JS confirmed working.
+2. ~~**Visual design**~~ ✅ DONE (2026-06-08) — premium pass shipped: gradient brand hero
+   band, polished progress stepper ("Step X of Y"), roadmap status icons, contact avatar,
+   payment stat cards + paid progress bar + circular draw checks, sticky primary-action
+   bar, refined shadows/spacing/pills. Sign-up packet: numbered clause badges, dashed
+   initial "stamps", choice chips, framed signature pad, live initials progress, celebratory
+   done state. All brand-driven via CSS vars + `color-mix()` (solid fallbacks for old
+   browsers) so it stays white-label-safe. Live on Vercel + verified.
 3. **Part B overlay precision** — `_prefill_pdf` places values next to found labels but
    isn't pixel-perfect per form, and doesn't check the panel-style box on the paper PDF.
 4. **File downloads on live** — 8 huge brochures exceed the 4 MB Neon-blob cap (fine
@@ -43,7 +49,21 @@ Data = Neon Postgres. Files = Neon blob store (`gdrive.blob_put`/`serve_fallback
    follow-up; no email/SMS to the rep yet.
 6. **Drawn signature on the per-document e-sign** is a pad; the Sign-Up Package final
    signature is a pad + typed name. Initials are typed (consider initial-pads).
-7. **Portal nav** — currently one long scroll; consider section tabs/anchors.
+7. **Portal nav** — currently one long scroll. Partly addressed: a sticky bottom CTA
+   bar now keeps the primary action (Complete Sign-Up / Pay Balance) reachable. Section
+   tabs/anchors still worth considering.
+
+## Local preview workflow (hard-won — reuse next time)
+- `.env` has a Neon `DATABASE_URL`, so a bare `python app.py` hits **prod**. For safe
+  local work force SQLite: run with `DATABASE_URL="" POSTGRES_URL="" POSTGRES_PRISMA_URL=""`
+  (config uses `setdefault`, so empty env vars win). Seeded local tokens live in
+  `data/crm.db` only — they do **not** exist in Neon, and vice-versa.
+- The Claude preview MCP's `preview_screenshot` **times out** in this env; `preview_eval`
+  / `preview_inspect` work fine and are authoritative for overflow/tap-target/geometry
+  checks. For actual pixels use `.preview/shoot.py <url> <prefix> [width] [seg] [winH]` —
+  headless Chrome → PIL-sliced crisp segments (`.preview/` is git+vercel-ignored).
+- The preview MCP reloads its tracked URL (`/`, which needs login) on resize/reload —
+  re-navigate to the portal URL via `preview_eval(window.location.href=…)` after resizing.
 
 ## How to run / verify
 - Local: `python app.py` (SQLite). Test client pattern: set session `user_id` to an admin
