@@ -83,6 +83,16 @@ def _g(obj, *keys, default=""):
     return default
 
 
+def _name_of(v, *prefer):
+    """Many AccuLynx fields are objects like {'id':5,'name':'New','abbreviation':'FL'}.
+    Reduce any object/list to a plain display string so raw JSON is never stored."""
+    if isinstance(v, dict):
+        return _g(v, *(prefer or ("name", "title", "value", "type", "label", "abbreviation")))
+    if isinstance(v, list):
+        return _join_list(v)
+    return "" if v in (None, "") else str(v)
+
+
 def _api_get(base, path, key, params=None):
     url = base.rstrip("/") + path
     if params:
@@ -127,9 +137,9 @@ def _flatten_address(a):
         return str(a or "")
     line1 = _g(a, "addressFirstLine", "address1", "street", "streetAddress", "line1", "addressLine1")
     line2 = _g(a, "addressSecondLine", "address2", "line2", "addressLine2")
-    city = _g(a, "city", "cityText")
-    state = _g(a, "state", "stateText", "stateCode", "province")
-    zc = _g(a, "zip", "zipCode", "postalCode", "zipText", "postal")
+    city = _name_of(_g(a, "city", "cityText"))
+    state = _name_of(_g(a, "state", "stateText", "stateCode", "province"), "abbreviation", "name")
+    zc = _name_of(_g(a, "zip", "zipCode", "postalCode", "zipText", "postal"))
     sz = ("%s %s" % (state, zc)).strip()
     return ", ".join([p for p in (line1, line2, city, sz) if p])
 
@@ -293,7 +303,11 @@ def run_sync(deep=False, batch=50):
     # Cursor = (group index, recordStartIndex within that group), resumable.
     BATCH = int(batch or 50)
     PAGE = 25  # AccuLynx caps pageSize at 25
-    GROUPS = ["lead", "prospect", "approved", "completed", "invoiced", "closed", "cancelled", "dead"]
+    # Active pipeline the office works day-to-day: leads (Assigned) → prospects →
+    # approved jobs → completed → invoiced. Ordered newest-first within each group.
+    # Deliberately skips the huge historical buckets (Closed ~1,158 / Canceled ~6,831)
+    # so a full pass stays ~800 records, not ~8,800.
+    GROUPS = ["lead", "prospect", "approved", "completed", "invoiced"]
     g = int(company.get("acculynx_group") or 0)
     start = int(company.get("acculynx_cursor") or 0)
     window = []
@@ -357,6 +371,9 @@ def run_sync(deep=False, batch=50):
             url = "https://my.acculynx.com/jobs/%s" % jid if jid else ""
             val = _money_val(job)
             val_col = "estimate" if kind == "lead" else "contract_value"
+            # Job progress: the detailed AccuLynx milestone + its date.
+            mdate = (_g(job, "milestoneDate", "milestone_date") or "")[:10]
+            progress = ("Milestone: %s%s" % (milestone or grp, (" (as of %s)" % mdate) if mdate else "")).strip()
 
             if kind == "lead":
                 cur = exLg.get(jid) or (exL.get(name.lower()) if name else None)
@@ -366,7 +383,7 @@ def run_sync(deep=False, batch=50):
             crm_id = None
 
             if cur:
-                upd = {"stage": stage, "external_url": url}
+                upd = {"stage": stage, "external_url": url, "todo": progress}
                 if val:
                     upd[val_col] = val
                 db.update(crm_kind + "s", cur["id"], **upd)
@@ -383,10 +400,10 @@ def run_sync(deep=False, batch=50):
                 rec = {
                     "name": name, "rid": _g(job, "jobNumber", "number", "refNumber"),
                     "phone": cb["phone"], "email": cb["email"], "address": addr,
-                    "work_type": _g(job, "workType", "tradeType", "trade") or _join_list(job.get("tradeTypes")),
-                    "source": _g(job, "leadSource", "source"),
-                    "rep": _g(job, "salesRep", "assignedTo", "rep") or "Danny Bivins",
-                    "external_url": url, "department": "REROOF Department",
+                    "work_type": _name_of(_g(job, "workType", "tradeType", "trade")) or _join_list(job.get("tradeTypes")),
+                    "source": _name_of(_g(job, "leadSource", "source")),
+                    "rep": _name_of(_g(job, "salesRep", "assignedTo", "rep")) or "Danny Bivins",
+                    "external_url": url, "department": "REROOF Department", "todo": progress,
                 }
                 if val:
                     rec[val_col] = val
@@ -552,25 +569,38 @@ def browser_import():
 
 @bp.route("/run", methods=["POST"])
 def run():
-    deep = bool(request.form.get("deep"))
+    deep = bool(request.form.get("deep"))  # OFF: AccuLynx API has no GET for messages/docs (404)
+    import time as _t
+    t0 = _t.time()
+    agg = {"added_leads": 0, "added_jobs": 0, "updated": 0, "skipped": 0, "batch": 0}
+    result = {"ok": True, "done": False}
+    last_err = ""
     try:
-        result = run_sync(deep=deep)
+        # Drain several 50-record batches per click (the cursor is persisted between
+        # batches, so it's resumable/crash-safe). Stop before ~20s so the request
+        # never times out — one or two clicks finishes the active pipeline (~800 records).
+        while _t.time() - t0 < 20:
+            result = run_sync(deep=deep)
+            if not result.get("ok"):
+                break
+            for k in agg:
+                agg[k] += result.get(k, 0)
+            last_err = result.get("last_err") or last_err
+            if result.get("done") or not result.get("batch"):
+                break
     except Exception as e:  # never 500 — always show a readable error
         import traceback
         result = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
                   "trace": traceback.format_exc()[-400:]}
     if result.get("ok"):
-        msg = "Batch synced — milestone '%s' · %d records · +%d leads · +%d jobs · %d updated." % (
-            result.get("group", "?"), result.get("batch", 0),
-            result.get("added_leads", 0), result.get("added_jobs", 0), result.get("updated", 0))
-        if result.get("skipped"):
-            msg += " (%d skipped — %s)" % (result.get("skipped"), result.get("last_err", "")[:120])
+        msg = "Synced %d records — +%d leads · +%d jobs · %d updated." % (
+            agg["batch"], agg["added_leads"], agg["added_jobs"], agg["updated"])
+        if agg["skipped"]:
+            msg += " (%d skipped — %s)" % (agg["skipped"], last_err[:120])
         if result.get("done"):
-            msg += " ✅ Full pass complete (all milestones)."
+            msg += " ✅ Full pass complete (all active milestones)."
         else:
-            msg += " Click Sync again to continue."
-        if deep:
-            msg += " Notes: %d · Documents: %d." % (result.get("notes_synced", 0), result.get("docs_synced", 0))
+            msg += " More remain — click Sync again to continue."
         flash(msg, "ok")
     else:
         flash("Sync failed: %s" % result.get("error"), "error")
@@ -592,7 +622,7 @@ def cron():
     if not (company.get("acculynx_api_key") or "").strip():
         return jsonify({"ok": True, "skipped": "no AccuLynx API key configured yet"})
     import time as _t
-    deep = bool(request.args.get("deep"))
+    deep = bool(request.args.get("deep"))  # OFF: AccuLynx API has no GET for messages/docs (404)
     t0 = _t.time()
     batches = 0
     agg = {"added_leads": 0, "added_jobs": 0, "updated": 0}

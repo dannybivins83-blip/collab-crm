@@ -24,17 +24,16 @@
 
   <div class="card">
     <h2>Run a sync</h2>
-    <p class="muted">Pulls jobs + leads from AccuLynx and upserts them here (matches by name; updates status, creates contacts). Shared across all CRM users.</p>
+    <p class="muted">Pulls your <b>active pipeline</b> from AccuLynx — Assigned, Prospect, Approved, Completed &amp; Invoiced (~800 records). The huge historical Closed/Canceled buckets are skipped on purpose. Matches by AccuLynx job ID, then name, so re-syncs update the same record instead of duplicating.</p>
     <form method="post" action="{{ url_for('sync.run') }}">
-      <label class="check" style="max-width:420px"><input type="checkbox" name="deep"> <span>Deep sync — also pull each job's <b>notes (messages)</b> + <b>documents</b> via the API</span></label>
       <button class="accent" type="submit" {{ '' if company.acculynx_api_key else 'disabled' }}>🔄 Sync now</button>
       {% if company.acculynx_api_key %}<a class="btn ghost" href="{{ url_for('sync.test') }}" style="margin-left:8px">🔌 Test connection</a>{% endif %}
       {% if not company.acculynx_api_key %}<div class="muted" style="margin-top:8px">Save an API key first.</div>{% endif %}
-      <div class="muted" style="margin-top:8px">If a sync ever fails, click <b>Test connection</b> — it shows exactly what AccuLynx returned so the mapping can be corrected.</div>
-      <div class="muted" style="margin-top:8px">Deep sync uses <code>/jobs/{id}/messages</code> and <code>/jobs/{id}/documents</code> — this is Phase 2 (notes + documents), done cleanly via the API instead of the browser.</div>
+      <div class="muted" style="margin-top:8px">Each click pulls for ~20 seconds (several batches) and remembers where it left off. The flash message tells you when a <b>full pass is complete</b> — for the first import, click <b>Sync now</b> a couple of times until it says so.</div>
+      <div class="muted" style="margin-top:8px">If anything looks off, click <b>Test connection</b> — it shows exactly what AccuLynx returned and how each field maps.</div>
     </form>
     <div class="muted" style="margin-top:14px">
-      <b>Auto-sync:</b> with the checkbox on, the scheduled task runs this on a cron (set up via the <code>/schedule</code> routine). Because it uses the API key, it runs unattended — no browser or login to AccuLynx needed.
+      <b>Auto-sync:</b> with the checkbox on, a scheduled cron drains batches unattended (it uses the API key — no browser or AccuLynx login needed), so the pipeline stays current on its own.
     </div>
   </div>
 </div>
