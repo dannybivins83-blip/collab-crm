@@ -29,6 +29,14 @@ def today():
 # ---------------------------------------------------------------------------
 _PG_URL = (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
            or os.environ.get("POSTGRES_PRISMA_URL"))
+# Some hosts/paste-ins wrap the value in quotes or inject a UTF-8 BOM / CRLF,
+# which breaks psycopg's conninfo parser. A valid URL has no whitespace, so scrub
+# every whitespace char (incl. BOM) and surrounding quotes.
+if _PG_URL:
+    import re as _re
+    _PG_URL = _PG_URL.strip().strip('"').strip("'")
+    _PG_URL = _PG_URL.replace("\\r", "").replace("\\n", "").replace("\\t", "")  # literal escapes
+    _PG_URL = _re.sub(r"\s", "", _PG_URL).replace("﻿", "")                       # real ws + BOM
 IS_PG = bool(_PG_URL)
 
 if IS_PG:
@@ -192,7 +200,7 @@ CREATE TABLE IF NOT EXISTS photos (
 CREATE TABLE IF NOT EXISTS appointments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created TEXT, title TEXT, kind TEXT,
-    start TEXT, end TEXT,
+    start_at TEXT, end_at TEXT,
     lead_id INTEGER, job_id INTEGER, contact_id INTEGER,
     assignee TEXT, location TEXT, notes TEXT, reminder TEXT
 );

@@ -9,7 +9,7 @@
       <table class="grid">
         <tr><th>When</th><th>Title</th><th>Type</th><th>Who</th><th>Assignee</th><th></th></tr>
         {% for a in upcoming %}
-        <tr><td><b>{{ a.start }}</b>{% if a.end %}–{{ a.end[11:] or a.end }}{% endif %}</td>
+        <tr><td><b>{{ a.start_at }}</b>{% if a.end_at %}–{{ a.end_at[11:] or a.end_at }}{% endif %}</td>
           <td>{{ a.title }}{% if a.location %}<div class="muted">📍 {{ a.location }}</div>{% endif %}</td>
           <td><span class="badge">{{ a.kind }}</span></td><td>{{ a._who }}</td><td>{{ a.assignee }}</td>
           <td class="right"><form method="post" action="{{ url_for('calendar.delete', appt_id=a.id) }}"><button class="btn sm" type="submit">✕</button></form></td></tr>
@@ -18,7 +18,7 @@
     </div>
     {% if past %}
     <div class="card"><h2 class="muted">Past</h2>
-      <table class="grid">{% for a in past %}<tr><td class="muted">{{ a.start }}</td><td>{{ a.title }}</td><td>{{ a._who }}</td></tr>{% endfor %}</table>
+      <table class="grid">{% for a in past %}<tr><td class="muted">{{ a.start_at }}</td><td>{{ a.title }}</td><td>{{ a._who }}</td></tr>{% endfor %}</table>
     </div>{% endif %}
   </div>
   <div class="card">

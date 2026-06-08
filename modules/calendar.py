@@ -10,13 +10,13 @@ KINDS = ["Inspection", "Estimate Appt", "Production / Crew", "Final Inspection",
 
 @bp.route("/")
 def index():
-    appts = db.all_rows("appointments", order="start")
+    appts = db.all_rows("appointments", order="start_at")
     jobs = {j["id"]: j for j in db.all_rows("jobs")}
     leads = {l["id"]: l for l in db.all_rows("leads")}
     for a in appts:
         a["_who"] = (jobs.get(a["job_id"], {}) or leads.get(a["lead_id"], {}) or {}).get("name", "")
-    upcoming = [a for a in appts if (a.get("start") or "") >= db.today()]
-    past = [a for a in appts if (a.get("start") or "") < db.today()]
+    upcoming = [a for a in appts if (a.get("start_at") or "") >= db.today()]
+    past = [a for a in appts if (a.get("start_at") or "") < db.today()]
     return render_template("calendar.html", upcoming=upcoming, past=past, kinds=KINDS,
                            leads=db.all_rows("leads", order="name"),
                            jobs=db.all_rows("jobs", order="name"),
@@ -28,7 +28,7 @@ def new():
     target = request.form.get("target", "")
     et, _, eid = target.partition(":")
     data = {"title": request.form.get("title", "").strip(), "kind": request.form.get("kind", "Other"),
-            "start": request.form.get("start", ""), "end": request.form.get("end", ""),
+            "start_at": request.form.get("start", ""), "end_at": request.form.get("end", ""),
             "assignee": request.form.get("assignee", ""), "location": request.form.get("location", ""),
             "notes": request.form.get("notes", ""), "reminder": request.form.get("reminder", "")}
     if et == "lead" and eid:
@@ -37,9 +37,9 @@ def new():
         data["job_id"] = int(eid)
     db.insert("appointments", data)
     if data.get("lead_id"):
-        db.add_activity("lead", data["lead_id"], "note", "Appointment: %s @ %s" % (data["title"], data["start"]))
+        db.add_activity("lead", data["lead_id"], "note", "Appointment: %s @ %s" % (data["title"], data["start_at"]))
     if data.get("job_id"):
-        db.add_activity("job", data["job_id"], "note", "Appointment: %s @ %s" % (data["title"], data["start"]))
+        db.add_activity("job", data["job_id"], "note", "Appointment: %s @ %s" % (data["title"], data["start_at"]))
     flash("Appointment scheduled.", "ok")
     return redirect(url_for("calendar.index"))
 

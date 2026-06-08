@@ -17,7 +17,7 @@ bp = Blueprint("auth", __name__)
 # so the live (real-data) instance never uses the publicly-known default.
 DEFAULT_PASSWORD = os.environ.get("CRM_DEFAULT_PASSWORD", "seabreeze2026")
 # Endpoints reachable without being logged in.
-PUBLIC = {"auth.login", "static", "uploads", "favicon", "leads.import_leads"}
+PUBLIC = {"auth.login", "static", "uploads", "favicon", "leads.import_leads", "sync.browser_import"}
 # Endpoints only admins may hit (prefix match on the path).
 ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow")
 

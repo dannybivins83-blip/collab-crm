@@ -13,7 +13,7 @@ import time
 import urllib.request
 import urllib.parse
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 
 import config
 import db
@@ -310,6 +310,74 @@ def start_auto_sync(app, interval_hours=4):
             except Exception:
                 pass
     threading.Thread(target=_loop, daemon=True, name="acculynx-auto-sync").start()
+
+
+def _upsert_record(rec):
+    """Upsert one scraped record (from the browser bookmarklet) by bucket. Returns 'added'|'updated'|None."""
+    name = (rec.get("name") or "").strip()
+    if not name:
+        return None
+    bucket = rec.get("bucket") or "prospect"
+    url = "https://my.acculynx.com/jobs/%s" % rec.get("guid") if rec.get("guid") else ""
+    parts = [p.strip() for p in (rec.get("address") or "").split(",")]
+    company = db.get_company()
+    dept = "REROOF Department"
+    base = {"name": name, "rid": rec.get("rid", ""), "phone": rec.get("phone", ""),
+            "email": rec.get("email", ""), "work_type": rec.get("work_type", ""),
+            "source": rec.get("source", ""), "rep": rec.get("rep") or "Danny Bivins",
+            "external_url": url, "department": dept}
+    if bucket in ("lead", "assigned", "prospect", "negotiation", "long_term"):
+        stage = "assigned" if bucket in ("lead", "assigned") else "prospect"
+        cur = next((l for l in db.all_rows("leads") if (l.get("name") or "").lower() == name.lower()), None)
+        if cur:
+            db.update("leads", cur["id"], stage=stage, external_url=url, phone=base["phone"] or cur.get("phone"))
+            return "updated"
+        cid = _ensure_contact(name, {**base, "address": rec.get("address", "")})
+        db.insert("leads", {**base, "address": rec.get("address", ""), "contact_id": cid, "stage": stage,
+                            "stage_since": db.today(), "last_contact": db.today(),
+                            "narrative": "Imported from AccuLynx (browser) — %s." % bucket})
+        return "added"
+    stage = {"approved": "approved", "completed": "completed", "invoiced": "invoiced",
+             "closed": "closed"}.get(bucket, "approved")
+    cur = next((j for j in db.all_rows("jobs") if (j.get("name") or "").lower() == name.lower()), None)
+    if cur:
+        db.update("jobs", cur["id"], stage=stage, external_url=url)
+        return "updated"
+    cid = _ensure_contact(name, {**base, "address": rec.get("address", "")})
+    db.insert("jobs", {**base, "contact_id": cid, "stage": stage, "stage_since": db.today(),
+                       "address": parts[0] if parts else "", "city": parts[1] if len(parts) > 1 else "",
+                       "county": company.get("default_county", ""),
+                       "narrative": "Imported from AccuLynx (browser) — %s." % bucket})
+    return "added"
+
+
+@bp.route("/browser-import", methods=["POST", "OPTIONS"])
+def browser_import():
+    """Receives scraped AccuLynx records from the browser bookmarklet. CORS-open
+    (the request comes from the my.acculynx.com tab, not a CRM session)."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+    else:
+        import json as _json
+        recs = request.get_json(force=True, silent=True)
+        if recs is None:
+            try:
+                recs = _json.loads(request.get_data(as_text=True) or "[]")
+            except Exception:
+                recs = []
+        added = updated = 0
+        for rec in (recs or []):
+            res = _upsert_record(rec)
+            if res == "added":
+                added += 1
+            elif res == "updated":
+                updated += 1
+        db.save_company({"acculynx_last_sync": db.now()})
+        r = jsonify({"ok": True, "added": added, "updated": updated, "scanned": len(recs or [])})
+    r.headers["Access-Control-Allow-Origin"] = "*"
+    r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return r
 
 
 @bp.route("/run", methods=["POST"])

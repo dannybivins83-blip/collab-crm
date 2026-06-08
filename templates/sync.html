@@ -36,4 +36,56 @@
     </div>
   </div>
 </div>
+
+<div class="card">
+  <h2>🧭 Browser-tab sync — no API key needed</h2>
+  <p class="muted">Pulls data straight from the AccuLynx page you're logged into (uses your browser session, not the API). Great when you can't get an API key.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag this button to your <b>bookmarks bar</b> →&nbsp;<a id="bm" class="btn accent" href="#" onclick="return false">📥 AccuLynx → CRM</a></li>
+    <li>In AccuLynx, open <b>Jobs → Prospects</b> (or Approved / Assigned / Invoiced / Completed).</li>
+    <li><b>Click the bookmark once.</b> It auto-scrolls the whole list, shows a live "Collecting…" counter, and imports everything into the CRM — no scrolling or repeat-clicking. Run it once per list; duplicates are skipped.</li>
+  </ol>
+  <div class="muted">If your browser blocks the cross-site request the first time, allow it — it's just posting to your own CRM at <code>{{ request.host_url }}</code>.</div>
+</div>
+<script>
+(function(){
+  var BASE={{ request.host_url|tojson }};
+  // Auto-scroll bookmarklet: one click grabs the WHOLE list, shows progress, imports once.
+  var code="(async function(){"+
+    "var B=(location.href.match(/currentMilestoneList:(\\w+)/)||[])[1]||'Prospect';"+
+    "var bk={Assigned:'assigned',Prospect:'prospect',Negotiation:'prospect',LongTerm:'prospect',Approved:'approved',Completed:'completed',Invoiced:'invoiced',Closed:'closed'}[B]||'prospect';"+
+    "var out=[],seen={};"+
+    "var bn=document.createElement('div');bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35)';document.body.appendChild(bn);"+
+    "function collect(){[].forEach.call(document.querySelectorAll('a[href*=\"/jobs/\"]'),function(a){"+
+      "var h=a.getAttribute('href')||'';if(!/\\/jobs\\/[0-9a-f-]{30,}/.test(h))return;"+
+      "var nm=(a.innerText||'').trim();if(/^Job:/.test(nm)||nm.length<3)return;"+
+      "var c=a;while(c.parentElement&&!/Source:/.test(c.innerText||''))c=c.parentElement;"+
+      "var t=c.innerText||'';if(!/Source:/.test(t))return;"+
+      "var g=(h.match(/\\/jobs\\/([0-9a-f-]{30,})/)||[])[1];if(seen[g])return;seen[g]=1;"+
+      "var M=function(re){return((t.match(re)||['',''])[1]||'').trim()};"+
+      "out.push({bucket:bk,guid:g,rid:(nm.match(/R-\\d+/)||[''])[0],name:nm.replace(/^R-\\d+:\\s*/,''),"+
+        "phone:(t.match(/\\(\\d{3}\\) ?\\d{3}-\\d{4}/)||[''])[0],"+
+        "email:(t.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/)||[''])[0],"+
+        "address:M(/\\n([^\\n]*\\d{5}[^\\n]*)\\n/),work_type:M(/\\n(Roofing[^\\n]*|Repair[^\\n]*|Gutter[^\\n]*|Sheet Metal[^\\n]*)\\n/),"+
+        "source:M(/Source:\\s*\\n?\\s*([^\\n]+)/)});});}"+
+    "function scrollers(){var s=[document.scrollingElement||document.documentElement];"+
+      "[].forEach.call(document.querySelectorAll('div'),function(e){if(e.scrollHeight>e.clientHeight+40)s.push(e)});return s;}"+
+    "collect();bn.textContent='Collecting… '+out.length;"+
+    "var last=-1,stable=0;"+
+    "for(var i=0;i<60&&stable<4;i++){"+
+      "scrollers().forEach(function(e){try{e.scrollTop=e.scrollHeight;e.dispatchEvent(new Event('scroll',{bubbles:true}))}catch(_){}});"+
+      "window.scrollTo(0,document.body.scrollHeight);"+
+      "await new Promise(function(r){setTimeout(r,550)});"+
+      "collect();bn.textContent='Collecting… '+out.length+' ('+bk+')';"+
+      "if(out.length===last){stable++}else{stable=0}last=out.length;}"+
+    "if(!out.length){bn.style.background='#c0392b';bn.textContent='No records found — open Jobs > Prospects/Approved first.';setTimeout(function(){bn.remove()},4500);return;}"+
+    "bn.textContent='Importing '+out.length+'…';"+
+    "try{var r=await fetch('"+BASE+"sync/browser-import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(out)});var d=await r.json();"+
+      "bn.style.background='#2e7d32';bn.textContent='✓ '+d.added+' new · '+d.updated+' updated · '+out.length+' scanned ('+bk+')';}"+
+    "catch(e){bn.style.background='#c0392b';bn.textContent='Import failed: '+e.message+' — is the CRM open?';}"+
+    "setTimeout(function(){bn.remove()},6000);"+
+  "})();";
+  document.getElementById('bm').href='javascript:'+encodeURIComponent(code);
+})();
+</script>
 {% endblock %}
