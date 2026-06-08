@@ -69,7 +69,7 @@
     {% if packet.library_doc %}<a class="ref" href="{{ url_for('uploads', subpath='library/' ~ packet.library_doc) }}" target="_blank">📄 View the full sign-up package PDF ↗</a>{% endif %}
   </div>
 
-  <form method="post" action="{{ url_for('signups.portal_complete', token=token, packet_id=packet.id) }}">
+  <form method="post" action="{{ url_for('signups.portal_complete', token=token, packet_id=packet.id) }}" onsubmit="return grabSig(this)">
     <div class="card">
       {% for it in items %}
       <div class="clause">
@@ -81,8 +81,12 @@
         {% elif it.type == 'field' %}
           <div class="fld"><input name="item_{{ it.key }}" placeholder="e.g. Owens Corning TruDefinition — Estate Gray" value="{{ responses.get(it.key,'') }}"></div>
         {% elif it.type == 'sign' %}
-          <div class="fld"><input name="item_{{ it.key }}" placeholder="Type your full legal name to sign" value="{{ responses.get(it.key,'') }}" required style="font-size:20px;font-family:'Segoe Script','Brush Script MT',cursive"></div>
-          <div class="agree">By typing my name and initials above, I agree this constitutes my legal electronic signature on this {{ packet.system }} roof sign-up package for {{ company.name }}.</div>
+          <label style="font-size:12px;font-weight:700;color:var(--mut)">Draw your signature</label>
+          <canvas id="sigpad" width="600" height="150" style="border:1px dashed var(--accent);border-radius:10px;width:100%;touch-action:none;background:#fff;display:block"></canvas>
+          <input type="hidden" name="item_signature_img">
+          <button type="button" onclick="clearSig()" style="background:#eef2f7;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:6px;cursor:pointer">Clear</button>
+          <div class="fld" style="margin-top:10px"><input name="item_{{ it.key }}" placeholder="Type your full legal name" value="{{ responses.get(it.key,'') }}" required style="font-size:20px;font-family:'Segoe Script','Brush Script MT',cursive"></div>
+          <div class="agree">By drawing my signature, typing my name, and initialing above, I agree this constitutes my legal electronic signature on this {{ packet.system }} roof sign-up package for {{ company.name }}.</div>
         {% endif %}
       </div>
       {% endfor %}
@@ -91,5 +95,24 @@
   </form>
   {% endif %}
 </div>
+<script>
+/* Drawn signature pad (mouse + touch). */
+(function(){
+  var cv=document.getElementById('sigpad'); if(!cv) return;
+  var ctx=cv.getContext('2d'); ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.strokeStyle='#1d2a44';
+  var drawing=false,last=null;
+  function pos(e){var r=cv.getBoundingClientRect(),t=(e.touches&&e.touches[0])||e;
+    return {x:(t.clientX-r.left)*(cv.width/r.width), y:(t.clientY-r.top)*(cv.height/r.height)};}
+  function start(e){drawing=true;last=pos(e);e.preventDefault();}
+  function move(e){if(!drawing)return;var p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;cv._used=1;e.preventDefault();}
+  function end(){drawing=false;}
+  cv.addEventListener('mousedown',start);cv.addEventListener('mousemove',move);window.addEventListener('mouseup',end);
+  cv.addEventListener('touchstart',start,{passive:false});cv.addEventListener('touchmove',move,{passive:false});cv.addEventListener('touchend',end);
+  window._sigcv=cv;
+})();
+function clearSig(){var cv=window._sigcv;if(cv){cv.getContext('2d').clearRect(0,0,cv.width,cv.height);cv._used=0;}}
+function grabSig(form){var cv=window._sigcv;var h=form.querySelector('[name=item_signature_img]');
+  if(cv&&h) h.value=cv._used?cv.toDataURL('image/png'):''; return true;}
+</script>
 </body>
 </html>

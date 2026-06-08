@@ -525,3 +525,68 @@ def resources_for(work_type):
         out = MATERIAL_RESOURCES["shingle"]
     out += MATERIAL_RESOURCES["underlayment"]
     return out
+
+
+# ---------------------------------------------------------------------------
+# System UPGRADES / add-ons — dropped into a new estimate as an "Upgrades &
+# Options" section (qty 0 = not included until the rep turns it on). Matched to
+# the lead/job work type so the right premium options are always presented.
+# ---------------------------------------------------------------------------
+UPGRADES = {
+    "shingle": [
+        {"desc": "UPGRADE: Premium architectural shingle (GAF Timberline HDZ / OC Duration)", "unit": "SQ", "qty": 0, "cost": 40.0},
+        {"desc": "UPGRADE: Designer / luxury shingle (Grand Sequoia, Camelot)", "unit": "SQ", "qty": 0, "cost": 120.0},
+        {"desc": "UPGRADE: Full ice & water shield (entire deck, vs eaves only)", "unit": "SQ", "qty": 0, "cost": 45.0},
+        {"desc": "UPGRADE: Full peel-and-stick synthetic underlayment", "unit": "SQ", "qty": 0, "cost": 30.0},
+        {"desc": "UPGRADE: Ridge vent system (replace static vents)", "unit": "LF", "qty": 0, "cost": 9.0},
+        {"desc": "UPGRADE: Premium hip & ridge cap shingles", "unit": "LF", "qty": 0, "cost": 4.0},
+        {"desc": "UPGRADE: Lifetime pipe boots / lead jacks", "unit": "EA", "qty": 0, "cost": 35.0},
+        {"desc": "UPGRADE: Re-deck / replace plywood", "unit": "SQ", "qty": 0, "cost": 250.0},
+        {"desc": "UPGRADE: Extended workmanship warranty (GAF Golden Pledge)", "unit": "LS", "qty": 0, "cost": 600.0},
+    ],
+    "tile": [
+        {"desc": "UPGRADE: 2-ply self-adhered underlayment", "unit": "SQ", "qty": 0, "cost": 55.0},
+        {"desc": "UPGRADE: Premium tile profile / color (Eagle Capistrano, Saxony slate)", "unit": "SQ", "qty": 0, "cost": 90.0},
+        {"desc": "UPGRADE: Foam-set adhesive system (vs mortar)", "unit": "SQ", "qty": 0, "cost": 60.0},
+        {"desc": "UPGRADE: Mortar hip & ridge, color-matched finish", "unit": "LF", "qty": 0, "cost": 5.0},
+        {"desc": "ADD-ON: Birdstop / eave closure", "unit": "LF", "qty": 0, "cost": 6.0},
+        {"desc": "UPGRADE: Lead / copper pipe flashings", "unit": "EA", "qty": 0, "cost": 65.0},
+    ],
+    "metal": [
+        {"desc": "UPGRADE: Kynar 500 premium color finish", "unit": "SQ", "qty": 0, "cost": 75.0},
+        {"desc": "UPGRADE: 24-gauge panel (vs 26-gauge)", "unit": "SQ", "qty": 0, "cost": 90.0},
+        {"desc": "UPGRADE: 2-ply self-adhered underlayment", "unit": "SQ", "qty": 0, "cost": 55.0},
+        {"desc": "ADD-ON: Ridge vent (vented closure)", "unit": "LF", "qty": 0, "cost": 10.0},
+        {"desc": "ADD-ON: Snow guards", "unit": "EA", "qty": 0, "cost": 12.0},
+        {"desc": "UPGRADE: Custom trim / flashing color match", "unit": "LF", "qty": 0, "cost": 6.0},
+    ],
+    "flat": [
+        {"desc": "UPGRADE: 80-mil TPO membrane (vs 60-mil)", "unit": "SQ", "qty": 0, "cost": 45.0},
+        {"desc": "UPGRADE: Tapered ISO / crickets for positive drainage", "unit": "SQ", "qty": 0, "cost": 120.0},
+        {"desc": "UPGRADE: Reflective cool-roof coating", "unit": "SQ", "qty": 0, "cost": 40.0},
+        {"desc": "ADD-ON: Walk pads at equipment", "unit": "EA", "qty": 0, "cost": 45.0},
+        {"desc": "ADD-ON: Additional roof drain / scupper", "unit": "EA", "qty": 0, "cost": 350.0},
+    ],
+    "common": [
+        {"desc": "ADD-ON: Skylight replacement", "unit": "EA", "qty": 0, "cost": 650.0},
+        {"desc": "ADD-ON: New seamless aluminum gutters", "unit": "LF", "qty": 0, "cost": 9.0},
+        {"desc": "ADD-ON: Gutter guards / leaf protection", "unit": "LF", "qty": 0, "cost": 8.0},
+    ],
+}
+
+
+def upgrades_for(work_type):
+    """Upgrade/add-on line items matched to a work type (+ common add-ons)."""
+    low = (work_type or "").lower()
+    out = []
+    if "shingle" in low:
+        out += UPGRADES["shingle"]
+    if "tile" in low:
+        out += UPGRADES["tile"]
+    if "metal" in low:
+        out += UPGRADES["metal"]
+    if "flat" in low or "tpo" in low:
+        out += UPGRADES["flat"]
+    if not out:
+        out = UPGRADES["shingle"]
+    return out + UPGRADES["common"]

@@ -129,25 +129,87 @@ def export():
 @bp.route("/callsheet")
 def callsheet():
     dept = theme.current_department()
+    bucket = request.args.get("bucket", "")     # ""=all buckets, else L/P/A/C/I key
+    stage_key = request.args.get("stage", "")   # specific stage within the bucket
+    due = request.args.get("due", "due")        # all | due | overdue
+
+    def keep(fs):
+        if due == "all":
+            return True
+        if due == "overdue":
+            return fs["level"] == "hot"
+        return fs["level"] != "ok"              # due = due-soon + overdue
+
     items = []
     for l in db.all_rows("leads", "department=?", (dept,)):
         if l["stage"] in constants.LEAD_INACTIVE:
             continue
         sd = constants.lead_stage(l["stage"])
+        if bucket and sd["bucket"] != bucket:
+            continue
+        if stage_key and l["stage"] != stage_key:
+            continue
         fs = theme.follow_status(sd, l.get("last_contact") or l.get("created"), l.get("snooze_until"))
-        if fs["level"] != "ok":
+        if keep(fs):
             items.append({"kind": "Lead", "r": l, "stage": sd["name"], "fs": fs,
                           "todo": l.get("todo") or sd["name"]})
     for j in db.all_rows("jobs", "department=?", (dept,)):
         if j["stage"] in constants.JOB_INACTIVE:
             continue
         sd = constants.job_stage(j["stage"])
+        if bucket and sd["bucket"] != bucket:
+            continue
+        if stage_key and j["stage"] != stage_key:
+            continue
         fs = theme.follow_status(sd, j.get("stage_since") or j.get("created"), j.get("snooze_until"))
-        if fs["level"] != "ok":
+        if keep(fs):
             items.append({"kind": "Job", "r": j, "stage": sd["name"], "fs": fs,
                           "todo": j.get("todo") or sd["name"]})
     items.sort(key=lambda x: (0 if x["fs"]["level"] == "hot" else 1, -x["fs"]["days"]))
-    return render_template("tools_callsheet.html", items=items)
+
+    # Per-bucket headcounts for the big buttons + the active set's stage choices.
+    counts = _bucket_counts(dept, due)
+    stage_opts = []
+    if bucket:
+        for s in constants.LEAD_STAGES:
+            if s["bucket"] == bucket and s["key"] not in constants.LEAD_INACTIVE:
+                stage_opts.append({"key": s["key"], "name": s["name"]})
+        for s in constants.JOB_STAGES:
+            if s["bucket"] == bucket and s["key"] not in constants.JOB_INACTIVE:
+                stage_opts.append({"key": s["key"], "name": s["name"]})
+    return render_template("tools_callsheet.html", items=items, buckets=constants.BUCKETS,
+                           counts=counts, sel_bucket=bucket, sel_stage=stage_key,
+                           sel_due=due, stage_opts=stage_opts)
+
+
+def _bucket_counts(dept, due):
+    """How many calls each bucket would yield under the current due filter — shown
+    as a badge on each big button so the rep sees where the work is."""
+    def keep(fs):
+        if due == "all":
+            return True
+        if due == "overdue":
+            return fs["level"] == "hot"
+        return fs["level"] != "ok"
+    counts = {b["key"]: 0 for b in constants.BUCKETS}
+    counts["_all"] = 0
+    for l in db.all_rows("leads", "department=?", (dept,)):
+        if l["stage"] in constants.LEAD_INACTIVE:
+            continue
+        sd = constants.lead_stage(l["stage"])
+        fs = theme.follow_status(sd, l.get("last_contact") or l.get("created"), l.get("snooze_until"))
+        if keep(fs):
+            counts[sd["bucket"]] = counts.get(sd["bucket"], 0) + 1
+            counts["_all"] += 1
+    for j in db.all_rows("jobs", "department=?", (dept,)):
+        if j["stage"] in constants.JOB_INACTIVE:
+            continue
+        sd = constants.job_stage(j["stage"])
+        fs = theme.follow_status(sd, j.get("stage_since") or j.get("created"), j.get("snooze_until"))
+        if keep(fs):
+            counts[sd["bucket"]] = counts.get(sd["bucket"], 0) + 1
+            counts["_all"] += 1
+    return counts
 
 
 # ---------------------------------------------------------------------------

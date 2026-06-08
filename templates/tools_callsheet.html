@@ -3,10 +3,49 @@
 {% block body %}
 <div class="page-head no-print">
   <h1>🖨 Call Sheet</h1>
-  <span class="sub">{{ items|length }} due/overdue · {{ current_department }}</span>
+  <span class="sub">{{ items|length }} {{ {'all':'in list','due':'due/overdue','overdue':'overdue'}[sel_due] }} · {{ current_department }}</span>
   <div class="grow"></div>
   <button class="btn primary" onclick="window.print()">🖨 Print</button>
 </div>
+
+<!-- Pick a bucket: big L / P / A / C / I buttons -->
+<div class="cs-buckets no-print">
+  <a class="cs-bk {{ 'on' if not sel_bucket }}" href="{{ url_for('tools.callsheet', due=sel_due) }}">
+    <span class="cs-let" style="background:#5b6b85">All</span>
+    <span class="cs-nm">Everything Due</span>
+    <span class="cs-ct">{{ counts['_all'] }}</span>
+  </a>
+  {% for b in buckets %}
+  <a class="cs-bk {{ 'on' if sel_bucket==b.key }}" href="{{ url_for('tools.callsheet', bucket=b.key, due=sel_due) }}">
+    <span class="cs-let" style="background:{{ b.color }}">{{ b.letter }}</span>
+    <span class="cs-nm">{{ b.name }}</span>
+    <span class="cs-ct">{{ counts.get(b.key, 0) }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Refine the list: specific stage within the bucket + how-due -->
+<form class="cs-filter no-print" method="get">
+  <input type="hidden" name="bucket" value="{{ sel_bucket }}">
+  {% if stage_opts %}
+  <label>Stage
+    <select name="stage" onchange="this.form.submit()">
+      <option value="">All stages in this bucket</option>
+      {% for s in stage_opts %}
+      <option value="{{ s.key }}" {{ 'selected' if sel_stage==s.key }}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% endif %}
+  <label>Show
+    <select name="due" onchange="this.form.submit()">
+      <option value="due"     {{ 'selected' if sel_due=='due' }}>Due &amp; overdue</option>
+      <option value="overdue" {{ 'selected' if sel_due=='overdue' }}>Overdue only</option>
+      <option value="all"     {{ 'selected' if sel_due=='all' }}>Everyone in bucket</option>
+    </select>
+  </label>
+  <noscript><button class="btn" type="submit">Apply</button></noscript>
+</form>
 <div class="cs-head">
   <h2 style="margin:0">{{ company.name }} — Call Sheet</h2>
   <span class="muted">{{ today() }} · {{ current_department }}</span>
@@ -26,6 +65,20 @@
 </table>
 <style>
 .cs-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--txt);padding-bottom:8px;margin-bottom:14px}
+.cs-buckets{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 14px}
+.cs-bk{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:120px;padding:14px 16px;
+  border:2px solid var(--line,#dde3ec);border-radius:12px;background:#fff;text-decoration:none;color:var(--txt);
+  transition:.12s;cursor:pointer}
+.cs-bk:hover{border-color:#9fb0c9;box-shadow:0 2px 8px rgba(0,0,0,.08);transform:translateY(-1px)}
+.cs-bk.on{border-color:#24476C;box-shadow:0 2px 10px rgba(36,71,108,.25);background:#f4f8ff}
+.cs-let{width:46px;height:46px;border-radius:50%;color:#fff;font-weight:800;font-size:20px;
+  display:flex;align-items:center;justify-content:center}
+.cs-nm{font-weight:600;font-size:13px}
+.cs-ct{font-size:20px;font-weight:800;line-height:1}
+.cs-filter{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:0 0 16px;
+  padding:10px 14px;background:#f6f8fb;border:1px solid var(--line,#dde3ec);border-radius:10px}
+.cs-filter label{display:flex;flex-direction:column;font-size:12px;font-weight:600;color:#5b6b85;gap:4px}
+.cs-filter select{padding:6px 10px;border:1px solid #c7d0de;border-radius:7px;font-size:14px;min-width:200px}
 @media print{ .masthead,.mainnav,.no-print{display:none!important} .content{max-width:none;padding:0} table.grid tr:hover td{background:none} }
 </style>
 {% endblock %}

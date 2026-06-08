@@ -31,20 +31,21 @@ db._COLCACHE.clear()
 
 
 def folder_id():
-    return (os.environ.get("GDRIVE_FOLDER_ID") or "").strip()
+    v = (os.environ.get("GDRIVE_FOLDER_ID") or "").strip().lstrip("﻿")
+    return "".join(v.split()).encode("ascii", "ignore").decode()
 
 
 def _sa_info():
-    raw = (os.environ.get("GDRIVE_SA_JSON") or "").strip()
+    raw = (os.environ.get("GDRIVE_SA_JSON") or "").strip().lstrip("﻿")
     if not raw:
         return None
-    for attempt in (raw, ):
-        try:
-            return json.loads(attempt)
-        except Exception:
-            pass
-    try:  # allow base64-encoded JSON (easier to paste as one env line)
-        return json.loads(base64.b64decode(raw))
+    try:  # raw JSON
+        return json.loads(raw)
+    except Exception:
+        pass
+    try:  # base64-encoded JSON — sanitize any BOM/whitespace/non-ASCII the host added
+        cleaned = "".join(raw.split()).encode("ascii", "ignore").decode()
+        return json.loads(base64.b64decode(cleaned))
     except Exception:
         return None
 

@@ -73,6 +73,12 @@ def upload_job(job_id):
     fn = "%d_%s" % (int(time.time() * 1000), re.sub(r"[^A-Za-z0-9._-]+", "_", f.filename))
     path = os.path.join(config.MEAS_DIR, fn)
     f.save(path)
+    try:
+        from modules import gdrive
+        if gdrive.enabled():
+            gdrive.mirror(path, fn)
+    except Exception:
+        pass
     existing = for_job(job_id)
     parsed = _try_parse(path)
     data = {"report_file": "measurements/" + fn, "source": "RoofGraf"}
@@ -124,6 +130,12 @@ def upload_lead(lead_id):
     fn = "%d_%s" % (int(time.time() * 1000), re.sub(r"[^A-Za-z0-9._-]+", "_", f.filename))
     path = os.path.join(config.MEAS_DIR, fn)
     f.save(path)
+    try:
+        from modules import gdrive
+        if gdrive.enabled():
+            gdrive.mirror(path, fn)
+    except Exception:
+        pass
     existing = for_lead(lead_id)
     parsed = _try_parse(path)
     data = {"report_file": "measurements/" + fn, "source": "RoofGraf"}

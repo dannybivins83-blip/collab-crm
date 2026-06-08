@@ -389,14 +389,14 @@ def save_integrations(data):
 
 
 def _ensure_column(table, col, decl):
-    _COLCACHE.pop(table, None)
+    _COLCACHE.pop(table, None); _NUMCACHE.pop(table, None)
     if col in _columns(table):
         return
     conn = connect()
     conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, col, _pg_ddl(decl) if IS_PG else decl))
     conn.commit()
     conn.close()
-    _COLCACHE.pop(table, None)
+    _COLCACHE.pop(table, None); _NUMCACHE.pop(table, None)
     _migrate_columns()
 
 
@@ -417,7 +417,7 @@ def _migrate_columns():
             pass  # already exists
     conn.commit()
     conn.close()
-    _COLCACHE.clear()
+    _COLCACHE.clear(); _NUMCACHE.clear()
 
 
 def _migrate_stages():
@@ -453,6 +453,7 @@ def insert(table, data):
     if "updated" in cols_present and "updated" not in data:
         data["updated"] = now()
     data = {k: v for k, v in data.items() if k in cols_present}
+    _coerce_numeric_blanks(table, data)
     keys = list(data.keys())
     conn = connect()
     sql = "INSERT INTO %s (%s) VALUES (%s)" % (table, ",".join(keys), ",".join("?" * len(keys)))
@@ -473,6 +474,7 @@ def update(table, row_id, **fields):
     if "updated" in cols_present:
         fields["updated"] = now()
     fields = {k: v for k, v in fields.items() if k in cols_present}
+    _coerce_numeric_blanks(table, fields)
     if not fields:
         return
     conn = connect()
@@ -531,6 +533,40 @@ def _columns(table):
         conn.close()
         _COLCACHE[table] = cols
     return _COLCACHE[table]
+
+
+_NUMCACHE = {}
+_PG_NUMERIC_TYPES = {"integer", "bigint", "smallint", "numeric", "real",
+                     "double precision", "decimal"}
+
+
+def _numeric_cols(table):
+    """Set of numeric-typed columns (Postgres only). Used to turn a blank form
+    value ("") into NULL — Postgres rejects '' for an integer/numeric column, while
+    SQLite silently accepts it. Empty set on SQLite (no coercion needed)."""
+    if not IS_PG:
+        return set()
+    if table not in _NUMCACHE:
+        conn = connect()
+        rows = conn.execute(
+            "SELECT column_name, data_type FROM information_schema.columns WHERE table_name=?",
+            (table,)).fetchall()
+        conn.close()
+        _NUMCACHE[table] = {r["column_name"] for r in rows
+                            if r["data_type"] in _PG_NUMERIC_TYPES}
+    return _NUMCACHE[table]
+
+
+def _coerce_numeric_blanks(table, data):
+    """In-place: blank ('' / whitespace) values for numeric columns become None."""
+    if not IS_PG:
+        return data
+    nums = _numeric_cols(table)
+    for k in list(data.keys()):
+        v = data[k]
+        if k in nums and isinstance(v, str) and not v.strip():
+            data[k] = None
+    return data
 
 
 # ---------------------------------------------------------------------------

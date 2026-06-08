@@ -77,6 +77,8 @@ def list_view():
 def new():
     if request.method == "POST":
         data = {f: request.form.get(f, "").strip() for f in EDITABLE}
+        if not data.get("contact_id"):
+            data["contact_id"] = None  # integer FK: blank "" is invalid in Postgres
         data["stage"] = request.form.get("stage", constants.LEAD_DEFAULT_STAGE)
         data["stage_since"] = db.today()
         data["last_contact"] = db.today()
@@ -93,7 +95,22 @@ def new():
         if resolved_ahj:
             db.add_activity("lead", lid, "automation",
                             "AHJ auto-set to %s%s" % (resolved_ahj, (" · system: " + system) if system else ""))
-        flash("Lead created. AHJ: %s%s" % (resolved_ahj or "—", (" · " + system) if system else ""), "ok")
+        # Auto-build a starter estimate from the matching system template (base
+        # scope + every system upgrade at qty 0) the moment a work type is set.
+        est_msg = ""
+        if data.get("work_type"):
+            try:
+                from modules import estimates as est_mod
+                eid = est_mod.build_estimate(lead_id=lid, work_type=data["work_type"])
+                e = db.get("estimates", eid)
+                db.add_activity("lead", lid, "automation",
+                                "Estimate %s auto-created from %s template (with upgrades)" % (
+                                    (e or {}).get("number", ""), data["work_type"]))
+                est_msg = " · estimate %s drafted" % (e or {}).get("number", "")
+            except Exception:
+                pass
+        flash("Lead created. AHJ: %s%s%s" % (
+            resolved_ahj or "—", (" · " + system) if system else "", est_msg), "ok")
         return redirect(url_for("leads.detail", lead_id=lid))
     return render_template("lead_form.html", lead={}, contacts=db.all_rows("contacts", order="last_name"),
                            mode="new")

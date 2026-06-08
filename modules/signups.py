@@ -7,10 +7,16 @@ for a job; it's pre-filled with the customer/job info, the matching company PDF 
 attached for reference, and the homeowner completes it (initials + signature) in
 their portal. Completion is recorded on the job (activity + a saved record).
 """
+import io
+import os
+import re
 import json
+import base64
+import textwrap
 
 from flask import (Blueprint, render_template, request, redirect, url_for, abort, flash)
 
+import config
 import db
 import constants
 
@@ -149,27 +155,113 @@ def portal_complete(token, packet_id):
     p = db.get("signup_packets", packet_id)
     if not job or not p or p.get("job_id") != job["id"]:
         abort(404)
-    items = template_for(p["system"])
+    raw_items = template_for(p["system"])
+    ctx = packet_context(job)
+    items = [{**it, "body": _fill(it["body"], ctx)} for it in raw_items]
     responses = {}
     missing = []
-    for it in items:
+    for it in raw_items:
         val = (request.form.get("item_%s" % it["key"]) or "").strip()
         responses[it["key"]] = val
         if it["type"] in ("initial", "sign") and not val:
             missing.append(it["title"])
+    responses["signature_img"] = request.form.get("item_signature_img", "")  # drawn signature dataURL
     if missing:
         flash("Please initial/sign: %s" % ", ".join(missing), "error")
         return redirect(url_for("signups.portal_view", token=token, packet_id=packet_id))
+    signed_at = db.now()
     db.update("signup_packets", packet_id, responses=json.dumps(responses),
-              status="completed", signed_at=db.now(),
-              customer_name=request.form.get("item_signature", "") or p.get("customer_name"))
+              status="completed", signed_at=signed_at,
+              customer_name=responses.get("signature") or p.get("customer_name"))
+    p = db.get("signup_packets", packet_id)
     db.add_activity("job", job["id"], "automation",
                     "✅ Sign-up package COMPLETED & signed by homeowner (%s roof)" % p["system"])
-    # Also record a job document marker so it shows in the Documents list.
-    db.insert("documents", {"job_id": job["id"], "category": "Contract",
-                            "filename": "", "original_name": "Signed Sign-Up Package (%s)" % p["system"],
-                            "notes": "Completed online via portal", "signed_at": db.now(),
-                            "signed_name": responses.get("signature", "")})
+    # Render the completed, signed packet to a real PDF and file it as the contract doc.
+    try:
+        fn, size, did = _generate_pdf(p, job, items, responses, ctx)
+        db.insert("documents", {"job_id": job["id"], "category": "Contract",
+                                "filename": fn, "original_name": "Signed Sign-Up Package (%s).pdf" % p["system"],
+                                "size": size, "drive_id": did, "notes": "Completed & signed online via portal",
+                                "signed_at": signed_at, "signed_name": responses.get("signature", "")})
+    except Exception as e:
+        db.insert("documents", {"job_id": job["id"], "category": "Contract", "filename": "",
+                                "original_name": "Signed Sign-Up Package (%s)" % p["system"],
+                                "notes": "Completed online (PDF render failed: %s)" % e,
+                                "signed_at": signed_at, "signed_name": responses.get("signature", "")})
     db.update("jobs", job["id"], next_follow=db.today())
-    flash("Thank you! Your sign-up package is complete.", "ok")
+    flash("Thank you! Your sign-up package is complete and your signed copy is saved.", "ok")
     return redirect(url_for("portal.home", token=token))
+
+
+def _generate_pdf(packet, job, items, responses, ctx):
+    """Render the completed packet (clauses + initials + drawn signature) to a PDF,
+    save it under job documents, and mirror to Drive. Returns (filename, size, drive_id)."""
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import inch
+    from reportlab.lib.utils import ImageReader
+    company = db.get_company()
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=letter)
+    W, H = letter
+    state = {"y": H - 0.8 * inch}
+
+    def line(txt, size=10, dy=14, bold=False, x=0.8 * inch):
+        if state["y"] < 1.0 * inch:
+            c.showPage()
+            state["y"] = H - 0.8 * inch
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", size)
+        c.drawString(x, state["y"], txt)
+        state["y"] -= dy
+
+    def wrap(txt, size=9, width=98):
+        for ln in textwrap.wrap(txt, width):
+            line(ln, size, 12)
+
+    c.setFont("Helvetica-Bold", 15)
+    c.drawString(0.8 * inch, state["y"], company.get("name", ""))
+    state["y"] -= 18
+    line("Roof Replacement Sign-Up Package — %s roof" % packet["system"].capitalize(), 11, 16, True)
+    line("Homeowner: %s        Date: %s" % (ctx["name"], db.today()))
+    line("Property: %s" % ctx["address"])
+    line("Contract total: %s        License: %s" % (ctx["value"], company.get("license", "")))
+    state["y"] -= 8
+    for i, it in enumerate(items, 1):
+        if it["type"] == "sign":
+            continue
+        line("%d. %s" % (i, it["title"]), 10.5, 14, True)
+        wrap(it["body"])
+        val = responses.get(it["key"], "")
+        if it["type"] == "initial":
+            line("        Initialed:  %s" % val.upper(), 10, 16, True)
+        elif it["type"] == "field":
+            line("        Selection:  %s" % val, 10, 16, True)
+        state["y"] -= 4
+    state["y"] -= 8
+    line("Homeowner Signature:", 10.5, 16, True)
+    img = responses.get("signature_img", "")
+    if img and img.startswith("data:image"):
+        try:
+            data = base64.b64decode(img.split(",", 1)[1])
+            c.drawImage(ImageReader(io.BytesIO(data)), 0.9 * inch, state["y"] - 48,
+                        width=2.4 * inch, height=0.7 * inch, mask="auto")
+            state["y"] -= 54
+        except Exception:
+            pass
+    line("%s        Signed: %s" % (responses.get("signature", ""), (packet.get("signed_at") or "")[:19]), 10, 16)
+    line("Electronically signed via the %s customer portal." % company.get("name", ""), 8, 12)
+    c.showPage()
+    c.save()
+    blob = buf.getvalue()
+    fn = "SignedSignUp_%s_%s_%d.pdf" % (
+        re.sub(r"[^A-Za-z0-9]+", "_", ctx["name"] or "homeowner")[:30], packet["system"], packet["id"])
+    path = os.path.join(config.DOC_DIR, fn)
+    with open(path, "wb") as f:
+        f.write(blob)
+    did = None
+    try:
+        from modules import gdrive
+        did = gdrive.mirror(path, fn)
+    except Exception:
+        pass
+    return fn, len(blob), did

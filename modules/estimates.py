@@ -156,6 +156,8 @@ def _apply_measurement(est_id, m):
     drip = num("eave_lf") + num("rake_lf")
     for ln in db.all_rows("estimate_lines", "estimate_id=?", (est_id,)):
         d = (ln.get("description") or "").lower()
+        if d.startswith("upgrade") or d.startswith("add-on"):
+            continue  # optional upgrades stay at qty 0 until the rep turns them on
         u = (ln.get("unit") or "").upper()
         q = None
         if re.search(r"ridge|hip", d):
@@ -170,14 +172,11 @@ def _apply_measurement(est_id, m):
             db.update("estimate_lines", ln["id"], qty=round(q, 2))
 
 
-@bp.route("/quick", methods=["POST"])
-def quick():
-    """One-click estimate: build from a template, prefill from the lead/job, and
-    auto-apply its roof measurements to the quantities, then open the editor."""
-    lead_id = request.form.get("lead_id") or None
-    job_id = request.form.get("job_id") or None
-    template_id = request.form.get("template_id") or None
-    work_type = request.form.get("work_type", "")
+def build_estimate(lead_id=None, job_id=None, template_id=None, work_type="", apply_meas=True):
+    """Create a draft estimate from the matching system template: a base scope
+    section + an 'Upgrades & Options' section (every system upgrade, qty 0 until the
+    rep turns it on), prefilled from the lead/job, with measurements applied. Returns
+    the new estimate id. Shared by the quick button, the New form, and lead entry."""
     name, wt, scope, lines = _resolve_template(template_id, work_type)
     title, contact_id = name, None
     if lead_id:
@@ -203,10 +202,31 @@ def quick():
                                      "description": line.get("description", ""),
                                      "unit": line.get("unit", "EA"), "qty": line.get("qty", 0),
                                      "waste_pct": 0, "cost": line.get("cost", 0)})
-    from modules import measurements as meas
-    m = meas.for_lead(lead_id) if lead_id else (meas.for_job(job_id) if job_id else None)
-    _apply_measurement(eid, m)
-    flash("Quick estimate created from %s%s." % (name, " — measurements applied" if m else ""), "ok")
+    # Upgrades & Options — the system's premium add-ons, all at qty 0.
+    ups = constants.upgrades_for(work_type)
+    if ups:
+        usid = db.insert("estimate_sections", {
+            "estimate_id": eid, "sort": 1, "name": "Upgrades & Options", "margin_pct": 30,
+            "scope_text": "Optional upgrades for this roof — included only when a quantity is entered."})
+        for i, u in enumerate(ups):
+            db.insert("estimate_lines", {"estimate_id": eid, "section_id": usid, "sort": i,
+                                         "description": u["desc"], "unit": u.get("unit", "EA"),
+                                         "qty": 0, "waste_pct": 0, "cost": u.get("cost", 0)})
+    if apply_meas:
+        from modules import measurements as meas
+        m = meas.for_lead(lead_id) if lead_id else (meas.for_job(job_id) if job_id else None)
+        _apply_measurement(eid, m)
+    return eid
+
+
+@bp.route("/quick", methods=["POST"])
+def quick():
+    """One-click estimate from a template (with upgrades + measurements)."""
+    eid = build_estimate(lead_id=request.form.get("lead_id") or None,
+                         job_id=request.form.get("job_id") or None,
+                         template_id=request.form.get("template_id") or None,
+                         work_type=request.form.get("work_type", ""))
+    flash("Quick estimate created — base scope + system upgrades, measurements applied.", "ok")
     return redirect(url_for("estimates.detail", est_id=eid))
 
 
