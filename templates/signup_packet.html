@@ -79,7 +79,15 @@
           <div class="ini"><label>Initial here <span class="req">*</span></label>
             <input name="item_{{ it.key }}" maxlength="5" placeholder="ABC" value="{{ responses.get(it.key,'') }}" required></div>
         {% elif it.type == 'field' %}
-          <div class="fld"><input name="item_{{ it.key }}" placeholder="e.g. Owens Corning TruDefinition — Estate Gray" value="{{ responses.get(it.key,'') }}"></div>
+          <div class="fld"><input name="item_{{ it.key }}" placeholder="{{ it.title }}" value="{{ responses.get(it.key) or it.default or '' }}"></div>
+        {% elif it.type == 'choice' %}
+          <div style="display:flex;flex-wrap:wrap;gap:10px 20px;margin-top:4px">
+            {% for opt in it.options %}
+            <label style="display:inline-flex;align-items:center;gap:7px;font-weight:600;border:1px solid var(--line);border-radius:9px;padding:9px 14px;cursor:pointer">
+              <input type="radio" name="item_{{ it.key }}" value="{{ opt }}" {{ 'checked' if responses.get(it.key)==opt }}> {{ opt }}
+            </label>
+            {% endfor %}
+          </div>
         {% elif it.type == 'sign' %}
           <label style="font-size:12px;font-weight:700;color:var(--mut)">Draw your signature</label>
           <canvas id="sigpad" width="600" height="150" style="border:1px dashed var(--accent);border-radius:10px;width:100%;touch-action:none;background:#fff;display:block"></canvas>

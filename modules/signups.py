@@ -62,6 +62,113 @@ _BASE_ITEMS = [
 ]
 
 
+# System-specific selections — the real content from the company confirmation forms
+# (e.g. Metal Roof Confirmation: panel brand/style, color). Replaces the generic
+# "color" clause with a richer spec block per system. 'choice' renders as options.
+SYSTEM_EXTRAS = {
+    "metal": [
+        {"key": "panel_brand", "type": "field", "title": "Panel Brand", "default": "Dynamic Metals",
+         "body": "Metal roof panel brand."},
+        {"key": "panel_style", "type": "choice", "title": "Panel Style", "options": ["Flat Panel", "Striations", "Beads"],
+         "body": "Select your standing-seam panel profile."},
+        {"key": "panel_gauge", "type": "field", "title": "Panel Gauge", "default": "24 ga",
+         "body": "Panel gauge."},
+        {"key": "color", "type": "field", "title": "Color Selection", "body": "Final metal color (Galvalume or standard color)."},
+    ],
+    "tile": [
+        {"key": "tile_mfr", "type": "field", "title": "Tile Manufacturer", "default": "Westlake Royal",
+         "body": "Tile manufacturer (e.g. Westlake Royal, Eagle)."},
+        {"key": "tile_profile", "type": "choice", "title": "Tile Profile", "options": ["Flat", "Barcelona / S-Tile", "Villa"],
+         "body": "Select your tile profile."},
+        {"key": "color", "type": "field", "title": "Color Selection", "body": "Final tile color / blend."},
+    ],
+    "shingle": [
+        {"key": "shingle_mfr", "type": "field", "title": "Shingle Manufacturer", "default": "Owens Corning",
+         "body": "Shingle manufacturer (e.g. Owens Corning, GAF)."},
+        {"key": "shingle_line", "type": "field", "title": "Shingle Line", "default": "TruDefinition Duration",
+         "body": "Shingle product line."},
+        {"key": "color", "type": "field", "title": "Color Selection", "body": "Final shingle color."},
+    ],
+    "flat": [
+        {"key": "flat_type", "type": "choice", "title": "Flat Roof System", "options": ["TPO", "3-ply SA Mod-Bit", "Hot-Mop BUR"],
+         "body": "Select your flat roof system."},
+        {"key": "color", "type": "field", "title": "Color Selection", "body": "Final color (if applicable)."},
+    ],
+}
+
+
+def _prefill_pdf(src_path, ctx):
+    """Stamp the customer header onto a flat company PDF by locating its labels
+    (Customer Name / Address / Job Site Address / Phone / Date) and writing the
+    value just to the right. Best-effort + generalized (no per-form coordinates).
+    Returns the filled PDF bytes, or None on failure."""
+    try:
+        import io
+        from pypdf import PdfReader, PdfWriter
+        from reportlab.pdfgen import canvas
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+        reader = PdfReader(src_path)
+        writer = PdfWriter()
+        # (label substring, value) — most specific first so "Job Site Address" wins over "Address".
+        targets = [
+            ("job site address", ctx.get("address", "")),
+            ("customer name", ctx.get("name", "")),
+            ("property owner", ctx.get("name", "")),
+            ("phone", ctx.get("phone", "")),
+            ("address", ctx.get("address", "")),
+            ("name", ctx.get("name", "")),
+            ("date", db.today()),
+        ]
+        any_placed = False
+        for pi, page in enumerate(reader.pages):
+            chunks = []
+
+            def vis(text, cm, tm, fd, fs, _c=chunks):
+                t = (text or "").strip()
+                if t:
+                    try:
+                        _c.append((t, float(tm[4]), float(tm[5]), float(fs or 10)))
+                    except Exception:
+                        pass
+            if pi < 3:  # header fields live on the first pages
+                try:
+                    page.extract_text(visitor_text=vis)
+                except Exception:
+                    pass
+            mb = page.mediabox
+            w, h = float(mb.width), float(mb.height)
+            buf = io.BytesIO()
+            cv = canvas.Canvas(buf, pagesize=(w, h))
+            cv.setFont("Helvetica", 10)
+            used_chunk, placed_field = set(), set()
+            for needle, val in targets:
+                if not val or needle in placed_field:
+                    continue
+                for ci, (txt, x, y, fs) in enumerate(chunks):
+                    if ci in used_chunk:
+                        continue
+                    if needle in txt.lower():
+                        vx = x + stringWidth(txt, "Helvetica", min(fs, 12)) + 8
+                        cv.setFont("Helvetica", min(max(fs, 8), 11))
+                        cv.drawString(vx, y, str(val))
+                        used_chunk.add(ci)
+                        placed_field.add(needle)
+                        any_placed = True
+                        break
+            cv.save()
+            buf.seek(0)
+            overlay = PdfReader(buf).pages[0]
+            page.merge_page(overlay)
+            writer.add_page(page)
+        if not any_placed:
+            return None
+        out = io.BytesIO()
+        writer.write(out)
+        return out.getvalue()
+    except Exception:
+        return None
+
+
 def _seed():
     if db.all_rows("signup_templates"):
         return
@@ -73,9 +180,27 @@ _seed()
 
 
 def template_for(system):
-    rows = db.all_rows("signup_templates", "system=?", ((system or "shingle").lower(),))
-    items = db.load_json(rows[0]["items"], _BASE_ITEMS) if rows else _BASE_ITEMS
-    return items
+    system = (system or "shingle").lower()
+    rows = db.all_rows("signup_templates", "system=?", (system,))
+    items = db.load_json(rows[0]["items"], _BASE_ITEMS) if rows else list(_BASE_ITEMS)
+    extras = SYSTEM_EXTRAS.get(system, [])
+    if not extras:
+        return items
+    # Replace the generic "color" clause with the system spec block (brand/style/color);
+    # skip any extra keys already present so an edited template never double-lists them.
+    extra_keys = {e["key"] for e in extras}
+    out, injected = [], False
+    for it in items:
+        if it.get("key") == "color" and not injected:
+            out.extend(extras)
+            injected = True
+        elif it.get("key") in extra_keys:
+            continue
+        else:
+            out.append(it)
+    if not injected:
+        out = [out[0]] + extras + out[1:] if out else extras
+    return out
 
 
 def _fill(text, ctx):
@@ -123,9 +248,45 @@ def create(job_id):
     pid = db.insert("signup_packets", {"created": db.now(), "job_id": job_id, "system": system,
                                        "status": "sent", "customer_name": job.get("name", ""),
                                        "responses": "{}", "library_doc": libdoc})
-    db.add_activity("job", job_id, "automation", "Sign-up package sent (%s) — awaiting homeowner completion" % system)
+    # Part B: stamp the customer header onto the ACTUAL company forms (sign-up package
+    # + any matching confirmation form) and attach the pre-filled copies to the job.
+    ctx = packet_context(job)
+    libdir = os.path.join(config.UPLOAD_DIR, "library")
+    prefilled = 0
+    for d in db.all_rows("library_docs", "category=?", ("Sign-Up Packages",)):
+        n = (d.get("original_name") or "").lower()
+        if not (system in n and ("sign" in n or "confirmation" in n)):
+            continue
+        if not d["filename"].lower().endswith(".pdf"):
+            continue
+        src = os.path.join(libdir, d["filename"])
+        if not os.path.exists(src):
+            continue
+        data = _prefill_pdf(src, ctx)
+        if not data:
+            continue
+        fn = "Prefilled_%d_%s" % (pid, d["filename"])
+        path = os.path.join(config.DOC_DIR, fn)
+        with open(path, "wb") as f:
+            f.write(data)
+        did = None
+        try:
+            from modules import gdrive
+            did = gdrive.mirror(path, fn)
+            if len(data) <= getattr(gdrive, "MAX_BLOB", 4000000):
+                gdrive.blob_put(fn, data, "application/pdf")  # serve live from Neon
+        except Exception:
+            pass
+        db.insert("documents", {"job_id": job_id, "category": "Contract", "filename": fn,
+                                "original_name": "Pre-filled: %s" % d["original_name"],
+                                "size": len(data), "drive_id": did,
+                                "notes": "Auto-filled company form (customer header)"})
+        prefilled += 1
+    db.add_activity("job", job_id, "automation",
+                    "Sign-up package sent (%s) — %d company form(s) pre-filled, awaiting homeowner" % (system, prefilled))
     db.update("jobs", job_id, next_follow=db.today())
-    flash("Sign-up package created — it now appears in the homeowner portal.", "ok")
+    flash("Sign-up package created%s — it's in the homeowner portal." % (
+        " (%d company form(s) pre-filled)" % prefilled if prefilled else ""), "ok")
     return redirect(request.referrer or url_for("jobs.detail", job_id=job_id))
 
 
@@ -235,7 +396,7 @@ def _generate_pdf(packet, job, items, responses, ctx):
         val = responses.get(it["key"], "")
         if it["type"] == "initial":
             line("        Initialed:  %s" % val.upper(), 10, 16, True)
-        elif it["type"] == "field":
+        elif it["type"] in ("field", "choice"):
             line("        Selection:  %s" % val, 10, 16, True)
         state["y"] -= 4
     state["y"] -= 8
@@ -263,6 +424,8 @@ def _generate_pdf(packet, job, items, responses, ctx):
     try:
         from modules import gdrive
         did = gdrive.mirror(path, fn)
+        if len(blob) <= getattr(gdrive, "MAX_BLOB", 4000000):
+            gdrive.blob_put(fn, blob, "application/pdf")  # serve live from Neon
     except Exception:
         pass
     return fn, len(blob), did
