@@ -255,6 +255,21 @@ def sync_documents(base, key, ajid, crm_job_id):
     return saved
 
 
+def _money_val(job):
+    """Pull a dollar value from an AccuLynx job and format as '$12,345'."""
+    v = _g(job, "jobValue", "value", "contractValue", "estimateValue", "totalValue",
+           "totalContractValue", "jobTotal", "totalJobValue", "estimateTotal", "amount", default="")
+    if isinstance(v, dict):
+        v = _g(v, "amount", "value", "total", default="")
+    if v in (None, ""):
+        return ""
+    try:
+        n = float(re.sub(r"[^0-9.]", "", str(v)))
+        return ("$" + format(int(round(n)), ",")) if n else ""
+    except Exception:
+        return str(v)
+
+
 def run_sync(deep=False):
     company = db.get_company()
     key = (company.get("acculynx_api_key") or "").strip()
@@ -262,7 +277,10 @@ def run_sync(deep=False):
     if not key:
         return {"ok": False, "error": "No API key set."}
     try:
-        jobs = _paginate(base, "/jobs", key)
+        # Pull ALL records (high page cap). Inserts commit per-row, so even if a
+        # serverless run times out, a re-run resumes (existing rows skip the
+        # contact fetch and just update).
+        jobs = _paginate(base, "/jobs", key, max_pages=2000)
     except Exception as e:
         return {"ok": False, "error": "API request failed: %s" % e}
 
@@ -279,6 +297,8 @@ def run_sync(deep=False):
             milestone = _g(milestone, "name", "title")
         kind, stage = _resolve_stage(milestone)
         url = "https://my.acculynx.com/jobs/%s" % jid if jid else ""
+        val = _money_val(job)
+        val_col = "estimate" if kind == "lead" else "contract_value"
 
         # Find an existing record first so we only pay the contact-detail fetch on INSERT.
         cur = (exL if kind == "lead" else exJ).get(name.lower()) if name else None
@@ -286,7 +306,10 @@ def run_sync(deep=False):
         crm_id = None
 
         if cur:
-            db.update(crm_kind + "s", cur["id"], stage=stage, external_url=url)
+            upd = {"stage": stage, "external_url": url}
+            if val:
+                upd[val_col] = val
+            db.update(crm_kind + "s", cur["id"], **upd)
             crm_id = cur["id"]
             updated += 1
         else:
@@ -303,6 +326,8 @@ def run_sync(deep=False):
                 "rep": _g(job, "salesRep", "assignedTo", "rep") or "Danny Bivins",
                 "external_url": url, "department": "REROOF Department",
             }
+            if val:
+                rec[val_col] = val
             cid = _ensure_contact(name, rec)
             if kind == "lead":
                 crm_id = db.insert("leads", {**rec, "contact_id": cid, "stage": stage,
