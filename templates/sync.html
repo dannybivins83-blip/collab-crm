@@ -35,6 +35,11 @@
     <div class="muted" style="margin-top:14px">
       <b>Auto-sync:</b> with the checkbox on, a scheduled cron drains batches unattended (it uses the API key — no browser or AccuLynx login needed), so the pipeline stays current on its own.
     </div>
+    <form method="post" action="{{ url_for('sync.dedupe') }}" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px"
+          onsubmit="return confirm('Remove duplicate synced records? Keeps one of each — safe to run anytime.');">
+      <button class="btn ghost" type="submit">🧹 Remove duplicates</button>
+      <div class="muted" style="margin-top:6px">Cleans up leftover copies from earlier imports so the L/P/A/C/I counts line up with AccuLynx. Jobs are matched by AccuLynx ID; leads by ID then name (the AccuLynx-linked copy is always the one kept).</div>
+    </form>
   </div>
 </div>
 

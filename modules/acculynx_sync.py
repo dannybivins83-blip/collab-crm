@@ -443,6 +443,48 @@ def run_sync(deep=False, batch=50):
             "notes_synced": notes_synced, "docs_synced": docs_synced}
 
 
+def _guid_of_url(u):
+    m = re.search(r"/jobs/([0-9a-f-]{30,})", u or "")
+    return m.group(1) if m else None
+
+
+def dedupe_records():
+    """Collapse AccuLynx-synced duplicates left over from earlier imports.
+    - Jobs: by AccuLynx GUID only (a customer can legitimately have several distinct
+      jobs, so never collapse jobs by name).
+    - Leads: by GUID, then by name. On a name collision we keep the record that
+      carries the AccuLynx link (GUID) over a link-less old import.
+    Keeps exactly one of each. Returns before/after counts."""
+    before_l, before_j = len(db.all_rows("leads")), len(db.all_rows("jobs"))
+    removed = {"jobs_guid": 0, "leads_guid": 0, "leads_name": 0}
+
+    def _collapse(table, rows, keyfn):
+        seen, dele = set(), []
+        for r in rows:
+            k = keyfn(r)
+            if k is None:
+                continue
+            if k in seen:
+                dele.append(r["id"])
+            else:
+                seen.add(k)
+        for rid in dele:
+            db.delete(table, rid)
+        return len(dele)
+
+    removed["jobs_guid"] = _collapse("jobs", db.all_rows("jobs", order="id ASC"),
+                                     lambda r: _guid_of_url(r.get("external_url")))
+    removed["leads_guid"] = _collapse("leads", db.all_rows("leads", order="id ASC"),
+                                      lambda r: _guid_of_url(r.get("external_url")))
+    # Name pass: GUID-bearing rows first so the linked record survives the collision.
+    lead_rows = sorted(db.all_rows("leads"), key=lambda r: (0 if _guid_of_url(r.get("external_url")) else 1, r["id"]))
+    removed["leads_name"] = _collapse("leads", lead_rows, lambda r: (r.get("name") or "").strip().lower() or None)
+
+    after_l, after_j = len(db.all_rows("leads")), len(db.all_rows("jobs"))
+    return {"before_leads": before_l, "before_jobs": before_j,
+            "after_leads": after_l, "after_jobs": after_j, "removed": removed}
+
+
 def _ensure_contact(name, rec):
     parts = [p.strip() for p in (rec.get("address") or "").split(",")]
     for c in db.all_rows("contacts"):
@@ -606,6 +648,25 @@ def run():
         flash("Sync failed: %s" % result.get("error"), "error")
     ref = request.referrer
     return redirect(ref if ref and "/sync" not in ref else url_for("sync.index"))
+
+
+@bp.route("/dedupe", methods=["POST"])
+def dedupe():
+    """Remove leftover duplicate synced records (idempotent — safe to run anytime)."""
+    try:
+        r = dedupe_records()
+    except Exception as e:
+        flash("Dedupe failed: %s: %s" % (type(e).__name__, e), "error")
+        return redirect(url_for("sync.index"))
+    rm = r["removed"]
+    total = rm["jobs_guid"] + rm["leads_guid"] + rm["leads_name"]
+    if total:
+        flash("Removed %d duplicate(s) — leads %d→%d, jobs %d→%d (jobs by GUID: %d · leads by GUID: %d, by name: %d)." % (
+            total, r["before_leads"], r["after_leads"], r["before_jobs"], r["after_jobs"],
+            rm["jobs_guid"], rm["leads_guid"], rm["leads_name"]), "ok")
+    else:
+        flash("No duplicates found — records are already clean.", "ok")
+    return redirect(url_for("sync.index"))
 
 
 @bp.route("/cron")
