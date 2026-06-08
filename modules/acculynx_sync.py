@@ -281,21 +281,25 @@ def run_sync(deep=False, batch=50):
     # never pull the whole dataset (that's what timed the function out). Ask the API
     # to sort by milestone so leads come first; retry without sort if it's rejected.
     BATCH = int(batch or 50)
+    PAGE = 25  # AccuLynx API caps pageSize at 25 (50 -> HTTP 400)
     cursor = int(company.get("acculynx_cursor") or 0)
     total = None
-    window = None
-    for params in ({"startIndex": cursor, "pageSize": BATCH, "sortBy": "currentMilestone", "sortDirection": "Ascending"},
-                   {"startIndex": cursor, "pageSize": BATCH}):
-        try:
-            data = _api_get(base, "/jobs", key, params)
-            window = data.get("items") if isinstance(data, dict) else (data or [])
+    window = []
+    try:
+        si = cursor
+        while len(window) < BATCH:
+            data = _api_get(base, "/jobs", key, {"startIndex": si, "pageSize": PAGE})
+            items = data.get("items") if isinstance(data, dict) else (data or [])
             if isinstance(data, dict):
-                total = data.get("totalCount") or data.get("total") or data.get("count")
-            break
-        except Exception as e:
-            err = e
-    if window is None:
-        return {"ok": False, "error": "API request failed: %s" % err}
+                total = data.get("totalCount") or data.get("total") or data.get("count") or total
+            if not items:
+                break
+            window.extend(items)
+            si += len(items)
+            if len(items) < PAGE:
+                break
+    except Exception as e:
+        return {"ok": False, "error": "API request failed: %s" % e}
     if cursor and not window:  # ran past the end — wrap to the top next time
         db.save_company({"acculynx_cursor": 0})
         return {"ok": True, "jobs_seen": total or cursor, "batch_from": cursor,
