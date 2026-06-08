@@ -99,7 +99,7 @@ def _paginate(base, path, key, params=None, max_pages=40):
     params = dict(params or {})
     start = 0
     for _ in range(max_pages):
-        params.update({"recordStartIndex": start, "pageSize": 25})
+        params.update({"pageStartIndex": start, "pageSize": 25})
         data = _api_get(base, path, key, params)
         page = data.get("items") if isinstance(data, dict) else data
         if not page:
@@ -300,10 +300,13 @@ def run_sync(deep=False, batch=50):
     try:
         while len(window) < BATCH and g < len(GROUPS):
             data = _api_get(base, "/jobs", key, {
-                "milestones": GROUPS[g], "recordStartIndex": start, "pageSize": PAGE,
+                "milestones": GROUPS[g], "pageStartIndex": start, "pageSize": PAGE,
                 "sortBy": "MilestoneDate", "sortOrder": "Descending"})
             items = data.get("items") if isinstance(data, dict) else (data or [])
             if items:
+                for it in items:           # tag with the milestone group we filtered on
+                    if isinstance(it, dict):
+                        it["__group"] = GROUPS[g]
                 window.extend(items)
                 start += len(items)
                 if len(items) < PAGE:   # this milestone group is fully consumed
@@ -330,8 +333,18 @@ def run_sync(deep=False, batch=50):
             milestone = _g(job, "currentMilestone", "milestone", "milestoneName",
                            "currentMilestoneName", "status")
             if isinstance(milestone, dict):
-                milestone = _g(milestone, "name", "title")
-            kind, stage = _resolve_stage(milestone)
+                milestone = _g(milestone, "name", "title", "milestoneName")
+            # Trust the milestone GROUP we filtered the API on (reliable), not the
+            # free-text currentMilestone (shape varies and often won't parse).
+            _GROUP_MAP = {"lead": ("lead", "assigned"), "prospect": ("lead", "prospect"),
+                          "approved": ("job", "approved"), "completed": ("job", "completed"),
+                          "invoiced": ("job", "invoiced"), "closed": ("job", "closed"),
+                          "cancelled": ("job", "canceled"), "dead": ("lead", "lost")}
+            grp = job.get("__group")
+            if grp in _GROUP_MAP:
+                kind, stage = _GROUP_MAP[grp]
+            else:
+                kind, stage = _resolve_stage(milestone)
             url = "https://my.acculynx.com/jobs/%s" % jid if jid else ""
             val = _money_val(job)
             val_col = "estimate" if kind == "lead" else "contract_value"
