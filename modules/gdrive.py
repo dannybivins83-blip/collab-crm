@@ -78,7 +78,7 @@ def upload(name, data, mime="application/octet-stream"):
             "file": (name, data, mime),
         }
         r = requests.post(
-            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
+            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id&supportsAllDrives=true",
             headers={"Authorization": "Bearer " + _token()}, files=files, timeout=90)
         if r.ok:
             return r.json().get("id")
@@ -93,7 +93,7 @@ def download(file_id):
         return None
     try:
         import requests
-        r = requests.get("https://www.googleapis.com/drive/v3/files/%s?alt=media" % file_id,
+        r = requests.get("https://www.googleapis.com/drive/v3/files/%s?alt=media&supportsAllDrives=true" % file_id,
                          headers={"Authorization": "Bearer " + _token()}, timeout=90)
         if r.ok:
             return r.content
@@ -119,8 +119,32 @@ def mirror(path, name=None):
         return None
 
 
+def _drive_id_by_name(name):
+    """Search the shared folder for a file by exact name; return its id or None.
+    Lets us find any mirrored file without bookkeeping a drive_id column."""
+    if not enabled() or not name:
+        return None
+    try:
+        import requests
+        q = "name = '%s' and '%s' in parents and trashed = false" % (
+            name.replace("'", "\\'"), folder_id())
+        r = requests.get("https://www.googleapis.com/drive/v3/files", params={
+            "q": q, "fields": "files(id)", "pageSize": 1,
+            "supportsAllDrives": "true", "includeItemsFromAllDrives": "true",
+            "corpora": "allDrives"},
+            headers={"Authorization": "Bearer " + _token()}, timeout=30)
+        if r.ok:
+            files = r.json().get("files", [])
+            if files:
+                return files[0]["id"]
+    except Exception:
+        pass
+    return None
+
+
 def find_drive_id(filename):
-    """Look up a file's Drive id by stored filename across the file tables."""
+    """Look up a file's Drive id: stored drive_id column first, then a live name
+    search of the shared folder (covers backfilled / un-bookkept files)."""
     base = os.path.basename(filename or "")
     if not base:
         return None
@@ -131,7 +155,26 @@ def find_drive_id(filename):
             rows = []
         if rows and rows[0].get("drive_id"):
             return rows[0]["drive_id"]
-    return None
+    return _drive_id_by_name(base)
+
+
+def backfill_local():
+    """Upload every existing local file under uploads/ to Drive (idempotent: skips
+    names already present). Run once from the desktop app after Drive is configured."""
+    import config
+    if not enabled():
+        return {"ok": False, "error": "Drive not configured"}
+    pushed = skipped = 0
+    for root, _dirs, files in os.walk(config.UPLOAD_DIR):
+        for fn in files:
+            if fn.startswith("."):
+                continue
+            if _drive_id_by_name(fn):
+                skipped += 1
+                continue
+            if mirror(os.path.join(root, fn), fn):
+                pushed += 1
+    return {"ok": True, "pushed": pushed, "skipped": skipped}
 
 
 def serve_fallback(subpath):

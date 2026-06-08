@@ -475,3 +475,53 @@ def template_for_work_type(work_type):
     if "repair" in low:
         return "repair"
     return "blank"
+
+
+# ---------------------------------------------------------------------------
+# Material resources — product data sheets, brochures, and DIGITAL color
+# selectors shown on the estimate so the rep can share them with the customer.
+# Keyed by a material family; matched to the estimate's work type.
+# ---------------------------------------------------------------------------
+MATERIAL_RESOURCES = {
+    "shingle": [
+        {"name": "Owens Corning TruDefinition Duration — product page", "url": "https://www.owenscorning.com/en-us/roofing/shingles/duration"},
+        {"name": "Owens Corning Design EyeQ — digital color visualizer", "url": "https://www.owenscorning.com/en-us/roofing/design-eyeq", "digital": True},
+        {"name": "Owens Corning Duration color brochure (PDF)", "url": "https://dcpd.owenscorning.com/is/content/dpor/oc-duration-series-brochure"},
+        {"name": "GAF Timberline HDZ — product page", "url": "https://www.gaf.com/en-us/roofing-materials/residential-roofing-products/shingles/timberline/timberline-hdz"},
+        {"name": "GAF Virtual Home Remodeler — digital color tool", "url": "https://www.gaf.com/en-us/virtual-home-remodeler", "digital": True},
+    ],
+    "tile": [
+        {"name": "Westlake Royal Roofing — concrete tile", "url": "https://westlakeroyalroofing.com/products/concrete-tile/"},
+        {"name": "Westlake Royal — color & profile selector", "url": "https://westlakeroyalroofing.com/color-tools/", "digital": True},
+        {"name": "Eagle Roofing — tile color visualizer", "url": "https://eagleroofing.com/products/", "digital": True},
+    ],
+    "metal": [
+        {"name": "Standing seam metal — color chart & profiles", "url": "https://www.drexmet.com/colors/"},
+        {"name": "Galvalume / standard color samples", "url": "https://www.englertinc.com/colors/", "digital": True},
+    ],
+    "flat": [
+        {"name": "Polyglass SA modified bitumen — product data", "url": "https://polyglass.us/products/"},
+        {"name": "GAF / commercial TPO — product data", "url": "https://www.gaf.com/en-us/commercial-roofing/products"},
+    ],
+    "underlayment": [
+        {"name": "Polyglass Polystick underlayments — data sheets", "url": "https://polyglass.us/products/underlayments/"},
+    ],
+}
+
+
+def resources_for(work_type):
+    """Pick the relevant material-resource links for an estimate's work type."""
+    low = (work_type or "").lower()
+    out = []
+    if "shingle" in low:
+        out += MATERIAL_RESOURCES["shingle"]
+    if "tile" in low:
+        out += MATERIAL_RESOURCES["tile"]
+    if "metal" in low:
+        out += MATERIAL_RESOURCES["metal"]
+    if "flat" in low or "tpo" in low:
+        out += MATERIAL_RESOURCES["flat"]
+    if not out:
+        out = MATERIAL_RESOURCES["shingle"]
+    out += MATERIAL_RESOURCES["underlayment"]
+    return out

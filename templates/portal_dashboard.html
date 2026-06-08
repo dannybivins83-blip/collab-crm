@@ -86,6 +86,15 @@
     </div>
   </div>
 
+  <!-- SIGN-UP PACKAGE (action needed) -->
+  {% if signup_packet %}
+  <div class="card" style="border:2px solid var(--green);background:#f6fbef">
+    <div class="h" style="color:var(--green)">📋 Action Needed — Complete Your Sign-Up Package</div>
+    <div class="muted" style="margin-bottom:10px">Your {{ signup_packet.system }} roof sign-up package is ready. It's pre-filled with your info — just review, initial each section, and sign online.</div>
+    <a class="btn green block" href="{{ url_for('signups.portal_view', token=token, packet_id=signup_packet.id) }}">Open &amp; Complete Sign-Up Package →</a>
+  </div>
+  {% endif %}
+
   <!-- WHAT TO EXPECT / TIMEFRAMES -->
   <div class="card">
     <div class="h">What to Expect — Your Roadmap</div>

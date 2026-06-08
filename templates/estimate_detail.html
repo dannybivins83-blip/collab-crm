@@ -114,6 +114,17 @@
     </div>
 
     <div class="card">
+      <h2>📚 Product Data & Color Selectors</h2>
+      <div class="muted" style="margin-bottom:8px">Share with the customer for their {{ e.work_type or 'roof' }} color/material selection.</div>
+      {% for r in constants.resources_for(e.work_type) %}
+        <a class="rowline" href="{{ r.url }}" target="_blank" rel="noopener" style="display:block;padding:6px 0">
+          {{ '🎨' if r.digital else '📄' }} {{ r.name }} ↗
+        </a>
+      {% endfor %}
+      <div class="muted" style="margin-top:6px">🎨 = digital color visualizer · 📄 = data sheet / brochure</div>
+    </div>
+
+    <div class="card">
       <h2>✍️ E-signature</h2>
       {% if e.status=='signed' %}
         <div class="muted">Signed by <b>{{ e.signed_name }}</b> on {{ e.signed_at }}</div>

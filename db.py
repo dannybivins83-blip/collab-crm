@@ -302,6 +302,7 @@ def init_db():
     conn.close()
     _ensure_column("company_settings", "departments", "TEXT")
     _ensure_column("company_settings", "color_masthead", "TEXT DEFAULT '#24476C'")
+    _ensure_column("company_settings", "gmail_url", "TEXT")  # team inbox quick-link
     # Department scoping (REROOF vs Service vs Warranties).
     for _t in ("leads", "jobs", "contacts"):
         _ensure_column(_t, "department", "TEXT")

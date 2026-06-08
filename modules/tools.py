@@ -159,6 +159,22 @@ def checklist():
     return render_template("tools_checklist.html")
 
 
+@bp.route("/drive-backfill", methods=["POST"])
+def drive_backfill():
+    """Push all existing local uploads to Google Drive so the cloud can serve them.
+    Run once from the DESKTOP app (where the files live) after Drive is configured."""
+    from modules import gdrive
+    if not gdrive.enabled():
+        flash("Google Drive isn't configured yet (set GDRIVE_SA_JSON + GDRIVE_FOLDER_ID).", "error")
+        return redirect(url_for("settings.index"))
+    res = gdrive.backfill_local()
+    if res.get("ok"):
+        flash("Drive backfill complete — pushed %d files (%d already there)." % (res["pushed"], res["skipped"]), "ok")
+    else:
+        flash("Backfill failed: %s" % res.get("error"), "error")
+    return redirect(url_for("settings.index"))
+
+
 # ---------------------------------------------------------------------------
 # Mass Email — one draft per client by stage. Draft only (Gmail compose / copy).
 # ---------------------------------------------------------------------------

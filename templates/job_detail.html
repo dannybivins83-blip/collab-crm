@@ -22,6 +22,10 @@
   {% set purl = portal_link(j.id) %}
   <a class="btn" href="{{ purl }}" target="_blank" title="Open the homeowner portal">🏠 Portal</a>
   <button class="btn" type="button" onclick="navigator.clipboard.writeText('{{ purl }}');this.textContent='✓ Link copied'" title="Copy the homeowner's private portal link">🔗 Copy link</button>
+  <form method="post" action="{{ url_for('signups.create', job_id=j.id) }}" style="display:inline-flex;gap:4px" title="Send the pre-filled sign-up package for the homeowner to initial + sign in their portal">
+    <select name="system" style="width:auto">{% for s in ['shingle','tile','metal','flat'] %}<option value="{{ s }}" {{ 'selected' if (j.system or '')|lower==s }}>{{ s|capitalize }}</option>{% endfor %}</select>
+    <button class="btn accent" type="submit">📋 Send Sign-Up</button>
+  </form>
   <a class="btn" href="{{ url_for('jobs.edit', job_id=j.id) }}">Edit</a>
 </div>
 

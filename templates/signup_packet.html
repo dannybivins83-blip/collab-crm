@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{{ company.name }} — Sign-Up Package</title>
+<style>
+  :root{ --brand:{{ company.color_masthead or '#24476C' }}; --accent:{{ company.color_primary or '#4680BF' }};
+         --green:{{ company.color_accent or '#8CC63F' }}; --line:#e2e7ee; --mut:#667085; --txt:#1d2a44; }
+  *{box-sizing:border-box} body{margin:0;background:#eef2f7;color:var(--txt);
+    font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55}
+  a{color:var(--accent)}
+  .top{background:var(--brand);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:12px}
+  .top img{height:32px;background:#fff;border-radius:6px;padding:3px 6px}
+  .top .nm{font-weight:800}
+  .wrap{max-width:760px;margin:0 auto;padding:18px 16px 70px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:16px;box-shadow:0 1px 4px rgba(20,40,80,.05)}
+  .flash{padding:12px 16px;border-radius:10px;margin-bottom:14px;font-weight:600}
+  .flash.error{background:#fdeaea;color:#b3322e;border:1px solid #f3c9c7}
+  .flash.ok{background:#e4f6ef;color:#0a7a5f;border:1px solid #bfe6d6}
+  h1{font-size:22px;margin:0 0 4px} .sub{color:var(--mut);margin-bottom:6px}
+  .pre{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:12px 0;font-size:14px}
+  .pre div span{color:var(--mut);display:block;font-size:12px}
+  .clause{padding:16px 0;border-bottom:1px solid var(--line)}
+  .clause:last-of-type{border:0}
+  .clause .t{font-weight:800;margin-bottom:4px}
+  .clause .b{color:#333;margin-bottom:10px}
+  .ini{display:flex;align-items:center;gap:10px}
+  .ini label{font-size:12px;font-weight:700;color:var(--mut)}
+  input{padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-size:15px;font-family:inherit}
+  .ini input{width:120px;text-transform:uppercase;font-weight:800;letter-spacing:1px}
+  .fld input{width:100%}
+  .btn{display:block;width:100%;text-align:center;background:var(--green);color:#fff;border:0;border-radius:10px;
+    padding:14px;font-weight:800;font-size:16px;cursor:pointer;margin-top:10px}
+  .ref{display:inline-block;margin-top:6px}
+  .req{color:#c0152f}
+  .agree{background:#f6f8fb;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px;color:#444;margin-top:8px}
+  .done{text-align:center;padding:30px}
+</style>
+</head>
+<body>
+<div class="top">
+  {% if company.logo_path %}<img src="{{ url_for('uploads', subpath=company.logo_path) }}" alt="">{% endif %}
+  <span class="nm">{{ company.name }}</span>
+</div>
+<div class="wrap">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+
+  {% if packet.status == 'completed' %}
+  <div class="card done">
+    <div style="font-size:40px">✅</div>
+    <h1>Your sign-up package is complete</h1>
+    <div class="sub">Signed {{ (packet.signed_at or '')[:10] }}. Thank you, {{ packet.customer_name }}!</div>
+    <a class="btn" style="max-width:240px;margin:14px auto 0" href="{{ url_for('portal.home', token=token) }}">Back to my project</a>
+  </div>
+  {% else %}
+
+  <div class="card">
+    <h1>Roof Replacement Sign-Up Package</h1>
+    <div class="sub">{{ packet.system|capitalize }} roof · Please review, initial each section, and sign.</div>
+    <div class="pre">
+      <div><span>Homeowner</span>{{ ctx.name }}</div>
+      <div><span>Property</span>{{ ctx.address }}</div>
+      <div><span>Contract total</span>{{ ctx.value }}</div>
+      <div><span>Date</span>{{ today() }}</div>
+    </div>
+    {% if packet.library_doc %}<a class="ref" href="{{ url_for('uploads', subpath='library/' ~ packet.library_doc) }}" target="_blank">📄 View the full sign-up package PDF ↗</a>{% endif %}
+  </div>
+
+  <form method="post" action="{{ url_for('signups.portal_complete', token=token, packet_id=packet.id) }}">
+    <div class="card">
+      {% for it in items %}
+      <div class="clause">
+        <div class="t">{{ loop.index }}. {{ it.title }}</div>
+        <div class="b">{{ it.body }}</div>
+        {% if it.type == 'initial' %}
+          <div class="ini"><label>Initial here <span class="req">*</span></label>
+            <input name="item_{{ it.key }}" maxlength="5" placeholder="ABC" value="{{ responses.get(it.key,'') }}" required></div>
+        {% elif it.type == 'field' %}
+          <div class="fld"><input name="item_{{ it.key }}" placeholder="e.g. Owens Corning TruDefinition — Estate Gray" value="{{ responses.get(it.key,'') }}"></div>
+        {% elif it.type == 'sign' %}
+          <div class="fld"><input name="item_{{ it.key }}" placeholder="Type your full legal name to sign" value="{{ responses.get(it.key,'') }}" required style="font-size:20px;font-family:'Segoe Script','Brush Script MT',cursive"></div>
+          <div class="agree">By typing my name and initials above, I agree this constitutes my legal electronic signature on this {{ packet.system }} roof sign-up package for {{ company.name }}.</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <button class="btn" type="submit">✓ Complete &amp; Sign Package</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+</body>
+</html>

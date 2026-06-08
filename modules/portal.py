@@ -176,10 +176,12 @@ def home(token):
     # system-specific first, generic after
     product_docs.sort(key=lambda d: 0 if _doc_systems(d.get("original_name")) else 1)
     product_docs = product_docs[:16]
+    from modules import signups
+    signup_packet = signups.open_packet_for_job(j["id"])
     return render_template("portal_dashboard.html", j=j, token=token,
                            phases=CUSTOMER_PHASES, estimates=estimates, photos=photos,
                            documents=documents, docs_to_sign=docs_to_sign, invoices=invoices,
-                           activity=activity, pay_url=j.get("pay_url"),
+                           activity=activity, pay_url=j.get("pay_url"), signup_packet=signup_packet,
                            rep=rep, draws=constants.DRAW_SCHEDULE,
                            checklist=checklist, contract=contract,
                            tutorials=_tutorials(company), product_docs=product_docs, sysk=sysk,

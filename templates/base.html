@@ -42,6 +42,7 @@
   <form method="post" action="{{ url_for('sync.run') }}" style="margin:0" title="Sync from AccuLynx">
     <button class="mh-sync" type="submit" onclick="this.textContent='⏳';this.disabled=true;this.form.submit()">🔄 Sync</button>
   </form>
+  <a class="mh-sync" href="{{ company.gmail_url or 'https://mail.google.com/mail/u/0/' }}" target="_blank" rel="noopener" title="Open team Gmail" style="text-decoration:none">📨 Gmail</a>
   <span class="mh-lic">Lic. {{ company.license or '—' }}</span>
   <span class="mh-user">
     {{ current_user.name if current_user else (company.qualifier or 'Admin') }}

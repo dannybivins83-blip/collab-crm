@@ -16,6 +16,7 @@
   <a class="btn" href="{{ url_for('leads.new') }}">＋ Add Lead</a>
   <a class="btn" href="{{ url_for('estimates.new') }}">📝 New Estimate</a>
   <a class="btn" href="{{ url_for('permits.new') }}">🏛️ Permit Builder</a>
+  <a class="btn" href="{{ company.gmail_url or 'https://mail.google.com/mail/u/0/' }}" target="_blank" rel="noopener">📨 Open Gmail</a>
   <a class="btn" href="{{ url_for('tools.mass_email') }}">📧 Mass Email</a>
   <a class="btn" href="{{ url_for('tools.callsheet') }}">🖨 Call Sheet</a>
   <a class="btn" href="{{ url_for('tools.checklist') }}">📋 Checklist</a>
