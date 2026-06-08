@@ -82,6 +82,12 @@
   <div class="navgroup">
     <a class="navitem dropdown-toggle">Tools ▾</a>
     <div class="dropdown">
+      <a href="{{ url_for('tools.mass_email') }}">📧 Mass Email</a>
+      <a href="{{ url_for('tools.callsheet') }}">🖨 Call Sheet</a>
+      <a href="{{ url_for('tools.checklist') }}">📋 Team Checklist</a>
+      <a href="{{ url_for('tools.export') }}?entity=leads">⬇ Export (CSV)</a>
+      <a href="{{ url_for('tools.backup') }}">💾 Backup</a>
+      <a href="{{ url_for('tools.restore') }}">⤴ Restore</a>
       <a href="{{ url_for('invoices.index') }}">💵 Invoicing</a>
       <a href="{{ url_for('quickbooks.settings') }}">💳 QuickBooks</a>
       <a href="{{ url_for('permits.index') }}">🏛️ Permits</a>

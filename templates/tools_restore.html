@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Restore{% endblock %}
+{% block body %}
+<div class="page-head"><h1>⤴ Restore from Backup</h1></div>
+<form method="post" enctype="multipart/form-data" class="card" style="max-width:560px"
+      onsubmit="return confirm('Restore will REPLACE all current data with the contents of this backup. Continue?')">
+  <div class="field"><label>Backup file (.json)</label><input type="file" name="file" accept="application/json,.json" required></div>
+  <div class="muted" style="margin-bottom:12px">This replaces every record with the backup's contents (leads, jobs, contacts, estimates, etc.). Take a fresh <a href="{{ url_for('tools.backup') }}">Backup</a> first if unsure.</div>
+  <button class="primary" type="submit">Restore</button>
+  <a class="btn ghost" href="{{ url_for('dashboard.home') }}">Cancel</a>
+</form>
+{% endblock %}

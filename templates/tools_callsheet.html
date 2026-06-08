@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Call Sheet{% endblock %}
+{% block body %}
+<div class="page-head no-print">
+  <h1>🖨 Call Sheet</h1>
+  <span class="sub">{{ items|length }} due/overdue · {{ current_department }}</span>
+  <div class="grow"></div>
+  <button class="btn primary" onclick="window.print()">🖨 Print</button>
+</div>
+<div class="cs-head">
+  <h2 style="margin:0">{{ company.name }} — Call Sheet</h2>
+  <span class="muted">{{ today() }} · {{ current_department }}</span>
+</div>
+<table class="grid">
+  <tr><th>Name</th><th>Phone</th><th>Stage</th><th>Days</th><th>To-do / next action</th><th class="no-print"></th></tr>
+  {% for it in items %}
+  <tr>
+    <td><b>{{ it.r.name }}</b> <span class="badge">{{ it.kind }}</span><div class="muted">{{ it.r.address }}</div></td>
+    <td><a href="tel:{{ it.r.phone }}">{{ it.r.phone }}</a></td>
+    <td>{{ it.stage }}</td>
+    <td><span class="pill" style="background:{{ 'var(--danger)22' if it.fs.level=='hot' else 'var(--warn)22' }};color:{{ 'var(--danger)' if it.fs.level=='hot' else 'var(--warn)' }}">{{ it.fs.days }}d</span></td>
+    <td>{{ it.todo }}</td>
+    <td class="no-print"><a href="{{ url_for('leads.detail', lead_id=it.r.id) if it.kind=='Lead' else url_for('jobs.detail', job_id=it.r.id) }}">Open</a></td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="empty">Nothing due — all clear.</td></tr>{% endfor %}
+</table>
+<style>
+.cs-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--txt);padding-bottom:8px;margin-bottom:14px}
+@media print{ .masthead,.mainnav,.no-print{display:none!important} .content{max-width:none;padding:0} table.grid tr:hover td{background:none} }
+</style>
+{% endblock %}

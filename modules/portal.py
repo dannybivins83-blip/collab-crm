@@ -137,12 +137,41 @@ def home(token):
         checklist.append({"name": name, "desc": desc, "timeframe": tf,
                           "done": i < j["_phase"], "current": i == j["_phase"]})
     contract = next((d for d in documents if (d.get("category") or "") == "Contract"), None)
+    # Product collateral from the company Document Library, matched to this roof's
+    # system (data sheets, color charts, warranties) — shingle/tile/metal/flat.
+    from modules import ahj as ahj_mod
+    sysk = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
+    prod_cats = ("Product & Color Charts", "Warranties")
+    lib = db.all_rows("library_docs")
+    # Detect a doc's roof system by brand/product keyword so a metal homeowner
+    # never sees tile catalogs, etc. Docs with no system keyword are generic
+    # (underlayment, skylights, sample warranties) and show for everyone.
+    SYS_KW = {
+        "shingle": ("shingle", "gaf", "timberline", "owens", "trudefinition", "duration", "landmark", "hdz", "ir-xe"),
+        "tile": ("tile", "westlake", "eagle", "saxony", "barcelona", "villa", "crown", "tu_plus", "tu-plus"),
+        "metal": ("metal", "dynamic", "galvalume", "standing", "seam", "englert", "dmc", "dm-", "dm_", "_mts", "ss_metal"),
+        "flat": ("flat", "tpo", "modbit", "mod_bit", "mod-bit", "polyglass_sa", "hot-mop", "hotmop", "built-up", "bur"),
+    }
+
+    def _doc_systems(name):
+        n = (name or "").lower()
+        return {s for s, kws in SYS_KW.items() if any(k in n for k in kws)}
+
+    def _relevant(d):
+        if d.get("category") not in prod_cats:
+            return False
+        ds = _doc_systems(d.get("original_name"))
+        return (sysk in ds) if ds else True  # match system, or generic (no system keyword)
+    product_docs = [d for d in lib if _relevant(d)]
+    # system-specific first, generic after
+    product_docs.sort(key=lambda d: 0 if _doc_systems(d.get("original_name")) else 1)
+    product_docs = product_docs[:16]
     return render_template("portal_dashboard.html", j=j, token=token,
                            phases=CUSTOMER_PHASES, estimates=estimates, photos=photos,
                            documents=documents, invoices=invoices, activity=activity,
                            rep=rep, draws=constants.DRAW_SCHEDULE,
                            checklist=checklist, contract=contract,
-                           tutorials=_tutorials(company),
+                           tutorials=_tutorials(company), product_docs=product_docs, sysk=sysk,
                            photo_app_url=company.get("photo_app_url"))
 
 

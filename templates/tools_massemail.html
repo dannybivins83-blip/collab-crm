@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Mass Email{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>📧 Mass Email</h1>
+  <span class="sub">One personalized draft per client by stage. You review &amp; send — nothing sends automatically.</span>
+</div>
+
+<div class="toolbar">
+  <span class="tlabel">Pipeline</span>
+  <select onchange="go('kind', this.value)">
+    <option value="lead" {{ 'selected' if kind=='lead' }}>🎯 Leads</option>
+    <option value="job" {{ 'selected' if kind=='job' }}>🔨 Jobs</option>
+  </select>
+  <span class="tlabel">Stage</span>
+  <select onchange="go('stage', this.value)">
+    <option value="">All stages</option>
+    {% for s in stages %}<option value="{{ s.key }}" {{ 'selected' if stage_f==s.key }}>{{ s.name }}</option>{% endfor %}
+  </select>
+  <label class="check" style="margin:0;background:transparent;padding:0 6px"><input type="checkbox" {{ 'checked' if due_only }} onchange="go('due', this.checked?'1':'0')"> Due / overdue only</label>
+  <div class="grow"></div>
+  <span class="total"><small>{{ recips|length }} recipient(s)</small></span>
+</div>
+
+<div style="display:flex;gap:8px;margin-bottom:12px">
+  <button class="btn" onclick="pick(true)">Select all</button>
+  <button class="btn" onclick="pick(false)">None</button>
+  <button class="btn accent" onclick="openSelected()">✉️ Open selected in Gmail</button>
+  <button class="btn" onclick="copyAll()">📋 Copy all</button>
+</div>
+
+{% for x in recips %}
+{% set col = 'var(--danger)' if x.fs.level=='hot' else ('var(--warn)' if x.fs.level=='stalled' else 'var(--ok)') %}
+<div class="card me-row" data-to="{{ x.r.email }}">
+  <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+    <input type="checkbox" class="mepick" checked>
+    <b>{{ x.r.name }}</b> <span class="muted">· {{ x.r.email }}</span>
+    <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ x.stage_name }} · {{ x.fs.days }}d</span>
+    <div class="grow"></div>
+    <button class="btn sm" onclick="gmailOne(this)">Gmail ✉️</button>
+    <button class="btn sm" onclick="copyOne(this)">Copy</button>
+  </div>
+  <input class="me-su" value="{{ x.su }}" style="width:100%;margin-top:8px;font-weight:600">
+  <textarea class="me-body" style="width:100%;margin-top:6px;min-height:120px">{{ x.body }}</textarea>
+</div>
+{% else %}
+<div class="empty">No clients with an email address match this filter.</div>
+{% endfor %}
+
+<script>
+function go(k,v){const u=new URL(location.href);u.searchParams.set(k,v);location.href=u.toString();}
+function pick(on){document.querySelectorAll('.mepick').forEach(c=>c.checked=on);}
+function rowData(row){return {to:row.dataset.to, su:row.querySelector('.me-su').value, body:row.querySelector('.me-body').value};}
+function gmailURL(d){return 'https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(d.to)+'&su='+encodeURIComponent(d.su)+'&body='+encodeURIComponent(d.body);}
+function gmailOne(btn){window.open(gmailURL(rowData(btn.closest('.me-row'))),'_blank');}
+function copyOne(btn){const d=rowData(btn.closest('.me-row'));navigator.clipboard.writeText('To: '+d.to+'\nSubject: '+d.su+'\n\n'+d.body);btn.textContent='✓';}
+function selectedRows(){return [...document.querySelectorAll('.me-row')].filter(r=>r.querySelector('.mepick').checked);}
+function openSelected(){const rows=selectedRows();if(!rows.length)return alert('Nothing selected.');
+  if(rows.length>8 && !confirm(rows.length+' Gmail compose tabs will open. Continue?'))return;
+  rows.forEach((r,i)=>setTimeout(()=>window.open(gmailURL(rowData(r)),'_blank'),i*350));}
+function copyAll(){const rows=selectedRows();if(!rows.length)return alert('Nothing selected.');
+  const out=rows.map(r=>{const d=rowData(r);return 'To: '+d.to+'\nSubject: '+d.su+'\n\n'+d.body;}).join('\n\n'+'-'.repeat(40)+'\n\n');
+  navigator.clipboard.writeText(out).then(()=>alert('Copied '+rows.length+' email(s).'));}
+</script>
+{% endblock %}

@@ -622,8 +622,10 @@ def _seed_if_empty():
             "color_warn": "#F78300", "color_danger": "#E25050",  # AccuLynx-matched (live-verified)
             "default_county": "Palm Beach County",
             "departments": "REROOF Department, Service Department, Warranties",
-            "terms": ("Payment schedule: 25% deposit, 25% at tear-off, 40% at material "
-                      "delivery, 10% at completion. All work per Florida Building Code."),
+            "terms": ("Payment schedule: 30% deposit (covers permit cost, material order & "
+                      "admin); 30% at job start (mobilization); 30% upon passing 2 of 3 "
+                      "inspections; 10% at final inspection. Draws 2-3 are performance-based. "
+                      "All work per Florida Building Code."),
         })
     if not all_rows("users"):
         insert("users", {"name": "Danny Bivins", "email": "owner@seabreezeroofing.com",

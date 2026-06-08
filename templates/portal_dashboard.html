@@ -187,12 +187,19 @@
     </form>
   </div>
 
-  <!-- TUTORIALS / HELP -->
-  <div class="card"><div class="h">Helpful Tutorials & Tips</div>
-    {% for t, u in tutorials %}
-      {% if u %}<div class="doc">▶️ <a href="{{ u }}" target="_blank" style="flex:1">{{ t }}</a></div>
-      {% else %}<div class="doc">💡 <span style="flex:1">{{ t }}</span></div>{% endif %}
-    {% endfor %}
+  <!-- PRODUCT INFO + RESOURCES -->
+  <div class="card"><div class="h">Your Roof — Product Info{% if sysk %} ({{ sysk|capitalize }}){% endif %}</div>
+    {% if product_docs %}
+    <div class="muted" style="margin-bottom:8px">Data sheets, color charts &amp; warranties for the products going on your roof:</div>
+    {% for d in product_docs %}<div class="doc">📄 <a href="{{ url_for('uploads', subpath='library/' ~ d.filename) }}" target="_blank" style="flex:1">{{ d.original_name.rsplit('.',1)[0].replace('_',' ').replace('-',' ')|title }}</a><span class="pill">{{ d.category.split(' ')[0] }}</span></div>{% endfor %}
+    {% else %}<div class="muted">Product data sheets for your roof will appear here.</div>{% endif %}
+
+    {% if tutorials %}
+    <div class="h" style="margin-top:18px">Videos &amp; Guides</div>
+    {% for t, u in tutorials %}{% if u %}<div class="doc">▶️ <a href="{{ u }}" target="_blank" style="flex:1">{{ t }}</a></div>{% else %}<div class="doc">💡 <span style="flex:1">{{ t }}</span></div>{% endif %}{% endfor %}
+    {% endif %}
+
+    <div class="h" style="margin-top:18px">Preparing for Your Installation</div>
     <div class="doc">💡 <span style="flex:1">Please move vehicles out of the driveway on install day and keep pets indoors.</span></div>
     <div class="doc">💡 <span style="flex:1">Expect noise and vibration during tear-off — wall hangings may need to come down.</span></div>
     <div class="doc">💡 <span style="flex:1">We'll do a magnet sweep for nails, but a quick check of the yard afterward is always smart.</span></div>

@@ -22,7 +22,14 @@
     <div class="field"><label>Zip</label><input name="zip" value="{{ job.zip or '' }}"></div>
   </div>
   <div class="row">
-    <div class="field"><label>Sales rep</label><input name="rep" value="{{ job.rep or '' }}"></div>
+    <div class="field"><label>Sales rep</label>
+      <select name="rep">
+        <option value="">— unassigned —</option>
+        {% set reps = rep_options() %}
+        {% for r in reps %}<option {{ 'selected' if job.rep==r }}>{{ r }}</option>{% endfor %}
+        {% if job.rep and job.rep not in reps %}<option selected>{{ job.rep }}</option>{% endif %}
+      </select>
+    </div>
     <div class="field"><label>County</label><input name="county" value="{{ job.county or company.default_county or '' }}"></div>
     <div class="field"><label>AHJ (permit office)</label><input name="ahj" value="{{ job.ahj or '' }}"></div>
     {% if mode=='new' %}

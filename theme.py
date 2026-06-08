@@ -125,4 +125,13 @@ def register(app):
 
     app.jinja_env.globals.update(
         follow_status=follow_status, paid_pct=paid_pct, draw_amount=draw_amount,
-        load_json=db.load_json)
+        load_json=db.load_json, rep_options=rep_options)
+
+
+def rep_options():
+    """Active users' names for the Sales Rep dropdown (white-label: from Users)."""
+    try:
+        names = [u["name"] for u in db.all_rows("users", "active=1", order="name") if u.get("name")]
+    except Exception:
+        names = []
+    return names

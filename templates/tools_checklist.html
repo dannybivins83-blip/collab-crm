@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Team Checklist{% endblock %}
+{% block body %}
+<div class="page-head no-print">
+  <h1>📋 Team Procedural Checklist</h1>
+  <div class="grow"></div>
+  <button class="btn" onclick="window.print()">🖨 Print</button>
+</div>
+
+<div class="card">
+  <h2>⚡ Speed to Lead</h2>
+  <ul>
+    <li>Respond to every new lead within <b>5 minutes</b> — call first, then text + email.</li>
+    <li>Log the touch in the CRM and set the next follow-up date before moving on.</li>
+    <li>If no answer: leave a voicemail, send a text, and schedule a same-day retry.</li>
+    <li>Goal: appointment booked within 24 hours of the lead coming in.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>📐 Inspection & Estimate</h2>
+  <ul>
+    <li>Karla enters the lead and creates the <b>RoofGraf</b> measurement report.</li>
+    <li>Upload the RoofGraf PDF to the lead → measurements auto-fill.</li>
+    <li>Build the estimate from the matching template; <b>Apply measurements</b> to fill quantities.</li>
+    <li>Review the estimate with the customer; send + log it. Set follow-up.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>📝 Sign-Up & Documents</h2>
+  <ul>
+    <li>Signed proposal + deposit collected before scheduling anything.</li>
+    <li>Confirm color/material selection in writing.</li>
+    <li>Collect COI / scope docs; scan everything into the job's Documents.</li>
+    <li>Email signed copies to the customer; upload photos.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>🏛️ HOA & Permit</h2>
+  <ul>
+    <li>If HOA: submit the application + color sample early — cannot pull the permit until approved.</li>
+    <li>Record the NOC; submit the permit package; pay fees; capture the permit #.</li>
+    <li>Post the permit at the job site and install the permit box.</li>
+    <li>Notify the customer of the start date once the permit is approved.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>📦 Pre-Con, Material & Build</h2>
+  <ul>
+    <li>Order material; confirm delivery date; schedule crew + dumpster.</li>
+    <li>Pre-con walkthrough; install yard sign.</li>
+    <li>Tear-off → dry-in → dry-in inspection passed → install → magnet sweep.</li>
+    <li>Keep the customer updated at each milestone.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>✅ Final & Close-Out</h2>
+  <ul>
+    <li>Pass final inspection; upload final photos.</li>
+    <li>Send final invoice; collect final payment per the draw schedule.</li>
+    <li>Issue warranty; request a review; ask for 3 referrals (names + numbers).</li>
+  </ul>
+</div>
+<style>@media print{.masthead,.mainnav,.no-print{display:none!important}.content{max-width:none;padding:0}}</style>
+{% endblock %}

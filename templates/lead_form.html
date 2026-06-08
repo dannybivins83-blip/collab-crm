@@ -23,7 +23,14 @@
     <div class="field"><label>Lead source</label>
       <select name="source"><option value=""></option>{% for s in db_lead_sources() %}<option {{ 'selected' if lead.source==s }}>{{ s }}</option>{% endfor %}</select>
     </div>
-    <div class="field"><label>Sales rep</label><input name="rep" value="{{ lead.rep or '' }}"></div>
+    <div class="field"><label>Sales rep</label>
+      <select name="rep">
+        <option value="">— unassigned —</option>
+        {% set reps = rep_options() %}
+        {% for r in reps %}<option {{ 'selected' if lead.rep==r }}>{{ r }}</option>{% endfor %}
+        {% if lead.rep and lead.rep not in reps %}<option selected>{{ lead.rep }}</option>{% endif %}
+      </select>
+    </div>
   </div>
   <div class="row">
     <div class="field"><label>Estimate ($)</label><input name="estimate" value="{{ lead.estimate or '' }}" placeholder="$14,500"></div>

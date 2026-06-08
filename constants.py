@@ -127,14 +127,13 @@ _OLD_LEAD_STAGE_MAP = {
 
 
 # ---------------------------------------------------------------------------
-# Payment draw schedule (jobs only)  -- 25 / wood / 25 / 40 / 10
+# Payment draw schedule (jobs only)  -- 30 / 30 / 30 / 10 (performance-based)
 # ---------------------------------------------------------------------------
 DRAW_SCHEDULE = [
-    {"key": "p1",   "label": "1st draw — 25% (deposit)", "pct": 0.25},
-    {"key": "wood", "label": "Wood bill",                     "pct": None},
-    {"key": "p2",   "label": "2nd draw — 25% (tear-off)", "pct": 0.25},
-    {"key": "p3",   "label": "3rd draw — 40% (delivery)", "pct": 0.40},
-    {"key": "p4",   "label": "Final — 10% (completion)",  "pct": 0.10},
+    {"key": "p1", "label": "30% deposit — permit cost, material order & admin", "pct": 0.30},
+    {"key": "p2", "label": "30% at job start — mobilization (crew shows up)",   "pct": 0.30},
+    {"key": "p3", "label": "30% at 2 of 3 inspections passed (performance)",    "pct": 0.30},
+    {"key": "p4", "label": "10% at final inspection / completion",              "pct": 0.10},
 ]
 
 # ---------------------------------------------------------------------------
