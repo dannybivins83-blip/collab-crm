@@ -23,6 +23,16 @@ bp = Blueprint("sync", __name__, url_prefix="/sync")
 
 DEFAULT_BASE = "https://api.acculynx.com/api/v2"
 
+# SSL context with a real CA bundle (certifi) — Windows Python's urllib otherwise
+# can't verify the AccuLynx cert ("CERTIFICATE_VERIFY_FAILED"). Falls back to the
+# system default if certifi isn't present.
+import ssl as _ssl
+try:
+    import certifi as _certifi
+    _SSL_CTX = _ssl.create_default_context(cafile=_certifi.where())
+except Exception:
+    _SSL_CTX = _ssl.create_default_context()
+
 
 def _ensure_schema():
     for col in ("acculynx_api_key TEXT", "acculynx_api_base TEXT",
@@ -79,7 +89,7 @@ def _api_get(base, path, key, params=None):
         url += "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={
         "Authorization": "Bearer " + key, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with urllib.request.urlopen(req, timeout=30, context=_SSL_CTX) as r:
         return json.loads(r.read().decode("utf-8"))
 
 
@@ -241,7 +251,7 @@ def sync_documents(base, key, ajid, crm_job_id):
         path = os.path.join(config.DOC_DIR, fn)
         try:
             req = urllib.request.Request(url, headers={"Authorization": "Bearer " + key})
-            with urllib.request.urlopen(req, timeout=60) as r, open(path, "wb") as f:
+            with urllib.request.urlopen(req, timeout=60, context=_SSL_CTX) as r, open(path, "wb") as f:
                 f.write(r.read())
         except Exception:
             continue
