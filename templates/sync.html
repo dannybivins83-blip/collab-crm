@@ -54,6 +54,17 @@
   <div class="muted">If your browser blocks the cross-site request the first time, allow it — it's just posting to your own CRM at <code>{{ request.host_url }}</code>.</div>
 </div>
 
+<div class="card" style="border:2px solid var(--accent)">
+  <h2>⭐ Sync Everything → CRM (one click)</h2>
+  <p class="muted">The closest thing to a "do it all" button. In <b>one click</b> on a Jobs list, it pulls each job's <b>billing &amp; payments</b>, <b>estimates</b>, and <b>communications</b> from your logged-in AccuLynx session into the matching CRM job. (Permit <b>documents</b> stay on their own button below — they're large file transfers, so they run best separately.)</p>
+  <p class="muted" style="margin-top:-4px"><b>Why this is a bookmark, not the 🔄 Sync button:</b> the Sync button runs on the server via AccuLynx's public API, which only returns leads/jobs/stages (it 404s on money, estimates &amp; messages). That data lives behind your browser login, so it can only be pulled by a bookmark running inside an AccuLynx tab.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmall" class="btn accent" href="#" onclick="return false">⭐ AccuLynx Sync All → CRM</a></li>
+    <li>Run a regular <b>🔄 Sync now</b> first so the jobs exist, then open a <b>Jobs</b> milestone list (Approved / Completed / Invoiced hold the money).</li>
+    <li><b>Click the bookmark once.</b> Banner shows "All X/Y · N valued · E est · M msgs". Safe to re-run — everything dedups.</li>
+  </ol>
+</div>
+
 <div class="card">
   <h2>📎 Pull permit documents into jobs</h2>
   <p class="muted">Attaches each job's <b>permit-related</b> files (Permit, NOC, HOA Approval, Certificate of Completion, inspection) from AccuLynx to the matching CRM job. Files come from your logged-in AccuLynx session (the API can't serve documents). Already-attached files are skipped; large scans upload in chunks.</p>
@@ -249,6 +260,44 @@
   document.getElementById('bmbill').href=bmHref('billing');
   document.getElementById('bmest').href=bmHref('estimate');
   document.getElementById('bmcomm').href=bmHref('comm');
+  // ⭐ Combined: billing + estimates + comms per job, one click.
+  function pullAll(cfg){
+    (async function(){
+      var BASE=cfg.BASE;
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:470px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      var seen={},guids=[];
+      function collect(){[].forEach.call(document.querySelectorAll('a[href*="/jobs/"]'),function(a){var m=(a.getAttribute('href')||'').match(/\/jobs\/([0-9a-f-]{30,})/);if(m&&!seen[m[1]]){seen[m[1]]=1;guids.push(m[1]);}});}
+      function scrollers(){var s=[document.scrollingElement||document.documentElement];[].forEach.call(document.querySelectorAll('div'),function(e){if(e.scrollHeight>e.clientHeight+40)s.push(e);});return s;}
+      collect();var last=-1,stable=0;
+      for(var i=0;i<100&&stable<4;i++){scrollers().forEach(function(e){try{e.scrollTop=e.scrollHeight;}catch(_){}});window.scrollTo(0,document.body.scrollHeight);await sleep(500);collect();setb('Finding jobs… '+guids.length);if(guids.length===last)stable++;else stable=0;last=guids.length;}
+      if(!guids.length){setb('No jobs found — open a Jobs milestone list first.','#c0392b');setTimeout(function(){bn.remove();},6000);return;}
+      async function gj(url,opts){try{var r=await fetch(url,opts||{headers:{'Accept':'application/json'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+      async function post(ep,p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
+      var tot=guids.length,jdone=0,vals=0,ests=0,msgs=0,fail=0,nojob=0;
+      for(var gi=0;gi<guids.length;gi++){var g=guids[gi];
+        try{
+          var fp=await gj('/api/jobs/'+g+'/financial-progress');
+          var iv=await gj('/api/jobs/'+g+'/invoices');
+          var invs=(iv&&iv.Invoices)||[],pays=[];
+          invs.forEach(function(x){(x.LinkedPayments||[]).forEach(function(p){pays.push({id:p.JobPaymentId,amount:p.Amount,date:p.PaymentDate,method:p.Method,reference:p.CheckNumber});});});
+          if((fp&&fp.JobValue!=null)||invs.length){var bd=await post('sync/billing-import',{guid:g,value:(fp&&fp.JobValue),balance:(fp&&fp.BalanceDue),invoices:invs.map(function(x){return {id:x.InvoiceId,number:x.InvoiceNumber,amount:x.Total,date:x.InvoiceDate,status:(x.IsPaid?'paid':(x.CurrentInvoiceState||'unpaid'))};}),payments:pays});if(bd&&bd.summary){vals+=bd.summary.value_set||0;if(bd.summary.no_job)nojob++;}}
+          var es=await gj('/api/Estimatev3/GetEstimates/'+g);
+          if(es&&es.length){var ed=await post('sync/estimate-import',{guid:g,estimates:es.map(function(e){var f=e.Financials||{};return {id:e.EstimateID,title:e.Title,number:e.EstimateNumber,total:(f.HasOverridePrice?f.TotalOverridePrice:f.TotalPrice),date:e.CreatedDate};})});if(ed&&ed.summary){ests+=(ed.summary.added||0)+(ed.summary.updated||0);}}
+          var cmsgs=[],start=0;
+          for(var pg=0;pg<5;pg++){var cd=await gj('/api/v4/jobs/'+g+'/communications/previews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pageStartIndex:start,pageSize:50})});var pv=(cd&&cd.Previews)||[];if(!pv.length)break;pv.forEach(function(m){cmsgs.push({id:m.PreviewId,body:(m.Data&&m.Data.BodyPreview)||'',author:(m.Participants||[]).map(function(x){return x.Name;}).filter(Boolean).join(', '),date:m.Timestamp,type:(m.Type&&m.Type.Name)||'note'});});if(pv.length<50)break;start+=50;}
+          if(cmsgs.length){var md=await post('sync/comm-import',{guid:g,messages:cmsgs});if(md&&md.summary){msgs+=md.summary.added||0;}}
+        }catch(e){fail++;}
+        jdone++;setb('All '+jdone+'/'+tot+' · '+vals+' valued · '+ests+' est · '+msgs+' msgs'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' fail':''));
+      }
+      setb('✓ Done · '+tot+' jobs · '+vals+' values · '+ests+' estimates · '+msgs+' messages'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' failed':''),'#2e7d32');
+      setTimeout(function(){bn.remove();},20000);
+    })();
+  }
+  document.getElementById('bmall').href='javascript:('+pullAll.toString()+')('+JSON.stringify({BASE:BASE})+')';
 })();
 </script>
 {% endblock %}
