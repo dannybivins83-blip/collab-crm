@@ -621,13 +621,46 @@ def _cors(payload, code=200):
     return r
 
 
+def _finalize_doc(guid, folder, name, src_path):
+    """Match the synced job by AccuLynx GUID, dedup, and attach the saved file at
+    src_path. Removes src_path on any rejection. Returns a CORS JSON response."""
+    size = os.path.getsize(src_path) if os.path.exists(src_path) else 0
+    def _drop():
+        try:
+            os.remove(src_path)
+        except Exception:
+            pass
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    if ext and ext not in ALLOWED_DOC_EXT:
+        _drop()
+        return _cors({"ok": False, "reason": "ext_blocked:%s" % ext, "name": name})
+    if size > 64 * 1024 * 1024:
+        _drop()
+        return _cors({"ok": False, "reason": "too_large", "size": size, "name": name})
+    job = next((j for j in db.all_rows("jobs") if guid in (j.get("external_url") or "").lower()), None)
+    if not job:
+        _drop()
+        return _cors({"ok": False, "reason": "no_job", "guid": guid})
+    have = {(d.get("original_name") or "").lower()
+            for d in db.all_rows("documents", where="job_id=?", params=(job["id"],))}
+    if name.lower() in have:
+        _drop()
+        return _cors({"ok": True, "skipped": "duplicate", "name": name, "job": job.get("name")})
+    db.insert("documents", {"job_id": job["id"], "category": folder,
+                            "filename": os.path.basename(src_path), "original_name": name,
+                            "size": size, "notes": "Permit doc synced from AccuLynx"})
+    db.add_activity("job", job["id"], "note",
+                    "Permit document synced from AccuLynx: %s (%s)" % (name, folder))
+    return _cors({"ok": True, "added": True, "job": job.get("name"), "folder": folder, "name": name})
+
+
 @bp.route("/doc-import", methods=["POST", "OPTIONS"])
 def doc_import():
     """Attach a single permit/document file scraped from the AccuLynx tab to the
     matching synced job (matched by AccuLynx GUID in external_url). CORS-open like
-    browser-import — the request originates from the my.acculynx.com tab, not a CRM
-    session. Guarded: known-job only, allow-listed extensions, 30 MB cap, dedup by
-    filename so re-runs don't pile up copies."""
+    browser-import. Supports CHUNKED uploads (uploadId/chunkIndex/chunkTotal) so
+    large scans clear Render's ingress, which drops big cross-origin bodies. Guarded:
+    known-job only, allow-listed extensions, 64 MB cap, dedup by filename."""
     from flask import make_response
     if request.method == "OPTIONS":
         r = make_response("", 204)
@@ -635,39 +668,43 @@ def doc_import():
         r.headers["Access-Control-Allow-Headers"] = "Content-Type"
         r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
         return r
+
+    f = request.files.get("file")
     guid = (request.form.get("guid") or "").strip().lower()
     folder = (request.form.get("folder") or "AccuLynx").strip()[:60]
-    fname = (request.form.get("filename") or "").strip()
-    f = request.files.get("file")
+    name = (request.form.get("filename") or (f.filename if f else "") or "acculynx_doc").strip()
+    upload_id = request.form.get("uploadId")
+
+    if upload_id:  # chunked: append each part to a temp file, finalize on the last
+        uid = re.sub(r"[^A-Za-z0-9_-]", "", upload_id)[:80]
+        idx = int(request.form.get("chunkIndex") or 0)
+        total = int(request.form.get("chunkTotal") or 1)
+        if not uid or f is None:
+            return _cors({"ok": False, "reason": "bad_chunk"}, 400)
+        cdir = os.path.join(config.DOC_DIR, "_chunks")
+        os.makedirs(cdir, exist_ok=True)
+        part = os.path.join(cdir, uid + ".part")
+        if idx == 0 and os.path.exists(part):
+            os.remove(part)  # stale restart
+        with open(part, "ab") as out:
+            out.write(f.read())
+        if os.path.getsize(part) > 64 * 1024 * 1024:
+            os.remove(part)
+            return _cors({"ok": False, "reason": "too_large"})
+        if idx < total - 1:
+            return _cors({"ok": True, "chunk": idx})
+        safe = "%d_%s" % (int(time.time() * 1000), _safe_name(name))
+        final = os.path.join(config.DOC_DIR, safe)
+        os.replace(part, final)
+        return _finalize_doc(guid, folder, name, final)
+
+    # single-shot (small files)
     if not guid or not f:
         return _cors({"ok": False, "reason": "missing guid or file"}, 400)
-    job = next((j for j in db.all_rows("jobs") if guid in (j.get("external_url") or "").lower()), None)
-    if not job:
-        return _cors({"ok": False, "reason": "no_job", "guid": guid})
-    name = fname or f.filename or "acculynx_doc"
-    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
-    if ext and ext not in ALLOWED_DOC_EXT:
-        return _cors({"ok": False, "reason": "ext_blocked:%s" % ext, "name": name})
-    have = {(d.get("original_name") or "").lower()
-            for d in db.all_rows("documents", where="job_id=?", params=(job["id"],))}
-    if name.lower() in have:
-        return _cors({"ok": True, "skipped": "duplicate", "name": name, "job": job.get("name")})
     safe = "%d_%s" % (int(time.time() * 1000), _safe_name(name))
     path = os.path.join(config.DOC_DIR, safe)
     f.save(path)
-    size = os.path.getsize(path) if os.path.exists(path) else 0
-    if size > 30 * 1024 * 1024:
-        try:
-            os.remove(path)
-        except Exception:
-            pass
-        return _cors({"ok": False, "reason": "too_large", "size": size, "name": name})
-    db.insert("documents", {"job_id": job["id"], "category": folder,
-                            "filename": safe, "original_name": name,
-                            "size": size, "notes": "Permit doc synced from AccuLynx"})
-    db.add_activity("job", job["id"], "note",
-                    "Permit document synced from AccuLynx: %s (%s)" % (name, folder))
-    return _cors({"ok": True, "added": True, "job": job.get("name"), "folder": folder, "name": name})
+    return _finalize_doc(guid, folder, name, path)
 
 
 @bp.route("/run", methods=["POST"])
