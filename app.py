@@ -70,6 +70,10 @@ for _bp in (dashboard_bp, settings_bp, contacts_bp, leads_bp, jobs_bp, estimates
 from modules.auth import init_auth
 init_auth(app)
 
+# In-app notifications (masthead bell) — alerts the team on homeowner portal actions.
+from modules.notifications import init_notifications
+init_notifications(app)
+
 # Workflow Manager: registers blueprint + wraps db.add_activity to fire on stage changes.
 from modules.automations import init_automations
 init_automations(app)

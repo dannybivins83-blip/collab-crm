@@ -338,6 +338,9 @@ def portal_complete(token, packet_id):
     p = db.get("signup_packets", packet_id)
     db.add_activity("job", job["id"], "automation",
                     "✅ Sign-up package COMPLETED & signed by homeowner (%s roof)" % p["system"])
+    from modules import notifications
+    notifications.notify(job["id"], "sign", "%s completed & signed the %s sign-up package"
+                         % (responses.get("signature") or p.get("customer_name") or "Homeowner", p["system"]))
     # Render the completed, signed packet to a real PDF and file it as the contract doc.
     try:
         fn, size, did = _generate_pdf(p, job, items, responses, ctx)

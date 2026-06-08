@@ -205,6 +205,8 @@ def upload_doc(token):
                                 "size": os.path.getsize(path),
                                 "notes": "Uploaded by homeowner"})
         db.add_activity("job", j["id"], "note", "Homeowner uploaded a document (%s): %s" % (cat, f.filename))
+        from modules import notifications
+        notifications.notify(j["id"], "upload", "Homeowner uploaded a document (%s): %s" % (cat, f.filename))
         db.update("jobs", j["id"], next_follow=db.today())
         flash("Thanks — your document was uploaded.", "ok")
     return redirect(url_for("portal.home", token=token) + "#documents")
@@ -225,6 +227,9 @@ def upload_photo(token):
                              "caption": request.form.get("caption", ""), "filename": fn,
                              "original_name": f.filename, "drive_id": gdrive.mirror(path, fn)})
         db.add_activity("job", j["id"], "note", "Homeowner uploaded a photo: %s" % f.filename)
+        from modules import notifications
+        notifications.notify(j["id"], "photo", "Homeowner uploaded a photo: %s" % f.filename)
+        db.update("jobs", j["id"], next_follow=db.today())
         flash("Thanks — your photo was uploaded.", "ok")
     return redirect(url_for("portal.home", token=token) + "#photos")
 
@@ -239,6 +244,9 @@ def message(token):
     if text:
         label = "Homeowner change request" if kind == "request" else "Homeowner message"
         db.add_activity("job", j["id"], "note", "%s: %s" % (label, text))
+        from modules import notifications
+        notifications.notify(j["id"], "request" if kind == "request" else "message",
+                             "%s: %s" % (label, text[:140]))
         # surface it as a follow-up for the rep
         db.update("jobs", j["id"], next_follow=db.today())
         flash("Thanks! Your message was sent to our team.", "ok")
@@ -262,6 +270,8 @@ def sign(token, est_id):
               signed_at=db.now(), signature=sig)
     db.add_activity("job", j["id"], "automation",
                     "✅ Proposal %s approved & e-signed by homeowner (%s)" % (e.get("number", ""), name))
+    from modules import notifications
+    notifications.notify(j["id"], "approve", "%s approved & signed proposal %s" % (name, e.get("number", "")))
     db.update("jobs", j["id"], next_follow=db.today())
     flash("Thank you! Your proposal is approved and signed.", "ok")
     return redirect(url_for("portal.home", token=token) + "#estimate")
@@ -285,6 +295,8 @@ def sign_doc(token, doc_id):
               signature=sig, needs_sign=0)
     db.add_activity("job", j["id"], "automation",
                     "✅ Document e-signed by homeowner: %s (%s)" % (d.get("original_name", ""), name))
+    from modules import notifications
+    notifications.notify(j["id"], "sign", "%s e-signed: %s" % (name, d.get("original_name", "a document")))
     db.update("jobs", j["id"], next_follow=db.today())
     flash("Thank you — your signature was recorded.", "ok")
     return redirect(url_for("portal.home", token=token) + "#sign")
