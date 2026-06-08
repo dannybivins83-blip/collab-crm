@@ -26,7 +26,8 @@ DEFAULT_BASE = "https://api.acculynx.com/api/v2"
 
 def _ensure_schema():
     for col in ("acculynx_api_key TEXT", "acculynx_api_base TEXT",
-                "acculynx_last_sync TEXT", "acculynx_auto INTEGER DEFAULT 0"):
+                "acculynx_last_sync TEXT", "acculynx_auto INTEGER DEFAULT 0",
+                "acculynx_cursor INTEGER DEFAULT 0"):
         try:
             db.execute("ALTER TABLE company_settings ADD COLUMN %s" % col)
         except Exception:
@@ -270,25 +271,48 @@ def _money_val(job):
         return str(v)
 
 
-def run_sync(deep=False):
+def run_sync(deep=False, batch=50):
     company = db.get_company()
     key = (company.get("acculynx_api_key") or "").strip()
     base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
     if not key:
         return {"ok": False, "error": "No API key set."}
     try:
-        # Pull ALL records (high page cap). Inserts commit per-row, so even if a
-        # serverless run times out, a re-run resumes (existing rows skip the
-        # contact fetch and just update).
+        # Pull ALL record summaries (high page cap; pagination is cheap — the
+        # expensive per-contact fetch only happens for the 50 in this batch).
         jobs = _paginate(base, "/jobs", key, max_pages=2000)
     except Exception as e:
         return {"ok": False, "error": "API request failed: %s" % e}
+
+    # Order leads-first (assigned → prospect → negotiation → long term), then job
+    # milestones, so batches walk the front of the funnel first.
+    _LEAD_ORDER = ["assigned", "prospect", "negotiation", "long_term", "won", "lost"]
+    _JOB_ORDER = [s["key"] for s in constants.JOB_STAGES]
+
+    def _prio(job):
+        ms = _g(job, "currentMilestone", "milestone", "milestoneName", "currentMilestoneName", "status")
+        if isinstance(ms, dict):
+            ms = _g(ms, "name", "title")
+        k, st = _resolve_stage(ms)
+        if k == "lead" and st in _LEAD_ORDER:
+            return _LEAD_ORDER.index(st)
+        return 100 + (_JOB_ORDER.index(st) if st in _JOB_ORDER else 99)
+
+    jobs.sort(key=lambda j: (_prio(j), str(_g(j, "id", "jobId", "uid"))))
+
+    # Resume from the saved cursor; process one batch of 50, then advance.
+    BATCH = int(batch or 50)
+    total = len(jobs)
+    cursor = int(company.get("acculynx_cursor") or 0)
+    if cursor >= total:
+        cursor = 0
+    window = jobs[cursor:cursor + BATCH]
 
     exL = {(l.get("name") or "").lower(): l for l in db.all_rows("leads")}
     exJ = {(j.get("name") or "").lower(): j for j in db.all_rows("jobs")}
     added_l = added_j = updated = notes_synced = docs_synced = 0
 
-    for job in jobs:
+    for job in window:
         jid = _g(job, "id", "jobId", "uid")
         name = (_g(job, "jobName", "name", "displayName") or "").strip()
         milestone = _g(job, "currentMilestone", "milestone", "milestoneName",
@@ -351,9 +375,12 @@ def run_sync(deep=False):
             if crm_kind == "job":
                 docs_synced += sync_documents(base, key, jid, crm_id)
 
-    db.save_company({"acculynx_last_sync": db.now()})
-    return {"ok": True, "jobs_seen": len(jobs), "added_leads": added_l,
-            "added_jobs": added_j, "updated": updated,
+    next_cursor = cursor + len(window)
+    done = next_cursor >= total
+    db.save_company({"acculynx_last_sync": db.now(),
+                     "acculynx_cursor": 0 if done else next_cursor})
+    return {"ok": True, "jobs_seen": total, "batch_from": cursor, "batch_to": next_cursor,
+            "done": done, "added_leads": added_l, "added_jobs": added_j, "updated": updated,
             "notes_synced": notes_synced, "docs_synced": docs_synced}
 
 
@@ -491,9 +518,15 @@ def run():
         result = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
                   "trace": traceback.format_exc()[-400:]}
     if result.get("ok"):
-        msg = "Sync complete — %d jobs seen · +%d leads · +%d jobs · %d updated." % (
-            result.get("jobs_seen", 0), result.get("added_leads", 0),
-            result.get("added_jobs", 0), result.get("updated", 0))
+        total = result.get("jobs_seen", 0)
+        to = result.get("batch_to", 0)
+        msg = "Batch synced — records %d–%d of %d (leads first) · +%d leads · +%d jobs · %d updated." % (
+            result.get("batch_from", 0) + 1, to, total,
+            result.get("added_leads", 0), result.get("added_jobs", 0), result.get("updated", 0))
+        if result.get("done"):
+            msg += " ✅ Full pass complete."
+        else:
+            msg += " Click Sync again to continue the next 50."
         if deep:
             msg += " Notes: %d · Documents: %d." % (result.get("notes_synced", 0), result.get("docs_synced", 0))
         flash(msg, "ok")
@@ -516,11 +549,28 @@ def cron():
     company = db.get_company()
     if not (company.get("acculynx_api_key") or "").strip():
         return jsonify({"ok": True, "skipped": "no AccuLynx API key configured yet"})
+    import time as _t
+    deep = bool(request.args.get("deep"))
+    t0 = _t.time()
+    batches = 0
+    agg = {"added_leads": 0, "added_jobs": 0, "updated": 0}
+    result = {"done": False}
     try:
-        result = run_sync(deep=bool(request.args.get("deep")))
+        # Walk several 50-record batches per cron run (leads-first, resumable),
+        # stopping before the serverless time budget so it never hard-times-out.
+        while _t.time() - t0 < 45:
+            result = run_sync(deep=deep)
+            if not result.get("ok"):
+                return jsonify(result), 200
+            batches += 1
+            for k in agg:
+                agg[k] += result.get(k, 0)
+            if result.get("done"):
+                break
     except Exception as e:
         return jsonify({"ok": False, "error": "%s: %s" % (type(e).__name__, e)}), 200
-    return jsonify(result)
+    return jsonify({"ok": True, "batches": batches, "done": result.get("done"),
+                    "jobs_seen": result.get("jobs_seen"), **agg})
 
 
 @bp.route("/test")
