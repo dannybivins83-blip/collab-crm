@@ -27,7 +27,7 @@ DEFAULT_BASE = "https://api.acculynx.com/api/v2"
 def _ensure_schema():
     for col in ("acculynx_api_key TEXT", "acculynx_api_base TEXT",
                 "acculynx_last_sync TEXT", "acculynx_auto INTEGER DEFAULT 0",
-                "acculynx_cursor INTEGER DEFAULT 0"):
+                "acculynx_cursor INTEGER DEFAULT 0", "acculynx_group INTEGER DEFAULT 0"):
         try:
             db.execute("ALTER TABLE company_settings ADD COLUMN %s" % col)
         except Exception:
@@ -89,7 +89,7 @@ def _paginate(base, path, key, params=None, max_pages=40):
     params = dict(params or {})
     start = 0
     for _ in range(max_pages):
-        params.update({"startIndex": start, "pageSize": 25})
+        params.update({"recordStartIndex": start, "pageSize": 25})
         data = _api_get(base, path, key, params)
         page = data.get("items") if isinstance(data, dict) else data
         if not page:
@@ -277,47 +277,36 @@ def run_sync(deep=False, batch=50):
     base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
     if not key:
         return {"ok": False, "error": "No API key set."}
-    # Fetch ONLY this batch's window straight from the API (startIndex/pageSize) —
-    # never pull the whole dataset (that's what timed the function out). Ask the API
-    # to sort by milestone so leads come first; retry without sort if it's rejected.
+    # Walk AccuLynx milestone groups in priority order (leads/prospects first, the
+    # huge historical closed/invoiced buckets last) using the DOCUMENTED params:
+    #   milestones=<group>  recordStartIndex=<n>  pageSize<=25  sortBy=MilestoneDate
+    # Cursor = (group index, recordStartIndex within that group), resumable.
     BATCH = int(batch or 50)
-    PAGE = 25  # AccuLynx API caps pageSize at 25 (50 -> HTTP 400)
-    cursor = int(company.get("acculynx_cursor") or 0)
-    total = None
+    PAGE = 25  # AccuLynx caps pageSize at 25
+    GROUPS = ["lead", "prospect", "approved", "completed", "invoiced", "closed", "cancelled", "dead"]
+    g = int(company.get("acculynx_group") or 0)
+    start = int(company.get("acculynx_cursor") or 0)
     window = []
     try:
-        si = cursor
-        while len(window) < BATCH:
-            data = _api_get(base, "/jobs", key, {"startIndex": si, "pageSize": PAGE})
+        while len(window) < BATCH and g < len(GROUPS):
+            data = _api_get(base, "/jobs", key, {
+                "milestones": GROUPS[g], "recordStartIndex": start, "pageSize": PAGE,
+                "sortBy": "MilestoneDate", "sortOrder": "Descending"})
             items = data.get("items") if isinstance(data, dict) else (data or [])
-            if isinstance(data, dict):
-                total = data.get("totalCount") or data.get("total") or data.get("count") or total
-            if not items:
-                break
-            window.extend(items)
-            si += len(items)
-            if len(items) < PAGE:
-                break
+            if items:
+                window.extend(items)
+                start += len(items)
+                if len(items) < PAGE:   # this milestone group is fully consumed
+                    g += 1
+                    start = 0
+            else:                       # empty group — move on
+                g += 1
+                start = 0
     except Exception as e:
         return {"ok": False, "error": "API request failed: %s" % e}
-    if cursor and not window:  # ran past the end — wrap to the top next time
-        db.save_company({"acculynx_cursor": 0})
-        return {"ok": True, "jobs_seen": total or cursor, "batch_from": cursor,
-                "batch_to": cursor, "done": True, "added_leads": 0, "added_jobs": 0,
-                "updated": 0, "notes_synced": 0, "docs_synced": 0}
 
-    # Local leads-first ordering within the page (in case the API ignored sortBy).
-    _LEAD_ORDER = ["assigned", "prospect", "negotiation", "long_term", "won", "lost"]
-    _JOB_ORDER = [s["key"] for s in constants.JOB_STAGES]
-
-    def _prio(job):
-        ms = _g(job, "currentMilestone", "milestone", "milestoneName", "currentMilestoneName", "status")
-        if isinstance(ms, dict):
-            ms = _g(ms, "name", "title")
-        k, st = _resolve_stage(ms)
-        return _LEAD_ORDER.index(st) if (k == "lead" and st in _LEAD_ORDER) else 100 + (_JOB_ORDER.index(st) if st in _JOB_ORDER else 99)
-
-    window.sort(key=_prio)
+    done = g >= len(GROUPS)
+    cur_group = GROUPS[g] if not done else "all"
 
     exL = {(l.get("name") or "").lower(): l for l in db.all_rows("leads")}
     exJ = {(j.get("name") or "").lower(): j for j in db.all_rows("jobs")}
@@ -386,13 +375,11 @@ def run_sync(deep=False, batch=50):
             if crm_kind == "job":
                 docs_synced += sync_documents(base, key, jid, crm_id)
 
-    next_cursor = cursor + len(window)
-    done = len(window) < BATCH  # short page = reached the end
     db.save_company({"acculynx_last_sync": db.now(),
-                     "acculynx_cursor": 0 if done else next_cursor})
-    return {"ok": True, "jobs_seen": total or next_cursor, "batch_from": cursor,
-            "batch_to": next_cursor, "done": done, "added_leads": added_l,
-            "added_jobs": added_j, "updated": updated,
+                     "acculynx_group": 0 if done else g,
+                     "acculynx_cursor": 0 if done else start})
+    return {"ok": True, "batch": len(window), "group": cur_group, "done": done,
+            "added_leads": added_l, "added_jobs": added_j, "updated": updated,
             "notes_synced": notes_synced, "docs_synced": docs_synced}
 
 
@@ -530,15 +517,13 @@ def run():
         result = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
                   "trace": traceback.format_exc()[-400:]}
     if result.get("ok"):
-        total = result.get("jobs_seen", 0)
-        to = result.get("batch_to", 0)
-        msg = "Batch synced — records %d–%d of %d (leads first) · +%d leads · +%d jobs · %d updated." % (
-            result.get("batch_from", 0) + 1, to, total,
+        msg = "Batch synced — milestone '%s' · %d records · +%d leads · +%d jobs · %d updated." % (
+            result.get("group", "?"), result.get("batch", 0),
             result.get("added_leads", 0), result.get("added_jobs", 0), result.get("updated", 0))
         if result.get("done"):
-            msg += " ✅ Full pass complete."
+            msg += " ✅ Full pass complete (all milestones)."
         else:
-            msg += " Click Sync again to continue the next 50."
+            msg += " Click Sync again to continue."
         if deep:
             msg += " Notes: %d · Documents: %d." % (result.get("notes_synced", 0), result.get("docs_synced", 0))
         flash(msg, "ok")
