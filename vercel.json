@@ -4,7 +4,7 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python",
-      "config": { "maxLambdaSize": "50mb", "includeFiles": "{templates/**,static/**,modules/**,*.py}" }
+      "config": { "maxLambdaSize": "50mb", "maxDuration": 60, "includeFiles": "{templates/**,static/**,modules/**,*.py}" }
     }
   ],
   "routes": [

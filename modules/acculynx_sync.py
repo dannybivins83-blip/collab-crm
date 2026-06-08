@@ -277,15 +277,32 @@ def run_sync(deep=False, batch=50):
     base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
     if not key:
         return {"ok": False, "error": "No API key set."}
-    try:
-        # Pull ALL record summaries (high page cap; pagination is cheap — the
-        # expensive per-contact fetch only happens for the 50 in this batch).
-        jobs = _paginate(base, "/jobs", key, max_pages=2000)
-    except Exception as e:
-        return {"ok": False, "error": "API request failed: %s" % e}
+    # Fetch ONLY this batch's window straight from the API (startIndex/pageSize) —
+    # never pull the whole dataset (that's what timed the function out). Ask the API
+    # to sort by milestone so leads come first; retry without sort if it's rejected.
+    BATCH = int(batch or 50)
+    cursor = int(company.get("acculynx_cursor") or 0)
+    total = None
+    window = None
+    for params in ({"startIndex": cursor, "pageSize": BATCH, "sortBy": "currentMilestone", "sortDirection": "Ascending"},
+                   {"startIndex": cursor, "pageSize": BATCH}):
+        try:
+            data = _api_get(base, "/jobs", key, params)
+            window = data.get("items") if isinstance(data, dict) else (data or [])
+            if isinstance(data, dict):
+                total = data.get("totalCount") or data.get("total") or data.get("count")
+            break
+        except Exception as e:
+            err = e
+    if window is None:
+        return {"ok": False, "error": "API request failed: %s" % err}
+    if cursor and not window:  # ran past the end — wrap to the top next time
+        db.save_company({"acculynx_cursor": 0})
+        return {"ok": True, "jobs_seen": total or cursor, "batch_from": cursor,
+                "batch_to": cursor, "done": True, "added_leads": 0, "added_jobs": 0,
+                "updated": 0, "notes_synced": 0, "docs_synced": 0}
 
-    # Order leads-first (assigned → prospect → negotiation → long term), then job
-    # milestones, so batches walk the front of the funnel first.
+    # Local leads-first ordering within the page (in case the API ignored sortBy).
     _LEAD_ORDER = ["assigned", "prospect", "negotiation", "long_term", "won", "lost"]
     _JOB_ORDER = [s["key"] for s in constants.JOB_STAGES]
 
@@ -294,19 +311,9 @@ def run_sync(deep=False, batch=50):
         if isinstance(ms, dict):
             ms = _g(ms, "name", "title")
         k, st = _resolve_stage(ms)
-        if k == "lead" and st in _LEAD_ORDER:
-            return _LEAD_ORDER.index(st)
-        return 100 + (_JOB_ORDER.index(st) if st in _JOB_ORDER else 99)
+        return _LEAD_ORDER.index(st) if (k == "lead" and st in _LEAD_ORDER) else 100 + (_JOB_ORDER.index(st) if st in _JOB_ORDER else 99)
 
-    jobs.sort(key=lambda j: (_prio(j), str(_g(j, "id", "jobId", "uid"))))
-
-    # Resume from the saved cursor; process one batch of 50, then advance.
-    BATCH = int(batch or 50)
-    total = len(jobs)
-    cursor = int(company.get("acculynx_cursor") or 0)
-    if cursor >= total:
-        cursor = 0
-    window = jobs[cursor:cursor + BATCH]
+    window.sort(key=_prio)
 
     exL = {(l.get("name") or "").lower(): l for l in db.all_rows("leads")}
     exJ = {(j.get("name") or "").lower(): j for j in db.all_rows("jobs")}
@@ -376,11 +383,12 @@ def run_sync(deep=False, batch=50):
                 docs_synced += sync_documents(base, key, jid, crm_id)
 
     next_cursor = cursor + len(window)
-    done = next_cursor >= total
+    done = len(window) < BATCH  # short page = reached the end
     db.save_company({"acculynx_last_sync": db.now(),
                      "acculynx_cursor": 0 if done else next_cursor})
-    return {"ok": True, "jobs_seen": total, "batch_from": cursor, "batch_to": next_cursor,
-            "done": done, "added_leads": added_l, "added_jobs": added_j, "updated": updated,
+    return {"ok": True, "jobs_seen": total or next_cursor, "batch_from": cursor,
+            "batch_to": next_cursor, "done": done, "added_leads": added_l,
+            "added_jobs": added_j, "updated": updated,
             "notes_synced": notes_synced, "docs_synced": docs_synced}
 
 
