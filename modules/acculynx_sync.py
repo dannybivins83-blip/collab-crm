@@ -321,8 +321,17 @@ def run_sync(deep=False, batch=50):
     done = g >= len(GROUPS)
     cur_group = GROUPS[g] if not done else "all"
 
-    exL = {(l.get("name") or "").lower(): l for l in db.all_rows("leads")}
-    exJ = {(j.get("name") or "").lower(): j for j in db.all_rows("jobs")}
+    # Index existing records by AccuLynx GUID (from external_url) first, name second,
+    # so re-syncs UPDATE the same record instead of inserting duplicates.
+    def _guid_of(u):
+        m = re.search(r"/jobs/([0-9a-f-]{30,})", u or "")
+        return m.group(1) if m else None
+    _leads = db.all_rows("leads")
+    _jobs = db.all_rows("jobs")
+    exLg = {_guid_of(l.get("external_url")): l for l in _leads if _guid_of(l.get("external_url"))}
+    exJg = {_guid_of(j.get("external_url")): j for j in _jobs if _guid_of(j.get("external_url"))}
+    exL = {(l.get("name") or "").lower(): l for l in _leads}
+    exJ = {(j.get("name") or "").lower(): j for j in _jobs}
     added_l = added_j = updated = notes_synced = docs_synced = skipped = 0
     last_err = ""
 
@@ -349,7 +358,10 @@ def run_sync(deep=False, batch=50):
             val = _money_val(job)
             val_col = "estimate" if kind == "lead" else "contract_value"
 
-            cur = (exL if kind == "lead" else exJ).get(name.lower()) if name else None
+            if kind == "lead":
+                cur = exLg.get(jid) or (exL.get(name.lower()) if name else None)
+            else:
+                cur = exJg.get(jid) or (exJ.get(name.lower()) if name else None)
             crm_kind = "lead" if kind == "lead" else "job"
             crm_id = None
 
