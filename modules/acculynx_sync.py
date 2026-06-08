@@ -310,76 +310,84 @@ def run_sync(deep=False, batch=50):
 
     exL = {(l.get("name") or "").lower(): l for l in db.all_rows("leads")}
     exJ = {(j.get("name") or "").lower(): j for j in db.all_rows("jobs")}
-    added_l = added_j = updated = notes_synced = docs_synced = 0
+    added_l = added_j = updated = notes_synced = docs_synced = skipped = 0
+    last_err = ""
 
     for job in window:
-        jid = _g(job, "id", "jobId", "uid")
-        name = (_g(job, "jobName", "name", "displayName") or "").strip()
-        milestone = _g(job, "currentMilestone", "milestone", "milestoneName",
-                       "currentMilestoneName", "status")
-        if isinstance(milestone, dict):
-            milestone = _g(milestone, "name", "title")
-        kind, stage = _resolve_stage(milestone)
-        url = "https://my.acculynx.com/jobs/%s" % jid if jid else ""
-        val = _money_val(job)
-        val_col = "estimate" if kind == "lead" else "contract_value"
+        try:
+            jid = _g(job, "id", "jobId", "uid")
+            name = (_g(job, "jobName", "name", "displayName") or "").strip()
+            milestone = _g(job, "currentMilestone", "milestone", "milestoneName",
+                           "currentMilestoneName", "status")
+            if isinstance(milestone, dict):
+                milestone = _g(milestone, "name", "title")
+            kind, stage = _resolve_stage(milestone)
+            url = "https://my.acculynx.com/jobs/%s" % jid if jid else ""
+            val = _money_val(job)
+            val_col = "estimate" if kind == "lead" else "contract_value"
 
-        # Find an existing record first so we only pay the contact-detail fetch on INSERT.
-        cur = (exL if kind == "lead" else exJ).get(name.lower()) if name else None
-        crm_kind = "lead" if kind == "lead" else "job"
-        crm_id = None
+            cur = (exL if kind == "lead" else exJ).get(name.lower()) if name else None
+            crm_kind = "lead" if kind == "lead" else "job"
+            crm_id = None
 
-        if cur:
-            upd = {"stage": stage, "external_url": url}
-            if val:
-                upd[val_col] = val
-            db.update(crm_kind + "s", cur["id"], **upd)
-            crm_id = cur["id"]
-            updated += 1
-        else:
-            cb = _contact_basics(job, base, key)  # fetches /contacts/{id} for phone+email
-            name = name or cb["name"]
-            if not name:
-                continue
-            addr = _flatten_address(_g(job, "locationAddress", "address", "jobAddress", "siteAddress", default={}))
-            rec = {
-                "name": name, "rid": _g(job, "jobNumber", "number", "refNumber"),
-                "phone": cb["phone"], "email": cb["email"], "address": addr,
-                "work_type": _g(job, "workType", "tradeType", "trade") or _join_list(job.get("tradeTypes")),
-                "source": _g(job, "leadSource", "source"),
-                "rep": _g(job, "salesRep", "assignedTo", "rep") or "Danny Bivins",
-                "external_url": url, "department": "REROOF Department",
-            }
-            if val:
-                rec[val_col] = val
-            cid = _ensure_contact(name, rec)
-            if kind == "lead":
-                crm_id = db.insert("leads", {**rec, "contact_id": cid, "stage": stage,
-                                             "stage_since": db.today(), "last_contact": db.today(),
-                                             "narrative": "Synced from AccuLynx (%s)." % (milestone or stage)})
-                db.add_activity("lead", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
-                added_l += 1
+            if cur:
+                upd = {"stage": stage, "external_url": url}
+                if val:
+                    upd[val_col] = val
+                db.update(crm_kind + "s", cur["id"], **upd)
+                crm_id = cur["id"]
+                updated += 1
             else:
-                parts = [p.strip() for p in (addr or "").split(",")]
-                jrow = {**rec, "contact_id": cid, "stage": stage, "stage_since": db.today(),
-                        "address": parts[0] if parts else addr,
-                        "city": parts[1] if len(parts) > 1 else "", "county": "Palm Beach County",
-                        "narrative": "Synced from AccuLynx (%s)." % (milestone or stage)}
-                crm_id = db.insert("jobs", jrow)
-                db.add_activity("job", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
-                added_j += 1
+                # fetch=False: use only the embedded contact (no per-record /contacts
+                # API call) so a 50-record batch never approaches the function timeout.
+                cb = _contact_basics(job, base, key, fetch=False)
+                name = name or cb["name"]
+                if not name:
+                    continue
+                addr = _flatten_address(_g(job, "locationAddress", "address", "jobAddress", "siteAddress", default={}))
+                rec = {
+                    "name": name, "rid": _g(job, "jobNumber", "number", "refNumber"),
+                    "phone": cb["phone"], "email": cb["email"], "address": addr,
+                    "work_type": _g(job, "workType", "tradeType", "trade") or _join_list(job.get("tradeTypes")),
+                    "source": _g(job, "leadSource", "source"),
+                    "rep": _g(job, "salesRep", "assignedTo", "rep") or "Danny Bivins",
+                    "external_url": url, "department": "REROOF Department",
+                }
+                if val:
+                    rec[val_col] = val
+                cid = _ensure_contact(name, rec)
+                if kind == "lead":
+                    crm_id = db.insert("leads", {**rec, "contact_id": cid, "stage": stage,
+                                                 "stage_since": db.today(), "last_contact": db.today(),
+                                                 "narrative": "Synced from AccuLynx (%s)." % (milestone or stage)})
+                    db.add_activity("lead", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
+                    added_l += 1
+                else:
+                    parts = [p.strip() for p in (addr or "").split(",")]
+                    jrow = {**rec, "contact_id": cid, "stage": stage, "stage_since": db.today(),
+                            "address": parts[0] if parts else addr,
+                            "city": parts[1] if len(parts) > 1 else "", "county": "Palm Beach County",
+                            "narrative": "Synced from AccuLynx (%s)." % (milestone or stage)}
+                    crm_id = db.insert("jobs", jrow)
+                    db.add_activity("job", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
+                    added_j += 1
 
-        # Deep sync: pull this record's notes + documents via the API.
-        if deep and crm_id and jid:
-            notes_synced += sync_messages(base, key, jid, crm_kind, crm_id)
-            if crm_kind == "job":
-                docs_synced += sync_documents(base, key, jid, crm_id)
+            # Deep sync: pull this record's notes + documents via the API.
+            if deep and crm_id and jid:
+                notes_synced += sync_messages(base, key, jid, crm_kind, crm_id)
+                if crm_kind == "job":
+                    docs_synced += sync_documents(base, key, jid, crm_id)
+        except Exception as e:
+            skipped += 1
+            last_err = "%s: %s" % (type(e).__name__, e)
+            continue
 
     db.save_company({"acculynx_last_sync": db.now(),
                      "acculynx_group": 0 if done else g,
                      "acculynx_cursor": 0 if done else start})
     return {"ok": True, "batch": len(window), "group": cur_group, "done": done,
             "added_leads": added_l, "added_jobs": added_j, "updated": updated,
+            "skipped": skipped, "last_err": last_err,
             "notes_synced": notes_synced, "docs_synced": docs_synced}
 
 
@@ -520,6 +528,8 @@ def run():
         msg = "Batch synced — milestone '%s' · %d records · +%d leads · +%d jobs · %d updated." % (
             result.get("group", "?"), result.get("batch", 0),
             result.get("added_leads", 0), result.get("added_jobs", 0), result.get("updated", 0))
+        if result.get("skipped"):
+            msg += " (%d skipped — %s)" % (result.get("skipped"), result.get("last_err", "")[:120])
         if result.get("done"):
             msg += " ✅ Full pass complete (all milestones)."
         else:
