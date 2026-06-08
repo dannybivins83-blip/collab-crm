@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 docs/
 .claude/
+.env
+.env.*
+*.db

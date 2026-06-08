@@ -435,6 +435,14 @@ def _migrate_stages():
 # Generic helpers
 # ---------------------------------------------------------------------------
 
+def _adapt(v):
+    """JSON-encode dict/list values so they fit a TEXT column on both SQLite and
+    Postgres (psycopg can't adapt a raw dict/list to a placeholder)."""
+    if isinstance(v, (dict, list)):
+        return json.dumps(v)
+    return v
+
+
 def insert(table, data):
     """Insert a dict; auto-stamps created/updated/stage_since when columns exist."""
     cols_present = _columns(table)
@@ -447,11 +455,12 @@ def insert(table, data):
     keys = list(data.keys())
     conn = connect()
     sql = "INSERT INTO %s (%s) VALUES (%s)" % (table, ",".join(keys), ",".join("?" * len(keys)))
+    vals = [_adapt(data[k]) for k in keys]
     if IS_PG:
-        cur = conn.execute(sql + " RETURNING id", [data[k] for k in keys])
+        cur = conn.execute(sql + " RETURNING id", vals)
         rid = cur.fetchone()["id"]
     else:
-        cur = conn.execute(sql, [data[k] for k in keys])
+        cur = conn.execute(sql, vals)
         rid = cur.lastrowid
     conn.commit()
     conn.close()
@@ -467,7 +476,7 @@ def update(table, row_id, **fields):
         return
     conn = connect()
     conn.execute("UPDATE %s SET %s WHERE id=?" % (table, ",".join("%s=?" % k for k in fields)),
-                 list(fields.values()) + [row_id])
+                 [_adapt(v) for v in fields.values()] + [row_id])
     conn.commit()
     conn.close()
 
