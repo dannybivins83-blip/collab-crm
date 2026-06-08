@@ -881,3 +881,522 @@ def test():
     diag["error"] = "No base URL returned usable JSON."
     diag["attempts"] = seen
     return render_template("sync_test.html", diag=diag)
+
+
+# ===========================================================================
+# Browser-bridge sync for Billing / Estimates / Communications.
+#
+# Same pattern as doc-import: a CORS-open POST endpoint receives records that a
+# bookmarklet (running in the logged-in my.acculynx.com tab) fetched from the
+# INTERNAL web API and POSTed here, keyed by AccuLynx job GUID. We match the CRM
+# job/lead by that GUID (found in external_url), upsert, and dedup so re-runs are
+# idempotent. Every endpoint is wrapped so it NEVER 500s — it returns readable
+# JSON errors instead. Field extraction is DEFENSIVE (_g multi-candidate keys)
+# because the exact internal field names aren't all confirmed live yet.
+# ===========================================================================
+
+def _ensure_billing_schema():
+    """Tables/columns for synced billing + estimates. Additive, idempotent."""
+    conn = db.connect()
+    # Payments received against a job (AccuLynx "Payments"). Invoices reuse the
+    # existing `invoices` table; payments get their own so balance math is exact.
+    conn.execute("""CREATE TABLE IF NOT EXISTS payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created TEXT, job_id INTEGER,
+        ext_id TEXT, amount REAL DEFAULT 0,
+        method TEXT, reference TEXT, paid_date TEXT, notes TEXT,
+        source TEXT DEFAULT 'AccuLynx')""")
+    conn.commit()
+    conn.close()
+    # Invoices: tag synced ones with the AccuLynx invoice id so re-runs update,
+    # not duplicate. (ext_id added defensively; invoices already has number/amount.)
+    db._ensure_column("invoices", "ext_id", "TEXT")
+    db._ensure_column("invoices", "source", "TEXT")
+    db._ensure_column("invoices", "invoice_date", "TEXT")
+    # Estimates: tag synced ones with the AccuLynx estimate id + a plain total so
+    # we don't have to fabricate line items we may not have. amount_total is a
+    # display string; the estimates module's section math is untouched.
+    db._ensure_column("estimates", "ext_id", "TEXT")
+    db._ensure_column("estimates", "source", "TEXT")
+    db._ensure_column("estimates", "amount_total", "TEXT")
+    db._ensure_column("estimates", "ext_status", "TEXT")
+    db._ensure_column("estimates", "ext_date", "TEXT")
+    db._COLCACHE.clear()
+
+
+try:
+    _ensure_billing_schema()
+except Exception:
+    pass
+
+
+def _money_num(v):
+    """Coerce any AccuLynx money value (number, '$1,234.56', or {'amount':..}) to a float."""
+    if isinstance(v, dict):
+        v = _g(v, "amount", "value", "total", "totalAmount", default="")
+    if v in (None, ""):
+        return 0.0
+    try:
+        return float(re.sub(r"[^0-9.\-]", "", str(v)) or 0)
+    except Exception:
+        return 0.0
+
+
+def _money_str(n):
+    """Format a float as '$12,345' (matches the existing contract_value style)."""
+    try:
+        n = float(n)
+    except Exception:
+        return ""
+    return ("$" + format(int(round(n)), ",")) if n else ""
+
+
+def _job_by_guid(guid):
+    """Find the CRM JOB whose external_url contains this AccuLynx GUID."""
+    guid = (guid or "").strip().lower()
+    if not guid:
+        return None
+    return next((j for j in db.all_rows("jobs")
+                 if guid in (j.get("external_url") or "").lower()), None)
+
+
+def _lead_by_guid(guid):
+    guid = (guid or "").strip().lower()
+    if not guid:
+        return None
+    return next((l for l in db.all_rows("leads")
+                 if guid in (l.get("external_url") or "").lower()), None)
+
+
+def _record_by_guid(guid):
+    """Return (kind, row) where kind is 'job' or 'lead', or (None, None)."""
+    j = _job_by_guid(guid)
+    if j:
+        return "job", j
+    l = _lead_by_guid(guid)
+    if l:
+        return "lead", l
+    return None, None
+
+
+def _date10(v):
+    return (str(v or ""))[:10]
+
+
+# ---- 1) BILLING / PAYMENTS -------------------------------------------------
+
+def _apply_billing(guid, payload):
+    """Upsert one job's billing block. payload may carry:
+       value/jobValue/contractValue, balance/balanceDue, arAge,
+       invoices:[{id,number,amount,date,status}],
+       payments:[{id,amount,date,method,reference}].
+    Returns a result dict. Never raises (caller wraps too, belt-and-suspenders)."""
+    kind, rec = _record_by_guid(guid)
+    if not rec:
+        return {"ok": False, "reason": "no_job", "guid": guid}
+
+    out = {"ok": True, "guid": guid, "record": rec.get("name"), "kind": kind,
+           "value_set": False, "invoices_added": 0, "invoices_updated": 0,
+           "payments_added": 0, "payments_updated": 0}
+
+    # --- job/contract value -> the column the dashboard SUMS -----------------
+    val = _money_num(_g(payload, "value", "jobValue", "contractValue", "totalValue",
+                        "totalContractValue", "jobTotal", "totalJobValue",
+                        "estimateTotal", "contractTotal", "amount", default=""))
+    if val:
+        col = "contract_value" if kind == "job" else "estimate"
+        db.update(kind + "s", rec["id"], **{col: _money_str(val)})
+        out["value_set"] = True
+        out["value"] = _money_str(val)
+
+    balance = _money_num(_g(payload, "balance", "balanceDue", "balance_due",
+                            "arBalance", "amountDue", default=""))
+
+    # Billing only attaches to JOBS for the invoices/payments tables (job_id FK).
+    job_id = rec["id"] if kind == "job" else None
+
+    if job_id:
+        # --- invoices (reuse the invoices table, dedup by ext_id or number) --
+        existing = db.all_rows("invoices", where="job_id=?", params=(job_id,))
+        by_ext = {(i.get("ext_id") or ""): i for i in existing if i.get("ext_id")}
+        by_num = {(i.get("number") or "").lower(): i for i in existing if i.get("number")}
+        invs = _g(payload, "invoices", "Invoices", default=[]) or []
+        for inv in (invs if isinstance(invs, list) else []):
+            if not isinstance(inv, dict):
+                continue
+            ext = str(_g(inv, "id", "invoiceId", "guid", "Id", default="")).strip()
+            num = str(_g(inv, "number", "invoiceNumber", "Number", "name", default="")).strip()
+            amt = _money_num(_g(inv, "amount", "total", "totalAmount", "amountDue", "Amount", default=""))
+            idate = _date10(_g(inv, "date", "invoiceDate", "createdOn", "issuedDate", "Date", default=""))
+            stat = (_name_of(_g(inv, "status", "state", "Status", default="")) or "").lower() or "unpaid"
+            stat = {"open": "unpaid", "draft": "unpaid", "issued": "sent",
+                    "paid": "paid", "partial": "partial", "partiallypaid": "partial"}.get(
+                        re.sub(r"[^a-z]", "", stat), stat if stat in ("unpaid", "sent", "partial", "paid") else "unpaid")
+            cur = (by_ext.get(ext) if ext else None) or (by_num.get(num.lower()) if num else None)
+            data = {"job_id": job_id, "number": num or ("AX-" + ext[:8] if ext else ""),
+                    "amount": amt, "status": stat, "invoice_date": idate,
+                    "ext_id": ext, "source": "AccuLynx"}
+            if cur:
+                db.update("invoices", cur["id"], **data)
+                out["invoices_updated"] += 1
+            else:
+                iid = db.insert("invoices", data)
+                if ext:
+                    by_ext[ext] = {"id": iid, "ext_id": ext}
+                if num:
+                    by_num[num.lower()] = {"id": iid, "number": num}
+                out["invoices_added"] += 1
+
+        # --- payments (own table, dedup by ext_id; else by amount+date) ------
+        ex_pay = db.all_rows("payments", where="job_id=?", params=(job_id,))
+        pe_ext = {(p.get("ext_id") or ""): p for p in ex_pay if p.get("ext_id")}
+        pe_ad = {((p.get("paid_date") or "") + "|" + str(p.get("amount") or 0)): p for p in ex_pay}
+        pays = _g(payload, "payments", "Payments", default=[]) or []
+        for pay in (pays if isinstance(pays, list) else []):
+            if not isinstance(pay, dict):
+                continue
+            ext = str(_g(pay, "id", "paymentId", "guid", "Id", default="")).strip()
+            amt = _money_num(_g(pay, "amount", "total", "Amount", default=""))
+            pdate = _date10(_g(pay, "date", "paidOn", "paymentDate", "createdOn", "Date", default=""))
+            meth = _name_of(_g(pay, "method", "type", "paymentType", "Method", default=""))
+            ref = _name_of(_g(pay, "reference", "checkNumber", "memo", "Reference", default=""))
+            akey = pdate + "|" + str(amt)
+            cur = (pe_ext.get(ext) if ext else None) or pe_ad.get(akey)
+            data = {"job_id": job_id, "amount": amt, "paid_date": pdate,
+                    "method": meth, "reference": ref, "ext_id": ext, "source": "AccuLynx"}
+            if cur:
+                db.update("payments", cur["id"], **data)
+                out["payments_updated"] += 1
+            else:
+                pid = db.insert("payments", data)
+                if ext:
+                    pe_ext[ext] = {"id": pid, "ext_id": ext}
+                pe_ad[akey] = {"id": pid}
+                out["payments_added"] += 1
+
+    # Single deduped activity summarizing the billing pull.
+    if job_id and (out["value_set"] or out["invoices_added"] or out["payments_added"]
+                   or out["invoices_updated"] or out["payments_updated"]):
+        bits = []
+        if out.get("value"):
+            bits.append("value " + out["value"])
+        if balance:
+            bits.append("balance " + _money_str(balance))
+        if out["invoices_added"] or out["invoices_updated"]:
+            bits.append("%d invoice(s)" % (out["invoices_added"] + out["invoices_updated"]))
+        if out["payments_added"] or out["payments_updated"]:
+            bits.append("%d payment(s)" % (out["payments_added"] + out["payments_updated"]))
+        summary = "AccuLynx billing synced - " + ", ".join(bits)
+        recent = db.all_rows("activities", where="entity_type='job' AND entity_id=? AND text=?",
+                             params=(job_id, summary))
+        if not recent:
+            db.add_activity("job", job_id, "note", summary)
+    return out
+
+
+@bp.route("/billing-import", methods=["POST", "OPTIONS"])
+def billing_import():
+    """CORS-open: receive a job's billing block (value/invoices/payments) scraped
+    from the AccuLynx tab and upsert it. Accepts either a single object keyed by
+    `guid`, or a list of such objects. Never 500s."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    try:
+        body = request.get_json(force=True, silent=True)
+        if body is None:
+            import json as _json
+            body = _json.loads(request.get_data(as_text=True) or "{}")
+        items = body if isinstance(body, list) else [body]
+        results, agg = [], {"records": 0, "no_job": 0, "value_set": 0,
+                            "invoices": 0, "payments": 0}
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            guid = (it.get("guid") or it.get("jobGuid") or it.get("id") or "").strip()
+            res = _apply_billing(guid, it)
+            results.append(res)
+            if not res.get("ok"):
+                agg["no_job"] += 1
+                continue
+            agg["records"] += 1
+            agg["value_set"] += 1 if res.get("value_set") else 0
+            agg["invoices"] += res.get("invoices_added", 0) + res.get("invoices_updated", 0)
+            agg["payments"] += res.get("payments_added", 0) + res.get("payments_updated", 0)
+        db.save_company({"acculynx_last_sync": db.now()})
+        return _cors({"ok": True, "summary": agg, "results": results[:50]})
+    except Exception as e:
+        import traceback
+        return _cors({"ok": False, "error": "%s: %s" % (type(e).__name__, e),
+                      "trace": traceback.format_exc()[-300:]})
+
+
+# ---- 2) ESTIMATES ----------------------------------------------------------
+
+def _next_estimate_number():
+    rows = db.all_rows("estimates", order="id DESC")
+    return "EST-%04d" % ((rows[0]["id"] + 1) if rows else 1)
+
+
+def _apply_estimate(guid, est):
+    """Upsert one synced estimate (header-level: name/total/status/date) into the
+    estimates table, linked to the matching job/lead. Dedup by ext_id."""
+    kind, rec = _record_by_guid(guid)
+    if not rec:
+        return {"ok": False, "reason": "no_job", "guid": guid}
+    ext = str(_g(est, "id", "estimateId", "guid", "Id", default="")).strip()
+    name = (_name_of(_g(est, "name", "title", "estimateName", "Name", default=""))
+            or rec.get("name") or "AccuLynx Estimate")
+    total = _money_num(_g(est, "total", "totalPrice", "amount", "totalAmount",
+                          "price", "grandTotal", "Total", default=""))
+    status = (_name_of(_g(est, "status", "state", "Status", default="")) or "").lower()
+    status = {"approved": "signed", "accepted": "signed", "signed": "signed",
+              "sent": "sent", "declined": "declined", "rejected": "declined",
+              "draft": "draft", "open": "draft"}.get(re.sub(r"[^a-z]", "", status), "draft")
+    edate = _date10(_g(est, "date", "createdOn", "estimateDate", "issuedDate", "Date", default=""))
+    num = str(_g(est, "number", "estimateNumber", "Number", default="")).strip()
+
+    link_col = "job_id" if kind == "job" else "lead_id"
+    existing = db.all_rows("estimates", where=link_col + "=?", params=(rec["id"],))
+    cur = None
+    if ext:
+        cur = next((e for e in existing if (e.get("ext_id") or "") == ext), None)
+    if not cur:
+        cur = next((e for e in existing if (e.get("title") or "").lower() == name.lower()
+                    and (e.get("source") == "AccuLynx")), None)
+
+    data = {link_col: rec["id"], "contact_id": rec.get("contact_id"),
+            "title": name, "number": num or (cur or {}).get("number") or _next_estimate_number(),
+            "work_type": rec.get("work_type", ""), "status": status,
+            "ext_id": ext, "source": "AccuLynx", "amount_total": _money_str(total),
+            "ext_status": status, "ext_date": edate}
+    if cur:
+        db.update("estimates", cur["id"], **{k: v for k, v in data.items() if k != "number"})
+        return {"ok": True, "guid": guid, "action": "updated", "estimate": name,
+                "total": _money_str(total), "record": rec.get("name")}
+    eid = db.insert("estimates", data)
+    db.add_activity(kind, rec["id"], "note",
+                    "AccuLynx estimate synced: %s (%s, %s)" % (name, _money_str(total) or "$0", status))
+    return {"ok": True, "guid": guid, "action": "added", "estimate": name,
+            "total": _money_str(total), "id": eid, "record": rec.get("name")}
+
+
+@bp.route("/estimate-import", methods=["POST", "OPTIONS"])
+def estimate_import():
+    """CORS-open: receive estimates scraped from the AccuLynx tab and upsert them.
+    Accepts {guid, estimates:[...]} or {guid, ...singleEstimate} or a list. Never 500s."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    try:
+        body = request.get_json(force=True, silent=True)
+        if body is None:
+            import json as _json
+            body = _json.loads(request.get_data(as_text=True) or "{}")
+        items = body if isinstance(body, list) else [body]
+        results, agg = [], {"added": 0, "updated": 0, "no_job": 0}
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            guid = (it.get("guid") or it.get("jobGuid") or "").strip()
+            ests = it.get("estimates")
+            if not isinstance(ests, list):
+                ests = [it]
+            for est in ests:
+                if not isinstance(est, dict):
+                    continue
+                res = _apply_estimate(guid, est)
+                results.append(res)
+                if not res.get("ok"):
+                    agg["no_job"] += 1
+                elif res.get("action") == "added":
+                    agg["added"] += 1
+                else:
+                    agg["updated"] += 1
+        db.save_company({"acculynx_last_sync": db.now()})
+        return _cors({"ok": True, "summary": agg, "results": results[:50]})
+    except Exception as e:
+        import traceback
+        return _cors({"ok": False, "error": "%s: %s" % (type(e).__name__, e),
+                      "trace": traceback.format_exc()[-300:]})
+
+
+# ---- 3) COMMUNICATIONS (notes / messages) ----------------------------------
+
+_COMM_CAP = 200  # high volume: cap stored messages per job per run
+
+
+def _apply_comms(guid, payload):
+    """Store a job's messages/notes as job activities, deduped by text prefix.
+    Caps at _COMM_CAP per run and reports what was capped."""
+    kind, rec = _record_by_guid(guid)
+    if not rec:
+        return {"ok": False, "reason": "no_job", "guid": guid}
+    msgs = _g(payload, "messages", "comms", "notes", "items", "Messages", default=[]) or []
+    if not isinstance(msgs, list):
+        msgs = []
+    total = len(msgs)
+    capped = max(0, total - _COMM_CAP)
+    msgs = msgs[:_COMM_CAP]
+
+    have = {(a.get("text") or "")[:140]
+            for a in db.all_rows("activities",
+                                 where="entity_type=? AND entity_id=?",
+                                 params=(kind, rec["id"]))}
+    added = 0
+    summary_lines = []
+    for m in msgs:
+        if not isinstance(m, dict):
+            continue
+        when = _date10(_g(m, "date", "createdOn", "sentOn", "timestamp", "Date", default=""))
+        who = _name_of(_g(m, "fromName", "author", "sender", "createdBy", "userName", "From", default=""))
+        mtype = (_name_of(_g(m, "type", "messageType", "channel", "Type", default="")) or "note").lower()
+        kindmap = {"email": "email", "sms": "sms", "text": "sms", "call": "call",
+                   "phone": "call", "note": "note", "comment": "note", "message": "note"}
+        akind = next((v for k, v in kindmap.items() if k in mtype), "note")
+        subj = _name_of(_g(m, "subject", "title", "Subject", default=""))
+        text = _g(m, "body", "message", "text", "note", "content", "Body", default="")
+        text = re.sub(r"<[^>]+>", " ", str(text))
+        text = re.sub(r"\s+", " ", text).strip()
+        if not (text or subj):
+            continue
+        line = ("MSG %s%s%s: %s" % (
+            when + " " if when else "",
+            (who + " ") if who else "",
+            ("[" + subj + "]") if subj else "",
+            text))[:600]
+        if line[:140] in have:
+            continue
+        db.add_activity(kind, rec["id"], akind, line)
+        have.add(line[:140])
+        added += 1
+        if len(summary_lines) < 30:
+            summary_lines.append("- " + line[:200])
+
+    if summary_lines:
+        note = "AccuLynx communications (%d shown%s):\n%s" % (
+            len(summary_lines), (", %d capped" % capped) if capped else "",
+            "\n".join(summary_lines))
+        try:
+            db.update(kind + "s", rec["id"], narrative=note)
+        except Exception:
+            pass
+    return {"ok": True, "guid": guid, "record": rec.get("name"), "kind": kind,
+            "added": added, "scanned": total, "capped": capped}
+
+
+@bp.route("/comm-import", methods=["POST", "OPTIONS"])
+def comm_import():
+    """CORS-open: receive a job's messages/notes scraped from AccuLynx and store
+    them as activities + narrative. High-volume safe (caps per job). Never 500s."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    try:
+        body = request.get_json(force=True, silent=True)
+        if body is None:
+            import json as _json
+            body = _json.loads(request.get_data(as_text=True) or "{}")
+        items = body if isinstance(body, list) else [body]
+        results, agg = [], {"records": 0, "added": 0, "scanned": 0,
+                            "capped": 0, "no_job": 0}
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            guid = (it.get("guid") or it.get("jobGuid") or "").strip()
+            res = _apply_comms(guid, it)
+            results.append(res)
+            if not res.get("ok"):
+                agg["no_job"] += 1
+                continue
+            agg["records"] += 1
+            agg["added"] += res.get("added", 0)
+            agg["scanned"] += res.get("scanned", 0)
+            agg["capped"] += res.get("capped", 0)
+        db.save_company({"acculynx_last_sync": db.now()})
+        return _cors({"ok": True, "summary": agg, "results": results[:50]})
+    except Exception as e:
+        import traceback
+        return _cors({"ok": False, "error": "%s: %s" % (type(e).__name__, e),
+                      "trace": traceback.format_exc()[-300:]})
+
+
+# ---- shared manifest: which GUIDs already have billing -----
+
+@bp.route("/billing-manifest")
+def billing_manifest():
+    """CORS-open: report whether the synced job already has a value/invoices, so the
+    collector can skip cheaply on re-runs."""
+    guid = (request.args.get("guid") or "").strip().lower()
+    if not guid:
+        return _cors({"ok": False, "reason": "missing guid"}, 400)
+    kind, rec = _record_by_guid(guid)
+    if not rec:
+        return _cors({"ok": False, "reason": "no_job", "guid": guid})
+    job_id = rec["id"] if kind == "job" else None
+    invs = db.all_rows("invoices", where="job_id=?", params=(job_id,)) if job_id else []
+    pays = db.all_rows("payments", where="job_id=?", params=(job_id,)) if job_id else []
+    valcol = "contract_value" if kind == "job" else "estimate"
+    return _cors({"ok": True, "record": rec.get("name"), "kind": kind,
+                  "has_value": bool((rec.get(valcol) or "").strip()),
+                  "invoices": len(invs), "payments": len(pays)})
+
+
+# ---- diagnostic: confirm internal endpoints + field mapping live -----------
+
+@bp.route("/internal-test")
+def internal_test():
+    """Diagnostic page: shows the candidate INTERNAL API endpoints for billing/
+    estimates/messages and exactly how the server-side mapping resolves a sample
+    object you paste in. The live fetch is same-origin (browser session only) so a
+    probe bookmarklet on the page does it; the server can't call my.acculynx.com."""
+    sample = request.args.get("sample", "")
+    which = request.args.get("which", "billing")
+    mapped = None
+    if sample:
+        import json as _json
+        try:
+            obj = _json.loads(sample)
+        except Exception as e:
+            mapped = {"error": "Invalid JSON: %s" % e}
+        if mapped is None:
+            if which == "estimate":
+                mapped = {
+                    "name": _name_of(_g(obj, "name", "title", "estimateName", "Name", default="")),
+                    "total": _money_str(_money_num(_g(obj, "total", "totalPrice", "amount",
+                              "totalAmount", "price", "grandTotal", "Total", default=""))),
+                    "status_raw": _g(obj, "status", "state", "Status", default=""),
+                    "date": _date10(_g(obj, "date", "createdOn", "estimateDate", "Date", default="")),
+                    "keys": list(obj.keys()) if isinstance(obj, dict) else "(not an object)",
+                }
+            elif which == "comm":
+                mapped = {
+                    "author": _name_of(_g(obj, "fromName", "author", "sender", "createdBy", "From", default="")),
+                    "type": _g(obj, "type", "messageType", "channel", "Type", default=""),
+                    "date": _date10(_g(obj, "date", "createdOn", "sentOn", "Date", default="")),
+                    "body": re.sub(r"<[^>]+>", " ", str(_g(obj, "body", "message", "text", "note", "Body", default="")))[:200],
+                    "keys": list(obj.keys()) if isinstance(obj, dict) else "(not an object)",
+                }
+            else:
+                mapped = {
+                    "value": _money_str(_money_num(_g(obj, "value", "jobValue", "contractValue",
+                              "totalValue", "jobTotal", "amount", default=""))),
+                    "balance": _money_str(_money_num(_g(obj, "balance", "balanceDue", "amountDue", default=""))),
+                    "invoices_seen": len(_g(obj, "invoices", "Invoices", default=[]) or []),
+                    "payments_seen": len(_g(obj, "payments", "Payments", default=[]) or []),
+                    "keys": list(obj.keys()) if isinstance(obj, dict) else "(not an object)",
+                }
+    return render_template("sync_internal_test.html", which=which, sample=sample,
+                           mapped=mapped, host=request.host_url)

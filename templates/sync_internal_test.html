@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Sync — Internal API Test{% endblock %}
+{% block body %}
+<div class="page-head"><a class="btn ghost" href="{{ url_for('sync.index') }}">← Sync</a><h1>🔬 Internal API — Field-Mapping Test</h1></div>
+
+<div class="card" style="max-width:880px">
+  <p class="muted">The billing / estimate / communication syncs read AccuLynx's <b>internal</b> web API
+  (<code>my.acculynx.com/api/...</code>), which only answers a logged-in browser. The server can't call it,
+  so use the <b>probe bookmarklet</b> below from a logged-in AccuLynx job tab to capture a raw sample, then
+  paste it here to confirm exactly how each field resolves before running the full bookmarklets.</p>
+
+  <div style="margin:10px 0">
+    <a href="?which=billing"  class="btn {{ 'accent' if which=='billing' else 'ghost' }}">💵 Billing</a>
+    <a href="?which=estimate" class="btn {{ 'accent' if which=='estimate' else 'ghost' }}">📝 Estimate</a>
+    <a href="?which=comm"     class="btn {{ 'accent' if which=='comm' else 'ghost' }}">💬 Communication</a>
+  </div>
+
+  <h2>Candidate internal endpoints (try in order)</h2>
+  <pre style="white-space:pre-wrap;font-size:12px;background:var(--panel2);padding:10px;border-radius:8px">{% if which=='billing' %}GET /api/v4/jobs/{guid}/job-financials
+GET /api/v3/jobs/{guid}/financials
+GET /api/v4/jobs/{guid}/invoices
+GET /api/v4/jobs/{guid}/payments
+GET /api/v3/jobs/{guid}/billing
+(the job header JSON often already carries jobValue / balanceDue){% elif which=='estimate' %}GET /api/v4/jobs/{guid}/estimates
+GET /api/v3/jobs/{guid}/estimates
+GET /api/jobs/{guid}/estimates
+GET /api/v4/estimates?jobId={guid}{% else %}GET /api/v4/jobs/{guid}/messages
+GET /api/v3/jobs/{guid}/messages
+GET /api/v4/jobs/{guid}/comments
+GET /api/v4/jobs/{guid}/activity
+GET /api/v3/jobs/{guid}/feed{% endif %}</pre>
+  <p class="muted">These mirror the confirmed docs path <code>/api/v4/job-documents/{guid}/job-document-folders</code>.
+  The bookmarklets below try each candidate and report which one returned JSON — so unknown paths self-correct.</p>
+
+  <h2>Probe bookmarklet (run on an open AccuLynx job tab)</h2>
+  <p class="muted">Drag to your bookmarks bar, open any AccuLynx <b>job</b>, then click it. It tries every
+  candidate endpoint for the selected type and prints the first raw JSON sample to the page + console — copy that here.</p>
+  <p><a id="probe" class="btn accent" href="#" onclick="return false">🔬 Probe {{ which }} API</a></p>
+
+  <h2>Paste a raw sample object</h2>
+  <form method="get">
+    <input type="hidden" name="which" value="{{ which }}">
+    <textarea name="sample" rows="8" style="width:100%;font-family:monospace;font-size:12px" placeholder='{"id":"...","total":31390,"status":"Approved",...}'>{{ sample }}</textarea>
+    <button class="primary" type="submit" style="margin-top:8px">Show mapping</button>
+  </form>
+
+  {% if mapped %}
+  <h2 style="margin-top:14px">✅ How the sync maps it</h2>
+  <pre style="white-space:pre-wrap;font-size:12px;background:#eefcf0;padding:10px;border-radius:8px;border:1px solid #b6e6c0">{% for k,v in mapped.items() %}{{ k }}: {{ v }}
+{% endfor %}</pre>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  var WHICH={{ which|tojson }};
+  function probeFn(WHICH){
+    (async function(){
+      var g=(location.href.match(/\/jobs\/([0-9a-f-]{30,})/)||[])[1];
+      if(!g){alert('Open an AccuLynx JOB first (URL must contain /jobs/<guid>).');return;}
+      var cand={billing:['/api/v4/jobs/'+g+'/job-financials','/api/v3/jobs/'+g+'/financials','/api/v4/jobs/'+g+'/invoices','/api/v4/jobs/'+g+'/payments','/api/v3/jobs/'+g+'/billing','/api/v4/jobs/'+g],
+                estimate:['/api/v4/jobs/'+g+'/estimates','/api/v3/jobs/'+g+'/estimates','/api/jobs/'+g+'/estimates','/api/v4/estimates?jobId='+g],
+                comm:['/api/v4/jobs/'+g+'/messages','/api/v3/jobs/'+g+'/messages','/api/v4/jobs/'+g+'/comments','/api/v4/jobs/'+g+'/activity','/api/v3/jobs/'+g+'/feed']}[WHICH];
+      var hits=[];
+      for(var i=0;i<cand.length;i++){
+        try{var r=await fetch(cand[i],{headers:{'Accept':'application/json'}});
+          if(!r.ok){hits.push(cand[i]+' -> HTTP '+r.status);continue;}
+          var j=await r.json();
+          hits.push(cand[i]+' -> OK');
+          console.log('[probe '+WHICH+'] '+cand[i],j);
+          var sample=Array.isArray(j)?j[0]:(j.items&&j.items[0])||(j.results&&j.results[0])||j;
+          window.prompt('WORKING: '+cand[i]+'  (full JSON in console). Copy this sample:',JSON.stringify(sample));
+          return;
+        }catch(e){hits.push(cand[i]+' -> '+e.message);}
+      }
+      alert('No candidate returned JSON:\n'+hits.join('\n'));
+    })();
+  }
+  document.getElementById('probe').href='javascript:('+probeFn.toString()+')('+JSON.stringify(WHICH)+')';
+})();
+</script>
+{% endblock %}

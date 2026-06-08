@@ -64,6 +64,39 @@
   </ol>
   <div class="muted">Tip: run it per milestone list. The job must already be synced into the CRM (run a sync first) or it'll be counted as "not in CRM".</div>
 </div>
+
+<div class="card">
+  <h2>💵 Pull billing &amp; payments into jobs</h2>
+  <p class="muted">Pulls each job's <b>job/contract value, invoices, payments &amp; balance</b> from your logged-in AccuLynx session into the matching CRM job. <b>This is what fixes the dashboard L/P/A/C/I dollar totals</b> — the public jobs API has no money field, so values only arrive via this bridge. Re-running updates the same records (deduped by AccuLynx id); never duplicates.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmbill" class="btn accent" href="#" onclick="return false">💵 AccuLynx Billing → CRM</a></li>
+    <li>In AccuLynx, open a <b>Jobs</b> milestone list (<b>Approved</b> / <b>Completed</b> / <b>Invoiced</b> hold the money).</li>
+    <li><b>Click the bookmark once.</b> It scrolls the list, fetches each job's financials, and posts them with a live banner. Safe to re-run.</li>
+  </ol>
+  <div class="muted">Job must already be synced (run a Sync first). Confirm field mapping any time with <a href="{{ url_for('sync.internal_test', which='billing') }}">🔬 Internal API test</a>.</div>
+</div>
+
+<div class="card">
+  <h2>📝 Pull estimates into jobs</h2>
+  <p class="muted">Pulls each job's <b>estimates</b> (name, total $, status, date) into the CRM's Estimates list, linked to the job/lead. Deduped by AccuLynx estimate id, so re-runs update in place.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmest" class="btn accent" href="#" onclick="return false">📝 AccuLynx Estimates → CRM</a></li>
+    <li>In AccuLynx, open a <b>Jobs</b> milestone list (any).</li>
+    <li><b>Click the bookmark once.</b> It scrolls, fetches each job's estimates, and posts them. Safe to re-run.</li>
+  </ol>
+  <div class="muted">Confirm field mapping with <a href="{{ url_for('sync.internal_test', which='estimate') }}">🔬 Internal API test</a>.</div>
+</div>
+
+<div class="card">
+  <h2>💬 Pull communications (notes &amp; messages) into jobs</h2>
+  <p class="muted">Pulls each job's <b>messages, notes &amp; comments</b> (body, author, date, type) into the CRM as job activities + the record narrative. <b>High volume</b> — capped at 200 newest per job per run; capped counts are reported. Deduped so re-runs don't pile up.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmcomm" class="btn accent" href="#" onclick="return false">💬 AccuLynx Comms → CRM</a></li>
+    <li>In AccuLynx, open a <b>Jobs</b> milestone list (start with a small one — this is the heaviest pull).</li>
+    <li><b>Click the bookmark once.</b> It scrolls, fetches each job's thread, and posts it with a live banner. One slow job won't stall the rest.</li>
+  </ol>
+  <div class="muted">Confirm field mapping with <a href="{{ url_for('sync.internal_test', which='comm') }}">🔬 Internal API test</a>.</div>
+</div>
 <script>
 (function(){
   var BASE={{ request.host_url|tojson }};
@@ -141,6 +174,83 @@
     "setTimeout(function(){bn.remove()},6000);"+
   "})();";
   document.getElementById('bm').href='javascript:'+encodeURIComponent(code);
+})();
+</script>
+
+<script>
+(function(){
+  var BASE={{ request.host_url|tojson }};
+  // Shared collector: scroll an AccuLynx Jobs milestone list, gather every job GUID,
+  // then per-job try candidate INTERNAL endpoints and POST a record to the CRM.
+  // KIND drives endpoints + payload shape: 'billing' | 'estimate' | 'comm'.
+  function pullBM(cfg){
+    (async function(){
+      var BASE=cfg.BASE, KIND=cfg.KIND;
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:440px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      var seen={},guids=[];
+      function collect(){[].forEach.call(document.querySelectorAll('a[href*="/jobs/"]'),function(a){var m=(a.getAttribute('href')||'').match(/\/jobs\/([0-9a-f-]{30,})/);if(m&&!seen[m[1]]){seen[m[1]]=1;guids.push(m[1]);}});}
+      function scrollers(){var s=[document.scrollingElement||document.documentElement];[].forEach.call(document.querySelectorAll('div'),function(e){if(e.scrollHeight>e.clientHeight+40)s.push(e);});return s;}
+      collect();var last=-1,stable=0;
+      for(var i=0;i<100&&stable<4;i++){scrollers().forEach(function(e){try{e.scrollTop=e.scrollHeight;}catch(_){}});window.scrollTo(0,document.body.scrollHeight);await sleep(500);collect();setb('Finding jobs… '+guids.length+' ('+KIND+')');if(guids.length===last)stable++;else stable=0;last=guids.length;}
+      if(!guids.length){setb('No jobs found — open a Jobs milestone list first.','#c0392b');setTimeout(function(){bn.remove();},6000);return;}
+      // Candidate internal endpoints per kind (first that returns JSON wins).
+      var CAND={
+        billing:function(g){return ['/api/v4/jobs/'+g+'/job-financials','/api/v3/jobs/'+g+'/financials','/api/v4/jobs/'+g+'/invoices','/api/v4/jobs/'+g+'/payments','/api/v3/jobs/'+g+'/billing','/api/v4/jobs/'+g];},
+        estimate:function(g){return ['/api/v4/jobs/'+g+'/estimates','/api/v3/jobs/'+g+'/estimates','/api/jobs/'+g+'/estimates','/api/v4/estimates?jobId='+g];},
+        comm:function(g){return ['/api/v4/jobs/'+g+'/messages','/api/v3/jobs/'+g+'/messages','/api/v4/jobs/'+g+'/comments','/api/v4/jobs/'+g+'/activity','/api/v3/jobs/'+g+'/feed'];}
+      }[KIND];
+      var ENDPOINT={billing:'sync/billing-import',estimate:'sync/estimate-import',comm:'sync/comm-import'}[KIND];
+      function arr(j){return Array.isArray(j)?j:((j&&j.items)||(j&&j.results)||(j&&j.data)||[]);}
+      // Build the POST payload for one job from whatever the internal API returned.
+      function build(g,j){
+        if(KIND==='billing'){
+          var top=Array.isArray(j)?(j[0]||{}):(j||{});
+          // financials object may nest invoices/payments; also accept flat arrays.
+          var inv=arr(j.invoices||top.invoices||(/invoice/i.test(location.href)?[]:[]));
+          var pay=arr(j.payments||top.payments||[]);
+          return {guid:g,value:top.jobValue||top.value||top.contractValue||top.totalValue||top.total||j.jobValue||j.value,
+                  balance:top.balanceDue||top.balance||j.balanceDue||j.balance,
+                  invoices:inv,payments:pay};
+        }
+        if(KIND==='estimate'){return {guid:g,estimates:arr(j.estimates||j)};}
+        return {guid:g,messages:arr(j.messages||j.comments||j.activity||j)};
+      }
+      async function fetchJob(g){
+        var cs=CAND(g),merged={};
+        for(var i=0;i<cs.length;i++){
+          try{var r=await fetch(cs[i],{headers:{'Accept':'application/json'}});if(!r.ok)continue;var j=await r.json();
+            // billing: merge invoices + payments endpoints; others: first hit wins.
+            if(KIND==='billing'){var a=arr(j);if(/invoices/.test(cs[i]))merged.invoices=a;else if(/payments/.test(cs[i]))merged.payments=a;else{merged=Object.assign(merged,Array.isArray(j)?(j[0]||{}):j);}if(merged.invoices&&merged.payments)return build(g,merged);}
+            else{return build(g,j);}
+          }catch(e){}
+        }
+        return KIND==='billing'&&(merged.invoices||merged.payments||merged.value||merged.jobValue)?build(g,merged):null;
+      }
+      async function post(p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
+      var tot=guids.length,ok=0,nojob=0,fail=0,vals=0,items=0,jdone=0;
+      for(var gi=0;gi<guids.length;gi++){var guid=guids[gi];
+        try{
+          // cheap skip for billing if already has value (manifest)
+          var p=await fetchJob(guid);
+          if(p){var d=await post(p);
+            if(d&&d.ok){ok++;var s=d.summary||{};vals+=s.value_set||0;items+=(s.invoices||0)+(s.payments||0)+(s.added||0);if((d.results&&d.results[0]&&d.results[0].reason==='no_job'))nojob++;}
+            else fail++;
+          }
+        }catch(e){fail++;}
+        jdone++;setb(KIND+' '+jdone+'/'+tot+' · '+ok+' ok'+(vals?' · '+vals+' valued':'')+(items?' · '+items+' items':'')+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' fail':''));
+      }
+      setb('✓ Done · '+tot+' jobs · '+ok+' ok'+(vals?' · '+vals+' values set':'')+(items?' · '+items+' records':'')+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' failed':''),'#2e7d32');
+      setTimeout(function(){bn.remove();},20000);
+    })();
+  }
+  function bmHref(kind){return 'javascript:('+pullBM.toString()+')('+JSON.stringify({BASE:BASE,KIND:kind})+')';}
+  document.getElementById('bmbill').href=bmHref('billing');
+  document.getElementById('bmest').href=bmHref('estimate');
+  document.getElementById('bmcomm').href=bmHref('comm');
 })();
 </script>
 {% endblock %}
