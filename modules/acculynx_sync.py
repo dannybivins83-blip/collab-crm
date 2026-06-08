@@ -144,6 +144,35 @@ def _flatten_address(a):
     return ", ".join([p for p in (line1, line2, city, sz) if p])
 
 
+def _job_detail(base, guid, key):
+    """GET a single job's full record. The /jobs LIST is thin (often just city);
+    the DETAIL endpoint carries the structured locationAddress (street1, city,
+    state{abbreviation}, zipCode), milestoneDate, workType. Best-effort: {} on fail."""
+    if not guid:
+        return {}
+    try:
+        d = _api_get(base, "/jobs/%s" % guid, key)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _address_fields(loc):
+    """Structured address columns from an AccuLynx locationAddress object —
+    {address(street), city, state(abbrev), zip}. Handles the nested state object
+    (the thing that used to corrupt into \"{'id': 9\")."""
+    if not isinstance(loc, dict):
+        return {}
+    line1 = _g(loc, "street1", "addressFirstLine", "address1", "street", "streetAddress", "line1")
+    line2 = _g(loc, "street2", "addressSecondLine", "address2", "line2")
+    street = ", ".join([p for p in (line1, line2) if p]).strip()
+    city = _name_of(_g(loc, "city", "cityText"))
+    state = _name_of(_g(loc, "state", "stateText", "stateCode", "province"), "abbreviation", "name")
+    zc = _name_of(_g(loc, "zipCode", "zip", "postalCode", "zipText", "postal"))
+    return {"address": street or city, "city": city if street else "",
+            "state": state, "zip": zc}
+
+
 def _first_val(obj, list_keys, item_keys):
     """Pull the first usable value from array-of-objects fields like
     phoneNumbers:[{number,...}] / emailAddresses:[{address,...}]."""
@@ -268,7 +297,7 @@ def sync_documents(base, key, ajid, crm_job_id):
         db.insert("documents", {"job_id": crm_job_id, "category": category,
                                 "filename": fn, "original_name": name,
                                 "size": os.path.getsize(path) if os.path.exists(path) else 0,
-                                "notes": "Synced from AccuLynx"})
+                                "notes": "Synced from AccuLynx", "drive_id": _drive_mirror(path)})
         have.add(name.lower())  # guard against in-call repeats if the API ignores paging
         saved += 1
     if saved:
@@ -371,6 +400,12 @@ def run_sync(deep=False, batch=50):
             url = "https://my.acculynx.com/jobs/%s" % jid if jid else ""
             val = _money_val(job)
             val_col = "estimate" if kind == "lead" else "contract_value"
+            # The list payload's address is thin (often just city) and its state is a
+            # nested object. Pull the DETAIL record for the structured full address.
+            detail = _job_detail(base, jid, key)
+            loc = _g(detail, "locationAddress", "address", default={}) or \
+                  _g(job, "locationAddress", "address", "jobAddress", "siteAddress", default={})
+            af = _address_fields(loc)
             # Job progress: the detailed AccuLynx milestone + its date.
             mdate = (_g(job, "milestoneDate", "milestone_date") or "")[:10]
             progress = ("Milestone: %s%s" % (milestone or grp, (" (as of %s)" % mdate) if mdate else "")).strip()
@@ -386,6 +421,11 @@ def run_sync(deep=False, batch=50):
                 upd = {"stage": stage, "external_url": url, "todo": progress}
                 if val:
                     upd[val_col] = val
+                if af.get("address"):  # backfill/repair the full structured address
+                    upd["address"] = af["address"]
+                    if crm_kind == "job":
+                        upd.update({"city": af.get("city") or None, "state": af.get("state") or None,
+                                    "zip": af.get("zip") or None})
                 db.update(crm_kind + "s", cur["id"], **upd)
                 crm_id = cur["id"]
                 updated += 1
@@ -396,7 +436,7 @@ def run_sync(deep=False, batch=50):
                 name = name or cb["name"]
                 if not name:
                     continue
-                addr = _flatten_address(_g(job, "locationAddress", "address", "jobAddress", "siteAddress", default={}))
+                addr = _flatten_address(loc)  # full display string from the DETAIL record
                 rec = {
                     "name": name, "rid": _g(job, "jobNumber", "number", "refNumber"),
                     "phone": cb["phone"], "email": cb["email"], "address": addr,
@@ -415,10 +455,10 @@ def run_sync(deep=False, batch=50):
                     db.add_activity("lead", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
                     added_l += 1
                 else:
-                    parts = [p.strip() for p in (addr or "").split(",")]
                     jrow = {**rec, "contact_id": cid, "stage": stage, "stage_since": db.today(),
-                            "address": parts[0] if parts else addr,
-                            "city": parts[1] if len(parts) > 1 else "", "county": "Palm Beach County",
+                            "address": af.get("address") or addr,
+                            "city": af.get("city") or "", "state": af.get("state") or "",
+                            "zip": af.get("zip") or "", "county": "Palm Beach County",
                             "narrative": "Synced from AccuLynx (%s)." % (milestone or stage)}
                     crm_id = db.insert("jobs", jrow)
                     db.add_activity("job", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
@@ -621,6 +661,18 @@ def _cors(payload, code=200):
     return r
 
 
+def _drive_mirror(path):
+    """Push a saved doc to Google Drive so it survives the cloud's ephemeral disk.
+    Returns the Drive file id (stored as drive_id) or None. No-op if Drive is off."""
+    try:
+        from modules import gdrive
+        if gdrive.enabled() and os.path.exists(path):
+            return gdrive.mirror(path, os.path.basename(path))
+    except Exception:
+        pass
+    return None
+
+
 def _finalize_doc(guid, folder, name, src_path):
     """Match the synced job by AccuLynx GUID, dedup, and attach the saved file at
     src_path. Removes src_path on any rejection. Returns a CORS JSON response."""
@@ -641,14 +693,18 @@ def _finalize_doc(guid, folder, name, src_path):
     if not job:
         _drop()
         return _cors({"ok": False, "reason": "no_job", "guid": guid})
-    have = {(d.get("original_name") or "").lower()
-            for d in db.all_rows("documents", where="job_id=?", params=(job["id"],))}
-    if name.lower() in have:
+    same = [d for d in db.all_rows("documents", where="job_id=?", params=(job["id"],))
+            if (d.get("original_name") or "").lower() == name.lower()]
+    # Skip only if a LIVE copy already exists; replace ghost (byte-less) records.
+    if any(_doc_has_bytes(d) for d in same):
         _drop()
         return _cors({"ok": True, "skipped": "duplicate", "name": name, "job": job.get("name")})
+    for d in same:
+        db.delete("documents", d["id"])  # drop dead duplicate so this re-import is clean
     db.insert("documents", {"job_id": job["id"], "category": folder,
                             "filename": os.path.basename(src_path), "original_name": name,
-                            "size": size, "notes": "Permit doc synced from AccuLynx"})
+                            "size": size, "notes": "Permit doc synced from AccuLynx",
+                            "drive_id": _drive_mirror(src_path)})
     db.add_activity("job", job["id"], "note",
                     "Permit document synced from AccuLynx: %s (%s)" % (name, folder))
     return _cors({"ok": True, "added": True, "job": job.get("name"), "folder": folder, "name": name})
@@ -665,9 +721,23 @@ def doc_manifest():
     job = next((j for j in db.all_rows("jobs") if guid in (j.get("external_url") or "").lower()), None)
     if not job:
         return _cors({"ok": False, "reason": "no_job", "guid": guid})
+    # Only advertise docs we can actually serve (mirrored to Drive or present on
+    # local disk). Byte-less ghost records — files lost to the cloud's ephemeral
+    # disk before Drive mirroring existed — are omitted so the collector re-fetches
+    # them and they get persisted to Drive this time.
     names = [(d.get("original_name") or "") for d in
-             db.all_rows("documents", where="job_id=?", params=(job["id"],))]
+             db.all_rows("documents", where="job_id=?", params=(job["id"],))
+             if _doc_has_bytes(d)]
     return _cors({"ok": True, "job": job.get("name"), "names": names})
+
+
+def _doc_has_bytes(d):
+    """True if a document's file is retrievable: mirrored to Drive, or present on
+    local disk (desktop). False for ghost records whose bytes are gone."""
+    if d.get("drive_id"):
+        return True
+    fn = os.path.basename(d.get("filename") or "")
+    return bool(fn) and os.path.exists(os.path.join(config.DOC_DIR, fn))
 
 
 @bp.route("/doc-import", methods=["POST", "OPTIONS"])
@@ -732,18 +802,15 @@ def run():
     result = {"ok": True, "done": False}
     last_err = ""
     try:
-        # Drain several 50-record batches per click (the cursor is persisted between
-        # batches, so it's resumable/crash-safe). Stop before ~20s so the request
-        # never times out — one or two clicks finishes the active pipeline (~800 records).
-        while _t.time() - t0 < 20:
-            result = run_sync(deep=deep)
-            if not result.get("ok"):
-                break
+        # Vercel serverless functions are killed at ~10s, so do ONE small batch (10
+        # records) per click and return fast — never long enough to time out. The
+        # cursor persists between clicks, so just click Sync again until it says
+        # the full pass is complete.
+        result = run_sync(deep=deep, batch=10)
+        if result.get("ok"):
             for k in agg:
                 agg[k] += result.get(k, 0)
             last_err = result.get("last_err") or last_err
-            if result.get("done") or not result.get("batch"):
-                break
     except Exception as e:  # never 500 — always show a readable error
         import traceback
         result = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
@@ -803,10 +870,10 @@ def cron():
     agg = {"added_leads": 0, "added_jobs": 0, "updated": 0}
     result = {"done": False}
     try:
-        # Walk several 50-record batches per cron run (leads-first, resumable),
-        # stopping before the serverless time budget so it never hard-times-out.
-        while _t.time() - t0 < 45:
-            result = run_sync(deep=deep)
+        # A few small batches per cron run (resumable cursor), staying well under
+        # Vercel's ~10s serverless cap so the function never gets killed mid-write.
+        while _t.time() - t0 < 8:
+            result = run_sync(deep=deep, batch=10)
             if not result.get("ok"):
                 return jsonify(result), 200
             batches += 1
