@@ -1,26 +1,34 @@
-# Render.com blueprint — one-click deploy of the white-label CRM with a
-# PERSISTENT DISK so SQLite + uploaded photos/docs/permit packets survive deploys.
-# Create the service from this file: Render Dashboard → New → Blueprint → point at
-# this repo (root = whitelabel-crm). Then map crm.collaborativeconceptsfl.com to it.
+# Render.com blueprint — runs the CRM on a real server with a PERSISTENT DISK so
+# uploaded files of ANY size (incl. the 10–22 MB product brochures Vercel can't
+# serve) just work. It reuses your existing Neon Postgres for data, so nothing is
+# re-migrated and Vercel + Render share the same database.
+#
+# Deploy: Render Dashboard → New → Blueprint → connect this GitHub repo
+#   (dannybivins83-blip/collab-crm). Render reads this file. When prompted, paste
+#   DATABASE_URL (copy it from your Vercel project → Settings → Environment
+#   Variables → DATABASE_URL). Then map crm.collaborativeconceptsfl.com to the
+#   service under Settings → Custom Domains.
 services:
   - type: web
     name: collab-crm
     runtime: python
     rootDir: .
-    plan: starter            # starter has a persistent disk; free tier does NOT
+    plan: starter              # starter includes a persistent disk; free tier does NOT
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 180
     healthCheckPath: /login
     envVars:
+      - key: DATABASE_URL       # paste your Neon connection string (shared with Vercel)
+        sync: false
+      - key: CRM_UPLOAD_DIR     # all uploads/photos/docs/packets live on the disk
+        value: /data/uploads
       - key: CRM_DATA_DIR
         value: /data
-      - key: CRM_UPLOAD_DIR
-        value: /data/uploads
       - key: CRM_SECRET
-        generateValue: true   # random, stable secret for sessions
+        generateValue: true     # random, stable session secret
       - key: CRM_NOBROWSER
         value: "1"
     disk:
       name: crm-data
       mountPath: /data
-      sizeGB: 1
+      sizeGB: 2                  # room for the full document library + future uploads
