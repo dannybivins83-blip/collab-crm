@@ -609,6 +609,67 @@ def browser_import():
     return r
 
 
+ALLOWED_DOC_EXT = {"pdf", "jpg", "jpeg", "png", "gif", "tif", "tiff",
+                   "doc", "docx", "xls", "xlsx", "txt", "heic", "webp"}
+
+
+def _cors(payload, code=200):
+    r = jsonify(payload)
+    r.status_code = code
+    r.headers["Access-Control-Allow-Origin"] = "*"
+    r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return r
+
+
+@bp.route("/doc-import", methods=["POST", "OPTIONS"])
+def doc_import():
+    """Attach a single permit/document file scraped from the AccuLynx tab to the
+    matching synced job (matched by AccuLynx GUID in external_url). CORS-open like
+    browser-import — the request originates from the my.acculynx.com tab, not a CRM
+    session. Guarded: known-job only, allow-listed extensions, 30 MB cap, dedup by
+    filename so re-runs don't pile up copies."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    guid = (request.form.get("guid") or "").strip().lower()
+    folder = (request.form.get("folder") or "AccuLynx").strip()[:60]
+    fname = (request.form.get("filename") or "").strip()
+    f = request.files.get("file")
+    if not guid or not f:
+        return _cors({"ok": False, "reason": "missing guid or file"}, 400)
+    job = next((j for j in db.all_rows("jobs") if guid in (j.get("external_url") or "").lower()), None)
+    if not job:
+        return _cors({"ok": False, "reason": "no_job", "guid": guid})
+    name = fname or f.filename or "acculynx_doc"
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    if ext and ext not in ALLOWED_DOC_EXT:
+        return _cors({"ok": False, "reason": "ext_blocked:%s" % ext, "name": name})
+    have = {(d.get("original_name") or "").lower()
+            for d in db.all_rows("documents", where="job_id=?", params=(job["id"],))}
+    if name.lower() in have:
+        return _cors({"ok": True, "skipped": "duplicate", "name": name, "job": job.get("name")})
+    safe = "%d_%s" % (int(time.time() * 1000), _safe_name(name))
+    path = os.path.join(config.DOC_DIR, safe)
+    f.save(path)
+    size = os.path.getsize(path) if os.path.exists(path) else 0
+    if size > 30 * 1024 * 1024:
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+        return _cors({"ok": False, "reason": "too_large", "size": size, "name": name})
+    db.insert("documents", {"job_id": job["id"], "category": folder,
+                            "filename": safe, "original_name": name,
+                            "size": size, "notes": "Permit doc synced from AccuLynx"})
+    db.add_activity("job", job["id"], "note",
+                    "Permit document synced from AccuLynx: %s (%s)" % (name, folder))
+    return _cors({"ok": True, "added": True, "job": job.get("name"), "folder": folder, "name": name})
+
+
 @bp.route("/run", methods=["POST"])
 def run():
     deep = bool(request.form.get("deep"))  # OFF: AccuLynx API has no GET for messages/docs (404)
