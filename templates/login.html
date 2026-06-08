@@ -15,6 +15,13 @@
   .login label{margin-top:10px}
   .login button{width:100%;margin-top:18px;background:var(--accent);border-color:var(--accent);color:#fff;padding:11px}
   .login .lic{text-align:center;color:var(--mut);font-size:11px;margin-top:16px}
+  .gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:14px;padding:11px;
+    background:#fff;border:1px solid #d0d7e2;border-radius:8px;color:#3c4043;font-weight:600;font-size:14px;
+    text-decoration:none;box-sizing:border-box}
+  .gbtn:hover{background:#f7f9fc;text-decoration:none}
+  .gbtn svg{width:18px;height:18px}
+  .login .or{display:flex;align-items:center;gap:10px;color:#9aa6bb;font-size:11px;margin:16px 0 2px}
+  .login .or::before,.login .or::after{content:"";flex:1;height:1px;background:#e6eaf0}
 </style></head>
 <body>
 <form class="login" method="post">
@@ -26,6 +33,13 @@
   {% with msgs = get_flashed_messages(with_categories=true) %}
     {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
   {% endwith %}
+  {% if google_enabled %}
+  <a class="gbtn" href="{{ url_for('auth.google_login') }}{{ ('?next=' + request.args.get('next')) if request.args.get('next') else '' }}">
+    <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.3 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.2 5.3-4.7 7l7.2 5.6c4.2-3.9 6.6-9.6 6.6-16.4z"/><path fill="#FBBC05" d="M10.4 28.3c-.5-1.4-.8-2.9-.8-4.3s.3-3 .8-4.3l-7.8-6.1C1 16.7 0 20.2 0 24s1 7.3 2.6 10.4l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.2-5.6c-2 1.4-4.6 2.2-8.7 2.2-6.3 0-11.7-3.8-13.6-9.3l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+    Sign in with Google
+  </a>
+  <div class="or">or sign in with email</div>
+  {% endif %}
   <div class="field"><label>Email</label><input id="email" name="email" type="email" autofocus required></div>
   <div class="field"><label>Password</label><input id="password" name="password" type="password" required></div>
   <button type="submit">Sign in</button>

@@ -30,6 +30,31 @@
   </div>
 </div>
 
+{% set sitecam = company.sitecam_url or 'https://sitecam-web.onrender.com/' %}
+<div class="card" id="sitecamCard" style="margin-bottom:16px">
+  <div class="panel-head">
+    <span>📷 Site Photos <span class="muted">· SeaBreeze SiteCam</span></span>
+    <span style="display:flex;gap:6px">
+      <button class="btn sm" id="scToggle" title="Collapse / expand">▾</button>
+      <a class="btn sm" href="{{ url_for('sitecam.index') }}">⛶ Full screen</a>
+      <a class="btn sm" href="{{ sitecam }}" target="_blank" rel="noopener">↗ New tab</a>
+    </span>
+  </div>
+  <div id="scBody">
+    <iframe src="{{ sitecam }}" id="scFrame" style="width:100%;height:360px;border:1px solid var(--line,#dde3ec);border-radius:8px;background:#fff"
+            allow="camera; geolocation; clipboard-read; clipboard-write" referrerpolicy="origin" loading="lazy"></iframe>
+    <div class="muted" style="font-size:11px;margin-top:5px">Live field-photo board. If it shows a sign-in, log in once here or use <a href="{{ sitecam }}" target="_blank" rel="noopener">New tab</a>.</div>
+  </div>
+</div>
+<script>
+(function(){
+  var b=document.getElementById('scBody'), t=document.getElementById('scToggle');
+  if(localStorage.getItem('sc_collapsed')==='1'){ b.style.display='none'; t.textContent='▸'; }
+  t.onclick=function(){ var hid=b.style.display==='none'; b.style.display=hid?'':'none';
+    t.textContent=hid?'▾':'▸'; localStorage.setItem('sc_collapsed', hid?'0':'1'); };
+})();
+</script>
+
 <div class="detail">
   <div>
     <div class="card panel">
@@ -101,6 +126,15 @@
   </div>
 
   <div>
+    <!-- Gmail inbox widget (Gmail API via per-user OAuth; drafts only, never auto-sends) -->
+    <div class="card" id="gmailCard">
+      <div class="panel-head">
+        <span>📨 Gmail <span class="muted" id="gmAddr"></span></span>
+        <span style="display:flex;gap:6px" id="gmActions"></span>
+      </div>
+      <div id="gmBody"><div class="muted" style="padding:6px 2px">Loading…</div></div>
+    </div>
+
     <div class="card">
       <div class="panel-head"><span>Activity Feed</span></div>
       <ul class="timeline">
@@ -121,4 +155,130 @@
     </div>
   </div>
 </div>
+
+<!-- Gmail widget styles + behavior -->
+<style>
+#gmailCard .gm-list{max-height:420px;overflow:auto;margin:-4px -6px 0}
+.gm-row{display:block;padding:9px 8px;border-bottom:1px solid var(--line,#eef1f6);cursor:pointer;border-radius:6px}
+.gm-row:hover{background:var(--panel2,#f6f8fb)}
+.gm-row .gm-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.gm-row .gm-from{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gm-row.unread .gm-from::before{content:"●";color:var(--accent,#29ABE2);margin-right:5px;font-size:10px;vertical-align:middle}
+.gm-row .gm-date{font-size:11px;color:#8a93a6;white-space:nowrap;flex:none}
+.gm-row .gm-subj{font-size:13px;margin-top:1px}
+.gm-row .gm-snip{font-size:12px;color:#8a93a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gm-read{border:1px solid var(--line,#dde3ec);border-radius:8px;padding:12px;max-height:480px;overflow:auto}
+.gm-read .gm-meta{font-size:12px;color:#5b6b85;margin-bottom:8px;border-bottom:1px solid var(--line,#eef1f6);padding-bottom:8px}
+.gm-read .gm-frame{border:0;width:100%;min-height:240px}
+.gm-compose label{display:block;font-size:12px;font-weight:600;color:#5b6b85;margin:8px 0 3px}
+.gm-compose input,.gm-compose textarea{width:100%;padding:8px 10px;border:1px solid #c7d0de;border-radius:7px;font:inherit}
+.gm-compose textarea{min-height:140px;resize:vertical}
+.gm-note{font-size:11px;color:#8a93a6;margin-top:6px}
+</style>
+<script>
+(function(){
+  const addr = document.getElementById('gmAddr');
+  const actions = document.getElementById('gmActions');
+  const body = document.getElementById('gmBody');
+  const esc = s => (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function btn(label, cls){ return '<button class="btn sm '+(cls||'')+'">'+label+'</button>'; }
+
+  async function init(){
+    let st;
+    try { st = await (await fetch('{{ url_for("gmail.status") }}')).json(); } catch(e){ st={}; }
+    addr.textContent = st.email ? '· '+st.email : '';
+    actions.innerHTML = '';
+    if(!st.configured){
+      body.innerHTML = '<div class="muted" style="padding:6px 2px">Gmail isn\'t set up yet. Add a Google OAuth Client ID + Secret to enable the in-dashboard inbox.</div>';
+      return;
+    }
+    if(!st.connected){
+      body.innerHTML = '<div style="padding:10px 2px"><a class="btn primary" href="{{ url_for("gmail.connect") }}">🔗 Connect Gmail</a>'
+        + '<div class="gm-note">Sign in with Google once. Your inbox shows here; replies are saved as Gmail drafts you send from Gmail.</div></div>';
+      return;
+    }
+    const refresh = document.createElement('button'); refresh.className='btn sm'; refresh.textContent='⟳';
+    refresh.title='Refresh inbox'; refresh.onclick=loadInbox;
+    const compose = document.createElement('button'); compose.className='btn sm accent'; compose.textContent='✏️ Compose';
+    compose.onclick=()=>openCompose({});
+    const disc = document.createElement('button'); disc.className='btn sm'; disc.textContent='⏻'; disc.title='Disconnect Gmail';
+    disc.onclick=async()=>{ if(!confirm('Disconnect this Gmail account from the dashboard?'))return;
+      await fetch('{{ url_for("gmail.disconnect") }}',{method:'POST'}); init(); };
+    actions.append(refresh, compose, disc);
+    loadInbox();
+  }
+
+  async function loadInbox(){
+    body.innerHTML = '<div class="muted" style="padding:6px 2px">Loading inbox…</div>';
+    let d; try { d = await (await fetch('{{ url_for("gmail.inbox") }}')).json(); } catch(e){ d={}; }
+    if(!d.ok){ body.innerHTML='<div class="muted" style="padding:6px 2px">Couldn\'t load mail. <a href="{{ url_for("gmail.connect") }}">Reconnect</a></div>'; return; }
+    if(!d.messages.length){ body.innerHTML='<div class="muted" style="padding:6px 2px">Inbox is empty.</div>'; return; }
+    const list = document.createElement('div'); list.className='gm-list';
+    d.messages.forEach(m=>{
+      const row=document.createElement('div'); row.className='gm-row'+(m.unread?' unread':'');
+      row.innerHTML = '<div class="gm-top"><span class="gm-from">'+esc(m.fromName)+'</span><span class="gm-date">'+esc(shortDate(m.date))+'</span></div>'
+        + '<div class="gm-subj">'+esc(m.subject)+'</div><div class="gm-snip">'+esc(m.snippet)+'</div>';
+      row.onclick=()=>openMessage(m);
+      list.appendChild(row);
+    });
+    body.innerHTML=''; body.appendChild(list);
+  }
+
+  function shortDate(s){ const d=new Date(s); return isNaN(d)?'':d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+
+  async function openMessage(m){
+    body.innerHTML = '<div class="muted" style="padding:6px 2px">Opening…</div>';
+    let msg; try{ msg = await (await fetch('{{ url_for("gmail.message", mid="__ID__") }}'.replace('__ID__', m.id))).json(); }catch(e){ msg={}; }
+    if(!msg.ok){ body.innerHTML='<div class="muted">Couldn\'t open message.</div>'; loadInbox(); return; }
+    const back = '<button class="btn sm" id="gmBack">← Inbox</button> <button class="btn sm accent" id="gmReply">↩ Reply</button>';
+    const meta = '<div class="gm-meta"><b>'+esc(msg.subject)+'</b><br>From: '+esc(msg.from)+'<br>'+esc(msg.date)+'</div>';
+    let content;
+    if(msg.html){
+      content = '<iframe class="gm-frame" sandbox></iframe>';
+    } else {
+      content = '<div style="white-space:pre-wrap;font-size:13px">'+esc(msg.text)+'</div>';
+    }
+    body.innerHTML = '<div style="margin-bottom:8px">'+back+'</div><div class="gm-read">'+meta+content+'</div>';
+    if(msg.html){
+      const f=body.querySelector('iframe'); const doc=f.contentDocument||f.contentWindow.document;
+      doc.open(); doc.write(msg.html); doc.close();
+      try{ f.style.height=Math.min(460,(doc.body.scrollHeight||300)+20)+'px'; }catch(e){}
+    }
+    body.querySelector('#gmBack').onclick=loadInbox;
+    body.querySelector('#gmReply').onclick=()=>{
+      const fromAddr=(msg.from.match(/<([^>]+)>/)||[null,msg.from])[1];
+      openCompose({to:fromAddr, subject:(/^re:/i.test(msg.subject)?msg.subject:'Re: '+msg.subject),
+        threadId:msg.threadId, in_reply_to:msg.messageId, quote:msg.text||''});
+    };
+  }
+
+  function openCompose(opts){
+    body.innerHTML =
+      '<div class="gm-compose">'
+      + '<div style="margin-bottom:6px"><button class="btn sm" id="gmCancel">← Back</button></div>'
+      + '<label>To</label><input id="gmTo" value="'+esc(opts.to||'')+'">'
+      + '<label>Subject</label><input id="gmSubj" value="'+esc(opts.subject||'')+'">'
+      + '<label>Message</label><textarea id="gmMsg"></textarea>'
+      + '<div style="margin-top:10px;display:flex;gap:8px;align-items:center">'
+      +   '<button class="btn primary" id="gmSave">💾 Save draft to Gmail</button>'
+      +   '<span class="gm-note">Saved as a Gmail draft — open Gmail to review &amp; send.</span>'
+      + '</div><div id="gmResult" class="gm-note"></div></div>';
+    if(opts.quote){ body.querySelector('#gmMsg').value = '\n\n----- Original -----\n'+opts.quote; }
+    body.querySelector('#gmCancel').onclick=loadInbox;
+    body.querySelector('#gmSave').onclick=async function(){
+      this.disabled=true; this.textContent='Saving…';
+      const payload={to:body.querySelector('#gmTo').value, subject:body.querySelector('#gmSubj').value,
+        body:body.querySelector('#gmMsg').value, threadId:opts.threadId||'', in_reply_to:opts.in_reply_to||''};
+      let r; try{ r=await (await fetch('{{ url_for("gmail.draft") }}',{method:'POST',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})).json(); }catch(e){ r={}; }
+      const res=body.querySelector('#gmResult');
+      if(r && r.ok){ res.style.color='var(--ok)'; res.textContent='✓ Draft saved in Gmail.'; this.textContent='💾 Saved'; }
+      else { res.style.color='var(--danger)'; res.textContent='Couldn\'t save the draft. Reconnect Gmail and try again.'; this.disabled=false; this.textContent='💾 Save draft to Gmail'; }
+    };
+  }
+
+  init();
+})();
+</script>
 {% endblock %}

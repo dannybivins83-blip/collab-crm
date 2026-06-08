@@ -25,7 +25,7 @@
     {% else %}
       <span class="brand-mark">🌊</span>
     {% endif %}
-    <span class="brand-name">{{ company.name or 'White-Label CRM' }}</span>
+    <span class="brand-name">{{ company.brand_short or company.name or 'White-Label CRM' }}</span>
   </a>
   <div class="navgroup dept-picker">
     <span class="dept" onclick="this.parentElement.querySelector('.dept-menu').classList.toggle('open')">{{ current_department }} <span class="caret">▾</span></span>
@@ -79,6 +79,7 @@
     </div>
   </div>
   <a class="navitem {{ 'on' if seg.startswith('/estimates') }}" href="{{ url_for('estimates.index') }}">Estimates</a>
+  <a class="navitem {{ 'on' if seg.startswith('/sitecam') }}" href="{{ url_for('sitecam.index') }}">📷 Site Photos</a>
   <a class="navitem {{ 'on' if seg.startswith('/reports') }}" href="{{ url_for('reports.index') }}">Reports</a>
   <div class="navgroup">
     <a class="navitem dropdown-toggle">Tools ▾</a>

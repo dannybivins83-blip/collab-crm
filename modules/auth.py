@@ -9,6 +9,7 @@ from flask import (Blueprint, render_template, request, redirect, url_for,
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import os
+import secrets
 import db
 
 bp = Blueprint("auth", __name__)
@@ -17,7 +18,8 @@ bp = Blueprint("auth", __name__)
 # so the live (real-data) instance never uses the publicly-known default.
 DEFAULT_PASSWORD = os.environ.get("CRM_DEFAULT_PASSWORD", "seabreeze2026")
 # Endpoints reachable without being logged in.
-PUBLIC = {"auth.login", "static", "uploads", "favicon", "leads.import_leads", "sync.browser_import", "sync.cron",
+PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
+          "static", "uploads", "favicon", "leads.import_leads", "sync.browser_import", "sync.cron",
           "sync.doc_import", "sync.doc_manifest",
           "sync.billing_import", "sync.billing_manifest",
           "sync.estimate_import", "sync.comm_import",
@@ -60,7 +62,70 @@ def login():
             nxt = request.args.get("next")
             return redirect(nxt if nxt and nxt.startswith("/") else url_for("dashboard.home"))
         flash("Invalid email or password.", "error")
-    return render_template("login.html")
+    from modules import gmail
+    return render_template("login.html", google_enabled=gmail.configured())
+
+
+# ---------------------------------------------------------------------------
+# Single sign-on — "Sign in with Google". One Google consent both signs the user
+# into the CRM (matched by email) AND connects their Gmail inbox widget. Shares
+# the same OAuth client as the Gmail integration.
+# ---------------------------------------------------------------------------
+
+def _google_redirect_uri():
+    host = request.host
+    scheme = "http" if host.startswith(("127.0.0.1", "localhost")) else "https"
+    return "%s://%s/auth/google/callback" % (scheme, host)
+
+
+@bp.route("/auth/google/login")
+def google_login():
+    from modules import gmail
+    if not gmail.configured():
+        flash("Google sign-in isn't configured yet.", "error")
+        return redirect(url_for("auth.login"))
+    from urllib.parse import urlencode
+    state = secrets.token_urlsafe(24)
+    session["google_login_state"] = state
+    nxt = request.args.get("next", "")
+    if nxt.startswith("/"):
+        session["google_login_next"] = nxt
+    cid, _ = gmail._cfg()
+    qs = urlencode({
+        "client_id": cid, "redirect_uri": _google_redirect_uri(),
+        "response_type": "code", "scope": gmail.LOGIN_SCOPES,
+        "access_type": "offline", "include_granted_scopes": "true",
+        "prompt": "consent", "state": state,
+    })
+    return redirect(gmail._AUTH + "?" + qs)
+
+
+@bp.route("/auth/google/callback")
+def google_callback():
+    from modules import gmail
+    if request.args.get("state") != session.pop("google_login_state", None):
+        flash("Sign-in expired — please try again.", "error")
+        return redirect(url_for("auth.login"))
+    code = request.args.get("code")
+    if not code:
+        return redirect(url_for("auth.login"))
+    tok = gmail.exchange_code(code, _google_redirect_uri())
+    if not tok.get("access_token"):
+        flash("Google sign-in failed. Please try again.", "error")
+        return redirect(url_for("auth.login"))
+    email = gmail.userinfo_email(tok["access_token"]).lower()
+    user = next((u for u in db.all_rows("users")
+                 if (u.get("email") or "").lower() == email and u.get("active", 1)), None)
+    if not user:
+        flash("No CRM account for %s. Ask an admin to add you first." % (email or "that account"), "error")
+        return redirect(url_for("auth.login"))
+    session["user_id"] = user["id"]
+    session["user_name"] = user["name"]
+    session["user_role"] = user.get("role", "sales")
+    # Login grants identity only; the Gmail inbox is a separate one-click connect
+    # (/gmail/connect) since it needs the restricted gmail.modify scope.
+    nxt = session.pop("google_login_next", "")
+    return redirect(nxt if nxt.startswith("/") else url_for("dashboard.home"))
 
 
 @bp.route("/logout")

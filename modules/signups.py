@@ -43,8 +43,9 @@ _BASE_ITEMS = [
     {"key": "color", "type": "field", "title": "Color / Material Selection",
      "body": "Please confirm your selected color / material. Final selections must be confirmed before material is ordered."},
     {"key": "payment", "type": "initial", "title": "Payment Schedule",
-     "body": "I agree to the payment schedule: 25% deposit, 25% at tear-off, 40% at material delivery, "
-             "10% at completion. Total contract: {value}."},
+     "body": "I agree to the payment schedule: 30% deposit (permit, material order & admin), "
+             "30% at job start (mobilization), 30% at 2 of 3 inspections passed, and 10% at final "
+             "inspection / completion. Total contract: {value}."},
     {"key": "permit_hoa", "type": "initial", "title": "Permit & HOA",
      "body": "I authorize {company} to pull the building permit on my behalf and, if applicable, to submit "
              "for HOA / ARC approval. I understand work cannot begin until the permit is issued."},

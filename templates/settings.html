@@ -10,6 +10,9 @@
     <div class="field"><label>Legal name</label><input name="legal_name" value="{{ c.legal_name or '' }}"></div>
   </div>
   <div class="row">
+    <div class="field"><label>Masthead short name</label><input name="brand_short" value="{{ c.brand_short or '' }}" placeholder="e.g. SRSMI — shown in the top bar; blank = full name"></div>
+  </div>
+  <div class="row">
     <div class="field"><label>Tagline</label><input name="tagline" value="{{ c.tagline or '' }}"></div>
     <div class="field"><label>License #</label><input name="license" value="{{ c.license or '' }}"></div>
     <div class="field"><label>Qualifier</label><input name="qualifier" value="{{ c.qualifier or '' }}"></div>
@@ -28,6 +31,10 @@
   </div>
   <div class="field"><label>Departments (comma-separated — shown in the masthead picker)</label>
     <input name="departments" value="{{ c.departments or 'REROOF Department, Service Department, Warranties' }}" placeholder="REROOF Department, Service Department, Warranties"></div>
+  <div class="row">
+    <div class="field"><label>Site Photos app URL (SiteCam)</label><input name="sitecam_url" value="{{ c.sitecam_url or '' }}" placeholder="https://sitecam-web.onrender.com/ — embedded under Site Photos"></div>
+    <div class="field"><label>Team Gmail quick-link</label><input name="gmail_url" value="{{ c.gmail_url or '' }}" placeholder="https://mail.google.com/mail/u/0/"></div>
+  </div>
 
   <h2 style="margin-top:18px">Brand logo</h2>
   <div class="row" style="align-items:center">

@@ -302,7 +302,9 @@ def init_db():
     conn.close()
     _ensure_column("company_settings", "departments", "TEXT")
     _ensure_column("company_settings", "color_masthead", "TEXT DEFAULT '#24476C'")
+    _ensure_column("company_settings", "brand_short", "TEXT")  # masthead short name (e.g. SRSMI); falls back to full name
     _ensure_column("company_settings", "gmail_url", "TEXT")  # team inbox quick-link
+    _ensure_column("company_settings", "sitecam_url", "TEXT")  # embedded field-photo app (SiteCam)
     # Department scoping (REROOF vs Service vs Warranties).
     for _t in ("leads", "jobs", "contacts"):
         _ensure_column(_t, "department", "TEXT")

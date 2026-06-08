@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Site Photos{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1 class="page-title" style="margin:0">📷 Site Photos</h1>
+  <span class="sub">SeaBreeze SiteCam — field photo platform</span>
+  <div class="grow"></div>
+  <a class="btn ghost" href="{{ sitecam_url }}" target="_blank" rel="noopener">⛶ Open in new tab</a>
+</div>
+<div class="sitecam-wrap">
+  <iframe src="{{ sitecam_url }}" class="sitecam-frame"
+          allow="camera; geolocation; clipboard-read; clipboard-write"
+          referrerpolicy="origin"></iframe>
+  <div class="sitecam-note muted">
+    If the photos app shows a sign-in screen, log in once here — or use
+    <a href="{{ sitecam_url }}" target="_blank" rel="noopener">Open in new tab</a>.
+    (Some browsers block the embedded login session.)
+  </div>
+</div>
+<style>
+.sitecam-wrap{display:flex;flex-direction:column;gap:8px}
+.sitecam-frame{width:100%;height:calc(100vh - 210px);min-height:520px;border:1px solid var(--line,#dde3ec);
+  border-radius:10px;background:#fff}
+.sitecam-note{font-size:12px}
+</style>
+{% endblock %}
