@@ -320,6 +320,50 @@ def _money_val(job):
         return str(v)
 
 
+# ---- job-name decoding -----------------------------------------------------
+# Shop convention: "R-25179: Richard Reis (PBC) (T28) (SCOTT)" =
+#   R-YYNNN (Reroof / year / sequence) | client | (AHJ) | (system + squares) | (salesperson)
+_SYS_MAT = {"5V": "5V Metal", "T": "Tile", "S": "Shingle", "M": "Metal"}
+_AHJ_MAP = {"PBC": "Palm Beach County", "BB": "Boynton Beach", "LWB": "Lake Worth Beach",
+            "RPB": "Royal Palm Beach", "PBG": "Palm Beach Gardens", "WELL": "Wellington",
+            "WPB": "West Palm Beach"}
+_REP_MAP = {"SCOTT": "Scott", "DB": "Danny Bivins", "FF": "Francis Ferrer",
+            "FERRER": "Francis Ferrer", "JHC": "Johnny Cagle", "JAC": "Jacin Carreiro", "MK": "MK"}
+
+try:
+    db.execute("ALTER TABLE jobs ADD COLUMN squares TEXT")
+except Exception:
+    pass
+db._COLCACHE.clear()
+
+
+def _parse_job_name(name):
+    """Decode a SeaBreeze job name into structured parts. Format varies (parens or
+    dashes), so each field is matched independently. Returns only what's found:
+    {year, jobno, system, squares, ahj, rep}. System code = material letter + squares
+    (e.g. T28 = Tile, 28 squares)."""
+    n = name or ""
+    out = {}
+    m = re.search(r"\bR-?(\d{2})(\d{2,})\b", n)
+    if m:
+        out["year"] = "20" + m.group(1)
+        out["jobno"] = "R-" + m.group(1) + m.group(2)
+    sm = re.search(r"\b(5V|[TSM])\s?-?\s?(\d{1,3})\b", n)   # material + squares
+    if sm:
+        out["system"] = _SYS_MAT.get(sm.group(1).upper())
+        out["squares"] = sm.group(2)
+    toks = re.findall(r"[A-Za-z0-9]+", n.upper())
+    for t in toks:                 # AHJ: first known jurisdiction tag
+        if t in _AHJ_MAP:
+            out["ahj"] = _AHJ_MAP[t]
+            break
+    for t in reversed(toks):       # rep: last known rep tag (salesperson is usually last)
+        if t in _REP_MAP:
+            out["rep"] = _REP_MAP[t]
+            break
+    return out
+
+
 def run_sync(deep=False, batch=50):
     company = db.get_company()
     key = (company.get("acculynx_api_key") or "").strip()
@@ -460,6 +504,10 @@ def run_sync(deep=False, batch=50):
                             "city": af.get("city") or "", "state": af.get("state") or "",
                             "zip": af.get("zip") or "", "county": "Palm Beach County",
                             "narrative": "Synced from AccuLynx (%s)." % (milestone or stage)}
+                    _pj = _parse_job_name(name)   # decode AHJ / system / squares / rep from the job name
+                    for _c in ("system", "squares", "ahj", "rep"):
+                        if _pj.get(_c):
+                            jrow[_c] = _pj[_c]
                     crm_id = db.insert("jobs", jrow)
                     db.add_activity("job", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
                     added_j += 1
