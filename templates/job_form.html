@@ -48,6 +48,8 @@
       {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if job.contact_id==c.id }}>{{ c.first_name }} {{ c.last_name }}{{ ' · ' ~ c.company if c.company }}</option>{% endfor %}
     </select>
   </div>
+  <div class="field"><label>Customer payment link (Stripe/Square/QuickBooks/PayPal — powers the portal "Pay" button)</label>
+    <input name="pay_url" value="{{ job.pay_url or '' }}" placeholder="https://…"></div>
   <div class="field"><label>Notes</label><textarea name="narrative">{{ job.narrative or '' }}</textarea></div>
   <div style="display:flex;gap:10px">
     <button class="primary" type="submit">Save</button>

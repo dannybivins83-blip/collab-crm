@@ -172,7 +172,13 @@
           <select name="category" style="width:auto"><option>Contract</option><option>Permit</option><option>COI</option><option>NOA</option><option>Measurement</option><option>HOA</option><option>Other</option></select>
           <button class="primary" type="submit">Upload</button>
         </form>
-        {% for d in documents %}<div class="rowline"><span class="badge">{{ d.category }}</span> <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a></div>{% else %}<div class="muted" style="margin-top:10px">No documents yet.</div>{% endfor %}
+        {% for d in documents %}<div class="rowline" style="display:flex;align-items:center;gap:8px">
+          <span class="badge">{{ d.category }}</span>
+          <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank" style="flex:1">{{ d.original_name }}</a>
+          {% if d.signed_at %}<span class="badge" style="color:var(--ok)">✓ signed {{ d.signed_name }}</span>
+          {% elif d.needs_sign %}<span class="badge" style="color:var(--warn)">awaiting signature</span>
+          {% else %}<form method="post" action="{{ url_for('files.request_sign', doc_id=d.id) }}" style="margin:0"><button class="btn sm" type="submit" title="Ask the homeowner to e-sign this in their portal">✍️ Request signature</button></form>{% endif %}
+        </div>{% else %}<div class="muted" style="margin-top:10px">No documents yet.</div>{% endfor %}
       </div>
     </div>
     <!-- MEASUREMENTS -->

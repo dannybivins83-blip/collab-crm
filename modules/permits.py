@@ -170,6 +170,14 @@ def build_packet(permit_id):
         return redirect(url_for("permits.detail", permit_id=permit_id))
 
     db.update("permits", permit_id, packet_file="permits/" + fname)
+    # Mirror to Google Drive so a packet built on the desktop is downloadable from
+    # the cloud (Vercel can't host the 1.1 GB library, but it serves the finished PDF).
+    try:
+        from modules import gdrive
+        if gdrive.enabled():
+            gdrive.mirror(out_path, fname)
+    except Exception:
+        pass
     if p.get("job_id"):
         db.insert("documents", {"job_id": p["job_id"], "category": "Permit",
                                 "filename": fname, "original_name": fname,

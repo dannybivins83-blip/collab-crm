@@ -2,68 +2,117 @@
 {% block title %}Team Checklist{% endblock %}
 {% block body %}
 <div class="page-head no-print">
-  <h1>📋 Team Procedural Checklist</h1>
+  <h1>📋 {{ company.name }} — Team Procedural Checklist</h1>
   <div class="grow"></div>
+  <span class="muted">{{ company.qualifier }} · {{ company.phone }}</span>
   <button class="btn" onclick="window.print()">🖨 Print</button>
 </div>
 
 <div class="card">
-  <h2>⚡ Speed to Lead</h2>
+  <h2>⏱ The Clocks — this is the whole job</h2>
+  <table class="grid">
+    <tr><th>Stage</th><th>Target</th><th>Who</th><th>Hard rule</th></tr>
+    <tr><td>New lead → first contact</td><td><b>15 min</b></td><td>Sales</td><td>Call, don't just text. First to the door wins.</td></tr>
+    <tr><td>Contact → inspection booked</td><td>24 hrs</td><td>Sales</td><td>Book it on the call — don't hang up without a date.</td></tr>
+    <tr><td>Lead entered → RoofGraf created</td><td>same day</td><td>Karla</td><td>Create RoofGraf w/ measurements, upload to job documents.</td></tr>
+    <tr><td>RoofGraf → estimate sent</td><td>48 hrs</td><td>Sales</td><td>Estimate built off the RoofGraf measurements.</td></tr>
+    <tr><td>Signed → permit submitted</td><td>3 bus. days</td><td>Permit</td><td>Start everything you can in parallel.</td></tr>
+    <tr><td>Permit submitted → material ordered</td><td>same day</td><td>Ops</td><td>Order the day you submit — don't wait for approval.</td></tr>
+    <tr><td>HOA submitted → follow-up</td><td>every 5 bus. days</td><td>Office</td><td>Silence = call them. Push the board/ARC.</td></tr>
+    <tr><td>Final passed → closed</td><td>3 bus. days</td><td>Production</td><td>Collect final 10%, ask for 3 referrals.</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>🟡 1. Speed to Lead (Sales)</h2>
   <ul>
-    <li>Respond to every new lead within <b>5 minutes</b> — call first, then text + email.</li>
-    <li>Log the touch in the CRM and set the next follow-up date before moving on.</li>
-    <li>If no answer: leave a voicemail, send a text, and schedule a same-day retry.</li>
-    <li>Goal: appointment booked within 24 hours of the lead coming in.</li>
+    <li>Lead into the CRM → <b>call within 15 minutes</b>. Voicemail + text if no answer.</li>
+    <li>Log the contact attempt immediately, so the board clock is accurate.</li>
+    <li>On the call: address, roof type, problem, decision-maker, insurance vs. retail.</li>
+    <li><b>Book the inspection before you hang up</b> — pick the date/time and log it.</li>
+    <li><b>Karla:</b> once the lead is entered, create the RoofGraf + measurements and upload it into the job documents — same day.</li>
+    <li>Estimate from the correct template, delivered within 48 hrs of inspection.</li>
+    <li>2 follow-ups if no answer (day 2, day 4), then it's a cold prospect — not dead.</li>
   </ul>
 </div>
 
 <div class="card">
-  <h2>📐 Inspection & Estimate</h2>
+  <h2>🟠 2. Job Turnover — Signed → Building</h2>
   <ul>
-    <li>Karla enters the lead and creates the <b>RoofGraf</b> measurement report.</li>
-    <li>Upload the RoofGraf PDF to the lead → measurements auto-fill.</li>
-    <li>Build the estimate from the matching template; <b>Apply measurements</b> to fill quantities.</li>
-    <li>Review the estimate with the customer; send + log it. Set follow-up.</li>
+    <li><b>Scan ALL signed docs into the job folder</b> — every page, legible.</li>
+    <li><b>Email copies of the signed docs</b> to the client the same day — they get their paperwork in writing.</li>
+    <li>Collect the deposit — a job isn't really "approved" on the board until the deposit is in.</li>
+    <li>Permit packet started same day.</li>
+    <li>Material take-off started same day.</li>
+    <li>HOA path checked same day — if HOA, start that packet before/alongside the permit.</li>
+    <li>Job moved to the right stage + status note on the board; Production knows the start window.</li>
   </ul>
 </div>
 
 <div class="card">
-  <h2>📝 Sign-Up & Documents</h2>
+  <h2>🔴 3. Permits — Hiccup #1 (Build Permit Packet)</h2>
   <ul>
-    <li>Signed proposal + deposit collected before scheduling anything.</li>
-    <li>Confirm color/material selection in writing.</li>
-    <li>Collect COI / scope docs; scan everything into the job's Documents.</li>
-    <li>Email signed copies to the customer; upload photos.</li>
+    <li>Confirm AHJ from the address (PBC auto-fills; Broward = HVHZ forms).</li>
+    <li>Confirm <b>roofing system AND underlayment</b> before building — wrong system = reject. (Tile can be single- or 2-ply — verify.)</li>
+    <li>NOC filled <b>completely</b>: owner, contractor, PCN/folio, legal description. No blanks.</li>
+    <li>Wind-load / product-approval sheets attached for the system.</li>
+    <li><b>PE seal</b> on wind calcs where required — don't submit without it.</li>
+    <li>Packet saved + submitted; log the submittal date on the board.</li>
+  </ul>
+  <div class="muted">Top rejection causes: wrong system/deck pairing, incomplete NOC, missing PCN/legal, missing product approval, no PE seal.</div>
+</div>
+
+<div class="card">
+  <h2>🟣 4. HOA Approval — Hiccup #2 (Office)</h2>
+  <ul>
+    <li>Submit color/material/sample package before or alongside the permit — not after.</li>
+    <li>Find the board/ARC meeting date — that's your real deadline. Work backward.</li>
+    <li><b>Follow up every 5 business days.</b> Call the property manager.</li>
+    <li>Get approval <b>in writing</b> and save to the file before scheduling the build.</li>
+    <li>If HOA is the only blocker, flag it on the board.</li>
+    <li>Never start a build in an HOA community without written ARC approval in the file.</li>
   </ul>
 </div>
 
 <div class="card">
-  <h2>🏛️ HOA & Permit</h2>
+  <h2>📦 5. Material Ordering — Hiccup #3 (Ops)</h2>
   <ul>
-    <li>If HOA: submit the application + color sample early — cannot pull the permit until approved.</li>
-    <li>Record the NOC; submit the permit package; pay fees; capture the permit #.</li>
-    <li>Post the permit at the job site and install the permit box.</li>
-    <li>Notify the customer of the start date once the permit is approved.</li>
+    <li>Take-off built from the RoofGraf measurements — squares, ridge, valley, accessories. No guessing.</li>
+    <li>Order placed <b>same day the permit is submitted</b> — do NOT wait for approval.</li>
+    <li>Confirm supplier lead time in writing; stage delivery 1–2 days before build start.</li>
+    <li>Confirm delivery + dumpster access with customer/HOA (drop location, gate).</li>
+    <li>Verify color/profile matches the HOA-approved sample before the truck rolls.</li>
+    <li>Material on site + permit box + yard sign staged <b>before</b> the crew shows up.</li>
   </ul>
 </div>
 
 <div class="card">
-  <h2>📦 Pre-Con, Material & Build</h2>
+  <h2>💵 Payment Check-offs</h2>
   <ul>
-    <li>Order material; confirm delivery date; schedule crew + dumpster.</li>
-    <li>Pre-con walkthrough; install yard sign.</li>
-    <li>Tear-off → dry-in → dry-in inspection passed → install → magnet sweep.</li>
-    <li>Keep the customer updated at each milestone.</li>
+    {% for p in constants.DRAW_SCHEDULE %}<li>{{ p.label }}</li>{% endfor %}
+  </ul>
+  <div class="muted">Draws 2–3 are performance-based — the crew has to show up / pass inspections.</div>
+</div>
+
+<div class="card">
+  <h2>✅ Job Closeout (every job)</h2>
+  <ul>
+    <li>Final inspection passed and logged; final 10% collected.</li>
+    <li>Permit box removed; yard sign installed for the agreed period.</li>
+    <li><b>Ask for 3 referrals</b> (names + numbers) — write them on the call sheet.</li>
+    <li>Ask for the Google review while the customer is happy.</li>
+    <li>Warranty docs delivered; job moved to Closed.</li>
   </ul>
 </div>
 
 <div class="card">
-  <h2>✅ Final & Close-Out</h2>
+  <h2>📅 Daily 10-Minute Standup</h2>
   <ul>
-    <li>Pass final inspection; upload final photos.</li>
-    <li>Send final invoice; collect final payment per the draw schedule.</li>
-    <li>Issue warranty; request a review; ask for 3 referrals (names + numbers).</li>
+    <li>Any new lead older than 1 hour with no contact? → Sales fixes now.</li>
+    <li>Any job past its stage clock (permit/HOA/material)? → name the blocker + owner.</li>
+    <li>What's building this week — is material + permit + HOA confirmed for each?</li>
   </ul>
+  <div class="muted">One owner per blocker. No "we're waiting on them" without a follow-up date attached.</div>
 </div>
-<style>@media print{.masthead,.mainnav,.no-print{display:none!important}.content{max-width:none;padding:0}}</style>
+<style>@media print{.masthead,.mainnav,.no-print{display:none!important}.content{max-width:none;padding:0}.card{break-inside:avoid}}</style>
 {% endblock %}

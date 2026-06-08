@@ -184,7 +184,7 @@ def followup_email(kind, rec):
             remaining = [p["label"] for p in constants.DRAW_SCHEDULE if p.get("pct") and not payments.get(p["key"])]
             if remaining:
                 lines.append("Remaining payments: " + "; ".join(remaining) + ".")
-        link = _payment_link_for_job(rec.get("id"))
+        link = rec.get("pay_url") or _payment_link_for_job(rec.get("id"))
         lines.append("")
         if link:
             lines.append("Pay securely online here: %s" % link)

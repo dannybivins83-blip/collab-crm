@@ -62,7 +62,13 @@
           <div class="muted" style="margin-top:8px">Pre-fills SeaBreeze contractor info, owner/address from the job, and the county forms + product approvals from the permit library.</div>
         </form>
       {% else %}
-        <div class="muted">Permit builder engine not detected on this host. The tracker still works; connect the SeaBreeze_Permit_Library + build.py to enable one-click packet generation.</div>
+        <div class="muted" style="line-height:1.5">
+          <b>Generate packets from the desktop app.</b> The county permit library is 1.1&nbsp;GB
+          (1,778 forms) — too large to run on the cloud. Open this same job in the
+          <b>desktop CRM</b> (<code>python app.py</code>) and click Build there; the finished
+          PDF mirrors to Google&nbsp;Drive and the <b>Download current packet</b> button here
+          will serve it. The permit tracker (AHJ, #, dates, status) works everywhere.
+        </div>
       {% endif %}
     </div>
     <form method="post" action="{{ url_for('permits.delete', permit_id=p.id) }}" onsubmit="return confirm('Delete permit?')">

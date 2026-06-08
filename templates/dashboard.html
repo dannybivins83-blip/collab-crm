@@ -11,6 +11,20 @@
   <a class="btn ghost" href="{{ url_for('sync.index') }}" title="Sync settings (API key, auto-sync)">⚙</a>
 </div>
 
+<!-- Quick toolbar (the original board's actions, surfaced) -->
+<div class="toolbar" style="margin-bottom:16px;gap:6px;flex-wrap:wrap">
+  <a class="btn" href="{{ url_for('leads.new') }}">＋ Add Lead</a>
+  <a class="btn" href="{{ url_for('estimates.new') }}">📝 New Estimate</a>
+  <a class="btn" href="{{ url_for('permits.new') }}">🏛️ Permit Builder</a>
+  <a class="btn" href="{{ url_for('tools.mass_email') }}">📧 Mass Email</a>
+  <a class="btn" href="{{ url_for('tools.callsheet') }}">🖨 Call Sheet</a>
+  <a class="btn" href="{{ url_for('tools.checklist') }}">📋 Checklist</a>
+  <span class="grow"></span>
+  <a class="btn ghost" href="{{ url_for('tools.export') }}?entity=leads">⬇ Export</a>
+  <a class="btn ghost" href="{{ url_for('tools.backup') }}">💾 Backup</a>
+  <a class="btn ghost" href="{{ url_for('tools.restore') }}">⤴ Restore</a>
+</div>
+
 <div class="detail">
   <div>
     <div class="card panel">
@@ -86,7 +100,17 @@
       <div class="panel-head"><span>Activity Feed</span></div>
       <ul class="timeline">
         {% for a in feed %}
-        <li><div class="k">{{ a.kind }}{% if a._who %} · {{ a._who }}{% endif %}</div><div class="t">{{ a.text[:90] }}</div><div class="d">{{ a.created }}</div></li>
+        {% if a.entity_type=='job' %}{% set href = url_for('jobs.detail', job_id=a.entity_id) %}
+        {% elif a.entity_type=='lead' %}{% set href = url_for('leads.detail', lead_id=a.entity_id) %}
+        {% elif a.entity_type=='contact' %}{% set href = url_for('contacts.detail', contact_id=a.entity_id) %}
+        {% else %}{% set href = '' %}{% endif %}
+        <li>
+          {% if href %}<a href="{{ href }}" style="color:inherit;text-decoration:none;display:block">{% endif %}
+            <div class="k">{{ a.kind }}{% if a._who %} · {{ a._who }}{% endif %}</div>
+            <div class="t" style="{{ 'color:var(--accent)' if href }}">{{ a.text[:90] }}</div>
+            <div class="d">{{ a.created }}</div>
+          {% if href %}</a>{% endif %}
+        </li>
         {% else %}<li class="muted">No activity yet.</li>{% endfor %}
       </ul>
     </div>

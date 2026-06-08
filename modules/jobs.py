@@ -12,7 +12,7 @@ bp = Blueprint("jobs", __name__, url_prefix="/jobs")
 EDITABLE = ["rid", "name", "phone", "email", "address", "city", "state", "zip",
             "work_type", "rep", "source", "contract_value", "narrative", "todo", "notes",
             "next_follow", "pcn", "legal", "county", "ahj", "system", "existing",
-            "area", "slope", "mrh", "exposure", "external_url", "contact_id"]
+            "area", "slope", "mrh", "exposure", "external_url", "contact_id", "pay_url"]
 
 
 def _decorate(j):

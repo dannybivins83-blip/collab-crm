@@ -32,6 +32,14 @@ for _c in ("photo_app_url TEXT", "tutorials TEXT"):
         db.execute("ALTER TABLE company_settings ADD COLUMN %s" % _c)
     except Exception:
         pass
+# Document e-signature + a per-job payment link (Stripe/Square/QBO/PayPal/etc.).
+for _t, _c in (("documents", "needs_sign INTEGER DEFAULT 0"), ("documents", "signed_name TEXT"),
+               ("documents", "signed_at TEXT"), ("documents", "signature TEXT"),
+               ("jobs", "pay_url TEXT")):
+    try:
+        db.execute("ALTER TABLE %s ADD COLUMN %s" % (_t, _c))
+    except Exception:
+        pass
 db._COLCACHE.clear()
 
 # Customer-facing "what to expect" — description + typical timeframe per phase.
@@ -122,10 +130,12 @@ def home(token):
     _decorate(j)
     estimates = db.all_rows("estimates", "job_id=?", (j["id"],), "id DESC")
     photos = db.all_rows("photos", "job_id=?", (j["id"],), "id DESC")
-    documents = db.all_rows("documents", "job_id=?", (j["id"],), "id DESC")
+    all_docs = db.all_rows("documents", "job_id=?", (j["id"],), "id DESC")
+    # Documents the company has requested the homeowner to e-sign (not yet signed).
+    docs_to_sign = [d for d in all_docs if d.get("needs_sign") and not d.get("signed_at")]
     # Only show customer-appropriate documents (contracts, permits, warranties, COI).
     show_cats = {"Contract", "Permit", "Warranty", "COI", "NOA", "Measurement", "HOA"}
-    documents = [d for d in documents if (d.get("category") or "") in show_cats]
+    documents = [d for d in all_docs if (d.get("category") or "") in show_cats]
     invoices = db.all_rows("invoices", "job_id=?", (j["id"],), "id DESC")
     activity = [a for a in db.entity_activity("job", j["id"])
                 if a.get("kind") in ("stage", "note", "automation")][:10]
@@ -168,7 +178,8 @@ def home(token):
     product_docs = product_docs[:16]
     return render_template("portal_dashboard.html", j=j, token=token,
                            phases=CUSTOMER_PHASES, estimates=estimates, photos=photos,
-                           documents=documents, invoices=invoices, activity=activity,
+                           documents=documents, docs_to_sign=docs_to_sign, invoices=invoices,
+                           activity=activity, pay_url=j.get("pay_url"),
                            rep=rep, draws=constants.DRAW_SCHEDULE,
                            checklist=checklist, contract=contract,
                            tutorials=_tutorials(company), product_docs=product_docs, sysk=sysk,
@@ -254,15 +265,45 @@ def sign(token, est_id):
     return redirect(url_for("portal.home", token=token) + "#estimate")
 
 
-@bp.route("/<token>/pay/<int:inv_id>")
-def pay(token, inv_id):
-    """Send the homeowner to the QuickBooks pay link if one exists."""
+@bp.route("/<token>/sign-doc/<int:doc_id>", methods=["POST"])
+def sign_doc(token, doc_id):
+    """Homeowner e-signs a document the company requested (contract, change order…)."""
     j = _job_by_token(token)
     if not j:
         abort(404)
-    inv = db.get("invoices", inv_id)
-    if inv and inv.get("job_id") == j["id"] and inv.get("payment_link"):
-        db.add_activity("job", j["id"], "note", "Homeowner opened payment link for invoice %s" % inv.get("number", ""))
-        return redirect(inv["payment_link"])
-    flash("Online payment isn't set up for this invoice yet — please contact us.", "info")
+    d = db.get("documents", doc_id)
+    if not d or d.get("job_id") != j["id"]:
+        abort(404)
+    name = (request.form.get("signed_name") or "").strip()
+    sig = request.form.get("signature") or ""
+    if not name:
+        flash("Please type your name to sign.", "error")
+        return redirect(url_for("portal.home", token=token) + "#sign")
+    db.update("documents", doc_id, signed_name=name, signed_at=db.now(),
+              signature=sig, needs_sign=0)
+    db.add_activity("job", j["id"], "automation",
+                    "✅ Document e-signed by homeowner: %s (%s)" % (d.get("original_name", ""), name))
+    db.update("jobs", j["id"], next_follow=db.today())
+    flash("Thank you — your signature was recorded.", "ok")
+    return redirect(url_for("portal.home", token=token) + "#sign")
+
+
+@bp.route("/<token>/pay")
+@bp.route("/<token>/pay/<int:inv_id>")
+def pay(token, inv_id=None):
+    """Send the homeowner to a payment link: the invoice's QuickBooks link if it
+    has one, otherwise the job's payment URL (Stripe/Square/QBO/PayPal, etc.)."""
+    j = _job_by_token(token)
+    if not j:
+        abort(404)
+    link = None
+    if inv_id:
+        inv = db.get("invoices", inv_id)
+        if inv and inv.get("job_id") == j["id"]:
+            link = inv.get("payment_link")
+    link = link or j.get("pay_url")
+    if link:
+        db.add_activity("job", j["id"], "note", "Homeowner opened the payment link.")
+        return redirect(link)
+    flash("Online payment isn't set up yet — please contact us to pay.", "info")
     return redirect(url_for("portal.home", token=token) + "#payments")
