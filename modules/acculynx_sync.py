@@ -654,6 +654,22 @@ def _finalize_doc(guid, folder, name, src_path):
     return _cors({"ok": True, "added": True, "job": job.get("name"), "folder": folder, "name": name})
 
 
+@bp.route("/doc-manifest")
+def doc_manifest():
+    """CORS-open: list the original filenames already attached to the synced job
+    (matched by AccuLynx GUID), so the collector can skip them WITHOUT re-uploading
+    the bytes. Makes re-runs and resumes cheap."""
+    guid = (request.args.get("guid") or "").strip().lower()
+    if not guid:
+        return _cors({"ok": False, "reason": "missing guid"}, 400)
+    job = next((j for j in db.all_rows("jobs") if guid in (j.get("external_url") or "").lower()), None)
+    if not job:
+        return _cors({"ok": False, "reason": "no_job", "guid": guid})
+    names = [(d.get("original_name") or "") for d in
+             db.all_rows("documents", where="job_id=?", params=(job["id"],))]
+    return _cors({"ok": True, "job": job.get("name"), "names": names})
+
+
 @bp.route("/doc-import", methods=["POST", "OPTIONS"])
 def doc_import():
     """Attach a single permit/document file scraped from the AccuLynx tab to the
