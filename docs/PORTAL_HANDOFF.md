@@ -45,8 +45,16 @@ Data = Neon Postgres. Files = Neon blob store (`gdrive.blob_put`/`serve_fallback
    isn't pixel-perfect per form, and doesn't check the panel-style box on the paper PDF.
 4. **File downloads on live** — 8 huge brochures exceed the 4 MB Neon-blob cap (fine
    locally / on a disk host). Render disk (`render.yaml`) is the clean fix.
-5. **Notifications** — when homeowner signs/uploads/messages, it logs activity + sets a
-   follow-up; no email/SMS to the rep yet.
+5. ~~**Notifications**~~ ✅ DONE (2026-06-08) — homeowner sign/upload/message now raises
+   an **in-app alert** (house rule: nothing auto-sent, so no email/SMS). `modules/
+   notifications.py` + a 🔔 bell in the masthead (`base.html`) with an unread badge,
+   recent-feed dropdown, and a full feed page (`notifications.html`). Targets the job's
+   rep (admins see all); clicking opens the job + marks read; "mark all read" clears the
+   badge. Hooked in `portal.py` (approve/sign-doc/upload-doc/upload-photo/message) +
+   `signups.py` (packet completed). Context processor is exception-wrapped so it can
+   never break the CRM. Auto-creates its table on Neon. Live + verified.
+   (If real email/SMS is ever wanted, that's a deliberate house-rule exception needing a
+   transactional provider — flag before building.)
 6. **Drawn signature on the per-document e-sign** is a pad; the Sign-Up Package final
    signature is a pad + typed name. Initials are typed (consider initial-pads).
 7. **Portal nav** — currently one long scroll. Partly addressed: a sticky bottom CTA
