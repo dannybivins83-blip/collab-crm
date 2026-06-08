@@ -33,7 +33,9 @@ would = 0
 samples = []
 for j in jobs:
     p = _parse_job_name(j.get("name") or "")
-    upd = {c: p[c] for c in ("system", "squares", "ahj", "rep") if p.get(c)}
+    # Fill ONLY empty fields — never overwrite existing values.
+    upd = {c: p[c] for c in ("system", "squares", "ahj", "rep")
+           if p.get(c) and not str(j.get(c) or "").strip()}
     if not upd:
         continue
     would += 1

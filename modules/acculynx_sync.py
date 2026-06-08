@@ -329,6 +329,26 @@ _AHJ_MAP = {"PBC": "Palm Beach County", "BB": "Boynton Beach", "LWB": "Lake Wort
             "WPB": "West Palm Beach"}
 _REP_MAP = {"SCOTT": "Scott", "DB": "Danny Bivins", "FF": "Francis Ferrer",
             "FERRER": "Francis Ferrer", "JHC": "Johnny Cagle", "JAC": "Jacin Carreiro", "MK": "MK"}
+# Florida service-area cities -> matched as the AHJ when a name spells the jurisdiction
+# out (e.g. "(Delray Beach)") instead of coding it. Longest names matched first.
+_FL_CITIES = {
+    "boca raton", "boynton beach", "delray beach", "lake worth beach", "lake worth",
+    "west palm beach", "palm beach gardens", "royal palm beach", "north palm beach",
+    "south palm beach", "palm beach", "wellington", "greenacres", "lantana", "jupiter",
+    "juno beach", "lake park", "palm springs", "hypoluxo", "riviera beach", "highland beach",
+    "ocean ridge", "manalapan", "atlantis", "haverhill", "loxahatchee groves", "loxahatchee",
+    "gulf stream", "hobe sound", "tequesta", "lake clarke shores", "the acreage", "westlake",
+    "pahokee", "belle glade", "south bay", "fort lauderdale", "hollywood", "pompano beach",
+    "coral springs", "deerfield beach", "davie", "plantation", "sunrise", "tamarac", "margate",
+    "coconut creek", "parkland", "lighthouse point", "lauderdale-by-the-sea", "lauderhill",
+    "oakland park", "wilton manors", "pembroke pines", "miramar", "weston", "hallandale beach",
+    "north lauderdale", "lauderdale lakes", "cooper city", "southwest ranches", "stuart",
+    "palm city", "jensen beach", "port st. lucie", "port saint lucie", "fort pierce",
+    "miami beach", "miami", "aventura", "hialeah", "homestead", "north miami", "key biscayne",
+    "palmetto bay", "coral gables", "cape coral", "fort myers", "north fort myers", "estero",
+    "bonita springs", "lehigh acres", "punta gorda", "port charlotte", "north port",
+}
+_FL_CITIES_SORTED = sorted(_FL_CITIES, key=len, reverse=True)
 
 try:
     db.execute("ALTER TABLE jobs ADD COLUMN squares TEXT")
@@ -353,10 +373,18 @@ def _parse_job_name(name):
         out["system"] = _SYS_MAT.get(sm.group(1).upper())
         out["squares"] = sm.group(2)
     toks = re.findall(r"[A-Za-z0-9]+", n.upper())
-    for t in toks:                 # AHJ: first known jurisdiction tag
+    for t in toks:                 # AHJ #1: known coded jurisdiction tag (PBC, BB, ...)
         if t in _AHJ_MAP:
             out["ahj"] = _AHJ_MAP[t]
             break
+    if "ahj" not in out:           # AHJ #2: a full FL city name — prefer one inside parens
+        parens = " | ".join(re.findall(r"\(([^)]*)\)", n))
+        for src in (parens, n):
+            sl = " " + re.sub(r"\s+", " ", re.sub(r"[^a-z. ]", " ", src.lower())) + " "
+            hit = next((c for c in _FL_CITIES_SORTED if (" " + c + " ") in sl), None)
+            if hit:
+                out["ahj"] = hit.title()
+                break
     for t in reversed(toks):       # rep: last known rep tag (salesperson is usually last)
         if t in _REP_MAP:
             out["rep"] = _REP_MAP[t]
