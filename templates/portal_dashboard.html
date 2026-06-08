@@ -86,6 +86,22 @@
     </div>
   </div>
 
+  <!-- WHAT TO EXPECT / TIMEFRAMES -->
+  <div class="card">
+    <div class="h">What to Expect — Your Roadmap</div>
+    {% for s in checklist %}
+    <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="font-size:20px;width:26px;text-align:center">{{ '✅' if s.done else ('🔵' if s.current else '⬜') }}</div>
+      <div style="flex:1">
+        <div style="font-weight:800">{{ s.name }}{% if s.current %} <span class="pill green">You are here</span>{% endif %}</div>
+        <div class="muted">{{ s.desc }}</div>
+      </div>
+      <div class="muted" style="white-space:nowrap;font-weight:700">{{ s.timeframe }}</div>
+    </div>
+    {% endfor %}
+    <div class="muted" style="margin-top:8px">Timeframes are typical estimates — your project contact will confirm exact dates.</div>
+  </div>
+
   <!-- REP CONTACT -->
   <div class="card">
     <div class="h">Your Project Contact</div>
@@ -142,17 +158,45 @@
   </div>
 
   <!-- PHOTOS -->
-  {% if photos %}
-  <div class="card"><div class="h">Project Photos</div>
-    <div class="gallery">{% for ph in photos %}<a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" title="{{ ph.caption }}"></a>{% endfor %}</div>
-  </div>{% endif %}
+  <div class="card" id="photos"><div class="h">Project Photos</div>
+    {% if photo_app_url %}<a class="btn ghost block" style="margin-bottom:12px" href="{{ photo_app_url }}" target="_blank">📸 View all job photos in our photo app</a>{% endif %}
+    {% if photos %}
+    <div class="gallery" style="margin-bottom:12px">{% for ph in photos %}<a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" title="{{ ph.caption }}"></a>{% endfor %}</div>
+    {% else %}<div class="muted" style="margin-bottom:12px">Project photos will appear here as work progresses.</div>{% endif %}
+    <form method="post" action="{{ url_for('portal.upload_photo', token=token) }}" enctype="multipart/form-data">
+      <label>Upload a photo (e.g. an area of concern)</label>
+      <div class="row"><input type="file" name="file" accept="image/*" required style="flex:1;min-width:180px">
+        <button class="btn" type="submit">Upload Photo</button></div>
+    </form>
+  </div>
 
   <!-- DOCUMENTS -->
-  {% if documents %}
-  <div class="card"><div class="h">Documents</div>
+  <div class="card" id="documents"><div class="h">Documents</div>
+    {% if contract %}<a class="btn green block" style="margin-bottom:12px" href="{{ url_for('uploads', subpath='documents/' ~ contract.filename) }}" target="_blank">⬇ Download your signed contract</a>{% endif %}
+    {% if documents %}
     {% for d in documents %}<div class="doc"><span class="pill">{{ d.category }}</span>
       <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank" style="flex:1">{{ d.original_name }}</a></div>{% endfor %}
-  </div>{% endif %}
+    {% else %}<div class="muted">Your contract, permit, and warranty documents will appear here.</div>{% endif %}
+    <form method="post" action="{{ url_for('portal.upload_doc', token=token) }}" enctype="multipart/form-data" style="margin-top:14px">
+      <label>Upload a document (HOA approval, insurance, etc.)</label>
+      <div class="row" style="margin-bottom:8px">
+        <select name="category" style="flex:1;min-width:140px"><option>HOA</option><option>Insurance</option><option>COI</option><option>Permit</option><option>Other</option></select>
+      </div>
+      <div class="row"><input type="file" name="file" required style="flex:1;min-width:180px">
+        <button class="btn" type="submit">Upload Document</button></div>
+    </form>
+  </div>
+
+  <!-- TUTORIALS / HELP -->
+  <div class="card"><div class="h">Helpful Tutorials & Tips</div>
+    {% for t, u in tutorials %}
+      {% if u %}<div class="doc">▶️ <a href="{{ u }}" target="_blank" style="flex:1">{{ t }}</a></div>
+      {% else %}<div class="doc">💡 <span style="flex:1">{{ t }}</span></div>{% endif %}
+    {% endfor %}
+    <div class="doc">💡 <span style="flex:1">Please move vehicles out of the driveway on install day and keep pets indoors.</span></div>
+    <div class="doc">💡 <span style="flex:1">Expect noise and vibration during tear-off — wall hangings may need to come down.</span></div>
+    <div class="doc">💡 <span style="flex:1">We'll do a magnet sweep for nails, but a quick check of the yard afterward is always smart.</span></div>
+  </div>
 
   <!-- TIMELINE -->
   {% if activity %}

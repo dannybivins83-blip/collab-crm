@@ -14,7 +14,8 @@ bp = Blueprint("settings", __name__, url_prefix="/settings")
 COMPANY_FIELDS = ["name", "legal_name", "tagline", "license", "qualifier",
                   "address", "city", "state", "zip", "phone", "email", "website",
                   "color_masthead", "color_primary", "color_accent", "color_warn", "color_danger",
-                  "default_county", "departments", "terms"]
+                  "default_county", "departments", "terms",
+                  "photo_app_url", "tutorials"]
 
 
 @bp.route("/department", methods=["POST"])
