@@ -197,38 +197,36 @@
       collect();var last=-1,stable=0;
       for(var i=0;i<100&&stable<4;i++){scrollers().forEach(function(e){try{e.scrollTop=e.scrollHeight;}catch(_){}});window.scrollTo(0,document.body.scrollHeight);await sleep(500);collect();setb('Finding jobs… '+guids.length+' ('+KIND+')');if(guids.length===last)stable++;else stable=0;last=guids.length;}
       if(!guids.length){setb('No jobs found — open a Jobs milestone list first.','#c0392b');setTimeout(function(){bn.remove();},6000);return;}
-      // Candidate internal endpoints per kind (first that returns JSON wins).
-      var CAND={
-        billing:function(g){return ['/api/v4/jobs/'+g+'/job-financials','/api/v3/jobs/'+g+'/financials','/api/v4/jobs/'+g+'/invoices','/api/v4/jobs/'+g+'/payments','/api/v3/jobs/'+g+'/billing','/api/v4/jobs/'+g];},
-        estimate:function(g){return ['/api/v4/jobs/'+g+'/estimates','/api/v3/jobs/'+g+'/estimates','/api/jobs/'+g+'/estimates','/api/v4/estimates?jobId='+g];},
-        comm:function(g){return ['/api/v4/jobs/'+g+'/messages','/api/v3/jobs/'+g+'/messages','/api/v4/jobs/'+g+'/comments','/api/v4/jobs/'+g+'/activity','/api/v3/jobs/'+g+'/feed'];}
-      }[KIND];
       var ENDPOINT={billing:'sync/billing-import',estimate:'sync/estimate-import',comm:'sync/comm-import'}[KIND];
-      function arr(j){return Array.isArray(j)?j:((j&&j.items)||(j&&j.results)||(j&&j.data)||[]);}
-      // Build the POST payload for one job from whatever the internal API returned.
-      function build(g,j){
-        if(KIND==='billing'){
-          var top=Array.isArray(j)?(j[0]||{}):(j||{});
-          // financials object may nest invoices/payments; also accept flat arrays.
-          var inv=arr(j.invoices||top.invoices||(/invoice/i.test(location.href)?[]:[]));
-          var pay=arr(j.payments||top.payments||[]);
-          return {guid:g,value:top.jobValue||top.value||top.contractValue||top.totalValue||top.total||j.jobValue||j.value,
-                  balance:top.balanceDue||top.balance||j.balanceDue||j.balance,
-                  invoices:inv,payments:pay};
-        }
-        if(KIND==='estimate'){return {guid:g,estimates:arr(j.estimates||j)};}
-        return {guid:g,messages:arr(j.messages||j.comments||j.activity||j)};
-      }
+      // CONFIRMED AccuLynx internal endpoints (verified live on a real job), mapped to the CRM payload.
+      async function gj(url,opts){var r=await fetch(url,opts||{headers:{'Accept':'application/json'}});if(!r.ok)return null;return await r.json();}
       async function fetchJob(g){
-        var cs=CAND(g),merged={};
-        for(var i=0;i<cs.length;i++){
-          try{var r=await fetch(cs[i],{headers:{'Accept':'application/json'}});if(!r.ok)continue;var j=await r.json();
-            // billing: merge invoices + payments endpoints; others: first hit wins.
-            if(KIND==='billing'){var a=arr(j);if(/invoices/.test(cs[i]))merged.invoices=a;else if(/payments/.test(cs[i]))merged.payments=a;else{merged=Object.assign(merged,Array.isArray(j)?(j[0]||{}):j);}if(merged.invoices&&merged.payments)return build(g,merged);}
-            else{return build(g,j);}
-          }catch(e){}
+        if(KIND==='billing'){
+          var fp=null,iv=null;
+          try{fp=await gj('/api/jobs/'+g+'/financial-progress');}catch(e){}
+          try{iv=await gj('/api/jobs/'+g+'/invoices');}catch(e){}
+          var invs=(iv&&iv.Invoices)||[],pays=[];
+          invs.forEach(function(x){(x.LinkedPayments||[]).forEach(function(p){pays.push({id:p.JobPaymentId,amount:p.Amount,date:p.PaymentDate,method:p.Method,reference:p.CheckNumber});});});
+          if((!fp||fp.JobValue==null)&&!invs.length)return null;
+          return {guid:g,value:(fp?fp.JobValue:''),balance:(fp?fp.BalanceDue:''),
+                  invoices:invs.map(function(x){return {id:x.InvoiceId,number:x.InvoiceNumber,amount:x.Total,date:x.InvoiceDate,status:(x.IsPaid?'paid':(x.CurrentInvoiceState||'unpaid'))};}),
+                  payments:pays};
         }
-        return KIND==='billing'&&(merged.invoices||merged.payments||merged.value||merged.jobValue)?build(g,merged):null;
+        if(KIND==='estimate'){
+          var es=null;try{es=await gj('/api/Estimatev3/GetEstimates/'+g);}catch(e){}
+          if(!es||!es.length)return null;
+          return {guid:g,estimates:es.map(function(e){var f=e.Financials||{};return {id:e.EstimateID,title:e.Title,number:e.EstimateNumber,total:(f.HasOverridePrice?f.TotalOverridePrice:f.TotalPrice),date:e.CreatedDate};})};
+        }
+        // comm: POST the previews endpoint, paginate up to 250 newest.
+        var msgs=[],start=0;
+        for(var pg2=0;pg2<5;pg2++){
+          var d=null;try{d=await gj('/api/v4/jobs/'+g+'/communications/previews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pageStartIndex:start,pageSize:50})});}catch(e){}
+          var pv=(d&&d.Previews)||[];if(!pv.length)break;
+          pv.forEach(function(m){msgs.push({id:m.PreviewId,body:(m.Data&&m.Data.BodyPreview)||'',author:(m.Participants||[]).map(function(x){return x.Name;}).filter(Boolean).join(', '),date:m.Timestamp,type:(m.Type&&m.Type.Name)||'note'});});
+          if(pv.length<50)break;start+=50;
+        }
+        if(!msgs.length)return null;
+        return {guid:g,messages:msgs};
       }
       async function post(p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
       var tot=guids.length,ok=0,nojob=0,fail=0,vals=0,items=0,jdone=0;
