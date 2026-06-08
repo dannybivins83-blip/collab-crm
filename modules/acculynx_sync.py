@@ -702,9 +702,20 @@ def _upsert_record(rec):
             "email": rec.get("email", ""), "work_type": rec.get("work_type", ""),
             "source": rec.get("source", ""), "rep": rec.get("rep") or "Danny Bivins",
             "external_url": url, "department": dept}
+    g = (rec.get("guid") or "").strip().lower()
+
+    def _find(rows):
+        # match by AccuLynx GUID first (robust — the API sync keeps the 'R-####:' name
+        # prefix, the bookmarklet strips it, so name-only matching duplicates), then name.
+        if g:
+            hit = next((r for r in rows if g in (r.get("external_url") or "").lower()), None)
+            if hit:
+                return hit
+        return next((r for r in rows if (r.get("name") or "").lower() == name.lower()), None)
+
     if bucket in ("lead", "assigned", "prospect", "negotiation", "long_term"):
         stage = "assigned" if bucket in ("lead", "assigned") else "prospect"
-        cur = next((l for l in db.all_rows("leads") if (l.get("name") or "").lower() == name.lower()), None)
+        cur = _find(db.all_rows("leads"))
         if cur:
             db.update("leads", cur["id"], stage=stage, external_url=url, phone=base["phone"] or cur.get("phone"))
             return "updated"
@@ -715,7 +726,7 @@ def _upsert_record(rec):
         return "added"
     stage = {"approved": "approved", "completed": "completed", "invoiced": "invoiced",
              "closed": "closed"}.get(bucket, "approved")
-    cur = next((j for j in db.all_rows("jobs") if (j.get("name") or "").lower() == name.lower()), None)
+    cur = _find(db.all_rows("jobs"))
     if cur:
         db.update("jobs", cur["id"], stage=stage, external_url=url)
         return "updated"
