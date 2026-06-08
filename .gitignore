@@ -29,5 +29,6 @@ Thumbs.db
 # ---- Misc scratch ----
 _seabreeze_docs/
 *.zip
+.preview/
 
 .env*.local
