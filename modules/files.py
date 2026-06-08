@@ -13,15 +13,13 @@ bp = Blueprint("files", __name__, url_prefix="/files")
 
 
 def _mirror(path, fn):
-    """Best-effort: push a just-uploaded file to Google Drive so it persists +
-    serves on the cloud (where local disk is ephemeral). No-op if Drive is off."""
+    """Persist a just-uploaded file so it survives + serves on serverless: stores it
+    in the Neon blob table (small files) and Drive if configured. Returns drive id."""
     try:
         from modules import gdrive
-        if gdrive.enabled():
-            return gdrive.mirror(path, fn)
+        return gdrive.mirror(path, fn)
     except Exception:
-        pass
-    return None
+        return None
 
 
 def _safe(name):

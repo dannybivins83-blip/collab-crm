@@ -27,7 +27,50 @@ for _t in _FILE_TABLES:
         db.execute("ALTER TABLE %s ADD COLUMN drive_id TEXT" % _t)
     except Exception:
         pass
+
+# Neon/Postgres-backed blob store for SMALL files so they persist + download on
+# serverless (Vercel) with no external account. Files above MAX_BLOB (Vercel's
+# ~4.5 MB response cap) are skipped — those need a disk host (Render) or a CDN.
+MAX_BLOB = 4_000_000
+try:
+    db.execute("CREATE TABLE IF NOT EXISTS file_blobs (filename TEXT PRIMARY KEY, mime TEXT, data %s)"
+               % ("BYTEA" if getattr(db, "IS_PG", False) else "BLOB"))
+except Exception:
+    pass
 db._COLCACHE.clear()
+
+
+def blob_put(filename, data, mime="application/octet-stream"):
+    """Store small file bytes in Postgres/SQLite. Returns True if stored."""
+    if not filename or data is None or len(data) > MAX_BLOB:
+        return False
+    fn = os.path.basename(filename)
+    try:
+        db.execute("DELETE FROM file_blobs WHERE filename=?", (fn,))
+        db.execute("INSERT INTO file_blobs (filename, mime, data) VALUES (?,?,?)",
+                   (fn, mime or "application/octet-stream", data))
+        return True
+    except Exception:
+        return False
+
+
+def blob_get(filename):
+    """Return (bytes, mime) for a stored blob, or None."""
+    fn = os.path.basename(filename or "")
+    if not fn:
+        return None
+    try:
+        conn = db.connect()
+        row = conn.execute("SELECT mime, data FROM file_blobs WHERE filename=?", (fn,)).fetchone()
+        conn.close()
+    except Exception:
+        return None
+    if not row:
+        return None
+    d = row["data"]
+    if isinstance(d, memoryview):
+        d = bytes(d)
+    return bytes(d), row["mime"]
 
 
 def folder_id():
@@ -108,16 +151,22 @@ def download(file_id):
 # ---------------------------------------------------------------------------
 
 def mirror(path, name=None):
-    """Upload a just-saved local file to Drive; return its Drive id (or None)."""
-    if not enabled() or not os.path.exists(path):
+    """Persist a just-saved file so it survives/serves on serverless: store it in
+    the Neon blob table (small files) AND upload to Drive when configured.
+    Returns the Drive id (or None)."""
+    if not os.path.exists(path):
         return None
     name = name or os.path.basename(path)
     mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
     try:
         with open(path, "rb") as fh:
-            return upload(name, fh.read(), mime)
+            data = fh.read()
     except Exception:
         return None
+    blob_put(name, data, mime)          # Neon-backed; serves on Vercel for files <= MAX_BLOB
+    if enabled():
+        return upload(name, data, mime)  # Drive copy (any size) when a service account is set
+    return None
 
 
 def _drive_id_by_name(name):
@@ -179,13 +228,15 @@ def backfill_local():
 
 
 def serve_fallback(subpath):
-    """If a local upload is missing (e.g. on serverless), fetch it from Drive.
-    Returns (bytes, mimetype) or None."""
-    did = find_drive_id(os.path.basename(subpath))
-    if not did:
-        return None
-    data = download(did)
-    if data is None:
-        return None
-    mime = mimetypes.guess_type(subpath)[0] or "application/octet-stream"
-    return data, mime
+    """If a local upload is missing (serverless), serve it from the Neon blob store
+    first (small files), then Google Drive. Returns (bytes, mimetype) or None."""
+    base = os.path.basename(subpath)
+    b = blob_get(base)
+    if b:
+        return b
+    did = find_drive_id(base)
+    if did:
+        data = download(did)
+        if data is not None:
+            return data, mimetypes.guess_type(subpath)[0] or "application/octet-stream"
+    return None

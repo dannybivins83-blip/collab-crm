@@ -14,16 +14,20 @@
 <!-- Quick toolbar (the original board's actions, surfaced) -->
 <div class="toolbar" style="margin-bottom:16px;gap:6px;flex-wrap:wrap">
   <a class="btn" href="{{ url_for('leads.new') }}">＋ Add Lead</a>
-  <a class="btn" href="{{ url_for('estimates.new') }}">📝 New Estimate</a>
   <a class="btn" href="{{ url_for('permits.new') }}">🏛️ Permit Builder</a>
-  <a class="btn" href="{{ company.gmail_url or 'https://mail.google.com/mail/u/0/' }}" target="_blank" rel="noopener">📨 Open Gmail</a>
   <a class="btn" href="{{ url_for('tools.mass_email') }}">📧 Mass Email</a>
   <a class="btn" href="{{ url_for('tools.callsheet') }}">🖨 Call Sheet</a>
-  <a class="btn" href="{{ url_for('tools.checklist') }}">📋 Checklist</a>
   <span class="grow"></span>
-  <a class="btn ghost" href="{{ url_for('tools.export') }}?entity=leads">⬇ Export</a>
-  <a class="btn ghost" href="{{ url_for('tools.backup') }}">💾 Backup</a>
-  <a class="btn ghost" href="{{ url_for('tools.restore') }}">⤴ Restore</a>
+  <div class="navgroup">
+    <a class="btn ghost" style="cursor:pointer">⋯ More ▾</a>
+    <div class="dropdown" style="top:40px;right:0;left:auto">
+      <a href="{{ url_for('estimates.new') }}">📝 New Estimate</a>
+      <a href="{{ url_for('tools.checklist') }}">📋 Checklist</a>
+      <a href="{{ url_for('tools.export') }}?entity=leads">⬇ Export (CSV)</a>
+      <a href="{{ url_for('tools.backup') }}">💾 Backup</a>
+      <a href="{{ url_for('tools.restore') }}">⤴ Restore</a>
+    </div>
+  </div>
 </div>
 
 <div class="detail">
