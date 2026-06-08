@@ -3,6 +3,27 @@
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_dotenv():
+    """Load a local .env (gitignored) so `python app.py` can pick up DATABASE_URL etc.
+    without exporting it each time. Real OS env vars always win (setdefault)."""
+    path = os.path.join(HERE, ".env")
+    if not os.path.exists(path):
+        return
+    try:
+        for line in open(path, encoding="utf-8-sig"):
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    except Exception:
+        pass
+
+
+_load_dotenv()
+
 # Data + uploads default to the app folder, but a host (Render/Railway/etc.) can
 # point them at a mounted persistent disk via env so SQLite + files survive deploys.
 DATA_DIR = os.environ.get("CRM_DATA_DIR") or os.path.join(HERE, "data")
