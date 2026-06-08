@@ -100,12 +100,90 @@ def _paginate(base, path, key, params=None, max_pages=40):
     return items
 
 
-def _customer_name(job):
-    c = job.get("customer") or job.get("contact") or {}
-    nm = (_g(c, "fullName", "name") or
-          (str(_g(c, "firstName")) + " " + str(_g(c, "lastName"))).strip() or
-          _g(job, "name", "jobName", "displayName"))
-    return (nm or "").strip()
+def _join_list(v):
+    """Flatten an array field (e.g. tradeTypes) to a comma string."""
+    if isinstance(v, list):
+        out = []
+        for it in v:
+            out.append(_g(it, "name", "type", "value", "title") if isinstance(it, dict) else str(it or ""))
+        return ", ".join([x for x in out if x])
+    return str(v or "")
+
+
+def _flatten_address(a):
+    """AccuLynx locationAddress is an object; build a single display string."""
+    if not isinstance(a, dict):
+        return str(a or "")
+    line1 = _g(a, "addressFirstLine", "address1", "street", "streetAddress", "line1", "addressLine1")
+    line2 = _g(a, "addressSecondLine", "address2", "line2", "addressLine2")
+    city = _g(a, "city", "cityText")
+    state = _g(a, "state", "stateText", "stateCode", "province")
+    zc = _g(a, "zip", "zipCode", "postalCode", "zipText", "postal")
+    sz = ("%s %s" % (state, zc)).strip()
+    return ", ".join([p for p in (line1, line2, city, sz) if p])
+
+
+def _first_val(obj, list_keys, item_keys):
+    """Pull the first usable value from array-of-objects fields like
+    phoneNumbers:[{number,...}] / emailAddresses:[{address,...}]."""
+    if not isinstance(obj, dict):
+        return ""
+    for lk in list_keys:
+        arr = obj.get(lk)
+        if isinstance(arr, list):
+            for it in arr:
+                if isinstance(it, dict):
+                    v = _g(it, *item_keys)
+                    if v:
+                        return v
+                elif it:
+                    return str(it)
+    return ""
+
+
+def _pick_contact(job):
+    """Choose the job's primary/customer contact wrapper from the contacts[] array."""
+    cs = job.get("contacts")
+    if not isinstance(cs, list) or not cs:
+        return {}
+    for c in cs:
+        if not isinstance(c, dict):
+            continue
+        role = str(_g(c, "contactType", "type", "role", "contactRole")).lower()
+        if c.get("isPrimary") or c.get("isPrimaryContact") or role in ("customer", "primary", "homeowner", "billing"):
+            return c
+    return cs[0] if isinstance(cs[0], dict) else {}
+
+
+def _contact_basics(job, base, key, fetch=True):
+    """name/phone/email for the job's primary contact. The /jobs response embeds
+    only a contact ref (id + _link), so fetch /contacts/{id} for phone/email when
+    asked. Never raises — missing pieces just come back blank."""
+    out = {"name": "", "phone": "", "email": ""}
+    wrap = _pick_contact(job)
+    inner = wrap.get("contact") if isinstance(wrap.get("contact"), dict) else wrap
+    if not isinstance(inner, dict):
+        return out
+    first = _g(inner, "firstName", "givenName")
+    last = _g(inner, "lastName", "familyName", "surname")
+    company = _g(inner, "companyName", "company", "businessName")
+    out["phone"] = (_first_val(inner, ("phoneNumbers", "phones"), ("number", "phoneNumber", "value"))
+                    or _g(inner, "phone", "primaryPhone", "mobile", "cellPhone"))
+    out["email"] = (_first_val(inner, ("emailAddresses", "emails"), ("address", "emailAddress", "value"))
+                    or _g(inner, "email", "primaryEmail"))
+    cid = _g(inner, "id")
+    if fetch and cid and (not out["phone"] or not out["email"] or not (first or last or company)):
+        try:
+            d = _api_get(base, "/contacts/%s" % cid, key)
+            first = first or _g(d, "firstName", "givenName")
+            last = last or _g(d, "lastName", "familyName", "surname")
+            company = company or _g(d, "companyName", "company", "businessName")
+            out["phone"] = out["phone"] or _first_val(d, ("phoneNumbers", "phones"), ("number", "phoneNumber", "value")) or _g(d, "phone", "primaryPhone", "mobile")
+            out["email"] = out["email"] or _first_val(d, ("emailAddresses", "emails"), ("address", "emailAddress", "value")) or _g(d, "email", "primaryEmail")
+        except Exception:
+            pass
+    out["name"] = (("%s %s" % (first, last)).strip() or company or "").strip()
+    return out
 
 
 def _safe_name(s):
@@ -193,60 +271,54 @@ def run_sync(deep=False):
     added_l = added_j = updated = notes_synced = docs_synced = 0
 
     for job in jobs:
-        jid = _g(job, "jobId", "id", "uid")
-        name = _customer_name(job)
-        if not name:
-            continue
+        jid = _g(job, "id", "jobId", "uid")
+        name = (_g(job, "jobName", "name", "displayName") or "").strip()
         milestone = _g(job, "currentMilestone", "milestone", "milestoneName",
                        "currentMilestoneName", "status")
         if isinstance(milestone, dict):
             milestone = _g(milestone, "name", "title")
         kind, stage = _resolve_stage(milestone)
-        addr = _g(job, "address", "jobAddress", "siteAddress")
-        if isinstance(addr, dict):
-            addr = ", ".join(str(addr.get(k, "")) for k in ("street", "city", "state", "zip") if addr.get(k))
-        contact = job.get("customer") or job.get("contact") or {}
-        rec = {
-            "name": name, "rid": _g(job, "jobNumber", "number", "refNumber"),
-            "phone": _g(contact, "phone", "primaryPhone", "mobile"),
-            "email": _g(contact, "email", "primaryEmail"),
-            "address": addr, "work_type": _g(job, "workType", "tradeType", "trade"),
-            "source": _g(job, "leadSource", "source"), "rep": _g(job, "salesRep", "assignedTo", "rep") or "Danny Bivins",
-            "external_url": "https://my.acculynx.com/jobs/%s" % jid if jid else "",
-            "department": company.get("default_county") and "REROOF Department" or "REROOF Department",
-        }
-        crm_kind = crm_id = None
-        if kind == "lead":
-            cur = exL.get(name.lower())
-            if cur:
-                db.update("leads", cur["id"], stage=stage, external_url=rec["external_url"])
-                crm_id = cur["id"]
-                updated += 1
-            else:
-                cid = _ensure_contact(name, rec)
+        url = "https://my.acculynx.com/jobs/%s" % jid if jid else ""
+
+        # Find an existing record first so we only pay the contact-detail fetch on INSERT.
+        cur = (exL if kind == "lead" else exJ).get(name.lower()) if name else None
+        crm_kind = "lead" if kind == "lead" else "job"
+        crm_id = None
+
+        if cur:
+            db.update(crm_kind + "s", cur["id"], stage=stage, external_url=url)
+            crm_id = cur["id"]
+            updated += 1
+        else:
+            cb = _contact_basics(job, base, key)  # fetches /contacts/{id} for phone+email
+            name = name or cb["name"]
+            if not name:
+                continue
+            addr = _flatten_address(_g(job, "locationAddress", "address", "jobAddress", "siteAddress", default={}))
+            rec = {
+                "name": name, "rid": _g(job, "jobNumber", "number", "refNumber"),
+                "phone": cb["phone"], "email": cb["email"], "address": addr,
+                "work_type": _g(job, "workType", "tradeType", "trade") or _join_list(job.get("tradeTypes")),
+                "source": _g(job, "leadSource", "source"),
+                "rep": _g(job, "salesRep", "assignedTo", "rep") or "Danny Bivins",
+                "external_url": url, "department": "REROOF Department",
+            }
+            cid = _ensure_contact(name, rec)
+            if kind == "lead":
                 crm_id = db.insert("leads", {**rec, "contact_id": cid, "stage": stage,
                                              "stage_since": db.today(), "last_contact": db.today(),
                                              "narrative": "Synced from AccuLynx (%s)." % (milestone or stage)})
                 db.add_activity("lead", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
                 added_l += 1
-            crm_kind = "lead"
-        else:
-            cur = exJ.get(name.lower())
-            if cur:
-                db.update("jobs", cur["id"], stage=stage, external_url=rec["external_url"])
-                crm_id = cur["id"]
-                updated += 1
             else:
-                cid = _ensure_contact(name, rec)
-                parts = [p.strip() for p in (rec["address"] or "").split(",")]
+                parts = [p.strip() for p in (addr or "").split(",")]
                 jrow = {**rec, "contact_id": cid, "stage": stage, "stage_since": db.today(),
-                        "address": parts[0] if parts else rec["address"],
+                        "address": parts[0] if parts else addr,
                         "city": parts[1] if len(parts) > 1 else "", "county": "Palm Beach County",
                         "narrative": "Synced from AccuLynx (%s)." % (milestone or stage)}
                 crm_id = db.insert("jobs", jrow)
                 db.add_activity("job", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
                 added_j += 1
-            crm_kind = "job"
 
         # Deep sync: pull this record's notes + documents via the API.
         if deep and crm_id and jid:
@@ -459,7 +531,26 @@ def test():
                 diag["status"] = status
                 diag["top_keys"] = list(data.keys()) if isinstance(data, dict) else "(list)"
                 diag["job_keys"] = list(first.keys()) if isinstance(first, dict) else str(first)[:200]
-                diag["sample"] = _json.dumps(first, indent=1)[:1500] if isinstance(first, dict) else str(first)[:500]
+                diag["sample"] = _json.dumps(first, indent=1)[:1800] if isinstance(first, dict) else str(first)[:500]
+                if isinstance(first, dict):
+                    # Show exactly how the sync now maps this record — so we can confirm
+                    # name/address/phone/email/stage all resolve before running it for real.
+                    ms = _g(first, "currentMilestone", "milestone", "status")
+                    if isinstance(ms, dict):
+                        ms = _g(ms, "name", "title")
+                    k, st = _resolve_stage(ms)
+                    cb = _contact_basics(first, b, key)
+                    diag["mapped"] = _json.dumps({
+                        "name": (_g(first, "jobName", "name") or cb["name"]),
+                        "milestone": ms, "resolved_as": "%s / %s" % (k, st),
+                        "rid": _g(first, "jobNumber", "number"),
+                        "address": _flatten_address(_g(first, "locationAddress", "address", default={})),
+                        "work_type": _g(first, "workType") or _join_list(first.get("tradeTypes")),
+                        "source": _g(first, "leadSource", "source"),
+                        "phone": cb["phone"], "email": cb["email"],
+                    }, indent=1)
+                    diag["address_raw"] = _json.dumps(_g(first, "locationAddress", "address", default={}), indent=1)[:600]
+                    diag["contact_raw"] = _json.dumps(_pick_contact(first), indent=1)[:900]
                 return render_template("sync_test.html", diag=diag)
             except Exception:
                 seen.append("%s → HTTP %s, non-JSON: %s" % (b, status, raw[:120]))

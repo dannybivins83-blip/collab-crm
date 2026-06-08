@@ -14,6 +14,15 @@
     <pre style="white-space:pre-wrap;font-size:12px">{{ diag.top_keys }}</pre>
     <h2>First job's fields</h2>
     <pre style="white-space:pre-wrap;font-size:12px">{{ diag.job_keys }}</pre>
+    {% if diag.mapped %}
+    <h2>✅ How the sync maps this record</h2>
+    <p class="muted">This is what would be saved. Confirm name / address / phone / email / stage look right.</p>
+    <pre style="white-space:pre-wrap;font-size:12px;background:#eefcf0;padding:10px;border-radius:8px;border:1px solid #b6e6c0">{{ diag.mapped }}</pre>
+    <h2>locationAddress (raw)</h2>
+    <pre style="white-space:pre-wrap;font-size:11px">{{ diag.address_raw }}</pre>
+    <h2>Primary contact (raw)</h2>
+    <pre style="white-space:pre-wrap;font-size:11px">{{ diag.contact_raw }}</pre>
+    {% endif %}
     <h2>Sample (first record)</h2>
     <pre style="white-space:pre-wrap;font-size:11px;max-height:400px;overflow:auto;background:var(--panel2);padding:10px;border-radius:8px">{{ diag.sample }}</pre>
   {% endif %}
