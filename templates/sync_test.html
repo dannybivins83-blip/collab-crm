@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sync — Test Connection{% endblock %}
+{% block body %}
+<div class="page-head"><a class="btn ghost" href="{{ url_for('sync.index') }}">← Sync</a><h1>🔌 AccuLynx API — Test Connection</h1></div>
+<div class="card" style="max-width:820px">
+  {% if diag.error %}
+    <div class="flash error">{{ diag.error }}</div>
+    {% if diag.attempts %}<h2>What I tried</h2><pre style="white-space:pre-wrap;font-size:12px">{% for a in diag.attempts %}{{ a }}
+{% endfor %}</pre>{% endif %}
+  {% else %}
+    <div class="flash ok">Connected ✓ — HTTP {{ diag.status }} from <b>{{ diag.working_base }}</b></div>
+    <p class="muted">Screenshot this to the developer to lock in the field mapping.</p>
+    <h2>Top-level response keys</h2>
+    <pre style="white-space:pre-wrap;font-size:12px">{{ diag.top_keys }}</pre>
+    <h2>First job's fields</h2>
+    <pre style="white-space:pre-wrap;font-size:12px">{{ diag.job_keys }}</pre>
+    <h2>Sample (first record)</h2>
+    <pre style="white-space:pre-wrap;font-size:11px;max-height:400px;overflow:auto;background:var(--panel2);padding:10px;border-radius:8px">{{ diag.sample }}</pre>
+  {% endif %}
+  <div class="muted" style="margin-top:10px">Base configured: <code>{{ diag.base }}</code>{% if diag.working_base and diag.working_base != diag.base %} · <b>working base is different — update it on the Sync page to {{ diag.working_base }}</b>{% endif %}</div>
+</div>
+{% endblock %}

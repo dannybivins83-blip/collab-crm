@@ -28,7 +28,9 @@
     <form method="post" action="{{ url_for('sync.run') }}">
       <label class="check" style="max-width:420px"><input type="checkbox" name="deep"> <span>Deep sync — also pull each job's <b>notes (messages)</b> + <b>documents</b> via the API</span></label>
       <button class="accent" type="submit" {{ '' if company.acculynx_api_key else 'disabled' }}>🔄 Sync now</button>
+      {% if company.acculynx_api_key %}<a class="btn ghost" href="{{ url_for('sync.test') }}" style="margin-left:8px">🔌 Test connection</a>{% endif %}
       {% if not company.acculynx_api_key %}<div class="muted" style="margin-top:8px">Save an API key first.</div>{% endif %}
+      <div class="muted" style="margin-top:8px">If a sync ever fails, click <b>Test connection</b> — it shows exactly what AccuLynx returned so the mapping can be corrected.</div>
       <div class="muted" style="margin-top:8px">Deep sync uses <code>/jobs/{id}/messages</code> and <code>/jobs/{id}/documents</code> — this is Phase 2 (notes + documents), done cleanly via the API instead of the browser.</div>
     </form>
     <div class="muted" style="margin-top:14px">

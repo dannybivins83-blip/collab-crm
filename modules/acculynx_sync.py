@@ -113,12 +113,12 @@ def _safe_name(s):
 
 
 def sync_messages(base, key, ajid, kind, crm_id):
-    """Pull a job's message/comment thread into the CRM record's notes + activity."""
+    """Pull a job's message/comment thread into the CRM record's notes + activity.
+    Paginates so jobs with long threads aren't truncated to the first page."""
     try:
-        data = _api_get(base, "/jobs/%s/messages" % ajid, key)
+        msgs = _paginate(base, "/jobs/%s/messages" % ajid, key)
     except Exception:
         return 0
-    msgs = data.get("items") if isinstance(data, dict) else data
     if not msgs:
         return 0
     lines = []
@@ -140,20 +140,23 @@ def sync_messages(base, key, ajid, kind, crm_id):
 
 
 def sync_documents(base, key, ajid, crm_job_id):
-    """Download a job's documents via the API (authenticated) and attach them."""
+    """Download a job's documents via the API (authenticated) and attach them.
+    Paginates, and skips files already pulled (dedup by name) so re-syncs are cheap
+    and don't pile up duplicate copies."""
     try:
-        data = _api_get(base, "/jobs/%s/documents" % ajid, key)
+        docs = _paginate(base, "/jobs/%s/documents" % ajid, key)
     except Exception:
         return 0
-    docs = data.get("items") if isinstance(data, dict) else data
     if not docs:
         return 0
+    have = {(r.get("original_name") or "").lower()
+            for r in db.all_rows("documents", where="job_id=?", params=(crm_job_id,))}
     saved = 0
     for d in docs:
         url = _g(d, "downloadUrl", "url", "href", "fileUrl")
         name = _g(d, "fileName", "name", "title") or ("acculynx_doc_%d" % saved)
         category = _g(d, "category", "folder", "type") or "AccuLynx"
-        if not url:
+        if not url or name.lower() in have:  # skip missing-url or already-synced files
             continue
         fn = "%d_%s" % (int(time.time() * 1000), _safe_name(name))
         path = os.path.join(config.DOC_DIR, fn)
@@ -167,6 +170,7 @@ def sync_documents(base, key, ajid, crm_job_id):
                                 "filename": fn, "original_name": name,
                                 "size": os.path.getsize(path) if os.path.exists(path) else 0,
                                 "notes": "Synced from AccuLynx"})
+        have.add(name.lower())  # guard against in-call repeats if the API ignores paging
         saved += 1
     if saved:
         db.add_activity("job", crm_job_id, "note", "AccuLynx documents synced (%d files)" % saved)
@@ -383,15 +387,84 @@ def browser_import():
 @bp.route("/run", methods=["POST"])
 def run():
     deep = bool(request.form.get("deep"))
-    result = run_sync(deep=deep)
+    try:
+        result = run_sync(deep=deep)
+    except Exception as e:  # never 500 — always show a readable error
+        import traceback
+        result = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
+                  "trace": traceback.format_exc()[-400:]}
     if result.get("ok"):
         msg = "Sync complete — %d jobs seen · +%d leads · +%d jobs · %d updated." % (
-            result["jobs_seen"], result["added_leads"], result["added_jobs"], result["updated"])
+            result.get("jobs_seen", 0), result.get("added_leads", 0),
+            result.get("added_jobs", 0), result.get("updated", 0))
         if deep:
-            msg += " Notes synced: %d · Documents: %d." % (result["notes_synced"], result["docs_synced"])
+            msg += " Notes: %d · Documents: %d." % (result.get("notes_synced", 0), result.get("docs_synced", 0))
         flash(msg, "ok")
     else:
         flash("Sync failed: %s" % result.get("error"), "error")
-    # Return to where it was triggered (e.g. the dashboard Sync button).
     ref = request.referrer
     return redirect(ref if ref and "/sync" not in ref else url_for("sync.index"))
+
+
+@bp.route("/cron")
+def cron():
+    """Unattended daily sync, called by Vercel Cron. Protected by CRON_SECRET:
+    Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` when that env
+    var is set. No-op (200) if no API key is configured yet — safe to pre-wire."""
+    secret = os.environ.get("CRON_SECRET")
+    if secret:
+        auth = request.headers.get("Authorization", "")
+        if auth != "Bearer " + secret and request.args.get("key") != secret:
+            return jsonify({"ok": False, "error": "unauthorized"}), 401
+    company = db.get_company()
+    if not (company.get("acculynx_api_key") or "").strip():
+        return jsonify({"ok": True, "skipped": "no AccuLynx API key configured yet"})
+    try:
+        result = run_sync(deep=bool(request.args.get("deep")))
+    except Exception as e:
+        return jsonify({"ok": False, "error": "%s: %s" % (type(e).__name__, e)}), 200
+    return jsonify(result)
+
+
+@bp.route("/test")
+def test():
+    """Diagnostic: the server fetches a couple jobs with its stored key and shows
+    the HTTP status + raw field names, so the mapping can be matched to AccuLynx's
+    actual response. (The server uses its own key — no key is handled by the UI.)"""
+    company = db.get_company()
+    key = (company.get("acculynx_api_key") or "").strip()
+    base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
+    diag = {"base": base, "key_set": bool(key)}
+    if not key:
+        diag["error"] = "No API key saved."
+        return render_template("sync_test.html", diag=diag)
+    import json as _json
+    # Try the configured base, plus a couple common AccuLynx hosts, until one returns JSON.
+    candidates = [base, "https://api.acculynx.com/api/v2", "https://api.acculynx.com/v2",
+                  "https://api.acculynx.com"]
+    seen = []
+    for b in dict.fromkeys(candidates):
+        url = b.rstrip("/") + "/jobs?startIndex=0&pageSize=2"
+        try:
+            req = urllib.request.Request(url, headers={"Authorization": "Bearer " + key,
+                                                       "Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                status = r.getcode()
+                raw = r.read().decode("utf-8", "replace")
+            try:
+                data = _json.loads(raw)
+                items = data.get("items") if isinstance(data, dict) else data
+                first = (items or [None])[0] if isinstance(items, list) else data
+                diag["working_base"] = b
+                diag["status"] = status
+                diag["top_keys"] = list(data.keys()) if isinstance(data, dict) else "(list)"
+                diag["job_keys"] = list(first.keys()) if isinstance(first, dict) else str(first)[:200]
+                diag["sample"] = _json.dumps(first, indent=1)[:1500] if isinstance(first, dict) else str(first)[:500]
+                return render_template("sync_test.html", diag=diag)
+            except Exception:
+                seen.append("%s → HTTP %s, non-JSON: %s" % (b, status, raw[:120]))
+        except Exception as e:
+            seen.append("%s → %s: %s" % (b, type(e).__name__, str(e)[:120]))
+    diag["error"] = "No base URL returned usable JSON."
+    diag["attempts"] = seen
+    return render_template("sync_test.html", diag=diag)
