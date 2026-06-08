@@ -151,9 +151,9 @@ def download(file_id):
 # ---------------------------------------------------------------------------
 
 def mirror(path, name=None):
-    """Persist a just-saved file so it survives/serves on serverless: store it in
-    the Neon blob table (small files) AND upload to Drive when configured.
-    Returns the Drive id (or None)."""
+    """Persist a just-saved file so it survives/serves on serverless. Prefer Google
+    Drive (scales); fall back to the Neon blob store ONLY when Drive isn't configured,
+    so we never fill the 512 MB Postgres cap with file bytes. Returns the Drive id."""
     if not os.path.exists(path):
         return None
     name = name or os.path.basename(path)
@@ -163,9 +163,11 @@ def mirror(path, name=None):
             data = fh.read()
     except Exception:
         return None
-    blob_put(name, data, mime)          # Neon-backed; serves on Vercel for files <= MAX_BLOB
     if enabled():
-        return upload(name, data, mime)  # Drive copy (any size) when a service account is set
+        did = upload(name, data, mime)   # Drive (scales) — no Neon blob copy when this works
+        if did:
+            return did
+    blob_put(name, data, mime)           # fallback ONLY: Drive off, or the upload failed
     return None
 
 
