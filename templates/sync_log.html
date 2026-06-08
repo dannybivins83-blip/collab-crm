@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Sync Log — what was pulled in{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a class="btn ghost" href="{{ url_for('sync.index') }}">← Sync</a>
+  <h1>📋 Sync Log — what was pulled from AccuLynx</h1>
+</div>
+
+<div class="card">
+  <div class="kpis" style="margin-bottom:0">
+    {% for cat, n in tally.items() %}
+    <div class="kpi"><div class="v">{{ n }}</div><div class="l">{{ cat }}</div></div>
+    {% endfor %}
+    <div class="kpi"><div class="v accent">{{ total }}</div><div class="l">Total sync events</div></div>
+  </div>
+  <div class="muted" style="margin-top:8px">Newest first. Showing the {{ items|length }} most recent of {{ total }}. Each row is one thing a sync pulled in and the record it landed on.</div>
+</div>
+
+<div class="card">
+  <table class="grid">
+    <tr><th>When</th><th>What</th><th>Record</th><th>Detail</th></tr>
+    {% for i in items %}
+    <tr>
+      <td class="muted" style="white-space:nowrap">{{ i.when }}</td>
+      <td><span class="badge">{{ i.cat }}</span></td>
+      <td>{% if i.rid %}<b>{{ i.rid }}</b> {% endif %}{{ i.name }} <span class="muted">({{ i.type }})</span></td>
+      <td class="muted">{{ i.what }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="empty">Nothing synced yet — run a sync, then check back.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

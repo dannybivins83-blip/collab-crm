@@ -545,6 +545,37 @@ def index():
     return render_template("sync.html", company=db.get_company(), default_base=DEFAULT_BASE)
 
 
+@bp.route("/log")
+def log():
+    """A list of WHAT was synced from AccuLynx — the trail each sync writes (records,
+    billing, estimates, comms, documents), newest first, with the record it landed on."""
+    acts = db.all_rows("activities", where="text LIKE ?", params=("%AccuLynx%",), order="id DESC")
+    leads = {l["id"]: l for l in db.all_rows("leads")}
+    jobs = {j["id"]: j for j in db.all_rows("jobs")}
+    items = []
+    for a in acts[:400]:
+        rec = (jobs if a.get("entity_type") == "job" else leads).get(a.get("entity_id"), {})
+        t = (a.get("text") or "")
+        tl = t.lower()
+        if "billing" in tl:
+            cat = "💵 Billing"
+        elif "estimate" in tl:
+            cat = "📝 Estimate"
+        elif "communication" in tl or "notes synced" in tl or "messages" in tl:
+            cat = "💬 Comms"
+        elif "document" in tl:
+            cat = "📎 Document"
+        else:
+            cat = "🔄 Record"
+        items.append({"when": (a.get("created") or "")[:16], "type": a.get("entity_type") or "",
+                      "name": rec.get("name") or "(removed)", "rid": rec.get("rid") or "",
+                      "cat": cat, "what": t})
+    from collections import Counter
+    tally = Counter(i["cat"] for i in items)
+    return render_template("sync_log.html", items=items, tally=dict(tally),
+                           total=len(acts), company=db.get_company())
+
+
 @bp.route("/save", methods=["POST"])
 def save():
     db.save_company({

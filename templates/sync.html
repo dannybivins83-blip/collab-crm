@@ -28,6 +28,7 @@
     <form method="post" action="{{ url_for('sync.run') }}">
       <button class="accent" type="submit" {{ '' if company.acculynx_api_key else 'disabled' }}>🔄 Sync now</button>
       {% if company.acculynx_api_key %}<a class="btn ghost" href="{{ url_for('sync.test') }}" style="margin-left:8px">🔌 Test connection</a>{% endif %}
+      <a class="btn ghost" href="{{ url_for('sync.log') }}" style="margin-left:8px">📋 Sync log</a>
       {% if not company.acculynx_api_key %}<div class="muted" style="margin-top:8px">Save an API key first.</div>{% endif %}
       <div class="muted" style="margin-top:8px">Each click pulls for ~20 seconds (several batches) and remembers where it left off. The flash message tells you when a <b>full pass is complete</b> — for the first import, click <b>Sync now</b> a couple of times until it says so.</div>
       <div class="muted" style="margin-top:8px">If anything looks off, click <b>Test connection</b> — it shows exactly what AccuLynx returned and how each field maps.</div>
