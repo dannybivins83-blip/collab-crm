@@ -53,6 +53,55 @@
   </ol>
   <div class="muted">If your browser blocks the cross-site request the first time, allow it — it's just posting to your own CRM at <code>{{ request.host_url }}</code>.</div>
 </div>
+
+<div class="card">
+  <h2>📎 Pull permit documents into jobs</h2>
+  <p class="muted">Attaches each job's <b>permit-related</b> files (Permit, NOC, HOA Approval, Certificate of Completion, inspection) from AccuLynx to the matching CRM job. Files come from your logged-in AccuLynx session (the API can't serve documents). Already-attached files are skipped; large scans upload in chunks.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmdocs" class="btn accent" href="#" onclick="return false">📎 AccuLynx Permits → CRM</a></li>
+    <li>In AccuLynx, open a <b>Jobs</b> milestone list — <b>Completed</b> first, then <b>Invoiced</b> (sort by date / scroll to the range you want).</li>
+    <li><b>Click the bookmark once.</b> It scrolls to load the list, then pulls every job's permit docs with a live progress banner. Safe to re-run — it only adds what's missing.</li>
+  </ol>
+  <div class="muted">Tip: run it per milestone list. The job must already be synced into the CRM (run a sync first) or it'll be counted as "not in CRM".</div>
+</div>
+<script>
+(function(){
+  var BASE={{ request.host_url|tojson }};
+  function pullPermitsBM(BASE){
+    (async function(){
+      var permitRe=/permit|noc|hoa|certificate of completion|inspection/i, CHUNK=400*1024;
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:420px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      var seen={},guids=[];
+      function collect(){[].forEach.call(document.querySelectorAll('a[href*="/jobs/"]'),function(a){var m=(a.getAttribute('href')||'').match(/\/jobs\/([0-9a-f-]{30,})/);if(m&&!seen[m[1]]){seen[m[1]]=1;guids.push(m[1]);}});}
+      function scrollers(){var s=[document.scrollingElement||document.documentElement];[].forEach.call(document.querySelectorAll('div'),function(e){if(e.scrollHeight>e.clientHeight+40)s.push(e);});return s;}
+      collect();var last=-1,stable=0;
+      for(var i=0;i<100&&stable<4;i++){scrollers().forEach(function(e){try{e.scrollTop=e.scrollHeight;}catch(_){}});window.scrollTo(0,document.body.scrollHeight);await sleep(500);collect();setb('Finding jobs… '+guids.length);if(guids.length===last)stable++;else stable=0;last=guids.length;}
+      if(!guids.length){setb('No jobs found — open a Jobs milestone list first.','#c0392b');setTimeout(function(){bn.remove();},6000);return;}
+      async function postSmall(g,fo,n,b){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var fd=new FormData();fd.append('guid',g);fd.append('folder',fo);fd.append('filename',n);fd.append('file',b,n);var j=await (await fetch(BASE+'sync/doc-import',{method:'POST',body:fd})).json();if(j.ok)return j.added?'a':'s';if(j.reason&&j.reason!=='no_job')return 'x';}catch(e){}}return 'x';}
+      async function postChunked(g,fo,n,b){var uid='u'+Date.now()+Math.floor(Math.random()*1e4),total=Math.ceil(b.size/CHUNK);for(var i=0;i<total;i++){var part=b.slice(i*CHUNK,(i+1)*CHUNK),ok=false;for(var a=0;a<4&&!ok;a++){try{if(a)await sleep(400*a);var fd=new FormData();fd.append('uploadId',uid);fd.append('chunkIndex',i);fd.append('chunkTotal',total);fd.append('file',part,'chunk');if(i===total-1){fd.append('guid',g);fd.append('folder',fo);fd.append('filename',n);}var j=await (await fetch(BASE+'sync/doc-import',{method:'POST',body:fd})).json();if(j.ok){ok=true;if(i===total-1)return j.added?'a':'s';}else if(j.reason&&j.reason!=='no_job')return 'x';}catch(e){}}if(!ok)return 'x';}return 'x';}
+      var tot=guids.length,added=0,skip=0,fail=0,nojob=0,jdone=0;
+      for(var gi=0;gi<guids.length;gi++){var guid=guids[gi];
+        try{
+          var have={},m=null;try{m=await (await fetch(BASE+'sync/doc-manifest?guid='+guid)).json();}catch(e){}
+          if(m&&m.reason==='no_job'){nojob++;jdone++;setb('Jobs '+jdone+'/'+tot+' · +'+added+' new docs · '+nojob+' not in CRM');continue;}
+          if(m&&m.ok){(m.names||[]).forEach(function(x){have[x.toLowerCase()]=1;});}
+          var folders=await (await fetch('/api/v4/job-documents/'+guid+'/job-document-folders',{headers:{'Accept':'application/json'}})).json();
+          var files=[];folders.filter(function(f){return permitRe.test(f.Name)&&f.Files&&f.Files.length;}).forEach(function(f){f.Files.forEach(function(fl){files.push({folder:f.Name.trim(),name:fl.Name,url:fl.Url});});});
+          for(var fi=0;fi<files.length;fi++){var t=files[fi];if(have[(t.name||'').toLowerCase()]){skip++;continue;}var b;try{b=await (await fetch(t.url)).blob();}catch(e){fail++;continue;}var r=b.size>CHUNK?await postChunked(guid,t.folder,t.name,b):await postSmall(guid,t.folder,t.name,b);if(r==='a')added++;else if(r==='s')skip++;else fail++;setb('Jobs '+(jdone+1)+'/'+tot+' · +'+added+' new · '+skip+' have'+(fail?' · '+fail+' fail':''));}
+        }catch(e){}
+        jdone++;setb('Jobs '+jdone+'/'+tot+' · +'+added+' new · '+skip+' have'+(fail?' · '+fail+' fail':''));
+      }
+      setb('✓ Done · '+tot+' jobs · '+added+' new permit docs · '+skip+' already had'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' failed':''),'#2e7d32');
+      setTimeout(function(){bn.remove();},20000);
+    })();
+  }
+  document.getElementById('bmdocs').href='javascript:('+pullPermitsBM.toString()+')('+JSON.stringify(BASE)+')';
+})();
+</script>
 <script>
 (function(){
   var BASE={{ request.host_url|tojson }};
