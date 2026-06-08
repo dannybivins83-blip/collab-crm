@@ -911,6 +911,79 @@ def doc_import():
     return _finalize_doc(guid, folder, name, path)
 
 
+def _ws_cat(desc):
+    d = (desc or "").lower()
+    if "labor" in d or "install" in d:
+        return "Labor"
+    if "permit" in d:
+        return "Permit"
+    if "overhead" in d or "admin" in d:
+        return "Overhead"
+    if "dump" in d or "disposal" in d or "haul" in d:
+        return "Other"
+    return "Material"
+
+
+@bp.route("/worksheet-import", methods=["POST", "OPTIONS"])
+def worksheet_import():
+    """CORS-open: receive a job's AccuLynx financial worksheet (price total + cost
+    line items) and store it in the worksheets/worksheet_lines tables so the CRM's
+    Profit Analysis shows real contract-vs-cost gross profit. Matches job by GUID;
+    replaces the worksheet's lines each run (idempotent). Never 500s."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    try:
+        body = request.get_json(force=True, silent=True)
+        if body is None:
+            import json as _json
+            body = _json.loads(request.get_data(as_text=True) or "{}")
+        items = body if isinstance(body, list) else [body]
+        results, agg = [], {"worksheets": 0, "lines": 0, "no_job": 0}
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            guid = (it.get("guid") or "").strip().lower()
+            job = next((j for j in db.all_rows("jobs")
+                        if guid and guid in (j.get("external_url") or "").lower()), None)
+            if not job:
+                agg["no_job"] += 1
+                results.append({"ok": False, "reason": "no_job", "guid": guid})
+                continue
+            ws = db.all_rows("worksheets", where="job_id=?", params=(job["id"],))
+            ws_id = ws[0]["id"] if ws else db.insert("worksheets", {"job_id": job["id"], "created": db.now()})
+            cv = _money_num(it.get("contract_value")) or (ws[0].get("contract_value") if ws else 0)
+            db.update("worksheets", ws_id, contract_value=cv, updated=db.now(),
+                      notes="Synced from AccuLynx worksheet")
+            db.execute("DELETE FROM worksheet_lines WHERE worksheet_id=?", (ws_id,))
+            n = 0
+            for i, ln in enumerate(it.get("lines") or []):
+                cost = _money_num(ln.get("cost"))
+                desc = (ln.get("description") or "").strip()
+                if not desc and not cost:
+                    continue
+                db.insert("worksheet_lines", {"worksheet_id": ws_id, "sort": i,
+                          "category": ln.get("category") or _ws_cat(desc),
+                          "description": desc or "(line)", "budget_cost": cost, "actual_cost": cost})
+                n += 1
+            agg["worksheets"] += 1
+            agg["lines"] += n
+            db.add_activity("job", job["id"], "note",
+                            "AccuLynx worksheet synced: %d line(s), cost %s, price %s"
+                            % (n, _money_str(_money_num(it.get("cost_total"))), _money_str(cv)))
+            results.append({"ok": True, "job": job.get("name"), "lines": n})
+        db.save_company({"acculynx_last_sync": db.now()})
+        return _cors({"ok": True, "summary": agg, "results": results[:50]})
+    except Exception as e:
+        import traceback
+        return _cors({"ok": False, "error": "%s: %s" % (type(e).__name__, e),
+                      "trace": traceback.format_exc()[-300:]})
+
+
 @bp.route("/run", methods=["POST"])
 def run():
     deep = bool(request.form.get("deep"))  # OFF: AccuLynx API has no GET for messages/docs (404)
