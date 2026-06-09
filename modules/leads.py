@@ -160,8 +160,30 @@ def new():
             if extra and extra.strip():
                 summary += "\nNotes: %s" % extra.strip()
         db.add_activity("lead", lid, "note", summary)
-        flash("Lead created. AHJ: %s%s%s" % (
-            resolved_ahj or "—", (" · " + system) if system else "", est_msg), "ok")
+        # Auto-create a Gmail DRAFT notifying the team of the new lead. DRAFT ONLY —
+        # never auto-sent (house rule); Danny/Jacin review and send from Gmail.
+        notify_msg = ""
+        try:
+            from flask import session as _session
+            from modules import gmail as _gmail
+            uid = _session.get("user_id")
+            notify_to = (db.get_company().get("lead_notify_to")
+                         or "jacin@seabreezeroof.com, dannyb@seabreezeroof.com")
+            if uid:
+                link = url_for("leads.detail", lead_id=lid, _external=True)
+                subj = "New Lead: %s%s%s" % (
+                    data.get("name") or "lead",
+                    (" — " + data["work_type"]) if data.get("work_type") else "",
+                    (" — " + data["address"]) if data.get("address") else "")
+                did = _gmail.create_draft(uid, notify_to, subj, summary + "\n\nOpen in CRM: " + link)
+                if did:
+                    db.add_activity("lead", lid, "draft",
+                                    "Team-notification draft created for %s — review & send in Gmail." % notify_to)
+                    notify_msg = " · team draft ready in Gmail"
+        except Exception:
+            pass
+        flash("Lead created. AHJ: %s%s%s%s" % (
+            resolved_ahj or "—", (" · " + system) if system else "", est_msg, notify_msg), "ok")
         return redirect(url_for("leads.detail", lead_id=lid))
     return render_template("lead_form.html", lead={}, contacts=db.all_rows("contacts", order="last_name"),
                            mode="new")
