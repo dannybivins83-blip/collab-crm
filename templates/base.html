@@ -104,17 +104,19 @@
     </div>
   </div>
   <a class="navitem {{ 'on' if seg=='/' }}" href="{{ url_for('dashboard.home') }}">Dashboard</a>
-  <a class="navitem {{ 'on' if seg.startswith('/pipeline') or seg.startswith('/leads') }}" href="{{ url_for('pipeline.board') }}">Pipeline</a>
   <div class="navgroup">
-    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/jobs') }}" href="{{ url_for('jobs.list_view') }}">Jobs ▾</a>
+    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/pipeline') or seg.startswith('/jobs') or seg.startswith('/leads') }}" href="{{ url_for('pipeline.board') }}">Pipeline ▾</a>
     <div class="dropdown">
-      <a href="{{ url_for('jobs.list_view') }}">All Jobs</a>
+      <a href="{{ url_for('pipeline.board') }}">{{ icon('columns') }}<span class="nlbl">Lifecycle Board (Leads → Jobs)</span></a>
+      <a href="{{ url_for('jobs.list_view') }}">{{ icon('grid') }}<span class="nlbl">Jobs — List</span></a>
+      <a href="{{ url_for('jobs.board') }}">{{ icon('columns') }}<span class="nlbl">Jobs — Production Board</span></a>
+      <a href="{{ url_for('leads.list_view') }}">{{ icon('user') }}<span class="nlbl">Leads — List</span></a>
+      <div style="border-top:1px solid var(--line);margin:4px 0"></div>
       <a href="{{ url_for('jobs.list_view') }}?bucket=approved">Approved</a>
       <a href="{{ url_for('jobs.list_view') }}?bucket=completed">Completed</a>
       <a href="{{ url_for('jobs.list_view') }}?bucket=invoiced">Invoiced</a>
       <a href="{{ url_for('jobs.list_view') }}?stage=closed">Closed</a>
       <a href="{{ url_for('jobs.list_view') }}?stage=canceled">Canceled</a>
-      <a href="{{ url_for('jobs.board') }}">{{ icon('columns') }}Board view</a>
     </div>
   </div>
   <a class="navitem {{ 'on' if seg.startswith('/sitecam') }}" href="{{ url_for('sitecam.index') }}">{{ icon('camera') }}<span class="nlbl">Site Photos</span></a>
