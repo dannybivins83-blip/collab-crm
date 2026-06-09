@@ -30,6 +30,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "sync.job_guids", "sync.catalog_import", "sync.debug_probe",
           "portal.home", "portal.message", "portal.sign", "portal.sign_doc", "portal.pay",
           "portal.upload_doc", "portal.upload_photo", "portal.design", "portal.design_request",
+          "portal.referral_land", "portal.refer_share", "portal.refer_msg",
           "signups.portal_view", "signups.portal_complete",
           "measurements.ingest",
           "sitecam.gallery_link"}

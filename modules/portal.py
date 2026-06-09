@@ -182,6 +182,71 @@ ROOF_OPTIONS = {
     "metal": [{"name": "Standing-seam clip & coating upgrade", "ic": "✨"}],
 }
 
+# Referral GAME — personal link, send tracking, level badges + a reward ladder.
+for _rt in ("jobs", "leads"):
+    for _rc in ("referral_code TEXT", "referral_clicks INTEGER DEFAULT 0",
+                "referral_shares INTEGER DEFAULT 0", "referral_signed INTEGER DEFAULT 0",
+                "referral_msg TEXT"):
+        try:
+            db.execute("ALTER TABLE %s ADD COLUMN %s" % (_rt, _rc))
+        except Exception:
+            pass
+db._COLCACHE.clear()
+
+REFERRAL_TIERS = [   # real rewards, unlocked by SIGNED referrals
+    {"n": 1, "reward": "$50 Visa gift card", "ic": "💳"},
+    {"n": 2, "reward": "$150 + entry in our annual giveaway", "ic": "🎟️"},
+    {"n": 3, "reward": "$300 + customer-appreciation party invite", "ic": "🎉"},
+    {"n": 5, "reward": "$500 + a year of free gutter cleaning", "ic": "🏆"},
+    {"n": 10, "reward": "Roof Royalty — grand prize + free maintenance", "ic": "👑"},
+]
+SHARE_LEVELS = [     # fun badge levels, by number of times they SEND their link
+    {"n": 0, "name": "Newcomer", "ic": "🌱"}, {"n": 1, "name": "Spreader", "ic": "📣"},
+    {"n": 3, "name": "Connector", "ic": "🔥"}, {"n": 5, "name": "Influencer", "ic": "⭐"},
+    {"n": 10, "name": "Referral Champion", "ic": "👑"},
+]
+
+
+def _client_first(name):
+    nm = re.sub(r"^\s*[A-Za-z]?-?\d{3,}\s*[:\-]\s*", "", (name or ""))
+    nm = re.sub(r"\s*\([^)]*\)", "", nm)
+    return (re.sub(r"\s+L\s*$", "", nm).strip(" -·,").split(" ") or ["there"])[0] or "there"
+
+
+def ensure_referral_code(kind, rec):
+    code = rec.get("referral_code")
+    if not code:
+        code = re.sub(r"[^a-zA-Z0-9]", "", secrets.token_urlsafe(6))[:7] or secrets.token_hex(3)
+        db.update(kind + "s", rec["id"], referral_code=code)
+    return code
+
+
+def _share_level(shares):
+    lvl, nxt = SHARE_LEVELS[0], None
+    for l in SHARE_LEVELS:
+        if shares >= l["n"]:
+            lvl = l
+        elif nxt is None:
+            nxt = l
+    return lvl, nxt
+
+
+def referral_ctx(kind, rec):
+    """Everything the portal referral game needs for a job/lead."""
+    code = ensure_referral_code(kind, rec)
+    shares = int(rec.get("referral_shares") or 0)
+    signed = int(rec.get("referral_signed") or 0)
+    lvl, nxt = _share_level(shares)
+    return {
+        "code": code, "link": url_for("portal.referral_land", code=code, _external=True),
+        "shares": shares, "clicks": int(rec.get("referral_clicks") or 0), "signed": signed,
+        "level": lvl, "next_level": nxt,
+        "tiers": [dict(t, unlocked=signed >= t["n"]) for t in REFERRAL_TIERS],
+        "next_tier": next((t for t in REFERRAL_TIERS if signed < t["n"]), None),
+        "msg": rec.get("referral_msg") or "", "first": _client_first(rec.get("name")),
+    }
+
+
 _STAGE_TO_PHASE = {
     "approved": 0, "finance_ntp": 0, "documentation": 0,
     "permit_applied": 1, "permit_approved": 1,
@@ -392,6 +457,7 @@ def home(token):
     for u in unseen:
         db.update("portal_updates", u["id"], seen=1)
     return render_template("portal_dashboard.html", j=j, token=token,
+                           referral=referral_ctx("job", j),
                            value_steps=value_steps, value_done=value_done,
                            value_total=len(value_steps),
                            updates=updates, celebrate=celebrate,
@@ -459,6 +525,47 @@ def design_request(token):
     flash("Your selections are saved!%s Your project contact will follow up." %
           (" We'll bring your samples." if wants else ""), "ok")
     return redirect(url_for("portal.design", token=token))
+
+
+@bp.route("/r/<code>")
+def referral_land(code):
+    """Public landing for a customer's personal referral link. Counts the click and
+    shows a branded 'your neighbor referred you' page with a quote CTA."""
+    rec = kind = None
+    for k in ("jobs", "leads"):
+        rows = db.all_rows(k, "referral_code=?", (code,))
+        if rows:
+            rec, kind = rows[0], k[:-1]
+            break
+    if not rec:
+        abort(404)
+    db.update(kind + "s", rec["id"], referral_clicks=int(rec.get("referral_clicks") or 0) + 1)
+    return render_template("referral_landing.html", company=db.get_company(),
+                           referrer=_client_first(rec.get("name")))
+
+
+@bp.route("/<token>/refer/share", methods=["POST"])
+def refer_share(token):
+    """Count a 'send' of the referral link (the game metric) and return the new level."""
+    kind, rec = _record_by_any_token(token)
+    if not rec:
+        return jsonify({"ok": False}), 404
+    n = int(rec.get("referral_shares") or 0) + 1
+    db.update(kind + "s", rec["id"], referral_shares=n)
+    lvl, nxt = _share_level(n)
+    return jsonify({"ok": True, "shares": n, "level": lvl["name"], "icon": lvl["ic"],
+                    "leveledUp": bool(nxt is None or False) or (lvl["n"] == n),
+                    "next": (nxt["name"] if nxt else None), "nextAt": (nxt["n"] if nxt else None)})
+
+
+@bp.route("/<token>/refer/msg", methods=["POST"])
+def refer_msg(token):
+    """Save the homeowner's customized referral message."""
+    kind, rec = _record_by_any_token(token)
+    if not rec:
+        return jsonify({"ok": False}), 404
+    db.update(kind + "s", rec["id"], referral_msg=(request.form.get("msg") or "")[:400])
+    return jsonify({"ok": True})
 
 
 @bp.route("/<token>/upload-doc", methods=["POST"])

@@ -401,16 +401,81 @@
     <div class="muted" style="margin-top:13px;font-size:12.5px">Every box is real work the {{ company.name }} team does on your project — the standard you're paying for, tracked in the open.</div>
   </div>
 
-  <!-- REFER & EARN -->
-  <div class="card cta-card">
-    <div class="h">🎁 Refer a Neighbor — You Both Win</div>
-    <div class="muted">Love how this is going? Send a neighbor our way. When they sign, <b>you both get a reward</b>. Tap copy and text it to anyone:</div>
-    <div class="reflink">
-      <input id="refMsg" readonly value="I'm getting my roof done by {{ company.name }} and they've been great — call {{ company.phone or company.email }} and mention my name, {{ (j.name or 'me').split(' ')[0] }}!">
-      <button class="btn green" type="button" onclick="copyRef(this)">Copy</button>
+  <!-- REFERRAL GAME -->
+  <div class="card cta-card" id="refGame">
+    <div class="h">🎮 Referral Game — Level Up &amp; Win</div>
+    <div class="refhdr">
+      <div class="reflvl"><span id="refIcon">{{ referral.level.ic }}</span>
+        <span><b id="refLvlName">{{ referral.level.name }}</b><br><span class="muted" id="refShares">{{ referral.shares }} sent</span></span></div>
+      <div class="refnext muted" id="refNext">
+        {% if referral.next_level %}{{ referral.next_level.n - referral.shares }} more to <b>{{ referral.next_level.name }}</b> {{ referral.next_level.ic }}{% else %}Max level — you're a legend! 👑{% endif %}</div>
     </div>
-    {% if not company.portal_perks %}<div class="muted" style="margin-top:10px;font-size:12.5px">Ask {{ j.rep or 'your project contact' }} about our current referral reward.</div>{% endif %}
+    <div class="refbar"><div id="refFill" style="width:{{ ((referral.shares / (referral.next_level.n if referral.next_level else referral.shares or 1)) * 100)|round|int if referral.next_level else 100 }}%"></div></div>
+
+    <div class="muted" style="margin:12px 0 6px">Your personal invite — edit it, then send it to neighbors. Every send levels you up:</div>
+    <textarea id="refMsg" rows="3">{{ referral.msg or "I'm getting my roof done by " ~ company.name ~ " and they've been great! Get a free quote 👉 " }}{{ referral.link }}</textarea>
+    <div class="refbtns">
+      <button class="btn green" type="button" onclick="sendRef('copy')">📋 Copy &amp; Send</button>
+      <a class="btn share" id="refSms" href="sms:?&body=" onclick="bumpShare()">💬 Text it</a>
+      <button class="btn ghost" type="button" onclick="saveRefMsg(this)">💾 Save my message</button>
+    </div>
+
+    <div class="h" style="margin:18px 0 8px">🏆 Rewards you can unlock <span class="muted" style="text-transform:none;font-weight:600">({{ referral.signed }} signed so far)</span></div>
+    <div class="ladder">
+      {% for t in referral.tiers %}
+      <div class="rung {{ 'won' if t.unlocked }}">
+        <span class="ic">{{ t.ic if t.unlocked else '🔒' }}</span>
+        <span class="rw"><b>{{ t.n }} referral{{ 's' if t.n>1 }}</b> — {{ t.reward }}</span>
+        {% if t.unlocked %}<span class="tag">UNLOCKED ✓</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if referral.next_tier %}<div class="muted" style="margin-top:10px;font-size:12.5px">🎯 <b>{{ referral.next_tier.n - referral.signed }}</b> more signed referral{{ 's' if (referral.next_tier.n - referral.signed)>1 }} to win <b>{{ referral.next_tier.reward }}</b>.</div>{% endif %}
   </div>
+  <style>
+    #refGame textarea{width:100%;border:1px solid var(--line,#e7ecf3);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;resize:vertical}
+    .refhdr{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .reflvl{display:flex;align-items:center;gap:10px} .reflvl>span:first-child{font-size:30px}
+    .refnext{font-size:12.5px;text-align:right}
+    .refbar{height:10px;background:#e7ecf3;border-radius:999px;margin-top:10px;overflow:hidden}
+    .refbar #refFill{height:100%;background:linear-gradient(90deg,var(--green,#8CC63F),#5fae28);transition:width .5s}
+    .refbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .refbtns .btn{flex:1;min-width:120px;text-align:center;text-decoration:none}
+    .btn.share{background:#eef2f7;color:var(--brand)}
+    .ladder{display:flex;flex-direction:column;gap:7px}
+    .rung{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line,#e7ecf3);border-radius:11px;padding:9px 12px;opacity:.62}
+    .rung.won{opacity:1;border-color:var(--green,#8CC63F);background:color-mix(in srgb,var(--green,#8CC63F) 9%,#fff)}
+    .rung .ic{font-size:20px} .rung .rw{flex:1;font-size:13px} .rung .tag{font-size:10px;font-weight:800;color:#3c6b16}
+  </style>
+  <script>
+  var REFTOK={{ token|tojson }};
+  function refBody(){return document.getElementById('refMsg').value;}
+  function bumpShare(){
+    fetch('/portal/'+REFTOK+'/refer/share',{method:'POST'}).then(function(r){return r.json();}).then(function(d){
+      if(!d||!d.ok)return; var prev=document.getElementById('refLvlName').textContent;
+      document.getElementById('refShares').textContent=d.shares+' sent';
+      document.getElementById('refIcon').textContent=d.icon;
+      document.getElementById('refLvlName').textContent=d.level;
+      document.getElementById('refNext').innerHTML=d.next?((d.nextAt-d.shares)+' more to <b>'+d.next+'</b>'):"Max level — you're a legend! 👑";
+      var pct=d.next?Math.round(d.shares/d.nextAt*100):100; document.getElementById('refFill').style.width=pct+'%';
+      if(d.level!==prev) refConfetti();
+    });
+  }
+  function sendRef(mode){ if(navigator.share){navigator.share({text:refBody()}).then(bumpShare).catch(function(){copyRefText();bumpShare();}); }
+    else {copyRefText();bumpShare();} }
+  function copyRefText(){var t=document.getElementById('refMsg');t.select();try{document.execCommand('copy');}catch(e){}
+    if(navigator.clipboard)navigator.clipboard.writeText(t.value); }
+  function saveRefMsg(b){var fd=new URLSearchParams();fd.append('msg',refBody());
+    fetch('/portal/'+REFTOK+'/refer/msg',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
+      .then(function(){b.textContent='✓ Saved';setTimeout(function(){b.textContent='💾 Save my message';},1500);});}
+  // keep the SMS link body current
+  document.getElementById('refSms').addEventListener('click',function(){this.href='sms:?&body='+encodeURIComponent(refBody());});
+  function refConfetti(){for(var i=0;i<60;i++){(function(){var c=document.createElement('div');
+    c.style.cssText='position:fixed;top:-10px;left:'+Math.random()*100+'vw;width:9px;height:9px;z-index:99999;border-radius:2px;background:hsl('+Math.floor(Math.random()*360)+',90%,55%);pointer-events:none';
+    document.body.appendChild(c);var top=0,L=parseFloat(c.style.left),drift=(Math.random()-.5)*40,t=0;
+    var iv=setInterval(function(){t+=1;top+=4+Math.random()*3;c.style.top=top+'px';c.style.left=(L+Math.sin(t/8)*drift/10)+'vw';c.style.transform='rotate('+t*20+'deg)';
+      if(top>window.innerHeight+20){clearInterval(iv);c.remove();}},16);})();}}
+  </script>
 
   <!-- PERKS, GIVEAWAYS & EVENTS (company-configured) -->
   {% if company.portal_perks %}

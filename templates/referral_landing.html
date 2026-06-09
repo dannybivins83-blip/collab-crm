@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ referrer }} referred you — {{ company.name }}</title>
+<style>
+  :root{--brand:{{ company.color_masthead or '#24476C' }};--green:{{ company.color_accent or '#8CC63F' }}}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:#eef2f7;color:#16223b;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
+  .box{background:#fff;max-width:440px;width:100%;border-radius:18px;padding:30px 26px;text-align:center;
+    box-shadow:0 18px 50px -20px rgba(16,34,64,.4)}
+  .badge{font-size:46px}
+  h1{font-size:22px;margin:10px 0 6px}
+  p{color:#5b6b7d;line-height:1.5}
+  .name{color:var(--brand);font-weight:800}
+  a.btn{display:block;text-decoration:none;border-radius:12px;padding:15px;font-weight:800;font-size:16px;margin-top:12px}
+  .call{background:var(--green);color:#1f3d10} .site{background:#eef2f7;color:var(--brand)}
+  .lic{color:#90a0b2;font-size:11px;margin-top:16px}
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="badge">🏡🎉</div>
+    <h1>Your neighbor sent you here!</h1>
+    <p><span class="name">{{ referrer }}</span> is having their roof done by <b>{{ company.name }}</b> — and thought you'd want the same great experience. Mention {{ referrer }} and <b>you both get a reward</b> when you sign.</p>
+    {% if company.phone %}<a class="btn call" href="tel:{{ company.phone }}">📞 Call for a free quote: {{ company.phone }}</a>{% endif %}
+    {% if company.website %}<a class="btn site" href="{{ company.website }}" target="_blank">🌐 Visit {{ company.name }}</a>{% endif %}
+    {% if company.email %}<a class="btn site" href="mailto:{{ company.email }}?subject=Free%20roof%20quote%20(referred%20by%20{{ referrer }})">✉️ Request a free quote</a>{% endif %}
+    <div class="lic">{{ company.name }}{% if company.license %} · Lic. {{ company.license }}{% endif %}</div>
+  </div>
+</body>
+</html>
