@@ -37,19 +37,25 @@
   <a class="btn" href="{{ url_for('jobs.edit', job_id=j.id) }}">Edit</a>
 </div>
 
-<!-- Unified lifecycle bar + big Next Step button -->
+<!-- Single consolidated pipeline card: lifecycle bar + Next Step + jump-to-stage -->
 <div class="card" style="margin-bottom:14px">
   {{ lifecycle_bar('job', j.stage) }}
   {% set ns = constants.next_step('job', j.stage) %}
-  {% if ns %}
-  <div style="display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap">
+  <div style="display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap">
+    {% if ns %}
     {% if j._pct < 100 %}<span class="muted" style="font-size:12px">Stage checklist {{ j._pct }}% done</span>{% endif %}
     <form method="post" action="{{ url_for('jobs.set_stage', job_id=j.id) }}" onsubmit="return lcGate(this,{{ j._pct }})">
       <input type="hidden" name="stage" value="{{ ns.stage }}">
       <button class="btn lg primary" type="submit">{{ ns.label }} →</button>
     </form>
+    {% endif %}
+    <form method="post" action="{{ url_for('jobs.set_stage', job_id=j.id) }}" style="margin:0">
+      <select name="stage" onchange="this.form.submit()" title="Jump to a specific stage"
+              style="width:auto;max-width:230px" class="btn sm">
+        {% for s in all_stages %}<option value="{{ s.key }}" {{ 'selected' if s.key==j.stage }}>{{ loop.index }}. {{ s.name }}</option>{% endfor %}
+      </select>
+    </form>
   </div>
-  {% endif %}
 </div>
 <script>
 function lcGate(form,pct){
@@ -57,32 +63,6 @@ function lcGate(form,pct){
   return confirm("Some checklist items for this stage aren't checked off yet ("+pct+"% done). Move forward anyway?");
 }
 </script>
-
-<!-- Milestones panel -->
-<div class="card mstone">
-  <div class="mstone-left">
-    <div><span class="muted">STATUS:</span> <b>{{ j._stage.name }}</b></div>
-    {% if next_stage %}<div><span class="muted">NEXT STEP:</span> <b style="color:var(--accent2)">{{ next_stage.name }}</b></div>{% endif %}
-    <form method="post" action="{{ url_for('jobs.advance', job_id=j.id) }}" style="margin-top:8px">
-      <button class="accent" type="submit" {{ 'disabled' if not next_stage }}>Advance Job →</button>
-    </form>
-    <form method="post" action="{{ url_for('jobs.set_stage', job_id=j.id) }}" style="margin-top:8px">
-      <select name="stage" onchange="this.form.submit()" style="width:auto;max-width:230px">
-        {% for s in all_stages %}<option value="{{ s.key }}" {{ 'selected' if s.key==j.stage }}>{{ loop.index }}. {{ s.name }}</option>{% endfor %}
-      </select>
-    </form>
-  </div>
-  <div class="mstone-track">
-    {% for b in buckets %}
-    {% set reached = loop.index0 <= cur_bucket_index %}
-    <div class="mnode {{ 'on' if b.key==cur_bucket }}">
-      <span class="mcircle" style="background:{{ b.color if reached else '#c9d2dd' }}">{{ b.letter }}</span>
-      <span class="mlbl">{{ b.name }}</span>
-    </div>
-    {% if not loop.last %}<span class="mline {{ 'done' if loop.index0 < cur_bucket_index }}"></span>{% endif %}
-    {% endfor %}
-  </div>
-</div>
 
 <!-- Job Activity tabs -->
 <div class="jobtabs" id="jobtabs">
