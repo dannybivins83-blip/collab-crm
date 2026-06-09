@@ -17,18 +17,36 @@
     </div>
     <div class="pcol-body">
       {% for card in c.shown %}
-      <a class="pcard" href="{{ card.href }}">
-        <div class="pcard-top">
-          <span class="pcard-kind {{ card.kind }}">{{ 'L' if card.kind=='lead' else 'J' }}</span>
-          <span class="pcard-name">{{ card.rid ~ ' · ' if card.rid }}{{ card.name }}</span>
+      <div class="pcard">
+        <a class="pcard-link" href="{{ card.href }}">
+          <div class="pcard-top">
+            <span class="pcard-kind {{ card.kind }}">{{ 'L' if card.kind=='lead' else 'J' }}</span>
+            <span class="pcard-name">{{ card.rid ~ ' · ' if card.rid }}{{ card.name }}</span>
+          </div>
+          {% if card.address %}<div class="pcard-sub">{{ card.address }}</div>{% endif %}
+          <div class="pcard-foot">
+            <span class="pill" style="background:{{ card.color }}22;color:{{ card.color }}">{{ card.stage_name }}</span>
+            {% if card.value %}<span class="pcard-val">{{ money_k(card.value) }}</span>{% endif %}
+          </div>
+          {% if card.rep %}<div class="pcard-rep">{{ card.rep }}</div>{% endif %}
+        </a>
+        {% if card.tasks %}
+        <div class="pcard-tasks" data-checkurl="{{ card.check_url }}">
+          <div class="pt-head">Tasks <span class="muted">{{ card.done_count }}/{{ card.tasks|length }}</span></div>
+          {% for t in card.tasks %}
+          <button type="button" class="ptask {{ 'done' if t.done }}" data-key="{{ t.key }}"
+                  onclick="toggleTask(this)">{{ '✓' if t.done else '○' }} {{ t.label }}</button>
+          {% endfor %}
         </div>
-        {% if card.address %}<div class="pcard-sub">{{ card.address }}</div>{% endif %}
-        <div class="pcard-foot">
-          <span class="pill" style="background:{{ card.color }}22;color:{{ card.color }}">{{ card.stage_name }}</span>
-          {% if card.value %}<span class="pcard-val">{{ money_k(card.value) }}</span>{% endif %}
-        </div>
-        {% if card.rep %}<div class="pcard-rep">{{ card.rep }}</div>{% endif %}
-      </a>
+        {% endif %}
+        {% if card.next %}
+        <form class="pcard-adv" method="post" action="{{ card.advance_url }}"
+              {% if card.next.action != 'convert' %}data-ajax="1"{% endif %}>
+          {% if card.next.action != 'convert' %}<input type="hidden" name="stage" value="{{ card.next.stage }}">{% endif %}
+          <button class="btn sm primary" type="submit" style="width:100%">{{ card.next.label }} →</button>
+        </form>
+        {% endif %}
+      </div>
       {% else %}
       <div class="muted" style="padding:14px;font-size:12px;text-align:center">No records</div>
       {% endfor %}
@@ -48,9 +66,9 @@
   .pcol-name{font-weight:800;font-size:14px}
   .pcol-meta{font-size:11px;color:var(--mut);font-weight:700;margin-top:2px}
   .pcol-body{padding:8px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
-  .pcard{display:block;background:var(--panel);border:1px solid var(--line);border-radius:9px;
-    padding:9px 10px;text-decoration:none;color:var(--txt)}
+  .pcard{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 10px}
   .pcard:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(20,40,80,.08)}
+  .pcard-link{display:block;text-decoration:none;color:var(--txt)}
   .pcard-top{display:flex;align-items:center;gap:7px}
   .pcard-kind{width:18px;height:18px;border-radius:5px;font-size:11px;font-weight:800;color:#fff;
     display:flex;align-items:center;justify-content:center;flex:0 0 auto}
@@ -61,5 +79,38 @@
   .pcard-val{font-size:12px;font-weight:800}
   .pcard-rep{font-size:11px;color:var(--mut);margin-top:4px}
   .pcard-more{text-align:center;font-size:12px;font-weight:700;color:var(--mut);padding:8px}
+  .pcard-tasks{margin-top:8px;border-top:1px dashed var(--line);padding-top:7px;display:flex;flex-direction:column;gap:4px}
+  .pt-head{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--mut)}
+  .ptask{justify-content:flex-start;text-align:left;width:100%;min-height:0;padding:5px 8px;font-size:12px;
+    font-weight:600;border:1px solid var(--line);background:var(--panel2);border-radius:6px;color:var(--txt)}
+  .ptask:hover{border-color:var(--accent)}
+  .ptask.done{background:#8CC63F1f;border-color:#8CC63F;color:#3c6b16;text-decoration:line-through}
+  .pcard-adv{margin-top:8px}
 </style>
+<script>
+function toggleTask(btn){
+  var box=btn.closest('.pcard-tasks'), url=box.dataset.checkurl, key=btn.dataset.key;
+  btn.disabled=true;
+  var body=new URLSearchParams({key:key, ajax:'1'});
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+    .then(function(r){return r.json();})
+    .then(function(d){btn.disabled=false;
+      if(d&&d.ok){var on=d.checked;var lbl=btn.textContent.replace(/^[✓○]\s/,'');
+        btn.classList.toggle('done',on);btn.textContent=(on?'✓ ':'○ ')+lbl;
+        var h=box.querySelector('.pt-head .muted');
+        if(h){h.textContent=box.querySelectorAll('.ptask.done').length+'/'+box.querySelectorAll('.ptask').length;}}
+      else alert('Could not update task.');})
+    .catch(function(){btn.disabled=false;alert('Could not update task.');});
+}
+document.querySelectorAll('form.pcard-adv[data-ajax]').forEach(function(f){
+  f.addEventListener('submit',function(e){e.preventDefault();
+    var btn=f.querySelector('button'); btn.disabled=true; btn.textContent='Moving…';
+    var body=new URLSearchParams(new FormData(f)); body.append('ajax','1');
+    fetch(f.action,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(d&&d.ok){ location.reload(); } else { btn.disabled=false; alert('Could not advance.'); } })
+      .catch(function(){ btn.disabled=false; alert('Could not advance.'); });
+  });
+});
+</script>
 {% endblock %}

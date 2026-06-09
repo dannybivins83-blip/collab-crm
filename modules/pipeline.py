@@ -18,16 +18,30 @@ def _card(kind, r):
     stage = r.get("stage") or ""
     sd = constants.lead_stage(stage) if kind == "lead" else constants.job_stage(stage)
     val = theme.est_num(r.get("estimate") if kind == "lead" else r.get("contract_value"))
+    # Current-stage checklist as quick-toggle tasks.
+    checks = db.load_json(r.get("checks"), {})
+    items = sd.get("checklist", [])
+    tasks = [{"label": it, "key": "%s:%d" % (sd["key"], i),
+              "done": bool(checks.get("%s:%d" % (sd["key"], i)))}
+             for i, it in enumerate(items)]
+    ns = constants.next_step(kind, stage)
     if kind == "lead":
         href = url_for("leads.detail", lead_id=r["id"])
+        check_url = url_for("leads.check", lead_id=r["id"])
+        advance_url = (url_for("leads.convert", lead_id=r["id"])
+                       if (ns and ns["action"] == "convert")
+                       else url_for("leads.set_stage", lead_id=r["id"]))
     else:
         href = url_for("jobs.detail", job_id=r["id"])
+        check_url = url_for("jobs.check", job_id=r["id"])
+        advance_url = url_for("jobs.set_stage", job_id=r["id"])
     return {
         "kind": kind, "id": r["id"], "name": r.get("name") or "—",
         "rid": r.get("rid") or "", "stage_name": sd.get("name", stage),
         "color": sd.get("color", "#8aa"), "value": val, "rep": r.get("rep") or "",
         "address": (r.get("address") or ""), "since": r.get("stage_since") or r.get("created") or "",
-        "href": href,
+        "href": href, "tasks": tasks, "next": ns, "check_url": check_url,
+        "advance_url": advance_url, "done_count": sum(1 for t in tasks if t["done"]),
     }
 
 

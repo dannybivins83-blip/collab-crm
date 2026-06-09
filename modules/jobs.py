@@ -206,7 +206,11 @@ def set_stage(job_id):
     if stage in constants.JOB_STAGE_INDEX:
         db.update("jobs", job_id, stage=stage, stage_since=db.today())
         db.add_activity("job", job_id, "stage", "Moved to %s" % constants.job_stage(stage)["name"])
+        if request.form.get("ajax"):
+            return jsonify({"ok": True, "stage": stage})
         flash("Stage updated.", "ok")
+    elif request.form.get("ajax"):
+        return jsonify({"ok": False}), 400
     return redirect(url_for("jobs.detail", job_id=job_id))
 
 
@@ -241,6 +245,8 @@ def check(job_id):
     key = request.form.get("key")
     checks[key] = not checks.get(key)
     db.update("jobs", job_id, checks=db.dump_json(checks))
+    if request.form.get("ajax"):
+        return jsonify({"ok": True, "checked": checks[key]})
     return redirect(url_for("jobs.detail", job_id=job_id))
 
 
