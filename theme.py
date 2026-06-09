@@ -127,7 +127,11 @@ def register(app):
         follow_status=follow_status, paid_pct=paid_pct, draw_amount=draw_amount,
         load_json=db.load_json, rep_options=rep_options,
         estimate_templates=estimate_templates, followup_email=followup_email,
-        address_line=address_line, closeout_email=closeout_email)
+        address_line=address_line, closeout_email=closeout_email,
+        # Lifecycle helpers as globals so they work inside imported macros too.
+        lifecycle_steps=(lambda: constants.LIFECYCLE),
+        lifecycle_pos=constants.lifecycle_pos, lifecycle_step=constants.lifecycle_step,
+        next_step=constants.next_step)
 
 
 def rep_options():

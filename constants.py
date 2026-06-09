@@ -114,6 +114,80 @@ def job_bucket(stage_key):
     return BUCKET_BY_KEY[job_stage(stage_key)["bucket"]]
 
 
+# ---------------------------------------------------------------------------
+# UNIFIED LIFECYCLE — the single end-to-end pipeline a customer flows through,
+# spanning BOTH the lead module and the job module:
+#   Lead -> Prospect -> Approved -> Completed -> Invoiced -> Closed
+# Every granular lead/job stage maps onto one of these six steps so the whole
+# app can show one consistent progress bar + board.
+# ---------------------------------------------------------------------------
+LIFECYCLE = [
+    {"key": "lead",      "name": "Lead",      "color": "#F2C000"},
+    {"key": "prospect",  "name": "Prospect",  "color": "#F78300"},
+    {"key": "approved",  "name": "Approved",  "color": "#8CC63F"},
+    {"key": "completed", "name": "Completed", "color": "#29ABE2"},
+    {"key": "invoiced",  "name": "Invoiced",  "color": "#E25050"},
+    {"key": "closed",    "name": "Closed",    "color": "#6B7A90"},
+]
+LIFECYCLE_INDEX = {s["key"]: i for i, s in enumerate(LIFECYCLE)}
+
+
+def lifecycle_step(kind, stage_key):
+    """Map any lead/job stage onto a unified lifecycle key."""
+    if kind == "lead":
+        if stage_key == "won":
+            return "approved"          # a won lead has become a job
+        if stage_key == "lost":
+            return "closed"
+        return lead_stage(stage_key).get("bucket", "lead")   # lead / prospect
+    # job
+    if stage_key in ("closed", "canceled"):
+        return "closed"
+    return job_stage(stage_key).get("bucket", "approved")    # approved / completed / invoiced
+
+
+def lifecycle_pos(kind, stage_key):
+    """0-based index of the record on the 6-step lifecycle."""
+    return LIFECYCLE_INDEX.get(lifecycle_step(kind, stage_key), 0)
+
+
+# Forward "next step" for the big primary button on a record's detail page.
+# Leads walk the sales path to the win; the job module takes over from there.
+_LEAD_NEXT = {"assigned": "prospect", "prospect": "negotiation",
+              "long_term": "negotiation"}
+
+
+def next_step(kind, stage_key):
+    """Return {action, label, stage} for advancing one step, or None at a terminal.
+    action: 'lead_stage' | 'convert' | 'job_stage'."""
+    if kind == "lead":
+        if stage_key in ("won", "lost"):
+            return None
+        if stage_key == "negotiation":
+            return {"action": "convert", "label": "Approve → Create Job", "stage": "won"}
+        nxt = _LEAD_NEXT.get(stage_key)
+        if not nxt:
+            return None
+        return {"action": "lead_stage", "label": "Move to %s" % lead_stage(nxt)["name"], "stage": nxt}
+    # job
+    idx = JOB_STAGE_INDEX.get(stage_key, 0)
+    if stage_key in ("closed", "canceled") or idx >= len(JOB_STAGES) - 2:
+        if stage_key == "invoiced":
+            return {"action": "job_stage", "label": "Mark Closed", "stage": "closed"}
+        if stage_key in ("closed", "canceled"):
+            return None
+    nxt_stage = JOB_STAGES[min(idx + 1, len(JOB_STAGES) - 1)]
+    if nxt_stage["key"] == "canceled":   # never auto-advance into Canceled
+        return None
+    return {"action": "job_stage", "label": "Advance to %s" % nxt_stage["name"], "stage": nxt_stage["key"]}
+
+
+def stage_checklist(kind, stage_key):
+    """The guided checklist items for a record's current stage."""
+    sd = lead_stage(stage_key) if kind == "lead" else job_stage(stage_key)
+    return sd.get("checklist", [])
+
+
 # Migration map: old stage keys -> new AccuLynx milestone keys.
 _OLD_JOB_STAGE_MAP = {
     "docs": "documentation", "hoa": "documentation", "permit_sub": "permit_applied",

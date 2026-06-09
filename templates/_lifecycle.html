@@ -1,0 +1,15 @@
+{# Unified lifecycle progress bar — Lead → Prospect → Approved → Completed → Invoiced → Closed.
+   Usage:  {% from "_lifecycle.html" import lifecycle_bar %}  then  {{ lifecycle_bar('lead', l.stage) }} #}
+{% macro lifecycle_bar(kind, stage) %}
+{% set pos = lifecycle_pos(kind, stage) %}
+<div class="lcbar" role="list" aria-label="Lifecycle progress">
+  {% for s in lifecycle_steps() %}
+  {% set i = loop.index0 %}
+  <div class="lcstep {{ 'done' if i < pos else ('cur' if i == pos else 'todo') }}" style="--c:{{ s.color }}" role="listitem">
+    <div class="lcdot">{{ '✓' if i < pos else (i + 1) }}</div>
+    <div class="lclbl">{{ s.name }}</div>
+  </div>
+  {% if not loop.last %}<div class="lcline {{ 'done' if i < pos else '' }}"></div>{% endif %}
+  {% endfor %}
+</div>
+{% endmacro %}

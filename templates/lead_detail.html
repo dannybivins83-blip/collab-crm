@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
+{% from "_lifecycle.html" import lifecycle_bar %}
 {% block title %}{{ l.name }}{% endblock %}
 {% block body %}
 {% set comm_kinds = ['call','email','sms','note','draft'] %}
@@ -30,6 +31,34 @@
     <button class="accent" type="submit">✓ Won → Create Job</button>
   </form>{% endif %}
 </div>
+
+<!-- Unified lifecycle bar + big Next Step button (spans lead → job) -->
+<div class="card" style="margin-bottom:14px">
+  {{ lifecycle_bar('lead', l.stage) }}
+  {% set ns = constants.next_step('lead', l.stage) %}
+  {% set _pct = l._pct if l._pct is defined else 100 %}
+  {% if ns %}
+  <div style="display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap">
+    {% if _pct < 100 %}<span class="muted" style="font-size:12px">Stage checklist {{ _pct }}% done</span>{% endif %}
+    {% if ns.action == 'convert' %}
+    <form method="post" action="{{ url_for('leads.convert', lead_id=l.id) }}" onsubmit="return lcGate(this,{{ _pct }})">
+      <button class="btn lg accent" type="submit">{{ ns.label }}</button>
+    </form>
+    {% else %}
+    <form method="post" action="{{ url_for('leads.set_stage', lead_id=l.id) }}" onsubmit="return lcGate(this,{{ _pct }})">
+      <input type="hidden" name="stage" value="{{ ns.stage }}">
+      <button class="btn lg primary" type="submit">{{ ns.label }} →</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<script>
+function lcGate(form,pct){
+  if(pct>=100) return true;
+  return confirm("Some checklist items for this stage aren't checked off yet ("+pct+"% done). Move forward anyway?");
+}
+</script>
 
 <!-- Milestone track (lead pipeline) -->
 <div class="card mstone">

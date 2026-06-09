@@ -105,7 +105,6 @@
     </div>
   </div>
   <a class="navitem {{ 'on' if seg=='/' }}" href="{{ url_for('dashboard.home') }}">Dashboard</a>
-  <a class="navitem {{ 'on' if seg.startswith('/contacts') }}" href="{{ url_for('contacts.index') }}">Contacts</a>
   <a class="navitem {{ 'on' if seg.startswith('/leads') }}" href="{{ url_for('leads.list_view') }}">Leads</a>
   <div class="navgroup">
     <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/jobs') }}" href="{{ url_for('jobs.list_view') }}">Jobs ▾</a>
@@ -138,6 +137,8 @@
       <a href="{{ url_for('templates.index') }}">{{ icon('grid') }}<span class="nlbl">Estimate Templates</span></a>
       <a href="{{ url_for('sync.catalog_view') }}">{{ icon('box') }}<span class="nlbl">Material Catalog</span></a>
       <a href="{{ url_for('library.index') }}">{{ icon('book') }}<span class="nlbl">Document Library</span></a>
+      <a href="{{ url_for('contacts.index') }}">{{ icon('user') }}<span class="nlbl">Contacts</span></a>
+      <a href="{{ url_for('contacts.gcs') }}">{{ icon('building') }}<span class="nlbl">General Contractors</span></a>
       <a href="{{ url_for('sync.index') }}">{{ icon('refresh') }}<span class="nlbl">Sync from AccuLynx</span></a>
       <a href="{{ url_for('calendar.index') }}">{{ icon('calendar') }}<span class="nlbl">Calendar</span></a>
       <a href="{{ url_for('tasks.index') }}">{{ icon('check') }}<span class="nlbl">Tasks</span></a>
