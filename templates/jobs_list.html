@@ -14,7 +14,6 @@
 
 <div class="listwrap">
   <aside class="filters">
-    <form method="get"><input name="q" value="{{ q }}" placeholder="Search results…" style="margin-bottom:12px"></form>
     <div class="filt-head">Milestone Pipeline {% if stage_f or bucket %}<a href="{{ url_for('jobs.list_view') }}" class="muted">clear</a>{% endif %}</div>
     <a class="filt {{ 'on' if not stage_f and not bucket }}" href="{{ url_for('jobs.list_view') }}">All <span>{{ total }}</span></a>
     {% for s in stages %}
@@ -25,6 +24,29 @@
   </aside>
 
   <div class="results">
+    <form method="get" class="listbar">
+      {% if stage_f %}<input type="hidden" name="stage" value="{{ stage_f }}">{% endif %}
+      {% if bucket %}<input type="hidden" name="bucket" value="{{ bucket }}">{% endif %}
+      <input name="q" value="{{ q }}" placeholder="Search name, job #, address, phone…" class="lb-q">
+      <select name="sort" onchange="this.form.submit()" title="Sort">
+        <option value="days"   {{ 'selected' if sort=='days' }}>Most overdue</option>
+        <option value="value"  {{ 'selected' if sort=='value' }}>Value (high→low)</option>
+        <option value="name"   {{ 'selected' if sort=='name' }}>Name A–Z</option>
+        <option value="rid"    {{ 'selected' if sort=='rid' }}>Job #</option>
+        <option value="recent" {{ 'selected' if sort=='recent' }}>Recently updated</option>
+      </select>
+      <select name="rep" onchange="this.form.submit()" title="Filter by rep">
+        <option value="">All reps</option>
+        {% for r in reps %}<option value="{{ r }}" {{ 'selected' if rep_f==r }}>{{ r }}</option>{% endfor %}
+      </select>
+      <button class="btn sm primary" type="submit">Search</button>
+      {% if q or rep_f or sort!='days' %}<a class="btn sm ghost" href="{{ url_for('jobs.list_view') }}{{ ('?stage='+stage_f) if stage_f else (('?bucket='+bucket) if bucket else '') }}">Reset</a>{% endif %}
+    </form>
+    <style>
+      .listbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+      .listbar .lb-q{flex:1;min-width:200px;padding:8px 11px;border:1px solid #c7d0de;border-radius:8px;font-size:14px}
+      .listbar select{padding:8px 10px;border:1px solid #c7d0de;border-radius:8px;font-size:13px;background:#fff}
+    </style>
     {% for j in rows %}
     {% set col = 'var(--danger)' if j._fs.level=='hot' else ('var(--warn)' if j._fs.level=='stalled' else 'var(--ok)') %}
     <a class="result" href="{{ url_for('jobs.detail', job_id=j.id) }}">

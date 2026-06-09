@@ -12,7 +12,8 @@ bp = Blueprint("jobs", __name__, url_prefix="/jobs")
 EDITABLE = ["rid", "name", "phone", "email", "address", "city", "state", "zip",
             "work_type", "rep", "source", "contract_value", "narrative", "todo", "notes",
             "next_follow", "pcn", "legal", "county", "ahj", "system", "existing",
-            "area", "slope", "mrh", "exposure", "external_url", "contact_id", "pay_url"]
+            "area", "slope", "mrh", "exposure", "external_url", "contact_id", "pay_url",
+            "sitecam_url"]
 
 
 def _decorate(j):
@@ -83,10 +84,27 @@ def list_view():
         rows = [j for j in rows if j["_stage"].get("bucket") == bucket]
     if q:
         rows = [j for j in rows if q in ((j.get("name") or "") + (j.get("address") or "") +
-                                         (j.get("rid") or "")).lower()]
-    rows.sort(key=lambda j: -j["_fs"]["days"])
+                                         (j.get("rid") or "") + (j.get("phone") or "") +
+                                         (j.get("work_type") or "")).lower()]
+    rep_f = request.args.get("rep")
+    if rep_f:
+        rows = [j for j in rows if (j.get("rep") or "") == rep_f]
+    # Sort options for the bucket views.
+    sort = request.args.get("sort", "days")
+    keys = {
+        "days":  (lambda j: -j["_fs"]["days"]),                       # most overdue first
+        "value": (lambda j: -theme.est_num(j.get("contract_value"))), # biggest $ first
+        "name":  (lambda j: (j.get("name") or "").lower()),
+        "rid":   (lambda j: (j.get("rid") or "").lower()),
+        "recent":(lambda j: (j.get("stage_since") or j.get("created") or ""),),
+    }
+    if sort == "recent":
+        rows.sort(key=lambda j: (j.get("stage_since") or j.get("created") or ""), reverse=True)
+    else:
+        rows.sort(key=keys.get(sort, keys["days"]))
+    reps = sorted({(j.get("rep") or "").strip() for j in jobs if (j.get("rep") or "").strip()})
     return render_template("jobs_list.html", rows=rows, counts=counts, stage_f=stage_f,
-                           bucket=bucket, q=q, total=len(jobs),
+                           bucket=bucket, q=q, total=len(jobs), sort=sort, rep_f=rep_f, reps=reps,
                            stages=constants.JOB_STAGES, buckets=constants.BUCKETS)
 
 
@@ -98,11 +116,32 @@ def new():
         data["stage_since"] = db.today()
         data["department"] = current_department()
         lid = db.insert("jobs", data)
-        db.add_activity("job", lid, "stage", "Job created")
+        gc = db.get("contacts", data.get("contact_id")) if data.get("contact_id") else None
+        if gc and gc.get("is_gc"):
+            db.add_activity("job", lid, "stage", "Job created under GC %s %s" % (
+                gc.get("first_name") or "", gc.get("last_name") or "").strip())
+            db.add_activity("contact", gc["id"], "note", "New job created under this GC: %s" % data.get("name"))
+        else:
+            db.add_activity("job", lid, "stage", "Job created")
         flash("Job created.", "ok")
         return redirect(url_for("jobs.detail", job_id=lid))
-    return render_template("job_form.html", job={}, contacts=db.all_rows("contacts", order="last_name"),
-                           mode="new")
+    return render_template("job_form.html", job=_prefill_from_gc(), gc_id=request.args.get("gc"),
+                           contacts=db.all_rows("contacts", order="last_name"), mode="new")
+
+
+def _prefill_from_gc():
+    """When New Job is opened as ?gc=<contact_id>, pre-fill the GC's name/company/
+    phone/email/rep so the user only needs to add the new property + work type."""
+    gid = request.args.get("gc")
+    if not gid or not gid.isdigit():
+        return {}
+    g = db.get("contacts", int(gid))
+    if not g or not g.get("is_gc"):
+        return {}
+    name = (((g.get("first_name") or "") + " " + (g.get("last_name") or "")).strip()
+            or g.get("company") or "")
+    return {"name": name, "phone": g.get("phone") or "", "email": g.get("email") or "",
+            "contact_id": g["id"], "rep": g.get("rep") or "", "state": g.get("state") or "FL"}
 
 
 @bp.route("/<int:job_id>")
