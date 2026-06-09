@@ -33,7 +33,8 @@ for _lc in ("portal_token TEXT", "portal_invited TEXT"):
         db.execute("ALTER TABLE leads ADD COLUMN %s" % _lc)
     except Exception:
         pass
-for _c in ("photo_app_url TEXT", "tutorials TEXT", "auto_portal_invite INTEGER DEFAULT 0"):
+for _c in ("photo_app_url TEXT", "tutorials TEXT", "auto_portal_invite INTEGER DEFAULT 0",
+           "portal_perks TEXT"):  # homeowner perks / giveaways / events shown in the portal
     try:
         db.execute("ALTER TABLE company_settings ADD COLUMN %s" % _c)
     except Exception:

@@ -206,6 +206,28 @@
     .stat .v{font-size:17px}
     .top .nm{font-size:15px}
   }
+
+  /* ---- engagement: live status / roof cam / refer / perks ---- */
+  .livebar{margin:15px 16px 2px;border-radius:15px;padding:15px 16px;display:flex;gap:14px;align-items:center;
+    background:linear-gradient(120deg, var(--green-tint), #fff);
+    border:1px solid color-mix(in srgb, var(--green) 32%, #fff)}
+  .livebar .lb-em{font-size:33px;line-height:1;flex:none;filter:drop-shadow(0 2px 4px rgba(0,0,0,.12));
+    animation:bob 2.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .livebar .lb-stage{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--green-deep)}
+  .livebar .lb-msg{font-weight:700;color:var(--ink);margin-top:2px;line-height:1.4}
+  .livedot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;
+    vertical-align:middle;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--green) 55%,transparent)}
+    70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  .cta-card{background:linear-gradient(125deg, var(--accent-tint), #fff)}
+  .reflink{display:flex;gap:8px;margin-top:13px}
+  .reflink input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+    font-size:13px;background:#fff;color:var(--ink2)}
+  .perk{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed var(--line)}
+  .perk:last-child{border:0}
+  .perk .pk-ic{font-size:23px;flex:none}
+  .perk .pk-b b{display:block}
 </style>
 </head>
 <body{% if (signup_packet) or (pay_url and j._balance > 0) %} class="has-cta"{% endif %}>
@@ -222,7 +244,7 @@
   <!-- HERO + PROGRESS -->
   <div class="card flush">
     <div class="hero-band">
-      <h1>Hi{{ ' ' ~ j.name.split(' ')[0] if j.name }} 👋</h1>
+      <h1>Hi{{ ' ' ~ j._first if j._first }} 👋</h1>
       <div class="addr">📍 {{ j.address }}{{ ', ' ~ j.city if j.city }} {{ j.state }} {{ j.zip }}</div>
       <div class="badges">
         <span class="pill green">{{ j._stage_name }}</span>
@@ -245,6 +267,25 @@
     </div>
   </div>
 
+  <!-- LIVE STATUS (Domino's-style "your roof is HERE") -->
+  {% set _ph = phases[j._phase] if j._phase < phases|length else phases[-1] %}
+  {% set _fun = {
+    "Approved":["🎉","Welcome aboard! Your project is officially a GO — here's everything that happens next."],
+    "Permitting":["📝","We're at the city pulling your permit. This stretch runs on their clock — we'll ping you the moment it's issued."],
+    "Scheduling":["📅","Permit's in hand! We're ordering your materials and locking in an install date with you."],
+    "Installation":["🔨","It's happening! Our crew is bringing your new roof to life — watch it on your Roof Cam below. 📸"],
+    "Final Inspection":["🔎","Final inspection time — the finish line is in sight!"],
+    "Complete":["🏡","All done — enjoy your beautiful new roof! Mind leaving us a quick review?"]
+  } %}
+  {% set _fe = _fun.get(_ph, ["🏗️","Your project is moving right along — here's exactly what's next."]) %}
+  <div class="livebar" style="margin:0 0 15px">
+    <div class="lb-em">{{ _fe[0] }}</div>
+    <div style="min-width:0">
+      <div class="lb-stage"><span class="livedot"></span>Live now · {{ _ph }}</div>
+      <div class="lb-msg">{{ _fe[1] }}</div>
+    </div>
+  </div>
+
   <!-- SIGN-UP PACKAGE (action needed) -->
   {% if signup_packet %}
   <div class="card action" id="signup">
@@ -263,12 +304,48 @@
       <div style="flex:1;min-width:0">
         <div class="nm">{{ s.name }}{% if s.current %} <span class="pill green">You are here</span>{% endif %}</div>
         <div class="muted">{{ s.desc }}</div>
+        {% if s.you %}
+        <div style="margin-top:8px">
+          <div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:{{ 'var(--green-deep)' if s.current else 'var(--mut)' }};margin-bottom:4px">{{ 'Your part — do this now' if s.current else 'Your part' }}</div>
+          <ul style="list-style:none;margin:0;padding:0">
+            {% for it in s.you %}
+            <li style="position:relative;padding:4px 0 4px 22px;font-size:13px;color:var(--ink2)">
+              <span style="position:absolute;left:1px;top:3px;color:{{ 'var(--green-deep)' if s.current else 'var(--mut)' }}">{{ '☐' if s.current else '•' }}</span>{{ it }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
       </div>
       <div class="tf">{{ s.timeframe }}</div>
     </div>
     {% endfor %}
     <div class="muted" style="margin-top:12px">Timeframes are typical estimates — your project contact will confirm exact dates.</div>
   </div>
+
+  <!-- REFER & EARN -->
+  <div class="card cta-card">
+    <div class="h">🎁 Refer a Neighbor — You Both Win</div>
+    <div class="muted">Love how this is going? Send a neighbor our way. When they sign, <b>you both get a reward</b>. Tap copy and text it to anyone:</div>
+    <div class="reflink">
+      <input id="refMsg" readonly value="I'm getting my roof done by {{ company.name }} and they've been great — call {{ company.phone or company.email }} and mention my name, {{ (j.name or 'me').split(' ')[0] }}!">
+      <button class="btn green" type="button" onclick="copyRef(this)">Copy</button>
+    </div>
+    {% if not company.portal_perks %}<div class="muted" style="margin-top:10px;font-size:12.5px">Ask {{ j.rep or 'your project contact' }} about our current referral reward.</div>{% endif %}
+  </div>
+
+  <!-- PERKS, GIVEAWAYS & EVENTS (company-configured) -->
+  {% if company.portal_perks %}
+  <div class="card">
+    <div class="h">🎉 Perks, Giveaways &amp; Events</div>
+    <div style="line-height:1.6">{{ company.portal_perks|safe }}</div>
+  </div>
+  {% endif %}
+  <script>
+  function copyRef(b){var i=document.getElementById('refMsg');i.select();i.setSelectionRange(0,9999);
+    try{navigator.clipboard.writeText(i.value);}catch(e){try{document.execCommand('copy');}catch(_){}}
+    var t=b.textContent;b.textContent='Copied!';b.disabled=true;
+    setTimeout(function(){b.textContent=t;b.disabled=false;},1600);}
+  </script>
 
   <!-- REP CONTACT -->
   <div class="card">
@@ -364,7 +441,8 @@
 
   <!-- PHOTOS -->
   <div class="card" id="photos"><div class="h">Project Photos</div>
-    {% if photo_app_url %}<a class="btn ghost block" style="margin-bottom:14px" href="{{ photo_app_url }}" target="_blank">📸 View all job photos in our photo app</a>{% endif %}
+    {% if j.sitecam_url %}<a class="btn block" style="margin-bottom:14px" href="{{ j.sitecam_url }}" target="_blank" rel="noopener">📸 View your project photos →</a>
+    {% elif photo_app_url %}<a class="btn ghost block" style="margin-bottom:14px" href="{{ photo_app_url }}" target="_blank" rel="noopener">📸 View all job photos in our photo app</a>{% endif %}
     {% if photos %}
     <div class="gallery" style="margin-bottom:14px">{% for ph in photos %}<a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" title="{{ ph.caption }}"></a>{% endfor %}</div>
     {% else %}<div class="muted" style="margin-bottom:14px">Project photos will appear here as work progresses.</div>{% endif %}
