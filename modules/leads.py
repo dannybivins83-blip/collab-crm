@@ -9,8 +9,31 @@ from theme import current_department
 
 bp = Blueprint("leads", __name__, url_prefix="/leads")
 
-EDITABLE = ["rid", "name", "phone", "email", "address", "work_type", "rep", "source",
-            "estimate", "narrative", "todo", "notes", "next_follow", "external_url", "contact_id"]
+# AccuLynx "Create New Lead" parity — extra columns on the lead record. Added
+# idempotently so local SQLite and Neon both pick them up without a migration.
+# (`rank` is ensured in modules/customfields.py; reused here for Lead Rank.)
+for _col, _decl in [
+    ("company", "TEXT"), ("cross_ref", "TEXT"),
+    ("priority", "TEXT DEFAULT 'Normal'"),
+    ("phone_type", "TEXT"), ("phone_ext", "TEXT"), ("sms_opt", "INTEGER DEFAULT 0"),
+    ("phone2", "TEXT"), ("phone2_type", "TEXT"), ("email_type", "TEXT"),
+    ("mail_street", "TEXT"), ("mail_city", "TEXT"), ("mail_state", "TEXT"), ("mail_zip", "TEXT"),
+]:
+    db._ensure_column("leads", _col, _decl)
+
+EDITABLE = ["rid", "name", "company", "cross_ref", "phone", "email", "address",
+            "work_type", "rep", "source", "estimate", "narrative", "todo", "notes",
+            "next_follow", "external_url", "contact_id",
+            "priority", "phone_type", "phone_ext", "phone2", "phone2_type", "email_type",
+            "mail_street", "mail_city", "mail_state", "mail_zip"]
+
+
+def _rank_val(raw):
+    """Clamp the Lead Rank input to AccuLynx's 0–4 scale (blank → 0)."""
+    try:
+        return max(0, min(4, int(raw or 0)))
+    except (TypeError, ValueError):
+        return 0
 
 
 def _decorate(l):
@@ -79,6 +102,9 @@ def new():
         data = {f: request.form.get(f, "").strip() for f in EDITABLE}
         if not data.get("contact_id"):
             data["contact_id"] = None  # integer FK: blank "" is invalid in Postgres
+        data["sms_opt"] = 1 if request.form.get("sms_opt") else 0  # "Opt in Texting/SMS"
+        data["priority"] = data.get("priority") or "Normal"
+        data["rank"] = _rank_val(request.form.get("rank"))  # Lead Rank (Notes/Tools)
         data["stage"] = request.form.get("stage", constants.LEAD_DEFAULT_STAGE)
         data["stage_since"] = db.today()
         data["last_contact"] = db.today()
@@ -145,6 +171,9 @@ def edit(lead_id):
         return redirect(url_for("leads.board"))
     if request.method == "POST":
         data = {f: request.form.get(f, "").strip() for f in EDITABLE}
+        data["sms_opt"] = 1 if request.form.get("sms_opt") else 0
+        data["priority"] = data.get("priority") or "Normal"
+        data["rank"] = _rank_val(request.form.get("rank"))
         db.update("leads", lead_id, **data)
         flash("Lead updated.", "ok")
         return redirect(url_for("leads.detail", lead_id=lead_id))

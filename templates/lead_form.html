@@ -4,51 +4,141 @@
 <div class="page-head">
   {% if mode=='edit' %}<a class="btn ghost" href="{{ url_for('leads.detail', lead_id=lead.id) }}">← Back</a>
   {% else %}<a class="btn ghost" href="{{ url_for('leads.list_view') }}">← Back</a>{% endif %}
-  <h1>{{ 'New Lead' if mode=='new' else 'Edit Lead' }}</h1>
+  <h1>{{ 'Create New Lead' if mode=='new' else 'Edit Lead' }}</h1>
+  <span class="muted" style="margin-left:8px">for {{ current_department }}</span>
 </div>
-<form method="post" class="card" style="max-width:760px">
-  <div class="row">
-    <div class="field"><label>Name</label><input name="name" value="{{ lead.name or '' }}" required></div>
-    <div class="field"><label>Ref #</label><input name="rid" value="{{ lead.rid or '' }}" placeholder="L-1003"></div>
-  </div>
-  <div class="row">
-    <div class="field"><label>Phone</label><input name="phone" value="{{ lead.phone or '' }}"></div>
-    <div class="field"><label>Email</label><input name="email" value="{{ lead.email or '' }}"></div>
-  </div>
-  <div class="field"><label>Property address</label><input name="address" value="{{ lead.address or '' }}" placeholder="Street, City, FL 33xxx"></div>
-  <div class="row">
-    <div class="field"><label>Work type</label>
-      <select name="work_type">{% for w in constants.WORK_TYPES %}<option {{ 'selected' if lead.work_type==w }}>{{ w }}</option>{% endfor %}</select>
+<form method="post">
+<div class="detail">
+  <!-- ── Main column ─────────────────────────────────────────────── -->
+  <div>
+    <!-- Primary Contact -->
+    <div class="card">
+      <div class="panel-head"><span>👤 Primary Contact</span><span class="muted" style="color:var(--danger)">* Required</span></div>
+      <div class="row">
+        <div class="field"><label>Name *</label><input name="name" value="{{ lead.name or '' }}" required placeholder="First &amp; Last"></div>
+        <div class="field"><label>Ref #</label><input name="rid" value="{{ lead.rid or '' }}" placeholder="L-1003"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Company Name</label><input name="company" value="{{ lead.company or '' }}"></div>
+        <div class="field"><label>Cross Reference</label><input name="cross_ref" value="{{ lead.cross_ref or '' }}"></div>
+      </div>
     </div>
-    <div class="field"><label>Lead source</label>
-      <select name="source"><option value=""></option>{% for s in db_lead_sources() %}<option {{ 'selected' if lead.source==s }}>{{ s }}</option>{% endfor %}</select>
+
+    <!-- Phone(s) -->
+    <div class="card">
+      <h2>📞 Phone</h2>
+      <div class="row" style="align-items:flex-end">
+        <div class="field" style="flex:2"><label>Primary phone</label><input name="phone" value="{{ lead.phone or '' }}"></div>
+        <div class="field" style="flex:0 0 90px;min-width:90px"><label>Ext</label><input name="phone_ext" value="{{ lead.phone_ext or '' }}"></div>
+        <div class="field"><label>Type</label>
+          <select name="phone_type">{% for t in constants.PHONE_TYPES %}<option {{ 'selected' if lead.phone_type==t or (not lead.phone_type and t=='Mobile') }}>{{ t }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      <label class="check" style="margin-bottom:10px"><input type="checkbox" name="sms_opt" value="1" {{ 'checked' if lead.sms_opt }}><span>Opt in Texting/SMS</span></label>
+      <div class="row" style="align-items:flex-end">
+        <div class="field" style="flex:2"><label>Secondary phone</label><input name="phone2" value="{{ lead.phone2 or '' }}"></div>
+        <div class="field"><label>Type</label>
+          <select name="phone2_type"><option value=""></option>{% for t in constants.PHONE_TYPES %}<option {{ 'selected' if lead.phone2_type==t }}>{{ t }}</option>{% endfor %}</select>
+        </div>
+      </div>
     </div>
-    <div class="field"><label>Sales rep</label>
-      <select name="rep">
-        <option value="">— unassigned —</option>
-        {% set reps = rep_options() %}
-        {% for r in reps %}<option {{ 'selected' if lead.rep==r }}>{{ r }}</option>{% endfor %}
-        {% if lead.rep and lead.rep not in reps %}<option selected>{{ lead.rep }}</option>{% endif %}
-      </select>
+
+    <!-- Email -->
+    <div class="card">
+      <h2>✉️ Email</h2>
+      <div class="row" style="align-items:flex-end">
+        <div class="field" style="flex:2"><label>Email</label><input name="email" type="email" value="{{ lead.email or '' }}"></div>
+        <div class="field"><label>Type</label>
+          <select name="email_type"><option value=""></option>{% for t in constants.EMAIL_TYPES %}<option {{ 'selected' if lead.email_type==t }}>{{ t }}</option>{% endfor %}</select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Location / Job info -->
+    <div class="card">
+      <div class="panel-head"><span>📍 Location Information</span><span class="muted" style="color:var(--danger)">* Required</span></div>
+      <div class="field"><label>Property address *</label><input name="address" value="{{ lead.address or '' }}" placeholder="Street, City, FL 33xxx" required></div>
+      <div class="row">
+        <div class="field"><label>Work type *</label>
+          <select name="work_type">{% for w in constants.WORK_TYPES %}<option {{ 'selected' if lead.work_type==w }}>{{ w }}</option>{% endfor %}</select>
+        </div>
+        <div class="field"><label>Lead source *</label>
+          <select name="source"><option value=""></option>{% for s in db_lead_sources() or constants.LEAD_SOURCES %}<option {{ 'selected' if lead.source==s }}>{{ s }}</option>{% endfor %}</select>
+        </div>
+        <div class="field"><label>Sales rep</label>
+          <select name="rep">
+            <option value="">— unassigned —</option>
+            {% set reps = rep_options() %}
+            {% for r in reps %}<option {{ 'selected' if lead.rep==r }}>{{ r }}</option>{% endfor %}
+            {% if lead.rep and lead.rep not in reps %}<option selected>{{ lead.rep }}</option>{% endif %}
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Estimate ($)</label><input name="estimate" value="{{ lead.estimate or '' }}" placeholder="$14,500"></div>
+        {% if mode=='new' %}
+        <div class="field"><label>Stage</label>
+          <select name="stage">{% for s in constants.LEAD_STAGES %}<option value="{{ s.key }}" {{ 'selected' if s.key==constants.LEAD_DEFAULT_STAGE }}>{{ s.name }}</option>{% endfor %}</select>
+        </div>{% endif %}
+        <div class="field"><label>Link to contact</label>
+          <select name="contact_id"><option value="">— none —</option>
+            {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if lead.contact_id==c.id }}>{{ c.first_name }} {{ c.last_name }}{{ ' · ' ~ c.company if c.company }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <p class="muted" style="margin:4px 0 0">Permit office (AHJ) + roof system auto-resolve from the address &amp; work type, and a starter estimate is drafted for the tagged system on save.</p>
+    </div>
+
+    <!-- Mailing Address -->
+    <div class="card">
+      <h2>🏠 Mailing Address</h2>
+      <label class="check" style="margin-bottom:12px"><input type="checkbox" id="same_as_loc" {{ 'checked' if not (lead.mail_street or lead.mail_city) }}><span>Same as property address</span></label>
+      <div id="mail_fields">
+        <div class="field"><label>Street</label><input name="mail_street" value="{{ lead.mail_street or '' }}"></div>
+        <div class="row">
+          <div class="field"><label>City</label><input name="mail_city" value="{{ lead.mail_city or '' }}"></div>
+          <div class="field" style="flex:0 0 90px;min-width:90px"><label>State</label><input name="mail_state" value="{{ lead.mail_state or 'FL' }}" maxlength="2"></div>
+          <div class="field" style="flex:0 0 120px;min-width:120px"><label>Zip</label><input name="mail_zip" value="{{ lead.mail_zip or '' }}"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status narrative -->
+    <div class="card">
+      <div class="field"><label>Where it stands</label><textarea name="narrative">{{ lead.narrative or '' }}</textarea></div>
+      <div class="field" style="margin-bottom:0"><label>Next action / to-do</label><input name="todo" value="{{ lead.todo or '' }}"></div>
     </div>
   </div>
-  <div class="row">
-    <div class="field"><label>Estimate ($)</label><input name="estimate" value="{{ lead.estimate or '' }}" placeholder="$14,500"></div>
-    {% if mode=='new' %}
-    <div class="field"><label>Stage</label>
-      <select name="stage">{% for s in constants.LEAD_STAGES %}<option value="{{ s.key }}" {{ 'selected' if s.key=='new' }}>{{ s.name }}</option>{% endfor %}</select>
-    </div>{% endif %}
-    <div class="field"><label>Link to contact</label>
-      <select name="contact_id"><option value="">— none —</option>
-        {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if lead.contact_id==c.id }}>{{ c.first_name }} {{ c.last_name }}{{ ' · ' ~ c.company if c.company }}</option>{% endfor %}
-      </select>
+
+  <!-- ── Notes / Tools sidebar ───────────────────────────────────── -->
+  <div>
+    <div class="card">
+      <h2>🗒️ Notes / Tools</h2>
+      <div class="field"><label>Lead Rank</label>
+        <select name="rank">
+          {% set cur_rank = lead.rank or 0 %}
+          <option value="0" {{ 'selected' if cur_rank==0 }}>Unranked</option>
+          {% for n in [1,2,3,4] %}<option value="{{ n }}" {{ 'selected' if cur_rank==n }}>{{ '🟩' * n }} ({{ n }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Priority Level</label>
+        <select name="priority">{% for p in constants.PRIORITY_LEVELS %}<option {{ 'selected' if (lead.priority or 'Normal')==p }}>{{ p }}</option>{% endfor %}</select>
+      </div>
+      <div class="field" style="margin-bottom:0"><label>Notes</label><textarea name="notes" style="min-height:120px">{{ lead.notes or '' }}</textarea></div>
+    </div>
+    <div class="card">
+      <button class="primary" type="submit" style="width:100%">{{ 'Create Lead' if mode=='new' else 'Save Changes' }}</button>
+      <a class="btn ghost" style="width:100%;text-align:center;margin-top:8px" href="{{ url_for('leads.board') }}">Cancel</a>
     </div>
   </div>
-  <div class="field"><label>Where it stands</label><textarea name="narrative">{{ lead.narrative or '' }}</textarea></div>
-  <div class="field"><label>Next action / to-do</label><input name="todo" value="{{ lead.todo or '' }}"></div>
-  <div style="display:flex;gap:10px">
-    <button class="primary" type="submit">Save</button>
-    <a class="btn ghost" href="{{ url_for('leads.board') }}">Cancel</a>
-  </div>
+</div>
 </form>
+<script>
+// "Same as property address" — hide/clear the distinct mailing block when checked.
+(function(){
+  var cb = document.getElementById('same_as_loc'), box = document.getElementById('mail_fields');
+  function sync(){ box.style.display = cb.checked ? 'none' : ''; }
+  cb.addEventListener('change', sync); sync();
+})();
+</script>
 {% endblock %}

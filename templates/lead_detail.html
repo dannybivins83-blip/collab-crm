@@ -2,12 +2,27 @@
 {% from "_icons.html" import icon %}
 {% block title %}{{ l.name }}{% endblock %}
 {% block body %}
-<div class="page-head">
-  <a href="{{ url_for('leads.board') }}" class="muted">← Pipeline</a>
-  <h1 style="margin-left:8px">{{ l.name }}</h1>
+{% set comm_kinds = ['call','email','sms','note','draft'] %}
+{% set cur_idx = constants.LEAD_STAGE_INDEX.get(l.stage, 0) %}
+{% set rank = l.rank or 0 %}
+
+<!-- Lead header (client dashboard, AccuLynx parity) -->
+<div class="jobhead">
+  <a href="{{ url_for('leads.board') }}" class="back" title="Pipeline">‹</a>
   {% set col = 'var(--danger)' if l._fs.level=='hot' else ('var(--warn)' if l._fs.level=='stalled' else 'var(--ok)') %}
-  <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ l._stage.name }} · {{ l._fs.days }}d</span>
+  <span class="jh-badge" style="background:{{ l._stage.color }}">{{ l._stage.name[0] }}</span>
+  <div class="jh-title">
+    <div class="jh-name">{{ l.rid ~ ': ' if l.rid }}{{ l.name }}{% if l.company %} <span class="muted" style="font-size:14px">· {{ l.company }}</span>{% endif %}</div>
+    {% if l.address %}<a class="jh-addr" href="https://maps.google.com/?q={{ l.address|urlencode }}" target="_blank">{{ l.address }} ↗</a>{% endif %}
+  </div>
   <div class="grow"></div>
+  <div style="text-align:right;font-size:12px;line-height:1.5">
+    <div class="muted">Lead Rank</div>
+    <div title="{{ rank }}/4">{% for n in range(4) %}<span style="display:inline-block;width:12px;height:12px;border-radius:2px;margin-left:2px;background:{{ 'var(--accent2)' if n < rank else '#d7deea' }}"></span>{% endfor %}</div>
+  </div>
+  <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ l._stage.name }} · {{ l._fs.days }}d</span>
+  {% set pcol = 'var(--danger)' if l.priority in ('High','Urgent') else 'var(--mut)' %}
+  <span class="pill" style="background:var(--panel2);color:{{ pcol }}" title="Priority Level">◉ {{ l.priority or 'Normal' }}</span>
   <a class="btn" href="{{ url_for('leads.edit', lead_id=l.id) }}">Edit</a>
   {% if l.stage not in ('won','lost') %}
   <form method="post" action="{{ url_for('leads.convert', lead_id=l.id) }}" style="display:inline"
@@ -16,80 +31,175 @@
   </form>{% endif %}
 </div>
 
+<!-- Milestone track (lead pipeline) -->
+<div class="card mstone">
+  <div class="mstone-left">
+    <div><span class="muted">STATUS:</span> <b>{{ l._stage.name }}</b></div>
+    {% if l.todo %}<div><span class="muted">NEXT STEP:</span> <b style="color:var(--accent2)">{{ l.todo }}</b></div>{% endif %}
+    <form method="post" action="{{ url_for('leads.set_stage', lead_id=l.id) }}" style="margin-top:8px">
+      <select name="stage" onchange="this.form.submit()" style="width:auto;max-width:230px">
+        {% for s in constants.LEAD_STAGES %}<option value="{{ s.key }}" {{ 'selected' if s.key==l.stage }}>{{ loop.index }}. {{ s.name }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="mstone-track">
+    {% for s in constants.LEAD_STAGES if s.key != 'lost' %}
+    {% set reached = loop.index0 <= cur_idx %}
+    <div class="mnode {{ 'on' if s.key==l.stage }}">
+      <span class="mcircle" style="background:{{ s.color if reached else '#c9d2dd' }}">{{ s.name[0] }}</span>
+      <span class="mlbl">{{ s.name }}</span>
+    </div>
+    {% if not loop.last %}<span class="mline {{ 'done' if loop.index0 < cur_idx }}"></span>{% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Primary Contact + Location Info (dashboard parity) -->
+<div class="detail" style="grid-template-columns:1fr 1fr;margin-bottom:18px">
+  <div class="card" style="margin:0">
+    <h2>👤 Primary Contact</h2>
+    <div class="muted" style="line-height:2">
+      <div><b style="color:var(--txt)">{{ l.name }}</b>{% if l.company %} · {{ l.company }}{% endif %}</div>
+      {% if l.phone %}<div><a href="tel:{{ l.phone }}">{{ icon('phone') }} {{ l.phone }}</a>{% if l.phone_ext %} x{{ l.phone_ext }}{% endif %}{% if l.phone_type %} · {{ l.phone_type }}{% endif %}{% if l.sms_opt %} · <span class="badge" style="color:var(--ok)">SMS ✓</span>{% endif %}</div>{% endif %}
+      {% if l.phone2 %}<div><a href="tel:{{ l.phone2 }}">{{ icon('phone') }} {{ l.phone2 }}</a>{% if l.phone2_type %} · {{ l.phone2_type }}{% endif %}</div>{% endif %}
+      {% if l.email %}<div>✉️ <a href="mailto:{{ l.email }}">{{ l.email }}</a>{% if l.email_type %} · {{ l.email_type }}{% endif %}</div>{% endif %}
+      <div>📬 Mailing: {% if l.mail_street or l.mail_city %}{{ l.mail_street }}{{ ', ' ~ l.mail_city if l.mail_city }} {{ l.mail_state or '' }} {{ l.mail_zip or '' }}{% else %}<span class="muted">Same as property</span>{% endif %}</div>
+      {% if l.cross_ref %}<div>🔖 Cross Ref: {{ l.cross_ref }}</div>{% endif %}
+    </div>
+  </div>
+  <div class="card" style="margin:0">
+    <h2>📍 Location Info</h2>
+    <div class="muted" style="line-height:2">
+      <div>🏠 {{ l.address or '—' }}</div>
+      <div>🔨 Work type: <b style="color:var(--txt)">{{ l.work_type or '—' }}</b></div>
+      {% if l.source %}<div>📣 Lead source: {{ l.source }}</div>{% endif %}
+      {% if l.rep %}<div>👤 Rep: {{ l.rep }}</div>{% endif %}
+      {% if l.ahj %}<div>🏛️ AHJ: {{ l.ahj }}{% if l.county %} ({{ l.county }}){% endif %}{% if l.system %} · {{ l.system }} system{% endif %}</div>{% endif %}
+      {% if l.estimate %}<div>💲 Estimate: <b class="est">{{ l.estimate }}</b></div>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if l.narrative %}<div class="card" style="margin-bottom:18px"><span class="muted">Where it stands:</span> {{ l.narrative }}</div>{% endif %}
+
+<!-- Lead Activity tabs (mirrors Job detail) -->
+<div class="jobtabs" id="leadtabs">
+  <a class="jtab on" data-tab="comm">Communications <span class="jt-n">{{ activity|selectattr('kind','in',comm_kinds)|list|length }}</span></a>
+  <a class="jtab" data-tab="est">Estimates <span class="jt-n">{{ estimates|length }}</span></a>
+  <a class="jtab" data-tab="work">Worksheet</a>
+  <a class="jtab" data-tab="doc">Documents <span class="jt-n">{{ documents|length }}</span></a>
+  <a class="jtab" data-tab="meas">Measurements {% if measurement %}<span class="jt-n">✓</span>{% endif %}</a>
+  <a class="jtab" data-tab="check">Checklist</a>
+</div>
+
 <div class="detail">
   <div>
-    <div class="card">
-      <div class="row">
-        <div>📍 {{ l.address or '—' }}</div>
-        {% if l.phone %}<div><a href="tel:{{ l.phone }}">{{ icon('phone') }} {{ l.phone }}</a></div>{% endif %}
-        {% if l.email %}<div><a href="mailto:{{ l.email }}">✉️ {{ l.email }}</a></div>{% endif %}
+    <!-- COMMUNICATIONS -->
+    <div class="tabpane" data-pane="comm">
+      <div class="card">
+        <div class="panel-head"><span>Log activity</span>
+          <a class="btn sm accent" href="{{ followup_email('lead', l) }}" target="_blank"
+             title="Open a follow-up email draft in Gmail (never auto-sent)">✉️ Draft follow-up</a>
+        </div>
+        <form method="post" action="{{ url_for('leads.note', lead_id=l.id) }}" style="display:flex;gap:8px;align-items:flex-end">
+          <div style="flex:none"><select name="kind"><option value="note">Note</option><option value="call">Call</option><option value="email">Email</option><option value="sms">SMS</option></select></div>
+          <div style="flex:1"><textarea name="text" placeholder="What happened…" required style="min-height:44px"></textarea></div>
+          <button class="primary" type="submit">Add</button>
+        </form>
+        <ul class="timeline" style="margin-top:14px">
+          {% for a in activity if a.kind in comm_kinds %}
+          <li><div class="k">{{ a.kind }}</div><div class="t">{{ a.text }}</div><div class="d">{{ a.created }}</div></li>
+          {% else %}<li class="muted">No communications yet.</li>{% endfor %}
+        </ul>
       </div>
-      <div class="muted" style="margin-top:8px">{{ l.work_type }}{% if l.source %} · {{ l.source }}{% endif %}{% if l.rep %} · {{ l.rep }}{% endif %}{% if l.estimate %} · <b class="est">{{ l.estimate }}</b>{% endif %}</div>
-      {% if l.narrative %}<p style="margin:12px 0 0">{{ l.narrative }}</p>{% endif %}
-      {% if l.todo %}<div class="check" style="margin-top:10px;background:#fff7e6;border:1px solid #f0c97a">▶ <b>To-do:</b> {{ l.todo }}</div>{% endif %}
     </div>
 
-    <div class="card">
-      <h2>Stage</h2>
-      <div class="stagebtns">
-        {% for s in constants.LEAD_STAGES %}
-        <form method="post" action="{{ url_for('leads.set_stage', lead_id=l.id) }}" style="display:inline">
-          <input type="hidden" name="stage" value="{{ s.key }}">
-          <button class="{{ 'cur' if s.key==l.stage }}" type="submit">{{ loop.index }}. {{ s.name }}</button>
+    <!-- ESTIMATES -->
+    <div class="tabpane" data-pane="est" style="display:none">
+      <div class="card">
+        <div class="panel-head"><span>Estimates</span><a class="btn sm primary" href="{{ url_for('estimates.new') }}?lead_id={{ l.id }}">+ Custom…</a></div>
+        {% for e in estimates %}<div class="rowline"><a href="{{ url_for('estimates.detail', est_id=e.id) }}">{{ e.number }} — {{ e.title }}</a> <span class="badge">{{ e.status }}</span></div>{% else %}<div class="muted">No estimates yet — use Quick Estimate on the right.</div>{% endfor %}
+      </div>
+    </div>
+
+    <!-- WORKSHEET -->
+    <div class="tabpane" data-pane="work" style="display:none">
+      <div class="card">
+        <div class="panel-head"><span>📈 Worksheet / Profit Preview</span></div>
+        {% set val = est_num(l.estimate) %}
+        <div class="kpis" style="margin-bottom:8px">
+          <div class="kpi"><div class="v">{{ money(val) if val else '—' }}</div><div class="l">Projected contract value</div></div>
+          <div class="kpi"><div class="v">{{ estimates|length }}</div><div class="l">Estimate(s) on file</div></div>
+        </div>
+        <p class="muted">A full cost worksheet (budget vs. actual per category, gross profit &amp; variance) is created automatically when this lead is <b>Won → converted to a Job</b> — it seeds from the signed estimate. Until then, this is the projected value from the lead's estimate.</p>
+        {% if l.stage not in ('won','lost') %}
+        <form method="post" action="{{ url_for('leads.convert', lead_id=l.id) }}" style="margin-top:6px"
+              onsubmit="return confirm('Convert this lead to a production Job? This builds the worksheet.')">
+          <button class="accent" type="submit">✓ Won → Create Job &amp; Worksheet</button>
+        </form>{% endif %}
+      </div>
+    </div>
+
+    <!-- DOCUMENTS -->
+    <div class="tabpane" data-pane="doc" style="display:none">
+      <div class="card">
+        <h2>📄 Documents</h2>
+        {% if documents %}{% for d in documents %}<div class="rowline">
+          <span class="badge">{{ d.category }}</span>
+          <a href="{{ url_for('uploads', subpath='measurements/' ~ d.filename) }}" target="_blank" style="flex:1">{{ d.original_name }}</a>
+        </div>{% endfor %}{% else %}<div class="muted">No documents yet. Upload a RoofGraf report under Measurements to attach it here.</div>{% endif %}
+      </div>
+    </div>
+
+    <!-- MEASUREMENTS -->
+    <div class="tabpane" data-pane="meas" id="meas" style="display:none">
+      <div class="card">
+        <div class="panel-head"><span>📐 Roof Measurements (RoofGraf)</span>
+          {% if measurement and measurement.report_file %}<a class="btn sm" href="{{ url_for('uploads', subpath=measurement.report_file) }}" target="_blank">View report</a>{% endif %}
+        </div>
+        <form method="post" action="{{ url_for('measurements.upload_lead', lead_id=l.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+          <div style="flex:1"><label>Upload RoofGraf report (PDF — auto-parses squares &amp; pitch)</label><input type="file" name="file" accept="application/pdf" required></div>
+          <button class="primary" type="submit">Upload</button>
         </form>
+        {% set m = measurement or {} %}
+        <form method="post" action="{{ url_for('measurements.save_lead', lead_id=l.id) }}">
+          <div class="row">
+            <div class="field"><label>Squares</label><input name="squares" type="number" step="0.01" value="{{ m.squares or '' }}"></div>
+            <div class="field"><label>Pitch</label><input name="pitch" value="{{ m.pitch or '' }}" placeholder="6:12"></div>
+            <div class="field"><label>Waste %</label><input name="waste_pct" type="number" step="0.1" value="{{ m.waste_pct or 15 }}"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Ridge LF</label><input name="ridge_lf" type="number" step="0.1" value="{{ m.ridge_lf or '' }}"></div>
+            <div class="field"><label>Hip LF</label><input name="hip_lf" type="number" step="0.1" value="{{ m.hip_lf or '' }}"></div>
+            <div class="field"><label>Valley LF</label><input name="valley_lf" type="number" step="0.1" value="{{ m.valley_lf or '' }}"></div>
+            <div class="field"><label>Eave LF</label><input name="eave_lf" type="number" step="0.1" value="{{ m.eave_lf or '' }}"></div>
+            <div class="field"><label>Rake LF</label><input name="rake_lf" type="number" step="0.1" value="{{ m.rake_lf or '' }}"></div>
+          </div>
+          <button class="primary" type="submit">💾 Save measurements</button>
+          <span class="muted" style="margin-left:10px">Feeds estimate quantities (Apply measurements). Carries to the job when this lead is won.</span>
+        </form>
+      </div>
+    </div>
+
+    <!-- CHECKLIST -->
+    <div class="tabpane" data-pane="check" style="display:none">
+      <div class="card">
+        <h2>Checklist — {{ l._stage.name }} ({{ l._done }}/{{ l._total }})</h2>
+        {% for c in l._stage.checklist %}
+          {% set key = l._stage.key ~ ':' ~ loop.index0 %}
+          <form method="post" action="{{ url_for('leads.check', lead_id=l.id) }}">
+            <input type="hidden" name="key" value="{{ key }}">
+            <label class="check {{ 'done' if l._checks.get(key) }}">
+              <input type="checkbox" {{ 'checked' if l._checks.get(key) }} onchange="this.form.submit()">
+              <span>{{ c }}</span>
+            </label>
+          </form>
         {% endfor %}
       </div>
     </div>
-
-    <div class="card">
-      <h2>Checklist — {{ l._stage.name }}</h2>
-      {% for c in l._stage.checklist %}
-        {% set key = l._stage.key ~ ':' ~ loop.index0 %}
-        <form method="post" action="{{ url_for('leads.check', lead_id=l.id) }}">
-          <input type="hidden" name="key" value="{{ key }}">
-          <label class="check {{ 'done' if l._checks.get(key) }}">
-            <input type="checkbox" {{ 'checked' if l._checks.get(key) }} onchange="this.form.submit()">
-            <span>{{ c }}</span>
-          </label>
-        </form>
-      {% endfor %}
-    </div>
-
-    <div class="card" id="meas">
-      <div class="panel-head"><span>📐 Roof Measurements (RoofGraf)</span>
-        {% if measurement and measurement.report_file %}<a class="btn sm" href="{{ url_for('uploads', subpath=measurement.report_file) }}" target="_blank">View report</a>{% endif %}
-      </div>
-      <form method="post" action="{{ url_for('measurements.upload_lead', lead_id=l.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
-        <div style="flex:1"><label>Upload RoofGraf report (PDF — auto-parses squares & pitch)</label><input type="file" name="file" accept="application/pdf" required></div>
-        <button class="primary" type="submit">Upload</button>
-      </form>
-      {% set m = measurement or {} %}
-      <form method="post" action="{{ url_for('measurements.save_lead', lead_id=l.id) }}">
-        <div class="row">
-          <div class="field"><label>Squares</label><input name="squares" type="number" step="0.01" value="{{ m.squares or '' }}"></div>
-          <div class="field"><label>Pitch</label><input name="pitch" value="{{ m.pitch or '' }}" placeholder="6:12"></div>
-          <div class="field"><label>Waste %</label><input name="waste_pct" type="number" step="0.1" value="{{ m.waste_pct or 15 }}"></div>
-        </div>
-        <div class="row">
-          <div class="field"><label>Ridge LF</label><input name="ridge_lf" type="number" step="0.1" value="{{ m.ridge_lf or '' }}"></div>
-          <div class="field"><label>Hip LF</label><input name="hip_lf" type="number" step="0.1" value="{{ m.hip_lf or '' }}"></div>
-          <div class="field"><label>Valley LF</label><input name="valley_lf" type="number" step="0.1" value="{{ m.valley_lf or '' }}"></div>
-          <div class="field"><label>Eave LF</label><input name="eave_lf" type="number" step="0.1" value="{{ m.eave_lf or '' }}"></div>
-          <div class="field"><label>Rake LF</label><input name="rake_lf" type="number" step="0.1" value="{{ m.rake_lf or '' }}"></div>
-        </div>
-        <button class="primary" type="submit">💾 Save measurements</button>
-        <span class="muted" style="margin-left:10px">Feeds estimate quantities (Apply measurements). Carries to the job when this lead is won.</span>
-      </form>
-      {% if documents %}<div style="margin-top:10px">{% for d in documents %}<div><span class="badge">{{ d.category }}</span> <a href="{{ url_for('uploads', subpath='measurements/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a></div>{% endfor %}</div>{% endif %}
-    </div>
-
-    {% if estimates %}
-    <div class="card">
-      <h2>Estimates</h2>
-      {% for e in estimates %}<div><a href="{{ url_for('estimates.detail', est_id=e.id) }}">{{ e.number }} — {{ e.title }}</a> <span class="badge">{{ e.status }}</span></div>{% endfor %}
-    </div>{% endif %}
   </div>
 
+  <!-- Right rail -->
   <div>
     <div class="card">
       <div class="panel-head"><span>⚡ Quick Estimate</span>
@@ -108,6 +218,7 @@
       </div>
       <a class="btn sm ghost" style="margin-top:8px" href="{{ url_for('estimates.new') }}?lead_id={{ l.id }}">+ Different system / pick template…</a>
     </div>
+
     <div class="card">
       <h2>Quick actions</h2>
       <form method="post" action="{{ url_for('leads.assign', lead_id=l.id) }}" style="display:flex;gap:6px;margin-bottom:8px">
@@ -118,29 +229,21 @@
         <button type="submit">Assign</button>
       </form>
       <form method="post" action="{{ url_for('leads.touch', lead_id=l.id) }}"><button class="primary" style="width:100%" type="submit">✓ Log touch (today)</button></form>
+      <a class="btn" style="width:100%;margin-top:8px;text-align:center" href="{{ followup_email('lead', l) }}" target="_blank">✉️ Draft follow-up email</a>
       <a class="btn" style="width:100%;margin-top:8px;text-align:center" href="{{ url_for('estimates.new') }}?lead_id={{ l.id }}">📝 New Estimate</a>
       <form method="post" action="{{ url_for('leads.delete', lead_id=l.id) }}" onsubmit="return confirm('Delete this lead?')" style="margin-top:8px">
         <button class="danger" style="width:100%" type="submit">Delete lead</button>
       </form>
     </div>
-
-    <div class="card">
-      <h2>Log activity</h2>
-      <form method="post" action="{{ url_for('leads.note', lead_id=l.id) }}">
-        <div class="field"><select name="kind"><option value="note">Note</option><option value="call">Call</option><option value="email">Email</option><option value="sms">SMS/Text</option></select></div>
-        <div class="field"><textarea name="text" placeholder="What happened…" required></textarea></div>
-        <button class="primary" type="submit">Add</button>
-      </form>
-    </div>
-
-    <div class="card">
-      <h2>Activity timeline</h2>
-      <ul class="timeline">
-        {% for a in activity %}
-        <li><div class="k">{{ a.kind }}</div><div class="t">{{ a.text }}</div><div class="d">{{ a.created }}</div></li>
-        {% else %}<li class="muted">No activity yet.</li>{% endfor %}
-      </ul>
-    </div>
   </div>
 </div>
+
+<script>
+document.querySelectorAll('.jtab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.jtab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.tabpane').forEach(p=>p.style.display='none');
+  t.classList.add('on');
+  document.querySelector('.tabpane[data-pane="'+t.dataset.tab+'"]').style.display='';
+});
+</script>
 {% endblock %}

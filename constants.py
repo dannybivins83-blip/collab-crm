@@ -143,6 +143,15 @@ LEAD_SOURCES = ["Referral", "Repeat Customer", "Website", "Google", "Facebook",
                 "Door Knock", "Yard Sign", "Insurance", "Storm Canvass", "Other"]
 
 # ---------------------------------------------------------------------------
+# Lead onboarding pick-lists (AccuLynx "Create New Lead" parity)
+# ---------------------------------------------------------------------------
+# Notes / Tools sidebar — Priority Level dropdown (AccuLynx default "Normal").
+PRIORITY_LEVELS = ["Low", "Normal", "High", "Urgent"]
+# Phone / Email "Type" selectors on the contact block.
+PHONE_TYPES = ["Mobile", "Home", "Work", "Other"]
+EMAIL_TYPES = ["Personal", "Work", "Other"]
+
+# ---------------------------------------------------------------------------
 # Work types
 # ---------------------------------------------------------------------------
 WORK_TYPES = ["Roofing - Shingle", "Roofing - Tile", "Roofing - Metal (Galvalume)",
