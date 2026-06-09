@@ -587,6 +587,29 @@
       </div>
       {% endfor %}
     </div>
+    {% if invoices %}
+    <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">
+      <div class="muted" style="font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Your invoices</div>
+      {% for inv in invoices %}
+      <div class="draw {{ 'paid' if inv.status == 'paid' }}">
+        <span class="dl">{{ inv.number or 'Invoice' }}{% if inv.invoice_date %} · {{ inv.invoice_date }}{% endif %}
+          <span class="pill" style="font-size:10px;background:{{ 'var(--green)' if inv.status=='paid' else 'var(--line)' }};color:{{ '#16240a' if inv.status=='paid' else 'var(--mut)' }}">{{ inv.status|capitalize }}</span></span>
+        <span class="amt">{{ money(inv.amount) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if payments %}
+    <div style="margin-top:14px">
+      <div class="muted" style="font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Payments received</div>
+      {% for p in payments %}
+      <div class="draw paid"><span class="ck">✓</span>
+        <span class="dl">{{ (p.method or 'Payment') }}{% if p.reference %} · {{ p.reference }}{% endif %}{% if p.paid_date %} · {{ p.paid_date }}{% endif %}</span>
+        <span class="amt">{{ money(p.amount) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% for inv in invoices %}{% if inv.status != 'paid' and inv.payment_link %}
       <a class="btn green block" style="margin-top:14px" href="{{ url_for('portal.pay', token=token, inv_id=inv.id) }}">💳 Pay {{ money(inv.amount) }} now</a>
     {% endif %}{% endfor %}

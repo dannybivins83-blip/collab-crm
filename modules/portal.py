@@ -441,6 +441,18 @@ def home(token):
     show_cats = {"Contract", "Permit", "Warranty", "COI", "NOA", "Measurement", "HOA"}
     documents = [d for d in all_docs if (d.get("category") or "") in show_cats]
     invoices = db.all_rows("invoices", "job_id=?", (j["id"],), "id DESC")
+    payments = db.all_rows("payments", "job_id=?", (j["id"],), "id DESC")
+    # When real billing was synced from AccuLynx (invoices/payments exist), drive the
+    # Balance Due + Paid% from the ACTUAL numbers instead of the generic draw schedule.
+    paid_real = sum(theme.est_num(p.get("amount")) for p in payments)
+    inv_total = sum(theme.est_num(i.get("amount")) for i in invoices)
+    j["_has_billing"] = bool(invoices or payments)
+    if j["_has_billing"]:
+        base = j["_value"] or inv_total
+        if paid_real or invoices:
+            j["_balance"] = max(0.0, base - paid_real) if base else j["_balance"]
+            j["_paid_pct"] = (paid_real / base) if base else j["_paid_pct"]
+    j["_paid_real"] = paid_real
     activity = [a for a in db.entity_activity("job", j["id"])
                 if a.get("kind") in ("stage", "note", "automation")][:10]
     rep = next((u for u in db.all_rows("users") if u.get("name") == j.get("rep")), None)
@@ -505,6 +517,7 @@ def home(token):
                            updates=updates, celebrate=celebrate,
                            phases=CUSTOMER_PHASES, estimates=estimates, photos=photos,
                            documents=documents, docs_to_sign=docs_to_sign, invoices=invoices,
+                           payments=payments,
                            activity=activity, pay_url=j.get("pay_url"), signup_packet=signup_packet,
                            rep=rep, draws=constants.DRAW_SCHEDULE,
                            checklist=checklist, contract=contract,
