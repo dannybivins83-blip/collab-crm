@@ -107,6 +107,21 @@
   </div>
 </div>
 
+<div class="card" style="border:2px solid var(--accent)">
+  <h2>📸 Pull job photos into the CRM gallery — 20 jobs at a time</h2>
+  <p class="muted">Copies each AccuLynx job's <b>site photos</b> into the matching CRM job's photo gallery (Site Photos). The server walks your active pipeline with its <b>own resumable cursor</b>, handing the collector <b>20 jobs per click</b>. Photos you already pulled are skipped (deduped by name). This is the last AccuLynx data type — once it's pulled you can fully abandon AccuLynx.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmphotos" class="btn accent" href="#" onclick="return false">📸 AccuLynx Photos → CRM</a></li>
+    <li>Make sure an <b>API key</b> is saved above and you've run a <b>🔄 Sync</b> so the jobs exist in the CRM.</li>
+    <li>In any logged-in <b>my.acculynx.com</b> tab, <b>click the bookmark</b>. It pulls photos for the next 20 jobs with a live banner. <b>Click again</b> for the next 20.</li>
+  </ol>
+  <div class="muted">Photos land under <b>Site Photos</b> on each job. To restart the walk from the top:
+    <form method="post" action="{{ url_for('sync.photo_reset') }}" style="display:inline">
+      <button class="btn ghost sm" type="submit" style="margin-left:6px">↺ Reset cursor</button>
+    </form>
+  </div>
+</div>
+
 <div class="card">
   <h2>💵 Pull billing &amp; payments into jobs</h2>
   <p class="muted">Pulls each job's <b>job/contract value, invoices, payments &amp; balance</b> from your logged-in AccuLynx session into the matching CRM job. <b>This is what fixes the dashboard L/P/A/C/I dollar totals</b> — the public jobs API has no money field, so values only arrive via this bridge. Re-running updates the same records (deduped by AccuLynx id); never duplicates.</p>
@@ -264,6 +279,74 @@
     })();
   }
   document.getElementById('bmalldocs').href='javascript:('+pullAllDocsBM.toString()+')('+JSON.stringify(BASE)+')';
+})();
+</script>
+<script>
+(function(){
+  var BASE={{ request.host_url|tojson }};
+  // Photo collector: ask the CRM for the next 20 jobs (own cursor), then per job find
+  // its photos (tries AccuLynx's internal photo APIs; falls back to image files in
+  // photo-ish document folders), download each, and POST to /sync/photo-import.
+  function pullPhotosBM(BASE){
+    (async function(){
+      var CHUNK=400*1024;
+      var imgRe=/\.(jpe?g|png|gif|heic|webp|tiff?|bmp)(\?|$)/i;
+      var folderRe=/photo|picture|image|progress|job ?site|before|after|completion/i;
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:460px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      async function gj(u,o){try{var r=await fetch(u,o||{headers:{'Accept':'application/json'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+      // Normalise a photo object from any AccuLynx shape -> {url,name,caption}.
+      function norm(p){
+        if(!p)return null;
+        var url=p.FullSizeUrl||p.OriginalUrl||p.Url||p.ImageUrl||p.DownloadUrl||p.LargeUrl||p.ThumbnailUrl||p.Uri||p.url;
+        if(!url)return null;
+        var name=p.FileName||p.Name||p.OriginalFileName||((url.split('?')[0].split('/').pop())||('photo_'+(p.PhotoId||p.Id||Date.now())+'.jpg'));
+        if(!/\.[a-z]{3,4}$/i.test(name))name+='.jpg';
+        return {url:url,name:name,caption:(p.Caption||p.Description||p.Note||'')};
+      }
+      function listFrom(d){ if(!d)return []; if(Array.isArray(d))return d; return d.Photos||d.Items||d.Results||d.Data||[]; }
+      async function findPhotos(g){
+        var cands=['/api/v4/jobs/'+g+'/photos','/api/jobs/'+g+'/photos','/api/v4/job-photos/'+g,
+                   '/api/Photo/GetPhotos/'+g,'/api/v4/jobs/'+g+'/job-photos'];
+        for(var i=0;i<cands.length;i++){var d=await gj(cands[i]);var arr=listFrom(d).map(norm).filter(Boolean);if(arr.length)return arr;}
+        // Fallback: image files in photo-ish document folders.
+        var folders=await gj('/api/v4/job-documents/'+g+'/job-document-folders');
+        var out=[];(folders||[]).forEach(function(f){var fn=(f.Name||'').trim();var ph=folderRe.test(fn);(f.Files||[]).forEach(function(fl){var nm=fl.Name||'';if(ph||imgRe.test(nm)){if(imgRe.test(nm)||ph)out.push({url:fl.Url,name:nm||'photo.jpg',caption:fn});}});});
+        return out;
+      }
+      async function postSmall(g,n,cap,b){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var fd=new FormData();fd.append('guid',g);fd.append('filename',n);fd.append('caption',cap||'');fd.append('file',b,n);var j=await (await fetch(BASE+'sync/photo-import',{method:'POST',body:fd})).json();if(j.ok)return j.added?'a':'s';if(j.reason&&j.reason.indexOf('no_job')<0&&j.reason.indexOf('not_image')<0)return 'x';if(j.reason)return 's';}catch(e){}}return 'x';}
+      async function postChunked(g,n,cap,b){var uid='p'+Date.now()+Math.floor(Math.random()*1e4),total=Math.ceil(b.size/CHUNK);for(var i=0;i<total;i++){var part=b.slice(i*CHUNK,(i+1)*CHUNK),ok=false;for(var a=0;a<4&&!ok;a++){try{if(a)await sleep(400*a);var fd=new FormData();fd.append('uploadId',uid);fd.append('chunkIndex',i);fd.append('chunkTotal',total);fd.append('file',part,'chunk');if(i===total-1){fd.append('guid',g);fd.append('filename',n);fd.append('caption',cap||'');}var j=await (await fetch(BASE+'sync/photo-import',{method:'POST',body:fd})).json();if(j.ok){ok=true;if(i===total-1)return j.added?'a':'s';}else if(j.reason&&j.reason.indexOf('no_job')<0)return 'x';}catch(e){}}if(!ok)return 'x';}return 'x';}
+      setb('Asking CRM for the next 20 jobs…');
+      var resp=await gj(BASE+'sync/photo-batch?n=20');
+      if(!resp){setb('Could not reach the CRM at '+BASE+' — is it open?','#c0392b');setTimeout(function(){bn.remove();},8000);return;}
+      if(!resp.ok){setb('Batch failed: '+(resp.error||resp.reason||'unknown')+(resp.reason==='no_api_key'?' (save an API key on the Sync page)':''),'#c0392b');setTimeout(function(){bn.remove();},9000);return;}
+      var batch=resp.batch||[];
+      if(!batch.length){setb('✓ Photo pass complete — no more jobs in the pipeline. (Reset the cursor to walk again.)','#2e7d32');setTimeout(function(){bn.remove();},12000);return;}
+      var tot=batch.length,added=0,skip=0,fail=0,nojob=0,none=0,jdone=0;
+      for(var gi=0;gi<batch.length;gi++){var it=batch[gi],guid=it.guid;
+        if(!it.in_crm){nojob++;jdone++;setb('Jobs '+jdone+'/'+tot+' · +'+added+' photos · '+nojob+' not in CRM');continue;}
+        try{
+          var photos=await findPhotos(guid);
+          if(!photos.length){none++;jdone++;setb('Jobs '+jdone+'/'+tot+' · +'+added+' photos · '+none+' had none');continue;}
+          var seenN={};
+          for(var pi=0;pi<photos.length;pi++){var ph=photos[pi];if(!ph.url)continue;var nm=ph.name;if(seenN[nm.toLowerCase()])continue;seenN[nm.toLowerCase()]=1;
+            var b;try{b=await (await fetch(ph.url)).blob();}catch(e){fail++;continue;}
+            if(!b||!b.size){fail++;continue;}
+            var r=b.size>CHUNK?await postChunked(guid,nm,ph.caption,b):await postSmall(guid,nm,ph.caption,b);
+            if(r==='a')added++;else if(r==='s')skip++;else fail++;
+            setb('Jobs '+(jdone+1)+'/'+tot+' · +'+added+' new · '+skip+' have'+(fail?' · '+fail+' fail':''));}
+        }catch(e){}
+        jdone++;setb('Jobs '+jdone+'/'+tot+' · +'+added+' new · '+skip+' have'+(none?' · '+none+' none':'')+(fail?' · '+fail+' fail':''));
+      }
+      var more=resp.done?' — ✓ full pass complete':' — click again for the next 20';
+      setb('✓ '+tot+' jobs · '+added+' new photos · '+skip+' already had'+(none?' · '+none+' had none':'')+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' failed':'')+more,'#2e7d32');
+      setTimeout(function(){bn.remove();},22000);
+    })();
+  }
+  document.getElementById('bmphotos').href='javascript:('+pullPhotosBM.toString()+')('+JSON.stringify(BASE)+')';
 })();
 </script>
 <script>

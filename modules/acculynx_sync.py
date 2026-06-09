@@ -39,7 +39,8 @@ def _ensure_schema():
                 "acculynx_last_sync TEXT", "acculynx_auto INTEGER DEFAULT 0",
                 "acculynx_cursor INTEGER DEFAULT 0", "acculynx_group INTEGER DEFAULT 0",
                 "acculynx_rr_cursor INTEGER DEFAULT 0", "acculynx_rr_group INTEGER DEFAULT 0",
-                "acculynx_doc_cursor INTEGER DEFAULT 0", "acculynx_doc_group INTEGER DEFAULT 0"):
+                "acculynx_doc_cursor INTEGER DEFAULT 0", "acculynx_doc_group INTEGER DEFAULT 0",
+                "acculynx_photo_cursor INTEGER DEFAULT 0", "acculynx_photo_group INTEGER DEFAULT 0"):
         try:
             db.execute("ALTER TABLE company_settings ADD COLUMN %s" % col)
         except Exception:
@@ -2208,4 +2209,131 @@ def doc_reset():
     """Reset the all-documents sync cursor to the top of the pipeline."""
     db.save_company({"acculynx_doc_group": 0, "acculynx_doc_cursor": 0})
     flash("Document sync cursor reset — the next batch starts at the top of the pipeline.", "ok")
+    return redirect(url_for("sync.index"))
+
+
+_PHOTO_EXT = {"jpg", "jpeg", "png", "gif", "heic", "webp", "tif", "tiff", "bmp"}
+
+
+def _finalize_photo(guid, name, caption, src_path):
+    """Match the synced job by AccuLynx GUID, dedup by name, and attach the saved image
+    to the photos table. Removes src_path on rejection. Returns a CORS JSON response."""
+    size = os.path.getsize(src_path) if os.path.exists(src_path) else 0
+
+    def _drop():
+        try:
+            os.remove(src_path)
+        except Exception:
+            pass
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    if ext and ext not in _PHOTO_EXT:
+        _drop()
+        return _cors({"ok": False, "reason": "not_image:%s" % ext, "name": name})
+    if size > 64 * 1024 * 1024:
+        _drop()
+        return _cors({"ok": False, "reason": "too_large", "size": size, "name": name})
+    job = next((j for j in db.all_rows("jobs") if guid in (j.get("external_url") or "").lower()), None)
+    if not job:
+        _drop()
+        return _cors({"ok": False, "reason": "no_job", "guid": guid})
+    same = [p for p in db.all_rows("photos", where="job_id=?", params=(job["id"],))
+            if (p.get("original_name") or "").lower() == name.lower()]
+    if same:
+        _drop()
+        return _cors({"ok": True, "skipped": "duplicate", "name": name, "job": job.get("name")})
+    db.insert("photos", {"job_id": job["id"], "album": "AccuLynx",
+                         "phase": "during", "caption": caption or "",
+                         "filename": os.path.basename(src_path), "original_name": name,
+                         "drive_id": _drive_mirror(src_path)})
+    return _cors({"ok": True, "added": True, "job": job.get("name"), "name": name})
+
+
+@bp.route("/photo-import", methods=["POST", "OPTIONS"])
+def photo_import():
+    """Attach a single AccuLynx job photo (scraped from the logged-in tab) to the
+    matching CRM job's photo gallery. CORS-open + chunked, same shape as doc-import."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    f = request.files.get("file")
+    guid = (request.form.get("guid") or "").strip().lower()
+    caption = (request.form.get("caption") or "").strip()[:200]
+    name = (request.form.get("filename") or (f.filename if f else "") or "acculynx_photo.jpg").strip()
+    upload_id = request.form.get("uploadId")
+    os.makedirs(config.PHOTO_DIR, exist_ok=True)
+
+    if upload_id:  # chunked
+        uid = re.sub(r"[^A-Za-z0-9_-]", "", upload_id)[:80]
+        idx = int(request.form.get("chunkIndex") or 0)
+        total = int(request.form.get("chunkTotal") or 1)
+        if not uid or f is None:
+            return _cors({"ok": False, "reason": "bad_chunk"}, 400)
+        cdir = os.path.join(config.PHOTO_DIR, "_chunks")
+        os.makedirs(cdir, exist_ok=True)
+        part = os.path.join(cdir, uid + ".part")
+        if idx == 0 and os.path.exists(part):
+            os.remove(part)
+        with open(part, "ab") as out:
+            out.write(f.read())
+        if os.path.getsize(part) > 64 * 1024 * 1024:
+            os.remove(part)
+            return _cors({"ok": False, "reason": "too_large"})
+        if idx < total - 1:
+            return _cors({"ok": True, "chunk": idx})
+        safe = "%d_%s" % (int(time.time() * 1000), _safe_name(name))
+        final = os.path.join(config.PHOTO_DIR, safe)
+        os.replace(part, final)
+        return _finalize_photo(guid, name, caption, final)
+
+    if not guid or not f:
+        return _cors({"ok": False, "reason": "missing guid or file"}, 400)
+    safe = "%d_%s" % (int(time.time() * 1000), _safe_name(name))
+    path = os.path.join(config.PHOTO_DIR, safe)
+    f.save(path)
+    return _finalize_photo(guid, name, caption, path)
+
+
+@bp.route("/photo-batch")
+def photo_batch():
+    """CORS-open: next batch of job GUIDs to pull PHOTOS for (own cursor). Annotates each
+    with in_crm + existing photo count. `?reset=1` restarts the walk."""
+    company = db.get_company()
+    key = (company.get("acculynx_api_key") or "").strip()
+    base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
+    if not key:
+        return _cors({"ok": False, "reason": "no_api_key",
+                      "error": "Set an AccuLynx API key on the Sync page first."}, 400)
+    if request.args.get("reset"):
+        db.save_company({"acculynx_photo_group": 0, "acculynx_photo_cursor": 0})
+    try:
+        n = max(1, min(50, int(request.args.get("n") or 20)))
+    except Exception:
+        n = 20
+    try:
+        batch, group, done = _pipeline_next_batch(base, key, n,
+                                                  "acculynx_photo_group", "acculynx_photo_cursor")
+    except Exception as e:
+        return _cors({"ok": False, "reason": "api_failed", "error": "%s: %s" % (type(e).__name__, e)})
+    for it in batch:
+        kind, rec, how = _roofreport_record(it["guid"], it.get("name"))
+        it["in_crm"] = bool(rec)
+        if rec and kind == "job":
+            try:
+                it["have"] = len(db.all_rows("photos", where="job_id=?", params=(rec["id"],)))
+            except Exception:
+                it["have"] = 0
+        else:
+            it["have"] = 0
+    return _cors({"ok": True, "batch": batch, "count": len(batch), "group": group, "done": done})
+
+
+@bp.route("/photo-reset", methods=["POST"])
+def photo_reset():
+    """Reset the photo sync cursor to the top of the pipeline."""
+    db.save_company({"acculynx_photo_group": 0, "acculynx_photo_cursor": 0})
+    flash("Photo sync cursor reset — the next batch starts at the top of the pipeline.", "ok")
     return redirect(url_for("sync.index"))
