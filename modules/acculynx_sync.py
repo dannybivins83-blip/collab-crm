@@ -393,6 +393,85 @@ def _parse_job_name(name):
     return out
 
 
+# ---- Reverse maps: compose a canonical SeaBreeze job name from structured parts ----
+# Canonical format (documented convention):  R-YY###: Client (AHJ) (RoofCode+Sq) (Rep)
+#   RoofCode = material letter + squares, e.g. T28 = Tile 28 sq.  L suffix = still a lead.
+_AHJ_CODE = {v: k for k, v in _AHJ_MAP.items()}          # "Palm Beach County" -> "PBC"
+_REP_CODE = {"Danny Bivins": "DB", "Scott": "SCOTT", "Francis Ferrer": "FF",
+             "Johnny Cagle": "JHC", "Jacin Carreiro": "JAC", "MK": "MK"}
+
+
+def _sys_letter(work_type="", system=""):
+    """Material letter (S/T/M/5V) from a work type or roof-system string."""
+    s = ("%s %s" % (work_type or "", system or "")).lower()
+    if "tile" in s:
+        return "T"
+    if "shingle" in s:
+        return "S"
+    if "5v" in s or "5-v" in s:
+        return "5V"
+    if "metal" in s or "galvalume" in s:
+        return "M"
+    return ""
+
+
+def _ahj_code(ahj=""):
+    a = (ahj or "").strip()
+    if not a:
+        return ""
+    if a in _AHJ_CODE:
+        return _AHJ_CODE[a]
+    # Unknown jurisdiction: initials of each word (Delray Beach -> DB-ish); cap at 4 chars.
+    init = "".join(w[0] for w in re.findall(r"[A-Za-z]+", a)).upper()
+    return init[:4] or a[:4].upper()
+
+
+def _rep_code(rep=""):
+    r = (rep or "").strip()
+    if not r:
+        return ""
+    if r in _REP_CODE:
+        return _REP_CODE[r]
+    # Fall back to initials (first + last) for unknown reps.
+    parts = re.findall(r"[A-Za-z]+", r)
+    return ("".join(p[0] for p in parts).upper() or r[:3].upper())
+
+
+def compose_job_name(client, ahj="", work_type="", system="", squares="",
+                     rep="", rid="", is_lead=False):
+    """Build a canonical name. squares optional (added to the roof code once known).
+    is_lead=True appends an 'L' marker (pre-job lifecycle)."""
+    client = (client or "").strip() or "New Customer"
+    letter = _sys_letter(work_type, system)
+    sq = re.sub(r"[^0-9.]", "", str(squares or "")).split(".")[0]
+    roof = (letter + sq) if letter else ""
+    bits = [client]
+    a = _ahj_code(ahj)
+    if a:
+        bits.append("(%s)" % a)
+    if roof:
+        bits.append("(%s)" % roof)
+    rc = _rep_code(rep)
+    if rc:
+        bits.append("(%s)" % rc)
+    if is_lead:
+        bits.append("L")
+    name = " ".join(bits)
+    return ("%s: %s" % (rid, name)) if rid else name
+
+
+def next_job_number(year=None):
+    """Next R-YY### number, continuing the highest existing sequence for the year."""
+    import db
+    yy = (str(year) if year else db.today()[:4])[-2:]
+    hi = 0
+    for j in db.all_rows("jobs"):
+        m = re.match(r"\s*R-?%s(\d{2,})" % re.escape(yy), (j.get("rid") or "") + " " + (j.get("name") or ""))
+        if m:
+            hi = max(hi, int(m.group(1)))
+    return "R-%s%03d" % (yy, hi + 1)
+
+
 def run_sync(deep=False, batch=50):
     company = db.get_company()
     key = (company.get("acculynx_api_key") or "").strip()

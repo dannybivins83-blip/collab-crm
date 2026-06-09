@@ -115,6 +115,17 @@ def new():
         data["stage"] = request.form.get("stage", constants.JOB_DEFAULT_STAGE)
         data["stage_since"] = db.today()
         data["department"] = current_department()
+        # Auto-compose the canonical job number + name. The form sends the raw client
+        # name in `client` (or name); we format it as R-YY###: Client (AHJ) (RoofCode) (Rep).
+        from modules import acculynx_sync as S
+        if not (data.get("rid") or "").strip():
+            data["rid"] = S.next_job_number()
+        _client = (request.form.get("client") or data.get("name") or "").strip()
+        if request.form.get("auto_name") or not (data.get("name") or "").strip():
+            data["name"] = S.compose_job_name(
+                _client, ahj=data.get("ahj") or "", work_type=data.get("work_type") or "",
+                system=data.get("system") or "", squares=data.get("area") or "",
+                rep=data.get("rep") or "", rid=data.get("rid"))
         lid = db.insert("jobs", data)
         gc = db.get("contacts", data.get("contact_id")) if data.get("contact_id") else None
         if gc and gc.get("is_gc"):

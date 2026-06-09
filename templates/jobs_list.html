@@ -49,22 +49,50 @@
     </style>
     {% for j in rows %}
     {% set col = 'var(--danger)' if j._fs.level=='hot' else ('var(--warn)' if j._fs.level=='stalled' else 'var(--ok)') %}
-    <a class="result" href="{{ url_for('jobs.detail', job_id=j.id) }}">
-      <span class="res-badge" style="background:{{ constants.job_bucket(j.stage).color }}">{{ constants.job_bucket(j.stage).letter }}</span>
-      <div class="res-main">
-        <div class="res-name">{{ j.rid ~ ': ' if j.rid }}{{ j.name }}</div>
-        <div class="res-sub">{% if j.phone %}<span class="telcall" onclick="event.preventDefault();event.stopPropagation();location.href='tel:{{ j.phone }}'">{{ j.phone }}</span>{% endif %}{% if j.address %} · {{ j.address }}{{ ', ' ~ j.city if j.city }}{% endif %}</div>
-        <div class="res-sub">{{ j.work_type }}{% if j.rep %} · {{ j.rep }}{% endif %}{% if j.ahj %} · {{ j.ahj }}{% endif %}</div>
-      </div>
-      <div class="res-meta">
-        <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ j._stage.name }}</span>
-        <div class="muted" style="margin-top:6px">In status <b>{{ j._fs.days }}d</b></div>
-        {% if j.contract_value %}<div class="est">{{ j.contract_value }}</div>{% endif %}
-        {% set pa = job_profit(j.id) %}
-        {% if pa.has_ws %}<div class="muted">Profit {{ money(pa.gross_profit) }} · {{ pa.gross_pct|round(0)|int }}%</div>{% endif %}
-      </div>
-    </a>
+    <div class="result-wrap">
+      <a class="result" href="{{ url_for('jobs.detail', job_id=j.id) }}">
+        <span class="res-badge" style="background:{{ constants.job_bucket(j.stage).color }}">{{ constants.job_bucket(j.stage).letter }}</span>
+        <div class="res-main">
+          <div class="res-name">{{ j.rid ~ ': ' if j.rid }}{{ j.name }}</div>
+          <div class="res-sub">{% if j.phone %}<span class="telcall" onclick="event.preventDefault();event.stopPropagation();location.href='tel:{{ j.phone }}'">{{ j.phone }}</span>{% endif %}{% if j.address %} · {{ j.address }}{{ ', ' ~ j.city if j.city }}{% endif %}</div>
+          <div class="res-sub">{{ j.work_type }}{% if j.rep %} · {{ j.rep }}{% endif %}{% if j.ahj %} · {{ j.ahj }}{% endif %}</div>
+        </div>
+        <div class="res-meta">
+          <div class="muted" style="margin-top:34px">In status <b>{{ j._fs.days }}d</b></div>
+          {% if j.contract_value %}<div class="est">{{ j.contract_value }}</div>{% endif %}
+          {% set pa = job_profit(j.id) %}
+          {% if pa.has_ws %}<div class="muted">Profit {{ money(pa.gross_profit) }} · {{ pa.gross_pct|round(0)|int }}%</div>{% endif %}
+        </div>
+      </a>
+      <select class="stage-sel" data-job="{{ j.id }}" title="Change milestone"
+              onchange="changeStage(this)" style="border-color:{{ col }};color:{{ col }}">
+        {% for s in stages %}<option value="{{ s.key }}" {{ 'selected' if s.key==j.stage }}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
     {% else %}<div class="empty">No jobs match.</div>{% endfor %}
   </div>
 </div>
+<style>
+  .result-wrap{position:relative}
+  .stage-sel{position:absolute;top:14px;right:16px;max-width:190px;padding:5px 8px;
+    border:1.5px solid #c7d0de;border-radius:7px;background:#fff;font-size:12px;font-weight:600;
+    cursor:pointer;z-index:2}
+  .stage-sel:hover{filter:brightness(.96)}
+  .stage-sel.saved{outline:2px solid var(--ok);outline-offset:1px}
+</style>
+<script>
+function changeStage(sel){
+  var id=sel.dataset.job, prev=sel.dataset.prev||sel.value;
+  sel.disabled=true;
+  fetch('/jobs/'+id+'/move',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({stage:sel.value})})
+   .then(function(r){return r.json();})
+   .then(function(d){sel.disabled=false;
+     if(d&&d.ok){sel.dataset.prev=sel.value;sel.classList.add('saved');
+       setTimeout(function(){sel.classList.remove('saved');},1200);}
+     else{sel.value=prev;alert('Could not update milestone.');}})
+   .catch(function(){sel.disabled=false;sel.value=prev;alert('Could not update milestone.');});
+}
+document.querySelectorAll('.stage-sel').forEach(function(s){s.dataset.prev=s.value;});
+</script>
 {% endblock %}

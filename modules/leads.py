@@ -261,9 +261,18 @@ def convert(lead_id):
     if not l:
         return redirect(url_for("leads.board"))
     parts = [p.strip() for p in (l.get("address") or "").split(",")]
+    # Auto-compose the canonical job number + name:  R-YY###: Client (AHJ) (RoofCode+Sq) (Rep)
+    from modules import acculynx_sync as S
+    from modules import measurements as _meas
+    _m = _meas.for_lead(lead_id)
+    _sq = (_m or {}).get("squares") or ""
+    rid = S.next_job_number()
+    job_name = S.compose_job_name(
+        l.get("name"), ahj=l.get("ahj") or "", work_type=l.get("work_type") or "",
+        system=l.get("system") or "", squares=_sq, rep=l.get("rep") or "", rid=rid)
     job = {
         "contact_id": l.get("contact_id"), "lead_id": lead_id,
-        "rid": (l.get("rid") or "").replace("L-", "J-"), "name": l.get("name"),
+        "rid": rid, "name": job_name,
         "phone": l.get("phone"), "email": l.get("email"),
         "address": parts[0] if parts else l.get("address"),
         "city": parts[1] if len(parts) > 1 else "",
