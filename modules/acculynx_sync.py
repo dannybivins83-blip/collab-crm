@@ -1013,6 +1013,55 @@ def job_guids():
     return _cors({"ok": True, "guids": list(dict.fromkeys(out))})
 
 
+def _ensure_catalog_table():
+    db.execute("CREATE TABLE IF NOT EXISTS material_catalog (id %s, name TEXT, unit TEXT, "
+               "unit2 TEXT, category TEXT)" % ("SERIAL PRIMARY KEY" if getattr(db, "IS_PG", False)
+                                               else "INTEGER PRIMARY KEY AUTOINCREMENT"))
+    db._COLCACHE.pop("material_catalog", None)
+
+
+@bp.route("/catalog-import", methods=["POST", "OPTIONS"])
+def catalog_import():
+    """CORS-open: receive the AccuLynx Company Library material catalog (name + units
+    + Material/Labor) and store it as a reusable CRM material catalog. Replaces all."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    try:
+        _ensure_catalog_table()
+        body = request.get_json(force=True, silent=True) or []
+        db.execute("DELETE FROM material_catalog")
+        n = 0
+        for it in body:
+            if not isinstance(it, dict):
+                continue
+            nm = (it.get("n") or it.get("name") or "").strip()
+            if not nm:
+                continue
+            db.insert("material_catalog", {"name": nm[:120], "unit": (it.get("u") or "")[:8],
+                      "unit2": (it.get("u2") or "")[:8], "category": it.get("c") or "Material"})
+            n += 1
+        return _cors({"ok": True, "imported": n})
+    except Exception as e:
+        import traceback
+        return _cors({"ok": False, "error": "%s: %s" % (type(e).__name__, e),
+                      "trace": traceback.format_exc()[-300:]})
+
+
+@bp.route("/catalog")
+def catalog_view():
+    """Viewer for the imported material catalog (Tools → Material Catalog)."""
+    try:
+        items = db.all_rows("material_catalog", order="category, name")
+    except Exception:
+        items = []
+    return render_template("catalog.html", items=items)
+
+
 @bp.route("/run", methods=["POST"])
 def run():
     deep = bool(request.form.get("deep"))  # OFF: AccuLynx API has no GET for messages/docs (404)
