@@ -549,7 +549,41 @@ def design(token):
         sysk = "shingle"
     return render_template("design_studio.html", token=token, rec=rec, kind=kind,
                            company=db.get_company(), colors=ROOF_COLORS, options=ROOF_OPTIONS,
-                           start_system=sysk)
+                           start_system=sysk, design_photo=rec.get("design_photo"))
+
+
+@bp.route("/<token>/design/photo", methods=["POST"])
+def design_photo(token):
+    """Homeowner uploads a photo of their own roof/house in the Design Studio — stored on
+    the record so the rep can use it (and, later, visualize the chosen color on it)."""
+    kind, rec = _record_by_any_token(token)
+    if not rec:
+        abort(404)
+    f = request.files.get("photo")
+    if f and f.filename:
+        ext = (f.filename.rsplit(".", 1)[-1] or "jpg").lower()[:5]
+        if ext in ("jpg", "jpeg", "png", "heic", "webp", "gif"):
+            os.makedirs(config.PHOTO_DIR, exist_ok=True)
+            fn = "myroof_%s_%d.%s" % (kind, int(time.time() * 1000), ext)
+            f.save(os.path.join(config.PHOTO_DIR, fn))
+            try:
+                db._ensure_column("leads" if kind == "lead" else "jobs", "design_photo", "TEXT")
+                db.update("leads" if kind == "lead" else "jobs", rec["id"], design_photo=fn)
+            except Exception:
+                pass
+            # Jobs also get it in the photo gallery so it shows up project-wide.
+            if kind == "job":
+                try:
+                    db.insert("photos", {"job_id": rec["id"], "album": "Homeowner", "phase": "design",
+                                         "caption": "Homeowner's roof photo (Design Studio)",
+                                         "filename": fn, "original_name": f.filename})
+                except Exception:
+                    pass
+            db.add_activity(kind, rec["id"], "note", "🏠 Homeowner uploaded a photo of their roof in the Design Studio.")
+            flash("Thanks! Your roof photo is uploaded — your project contact can see it now.", "ok")
+        else:
+            flash("Please upload an image (JPG, PNG, HEIC).", "error")
+    return redirect(url_for("portal.design", token=token))
 
 
 @bp.route("/<token>/design/request", methods=["POST"])

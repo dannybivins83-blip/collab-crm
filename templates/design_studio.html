@@ -112,6 +112,34 @@
       </div>
       {% endif %}{% endfor %}
     </div>
+
+    <!-- UPLOAD YOUR ROOF PHOTO -->
+    <div class="card">
+      <div class="h">4 · Upload a photo of your roof</div>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--mut)">Snap a photo of your home so we can match your colors to <b>your</b> roof and have it ready for your visit.</p>
+      {% if design_photo %}
+      <img src="{{ url_for('uploads', subpath='photos/' ~ design_photo) }}" alt="Your roof" style="width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:8px">
+      <div style="font-size:12.5px;color:var(--mut);margin-bottom:8px">✓ Uploaded — pick a new file to replace it.</div>
+      {% endif %}
+      <form method="post" action="{{ url_for('portal.design_photo', token=token) }}" enctype="multipart/form-data">
+        <input type="file" name="photo" accept="image/*" capture="environment" style="width:100%;margin-bottom:10px">
+        <button class="btn green" type="submit" style="width:100%">📸 Upload my roof photo</button>
+      </form>
+    </div>
+
+    <!-- LEARN -->
+    <div class="card" style="background:linear-gradient(125deg,#eef4fb,#fff)">
+      <div class="h">5 · Learn about your roof</div>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--mut)">New to this? Take a quick, fun tour of the roof systems and test your Roof IQ.</p>
+      <a class="btn" style="width:100%;background:var(--brand);color:#fff" href="{{ url_for('portal.learn', token=token) }}">🎓 Open Roof School →</a>
+    </div>
+
+    <!-- WELCOME PACKET & DOCS -->
+    <div class="card" style="background:linear-gradient(125deg,#eef9f0,#fff)">
+      <div class="h">📋 Your welcome packet &amp; documents to sign</div>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--mut)">{% if kind=='job' %}Ready to move forward? Your welcome packet and the documents to sign are on your project page.{% else %}Once you're signed up, your welcome packet and the documents to sign will appear on your project page — your contact will guide you.{% endif %}</p>
+      <a class="btn" style="width:100%;background:var(--brand);color:#fff" href="{{ url_for('portal.home', token=token) }}">📋 Go to my project page →</a>
+    </div>
   </div>
 
   <!-- STICKY SUBMIT -->
