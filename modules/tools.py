@@ -126,6 +126,49 @@ def export():
 # Call Sheet (print) — everything due/overdue across leads + jobs
 # ---------------------------------------------------------------------------
 
+# Stage-action label shown on each card (top-right pill), by pipeline bucket.
+_ACTION_BY_BUCKET = {"lead": "Sign-Up Docs", "prospect": "Sign-Up Docs",
+                     "approved": "Job Docs", "completed": "Closeout + Final Pay",
+                     "invoiced": "Final Payment / Lien Release"}
+# Fallback checklist when a stage doesn't define one (mirrors the SeaBreeze docs sheet).
+_DEFAULT_CHECKLIST = {
+    "approved": ["Signed proposal", "Color/material selection confirmed", "Insurance/scope docs",
+                 "Scan ALL signed docs into job folder", "Email copies of signed docs to client",
+                 "Photos uploaded (SiteCam)", "RoofGraf uploaded to job documents"],
+    "completed": ["Final inspection passed", "Punch list cleared", "Final photos uploaded",
+                  "Warranty issued to homeowner"],
+    "invoiced": ["Final invoice sent", "Payment link sent", "Lien release prepared",
+                 "Review requested"],
+}
+
+
+def _card(kind, r, sd, fs):
+    """Build one rich call-sheet card: contact + where-it-stands + checklist + the
+    30/30/30/10 draw schedule with amounts + paid %. Mirrors the SeaBreeze job sheet."""
+    checks = db.load_json(r.get("checks"), {})
+    labels = sd.get("checklist") or _DEFAULT_CHECKLIST.get(sd["bucket"], [])
+    checklist = [{"label": lbl, "done": bool(checks.get("%s:%d" % (sd["key"], i)))}
+                 for i, lbl in enumerate(labels)]
+    is_lead = kind == "Lead"
+    value = theme.est_num(r.get("estimate") if is_lead else r.get("contract_value"))
+    payments = {} if is_lead else db.load_json(r.get("payments"), {})
+    draws = []
+    for d in constants.DRAW_SCHEDULE:
+        amt = round(value * d["pct"]) if value else 0
+        draws.append({"pct": int(d["pct"] * 100), "amount": amt,
+                      "paid": bool(payments.get(d["key"]))})
+    return {
+        "kind": kind, "r": r, "stage": sd["name"], "fs": fs,
+        "action": _ACTION_BY_BUCKET.get(sd["bucket"], "Follow up"),
+        "narrative": (r.get("narrative") or "").strip(),
+        "todo": (r.get("todo") or "").strip() or sd["name"],
+        "checklist": checklist,
+        "value": value, "value_str": theme.money(value) if value else "",
+        "draws": draws,
+        "paid_pct": int(theme.paid_pct(payments) * 100) if not is_lead else 0,
+    }
+
+
 @bp.route("/callsheet")
 def callsheet():
     dept = theme.current_department()
@@ -151,8 +194,7 @@ def callsheet():
             continue
         fs = theme.follow_status(sd, l.get("last_contact") or l.get("created"), l.get("snooze_until"))
         if keep(fs):
-            items.append({"kind": "Lead", "r": l, "stage": sd["name"], "fs": fs,
-                          "todo": l.get("todo") or sd["name"]})
+            items.append(_card("Lead", l, sd, fs))
     for j in db.all_rows("jobs", "department=?", (dept,)):
         if j["stage"] in constants.JOB_INACTIVE:
             continue
@@ -163,8 +205,7 @@ def callsheet():
             continue
         fs = theme.follow_status(sd, j.get("stage_since") or j.get("created"), j.get("snooze_until"))
         if keep(fs):
-            items.append({"kind": "Job", "r": j, "stage": sd["name"], "fs": fs,
-                          "todo": j.get("todo") or sd["name"]})
+            items.append(_card("Job", j, sd, fs))
     items.sort(key=lambda x: (0 if x["fs"]["level"] == "hot" else 1, -x["fs"]["days"]))
 
     # Per-bucket headcounts for the big buttons + the active set's stage choices.

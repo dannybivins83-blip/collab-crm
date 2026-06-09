@@ -47,24 +47,71 @@
   <noscript><button class="btn" type="submit">Apply</button></noscript>
 </form>
 <div class="cs-head">
-  <h2 style="margin:0">{{ company.name }} — Call Sheet</h2>
-  <span class="muted">{{ today() }} · {{ current_department }}</span>
+  <h2 style="margin:0">{{ company.name }} — {{ {'':'All Buckets','lead':'Leads','prospect':'Prospects','approved':'Approved','completed':'Completed','invoiced':'Invoiced'}[sel_bucket] }} Call Sheet</h2>
+  <span class="muted">{{ items|length }} records · {{ today() }} · {{ current_department }} · {{ current_user.name if current_user }}</span>
 </div>
-<table class="grid">
-  <tr><th>Name</th><th>Phone</th><th>Stage</th><th>Days</th><th>To-do / next action</th><th class="no-print"></th></tr>
-  {% for it in items %}
-  <tr>
-    <td><b>{{ it.r.name }}</b> <span class="badge">{{ it.kind }}</span><div class="muted">{{ it.r.address }}</div></td>
-    <td><a href="tel:{{ it.r.phone }}">{{ it.r.phone }}</a></td>
-    <td>{{ it.stage }}</td>
-    <td><span class="pill" style="background:{{ 'var(--danger)22' if it.fs.level=='hot' else 'var(--warn)22' }};color:{{ 'var(--danger)' if it.fs.level=='hot' else 'var(--warn)' }}">{{ it.fs.days }}d</span></td>
-    <td>{{ it.todo }}</td>
-    <td class="no-print"><a href="{{ url_for('leads.detail', lead_id=it.r.id) if it.kind=='Lead' else url_for('jobs.detail', job_id=it.r.id) }}">Open</a></td>
-  </tr>
-  {% else %}<tr><td colspan="6" class="empty">Nothing due — all clear.</td></tr>{% endfor %}
-</table>
+
+{% for it in items %}
+<div class="csc">
+  <div class="csc-top">
+    <div>
+      <a class="csc-name" href="{{ url_for('leads.detail', lead_id=it.r.id) if it.kind=='Lead' else url_for('jobs.detail', job_id=it.r.id) }}">{{ it.r.name }}</a>
+      <span class="csc-rid">{{ it.r.rid }}</span>
+    </div>
+    <div class="csc-tags">
+      <span class="csc-action">{{ it.action }}</span>
+      <span class="csc-due {{ 'hot' if it.fs.level=='hot' else 'warm' if it.fs.level=='warm' else 'ok' }}">{{ 'OVERDUE · ' if it.fs.level=='hot' }}{{ it.fs.days }}d</span>
+    </div>
+  </div>
+  <div class="csc-contact">
+    {% if it.r.phone %}<a href="tel:{{ it.r.phone }}">📞 {{ it.r.phone }}</a>{% endif %}
+    {% if it.r.email %}<span class="muted">✉ {{ it.r.email }}</span>{% endif %}
+    {% if it.r.work_type %}<b>{{ it.r.work_type }}</b>{% endif %}
+  </div>
+  {% if it.r.address %}<div class="csc-addr">📍 {{ it.r.address }} <span class="muted">· {{ it.fs.days }}d in {{ it.stage }}</span></div>{% endif %}
+  {% if it.narrative %}<div class="csc-stands"><b>WHERE IT STANDS:</b> {{ it.narrative }}</div>{% endif %}
+  <div class="csc-todo">▶ <b>To-do:</b> {{ it.todo }}</div>
+  {% if it.checklist %}
+  <div class="csc-row"><span class="csc-lbl">CHECKLIST:</span>{% for c in it.checklist %}<span class="csc-box">{{ '☑' if c.done else '☐' }} {{ c.label }}</span>{% endfor %}</div>
+  {% endif %}
+  <div class="csc-money">
+    <span><b>Estimate $:</b> {{ it.value_str or '______________' }}</span>
+    <span><b>Quoted / Sold $:</b> <span class="csc-blank"></span></span>
+  </div>
+  {% if it.draws %}
+  <div class="csc-row"><span class="csc-lbl">PAYMENTS ({{ it.paid_pct }}% collected):</span>{% for d in it.draws %}<span class="csc-box">{{ '☑' if d.paid else '☐' }} {{ d.pct }}%{{ ' ' ~ money(d.amount) if d.amount }}</span>{% endfor %}</div>
+  {% endif %}
+  <div class="csc-notes"><span class="csc-lbl">CALL NOTES:</span><span class="csc-line"></span><span class="csc-line"></span></div>
+  <div class="csc-outcome">☐ Reached &nbsp;&nbsp; ☐ Left VM &nbsp;&nbsp; ☐ Call back ____ &nbsp;&nbsp; ☐ Not interested &nbsp;&nbsp; ☐ Appt set &nbsp;&nbsp; ☐ Sold</div>
+</div>
+{% else %}<div class="empty" style="padding:30px;text-align:center;color:#8a93a6">Nothing here — adjust the bucket or the “Show” filter above.</div>{% endfor %}
 <style>
-.cs-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--txt);padding-bottom:8px;margin-bottom:14px}
+.cs-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--masthead,#24476C);padding-bottom:8px;margin-bottom:16px}
+/* Rich call-sheet cards (SeaBreeze job-sheet style) */
+.csc{border:1px solid var(--line,#dde3ec);border-radius:10px;padding:14px 16px;margin-bottom:14px;background:#fff;page-break-inside:avoid;break-inside:avoid}
+.csc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.csc-name{font-size:16px;font-weight:800;color:var(--masthead,#24476C);text-decoration:none}
+.csc-rid{display:block;font-size:11px;color:#8a93a6;font-weight:700;margin-top:1px}
+.csc-tags{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}
+.csc-action{border:1px solid #c7d0de;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;color:#3a4a63;white-space:nowrap}
+.csc-due{border-radius:999px;padding:3px 11px;font-size:11px;font-weight:800;white-space:nowrap}
+.csc-due.hot{border:1px solid var(--danger,#c62828);color:var(--danger,#c62828)}
+.csc-due.warm{border:1px solid var(--warn,#b26a00);color:var(--warn,#b26a00)}
+.csc-due.ok{border:1px solid #8aa0bf;color:#5b6b85}
+.csc-contact{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:9px;font-size:13px}
+.csc-contact a{color:var(--accent,#2f6df6);font-weight:700;text-decoration:none}
+.csc-addr{font-size:12.5px;color:#4a5870;margin-top:5px}
+.csc-stands{font-size:12.5px;margin-top:8px;color:#1d2a44}
+.csc-todo{margin-top:9px;padding:7px 11px;border:1px solid #e0c27a;background:#fff8e8;border-radius:7px;font-size:12.5px;color:#5a3d00}
+.csc-row{margin-top:10px;font-size:11.5px;line-height:2}
+.csc-lbl{font-weight:800;color:#5b6b85;letter-spacing:.3px;margin-right:6px}
+.csc-box{border:1px solid #d6dde8;border-radius:6px;padding:3px 9px;margin:0 5px 5px 0;display:inline-block;white-space:nowrap}
+.csc-money{display:flex;gap:34px;margin-top:11px;font-size:13px;flex-wrap:wrap}
+.csc-blank{display:inline-block;border-bottom:1px solid #9aa6bb;width:150px}
+.csc-notes{margin-top:11px}
+.csc-line{display:block;border-bottom:1px solid #d6dde8;height:17px;margin-top:7px}
+.csc-outcome{margin-top:11px;font-size:12px;color:#3a4a63;border-top:1px solid #eef1f6;padding-top:9px}
+.cs-buckets{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 14px}
 .cs-buckets{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 14px}
 .cs-bk{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:120px;padding:14px 16px;
   border:2px solid var(--line,#dde3ec);border-radius:12px;background:#fff;text-decoration:none;color:var(--txt);
