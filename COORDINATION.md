@@ -49,3 +49,18 @@ For each finished branch, in the order above:
 | QA / mobile / UX | `agent/qa-ux` | queued | chip created; merge last |
 
 _Update Status as branches land. Baseline snapshot commit precedes all branches._
+
+## LIVE STATUS (reality update)
+The QA/UX and Estimate-template agents were STARTED and commit **directly to `main`**
+(not isolated branches) — they own the active trunk. SSO CRM-side is also landing on
+`main` (`modules/sso.py`, `/sso/token/sitecam`, postMessage in `sitecam.html`).
+
+- QA/UX + intake → RUNNING on main (icons, lead_intake.py, RingCentral, QA reports).
+- Estimate templates → RUNNING on main (constants.py, order-BOM/worksheet memory).
+- Unified SSO CRM-side → on main. **Pending SSO agent must BUILD ON this** — its lane
+  is the **`sitecam` repo** (`/api/auth/sso`, Google sign-in, Render deploy) + the
+  measurement webhook seam. Do NOT rebuild `modules/sso.py`.
+- Permit spec-sheet → pending; isolated in `packet_builder_handoff/build.py` — safe to run anytime.
+
+Integrator (main session): watch `main`, smoke-test after commits, run the single
+Vercel deploy when stable. Branch anchors exist but live agents are on main trunk.
