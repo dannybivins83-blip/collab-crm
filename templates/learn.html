@@ -47,11 +47,52 @@
   .gl summary{padding:12px 14px;font-weight:700;cursor:pointer;list-style:none}
   .gl summary::-webkit-details-marker{display:none}
   .gl p{margin:0;padding:0 14px 13px;color:var(--mut);font-size:13.5px}
+  /* your-system banner + process walkthrough */
+  .myband{display:flex;gap:13px;align-items:center;border-radius:14px;padding:14px;color:#fff;margin-bottom:14px}
+  .myband .ic{font-size:32px} .myband .t{font-weight:800;font-size:16px} .myband .s{font-size:12.5px;opacity:.92}
+  .pstep{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .pstep:last-child{border-bottom:0}
+  .pnum{flex:none;width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;font-weight:800;
+    font-size:13px;display:flex;align-items:center;justify-content:center}
+  .pname{font-weight:800;font-size:14px} .pblurb{font-size:13px;color:var(--mut);margin-top:2px}
+  .glabel{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);margin:14px 0 7px}
+  .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:7px}
+  .ggrid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px;border:1px solid var(--line);background:#dde6ef}
 </style>
 </head>
 <body>
   <div class="top"><h1>🎓 Roof School</h1><p>Learn how roofs really work — and test your Roof IQ.</p></div>
   <div class="wrap">
+
+    {% if my_system %}
+    <div class="myband" style="background:linear-gradient(120deg,{{ my_system.hex }},color-mix(in srgb,{{ my_system.hex }} 60%,#000))">
+      <div class="ic">{{ my_system.ic }}</div>
+      <div><div class="t">Your roof: {{ my_system.name }}</div>
+        <div class="s">{{ my_system.blurb }} Lasts {{ my_system.life }}.</div></div>
+    </div>
+    {% endif %}
+
+    <!-- THE PROCESS — real photos from similar jobs -->
+    <div class="card">
+      <div class="h">🎬 See your roof get built{% if my_system %} — real {{ my_system.name }} projects{% endif %}</div>
+      <p style="margin:0 0 12px;font-size:13.5px;color:var(--mut)">Here's exactly what happens, start to finish — illustrated with real photos from recent jobs like yours.</p>
+      {% for step in process %}
+      <div class="pstep">
+        <div class="pnum">{{ loop.index }}</div>
+        <div><div class="pname">{{ step.ic }} {{ step.name }}</div><div class="pblurb">{{ step.blurb }}</div></div>
+      </div>
+      {% endfor %}
+      {% if gallery %}
+      <div class="glabel" style="margin-top:16px;font-size:13px;color:var(--ink)">📸 Real photos from {{ my_system.name if my_system else 'similar' }} jobs we've done</div>
+      {% for bucket, files in gallery.items() %}
+      <div class="glabel">{{ bucket }}</div>
+      <div class="ggrid">{% for f in files %}<a href="{{ url_for('uploads', subpath='photos/' ~ f) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ f) }}" loading="lazy" alt="{{ bucket }} photo"></a>{% endfor %}</div>
+      {% endfor %}
+      <div style="font-size:11.5px;color:var(--mut);margin-top:9px">Real projects we've completed — shown so you can picture yours. (Customer details kept private.)</div>
+      {% else %}
+      <div style="font-size:13px;color:var(--mut);margin-top:12px">📷 Photos from similar projects will appear here as our crews document them in the field.</div>
+      {% endif %}
+    </div>
 
     <div class="card">
       <div class="h">The 4 roof systems — tap a card to flip it</div>

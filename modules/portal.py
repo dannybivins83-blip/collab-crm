@@ -287,7 +287,67 @@ ROOF_QUIZ = [
      "c": 1, "why": "Re-nailing to current code dramatically improves hurricane wind-uplift resistance."},
     {"q": "Where does a valley send water?", "a": ["Up the roof", "Off the roof where slopes meet", "Into the attic"],
      "c": 1, "why": "Valleys are the V-channels that carry water off where two slopes meet."},
+    {"q": "What's the FIRST thing we do on install day?", "a": ["Tear off the old roof", "Protect your landscaping & set up", "Paint the fascia"],
+     "c": 1, "why": "We protect your pool, plants & AC and stage materials before a single shingle moves."},
+    {"q": "What is a 'dry-in'?", "a": ["A dry day to work", "The waterproof underlayment layer + inspection", "The final cleanup"],
+     "c": 1, "why": "Dry-in is your waterproof barrier going on — it gets its own city inspection before the roof goes on."},
+    {"q": "How do we make sure no nails are left in your yard?", "a": ["We rake", "We run magnets (magnet sweep)", "We don't"],
+     "c": 1, "why": "We run powerful magnets over the yard and driveway daily to catch every nail."},
 ]
+
+# The physical install journey — used to walk the homeowner through "what happens," each
+# step illustrated with REAL photos pulled from similar completed jobs (the field photos).
+PROCESS_STEPS = [
+    {"key": "prep", "bucket": "Tear-off", "name": "Prep & Protection", "ic": "🚧",
+     "blurb": "We protect your landscaping, pool & AC, set up the dumpster, and stage materials and the permit box."},
+    {"key": "teardown", "bucket": "Tear-off", "name": "Tear-Off", "ic": "🔨",
+     "blurb": "The old roof comes off down to the wood deck so we can see — and fix — everything underneath."},
+    {"key": "deck", "bucket": "Tear-off", "name": "Deck Inspection & Re-Nail", "ic": "🪵",
+     "blurb": "We inspect the decking, replace any rotten wood, and re-nail to current Florida code for wind uplift."},
+    {"key": "dryin", "bucket": "Installation", "name": "Dry-In (Waterproofing)", "ic": "🛡️",
+     "blurb": "Your self-adhered underlayment goes on — the real waterproof barrier — and passes a dry-in inspection."},
+    {"key": "install", "bucket": "Installation", "name": "Roof Install", "ic": "🏠",
+     "blurb": "Your new system goes on — set to manufacturer spec and Florida Building Code."},
+    {"key": "details", "bucket": "Installation", "name": "Flashing & Details", "ic": "⚙️",
+     "blurb": "Valleys, pipe flashings, ridge & hip, drip edge — the details that keep water out for decades."},
+    {"key": "cleanup", "bucket": "Finished", "name": "Cleanup & Magnet Sweep", "ic": "🧲",
+     "blurb": "We clean daily and run magnets over your yard and driveway to catch every last nail."},
+    {"key": "final", "bucket": "Finished", "name": "Final Inspection & Warranty", "ic": "✅",
+     "blurb": "The city inspects, we close your permit, and register your manufacturer warranty."},
+]
+
+
+def _photo_bucket(phase):
+    p = (phase or "").lower()
+    if any(k in p for k in ("before", "tear", "old", "remove", "demo")):
+        return "Tear-off"
+    if any(k in p for k in ("after", "final", "complete", "done", "finish")):
+        return "Finished"
+    return "Installation"
+
+
+def similar_job_photos(system, exclude_id, cap=24):
+    """Real field photos from OTHER jobs of the same roof system, grouped into
+    Tear-off / Installation / Finished. Anonymized — photos only, no names/addresses —
+    so a homeowner sees their exact system being installed on real, similar projects."""
+    from modules import ahj as ahj_mod
+    groups = {"Tear-off": [], "Installation": [], "Finished": []}
+    n = 0
+    for j in db.all_rows("jobs"):
+        if j["id"] == exclude_id:
+            continue
+        jsys = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
+        if jsys != (system or "").lower():
+            continue
+        for ph in db.all_rows("photos", "job_id=?", (j["id"],), "id DESC"):
+            b = _photo_bucket(ph.get("phase"))
+            if len(groups[b]) < 8:
+                groups[b].append(ph.get("filename"))
+                n += 1
+        if n >= cap:
+            break
+    return {k: v for k, v in groups.items() if v}
+
 
 _STAGE_TO_PHASE = {
     "approved": 0, "finance_ntp": 0, "documentation": 0,
@@ -663,13 +723,18 @@ def refer_msg(token):
 
 @bp.route("/<token>/learn")
 def learn(token):
-    """Interactive roof-education game — system explainers, a quiz (Roof IQ), and a
-    glossary. Keeps homeowners engaged and educated from the lead stage on."""
+    """Interactive roof-education game — system explainers, the install process walked
+    through with REAL photos from similar jobs, a Roof IQ quiz, and a glossary."""
     kind, rec = _record_by_any_token(token)
     if not rec:
         abort(404)
+    from modules import ahj as ahj_mod
+    sysk = (rec.get("system") or ahj_mod.work_type_to_system(rec.get("work_type", "")) or "shingle").lower()
+    my_system = next((s for s in ROOF_EDU if s["key"] == sysk), ROOF_EDU[0])
+    gallery = similar_job_photos(sysk, rec["id"] if kind == "job" else -1)
     return render_template("learn.html", token=token, company=db.get_company(),
-                           systems=ROOF_EDU, glossary=GLOSSARY, quiz=ROOF_QUIZ)
+                           systems=ROOF_EDU, glossary=GLOSSARY, quiz=ROOF_QUIZ,
+                           process=PROCESS_STEPS, gallery=gallery, my_system=my_system, sysk=sysk)
 
 
 @bp.route("/<token>/seminar", methods=["GET", "POST"])
