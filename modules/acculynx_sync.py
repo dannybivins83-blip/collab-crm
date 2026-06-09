@@ -982,7 +982,9 @@ def worksheet_import():
                     continue
                 db.insert("worksheet_lines", {"worksheet_id": ws_id, "sort": i,
                           "category": ln.get("category") or _ws_cat(desc),
-                          "description": desc or "(line)", "budget_cost": cost, "actual_cost": cost})
+                          "description": desc or "(line)", "budget_cost": cost, "actual_cost": cost,
+                          "qty": _money_num(ln.get("qty")), "unit": (ln.get("unit") or "")[:8],
+                          "unit_cost": _money_num(ln.get("unit_cost"))})
                 n += 1
             agg["worksheets"] += 1
             agg["lines"] += n
@@ -996,6 +998,19 @@ def worksheet_import():
         import traceback
         return _cors({"ok": False, "error": "%s: %s" % (type(e).__name__, e),
                       "trace": traceback.format_exc()[-300:]})
+
+
+@bp.route("/job-guids")
+def job_guids():
+    """CORS-open: AccuLynx GUIDs of every synced job (feeds the worksheet collector
+    so it doesn't have to scroll-scrape the virtualized job list)."""
+    out = []
+    for j in db.all_rows("jobs"):
+        m = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                      (j.get("external_url") or ""), re.I)
+        if m:
+            out.append(m.group(0).lower())
+    return _cors({"ok": True, "guids": list(dict.fromkeys(out))})
 
 
 @bp.route("/run", methods=["POST"])

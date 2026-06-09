@@ -19,14 +19,17 @@
         <div class="field"><label>Contract value</label><input id="cv" value="{{ money(ws.contract_value) }}" oninput="recalc()"></div>
       </div>
       <table class="lines" id="wlines">
-        <thead><tr><th>Category</th><th style="width:40%">Description</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Variance</th><th></th></tr></thead>
+        <thead><tr><th>Category</th><th style="width:28%">Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit Cost</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Variance</th><th></th></tr></thead>
         <tbody>
           {% for l in lines %}
           <tr>
-            <td><select class="w-cat" style="width:110px">{% for c in categories %}<option {{ 'selected' if l.category==c }}>{{ c }}</option>{% endfor %}</select></td>
+            <td><select class="w-cat" style="width:100px">{% for c in categories %}<option {{ 'selected' if l.category==c }}>{{ c }}</option>{% endfor %}</select></td>
             <td><input class="w-desc" value="{{ l.description }}"></td>
-            <td class="num"><input class="w-bud num" type="number" step="0.01" value="{{ '%.2f'|format(l.budget_cost or 0) }}" oninput="recalc()" style="width:96px"></td>
-            <td class="num"><input class="w-act num" type="number" step="0.01" value="{{ '%.2f'|format(l.actual_cost or 0) }}" oninput="recalc()" style="width:96px"></td>
+            <td class="num"><input class="w-qty num" type="number" step="0.01" value="{{ '%.2f'|format(l.qty or 0) }}" oninput="lineCalc(this)" style="width:64px"></td>
+            <td><input class="w-unit" value="{{ l.unit or '' }}" style="width:44px"></td>
+            <td class="num"><input class="w-uc num" type="number" step="0.01" value="{{ '%.2f'|format(l.unit_cost or 0) }}" oninput="lineCalc(this)" style="width:78px"></td>
+            <td class="num"><input class="w-bud num" type="number" step="0.01" value="{{ '%.2f'|format(l.budget_cost or 0) }}" oninput="recalc()" style="width:86px"></td>
+            <td class="num"><input class="w-act num" type="number" step="0.01" value="{{ '%.2f'|format(l.actual_cost or 0) }}" oninput="recalc()" style="width:86px"></td>
             <td class="num w-var">$0</td>
             <td><button class="btn sm" type="button" onclick="this.closest('tr').remove();recalc()">✕</button></td>
           </tr>
@@ -72,16 +75,30 @@ function recalc(){
   document.querySelectorAll('.draw-amt').forEach(el=>{const p=+el.dataset.pct||0; el.textContent=p?money(cv*p):'—'});
 }
 function rowHTML(){
-  return `<td><select class="w-cat" style="width:110px">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></td>`+
+  return `<td><select class="w-cat" style="width:100px">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></td>`+
    `<td><input class="w-desc"></td>`+
-   `<td class="num"><input class="w-bud num" type="number" step="0.01" value="0" oninput="recalc()" style="width:96px"></td>`+
-   `<td class="num"><input class="w-act num" type="number" step="0.01" value="0" oninput="recalc()" style="width:96px"></td>`+
+   `<td class="num"><input class="w-qty num" type="number" step="0.01" value="0" oninput="lineCalc(this)" style="width:64px"></td>`+
+   `<td><input class="w-unit" style="width:44px"></td>`+
+   `<td class="num"><input class="w-uc num" type="number" step="0.01" value="0" oninput="lineCalc(this)" style="width:78px"></td>`+
+   `<td class="num"><input class="w-bud num" type="number" step="0.01" value="0" oninput="recalc()" style="width:86px"></td>`+
+   `<td class="num"><input class="w-act num" type="number" step="0.01" value="0" oninput="recalc()" style="width:86px"></td>`+
    `<td class="num w-var">$0</td><td><button class="btn sm" type="button" onclick="this.closest('tr').remove();recalc()">✕</button></td>`;
 }
 function addLine(){const tr=document.createElement('tr');tr.innerHTML=rowHTML();document.querySelector('#wlines tbody').appendChild(tr);recalc()}
+// Qty × Unit Cost auto-fills the line cost (Budget+Actual) — like AccuLynx. Only when
+// both are entered, so lump-sum lines keep their manually-entered cost.
+function lineCalc(el){
+  const tr=el.closest('tr');
+  const q=+tr.querySelector('.w-qty').value||0, uc=+tr.querySelector('.w-uc').value||0;
+  if(q>0 && uc>0){const ext=(Math.round(q*uc*100)/100).toFixed(2);
+    tr.querySelector('.w-bud').value=ext; tr.querySelector('.w-act').value=ext;}
+  recalc();
+}
 function saveWs(){
   const lines=[...document.querySelectorAll('#wlines tbody tr')].map(tr=>({
     category:tr.querySelector('.w-cat').value, description:tr.querySelector('.w-desc').value,
+    qty:+tr.querySelector('.w-qty').value||0, unit:tr.querySelector('.w-unit').value,
+    unit_cost:+tr.querySelector('.w-uc').value||0,
     budget_cost:+tr.querySelector('.w-bud').value||0, actual_cost:+tr.querySelector('.w-act').value||0}));
   fetch('{{ url_for("worksheet.save", job_id=job.id) }}',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({contract_value:cvNum(), lines})})

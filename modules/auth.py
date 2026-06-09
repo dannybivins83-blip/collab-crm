@@ -25,6 +25,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "sync.doc_import", "sync.doc_manifest",
           "sync.billing_import", "sync.billing_manifest",
           "sync.estimate_import", "sync.comm_import", "sync.worksheet_import",
+          "sync.job_guids",
           "portal.home", "portal.message", "portal.sign", "portal.sign_doc", "portal.pay",
           "portal.upload_doc", "portal.upload_photo",
           "signups.portal_view", "signups.portal_complete"}

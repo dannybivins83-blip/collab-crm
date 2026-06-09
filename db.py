@@ -260,7 +260,8 @@ CREATE TABLE IF NOT EXISTS worksheet_lines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     worksheet_id INTEGER, sort INTEGER DEFAULT 0,
     category TEXT DEFAULT 'Material',  -- Material | Labor | Permit | Overhead | Other
-    description TEXT, budget_cost REAL DEFAULT 0, actual_cost REAL DEFAULT 0
+    description TEXT, budget_cost REAL DEFAULT 0, actual_cost REAL DEFAULT 0,
+    qty REAL DEFAULT 0, unit TEXT, unit_cost REAL DEFAULT 0  -- AccuLynx-style breakdown
 );
 
 CREATE TABLE IF NOT EXISTS vendors (
@@ -319,6 +320,9 @@ def init_db():
                    ("sent_at", "TEXT"), ("department", "TEXT")]:
         _ensure_column("invoices", _c, _d)
     _ensure_integrations_table()
+    # AccuLynx-style worksheet line breakdown (Qty | Unit | Unit Cost | Cost).
+    for _c, _d in [("qty", "REAL DEFAULT 0"), ("unit", "TEXT"), ("unit_cost", "REAL DEFAULT 0")]:
+        _ensure_column("worksheet_lines", _c, _d)
     _ensure_column("company_settings", "labels", "TEXT")  # JSON map of phrase -> custom label
     _ensure_change_requests_table()
     _ensure_library_table()

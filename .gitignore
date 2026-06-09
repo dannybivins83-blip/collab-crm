@@ -32,3 +32,10 @@ _seabreeze_docs/
 .preview/
 
 .env*.local
+
+# ---- Multi-agent coordination: local state + scratch (keep out of git) ----
+.claude/
+_blob_rescue/
+scripts/_ws_*.json
+scripts/_ws_seed.json
+static/_wsg.json

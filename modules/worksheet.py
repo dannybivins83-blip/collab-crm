@@ -14,7 +14,7 @@ from modules import estimates as est
 
 bp = Blueprint("worksheet", __name__, url_prefix="/worksheet")
 
-CATEGORIES = ["Material", "Labor", "Permit", "Overhead", "Other"]
+CATEGORIES = ["Material", "Labor", "Wood Replacement", "Permit", "Overhead", "Other"]
 
 
 @bp.app_context_processor
@@ -141,7 +141,9 @@ def save(job_id):
             "category": ln.get("category", "Material"),
             "description": ln.get("description", ""),
             "budget_cost": float(ln.get("budget_cost") or 0),
-            "actual_cost": float(ln.get("actual_cost") or 0)})
+            "actual_cost": float(ln.get("actual_cost") or 0),
+            "qty": float(ln.get("qty") or 0), "unit": (ln.get("unit") or "")[:8],
+            "unit_cost": float(ln.get("unit_cost") or 0)})
     # Mirror the contract value back onto the job for the boards.
     db.update("jobs", job_id, contract_value=theme.money(theme.est_num(data.get("contract_value"))))
     db.add_activity("job", job_id, "automation", "Worksheet updated — profit %s" % (
