@@ -239,6 +239,18 @@
   .vrow.cur .vck{border-color:var(--green);color:var(--green-deep);
     box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 18%,#fff)}
   .vrow.done .vtx{color:var(--ink2)} .vrow.todo .vtx{color:var(--mut)} .vrow .vtx{line-height:1.4}
+  /* milestone celebration + updates feed */
+  .celebrate{display:flex;gap:13px;align-items:center;margin:0 0 15px;padding:15px 17px;border-radius:15px;
+    background:linear-gradient(120deg, color-mix(in srgb,var(--green) 24%,#fff), #fff);
+    border:1px solid color-mix(in srgb,var(--green) 42%,#fff);box-shadow:var(--sh)}
+  .celebrate .cel-em{font-size:34px;flex:none;animation:bob 1.3s ease-in-out infinite}
+  .celebrate .cel-t{font-weight:800;color:var(--green-deep)}
+  .celebrate .cel-s{color:var(--ink2);margin-top:1px}
+  .upd{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .upd:last-child{border:0}
+  .upd-dot{width:11px;height:11px;border-radius:50%;background:var(--green);flex:none;margin-top:5px;
+    box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 18%,#fff)}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.12}}
 </style>
 </head>
 <body{% if (signup_packet) or (pay_url and j._balance > 0) %} class="has-cta"{% endif %}>
@@ -296,6 +308,37 @@
       <div class="lb-msg">{{ _fe[1] }}</div>
     </div>
   </div>
+
+  <!-- MILESTONE CELEBRATION (confetti once per new step) -->
+  {% if celebrate %}
+  <div class="celebrate">
+    <div class="cel-em">🎉</div>
+    <div style="min-width:0">
+      <div class="cel-t">Great news — new progress on your roof!</div>
+      <div class="cel-s">We just completed: <b>{{ celebrate }}</b></div>
+    </div>
+  </div>
+  <script>
+  (function(){var cols=['{{ company.color_accent or "#8CC63F" }}','{{ company.color_primary or "#4680BF" }}','{{ company.color_masthead or "#24476C" }}','#F2C000','#E25050'];
+    for(var i=0;i<80;i++){var d=document.createElement('i');
+      d.style.cssText='position:fixed;top:-14px;left:'+(Math.random()*100)+'vw;width:8px;height:13px;background:'+cols[i%5]+';opacity:.95;border-radius:2px;z-index:9999;pointer-events:none;animation:fall '+(2.6+Math.random()*2.2)+'s linear '+(Math.random()*0.6)+'s forwards';';
+      document.body.appendChild(d);(function(el){setTimeout(function(){el.remove();},6200);})(d);}})();
+  </script>
+  {% endif %}
+
+  <!-- PROJECT UPDATES FEED -->
+  {% if updates %}
+  <div class="card">
+    <div class="h act">🎉 Your Project Updates</div>
+    {% for u in updates %}
+    <div class="upd">
+      <div class="upd-dot"></div>
+      <div style="min-width:0"><b>{{ u.title }}</b> <span class="muted">— milestone reached ✓</span>
+        {% if u.created %}<div class="muted" style="font-size:12px">{{ u.created[:16] }}</div>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   <!-- SIGN-UP PACKAGE (action needed) -->
   {% if signup_packet %}

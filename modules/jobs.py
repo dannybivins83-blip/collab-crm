@@ -200,12 +200,27 @@ def edit(job_id):
                            mode="edit")
 
 
+def _notify_phase(job_id, old_stage, new_stage):
+    """Fire the homeowner milestone update (portal feed + optional email) when a stage
+    change moves the job into a new customer-facing phase. Never raises."""
+    try:
+        from flask import session
+        from modules import portal
+        op, np = portal._phase_index(old_stage or ""), portal._phase_index(new_stage or "")
+        if np > op:
+            portal.on_phase_advance(job_id, op, np, session.get("user_id"))
+    except Exception:
+        pass
+
+
 @bp.route("/<int:job_id>/stage", methods=["POST"])
 def set_stage(job_id):
     stage = request.form.get("stage")
     if stage in constants.JOB_STAGE_INDEX:
+        _old = (db.get("jobs", job_id) or {}).get("stage")
         db.update("jobs", job_id, stage=stage, stage_since=db.today())
         db.add_activity("job", job_id, "stage", "Moved to %s" % constants.job_stage(stage)["name"])
+        _notify_phase(job_id, _old, stage)
         if request.form.get("ajax"):
             return jsonify({"ok": True, "stage": stage})
         flash("Stage updated.", "ok")
@@ -224,6 +239,7 @@ def advance(job_id):
             nxt = constants.JOB_STAGES[idx + 1]["key"]
             db.update("jobs", job_id, stage=nxt, stage_since=db.today())
             db.add_activity("job", job_id, "stage", "Advanced to %s" % constants.job_stage(nxt)["name"])
+            _notify_phase(job_id, j["stage"], nxt)
             flash("Advanced to %s." % constants.job_stage(nxt)["name"], "ok")
     return redirect(url_for("jobs.detail", job_id=job_id))
 

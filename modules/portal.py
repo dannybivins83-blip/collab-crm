@@ -34,11 +34,19 @@ for _lc in ("portal_token TEXT", "portal_invited TEXT"):
     except Exception:
         pass
 for _c in ("photo_app_url TEXT", "tutorials TEXT", "auto_portal_invite INTEGER DEFAULT 0",
-           "portal_perks TEXT"):  # homeowner perks / giveaways / events shown in the portal
+           "portal_perks TEXT",            # homeowner perks / giveaways / events shown in the portal
+           "portal_notify INTEGER DEFAULT 0"):  # kill-switch: email homeowner on each milestone
     try:
         db.execute("ALTER TABLE company_settings ADD COLUMN %s" % _c)
     except Exception:
         pass
+# Milestone updates shown in the homeowner portal (one per phase reached) + unread flag.
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS portal_updates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, job_id INTEGER, phase INTEGER,
+        title TEXT, created TEXT, seen INTEGER DEFAULT 0)""")
+except Exception:
+    pass
 # Document e-signature + a per-job payment link (Stripe/Square/QBO/PayPal/etc.).
 for _t, _c in (("documents", "needs_sign INTEGER DEFAULT 0"), ("documents", "signed_name TEXT"),
                ("documents", "signed_at TEXT"), ("documents", "signature TEXT"),
@@ -197,6 +205,49 @@ def _phase_index(stage):
     return _STAGE_TO_PHASE.get(stage, 0)
 
 
+# Celebratory per-phase message for the homeowner milestone email.
+_PHASE_NOTIFY = {
+    "Approved": "You're officially approved — your project is a GO! 🎉",
+    "Permitting": "We've submitted your building permit. We're on it with the city. 📝",
+    "Scheduling": "Your permit is in hand — we're locking in your install date! 📅",
+    "Installation": "It's happening — our crew is building your new roof! Watch it on your Roof Cam. 🔨",
+    "Final Inspection": "Your roof passed install — final inspection is up next. 🔎",
+    "Complete": "All done — your new roof is complete! Enjoy it. 🏡",
+}
+
+
+def on_phase_advance(job_id, old_phase, new_phase, uid=None):
+    """Record a portal update for each phase newly reached (drives the portal feed +
+    confetti) and, when the homeowner-notify kill-switch is ON, email the customer.
+    Idempotent per (job, phase). Safe to call on every stage change."""
+    if new_phase is None or old_phase is None or new_phase <= old_phase:
+        return
+    job = db.get("jobs", job_id)
+    if not job:
+        return
+    for ph in range(old_phase + 1, new_phase + 1):
+        title = CUSTOMER_PHASES[ph] if 0 <= ph < len(CUSTOMER_PHASES) else "Project update"
+        if db.all_rows("portal_updates", "job_id=? AND phase=?", (job_id, ph)):
+            continue  # dedupe — already recorded this milestone
+        db.insert("portal_updates", {"job_id": job_id, "phase": ph, "title": title,
+                                     "created": db.now(), "seen": 0})
+    # Email the homeowner (gated by the kill-switch + an email on file + a sender).
+    comp = db.get_company()
+    email = (job.get("email") or "").strip()
+    if str(comp.get("portal_notify") or "0") == "1" and email and uid:
+        try:
+            from modules import gmail
+            pname = CUSTOMER_PHASES[new_phase] if 0 <= new_phase < len(CUSTOMER_PHASES) else "your project"
+            msg = _PHASE_NOTIFY.get(pname, "Your roof project just hit a new milestone.")
+            body = ("%s\n\nSee your live progress and everything we've checked off for you:\n%s\n\n— %s"
+                    % (msg, portal_link(job_id), comp.get("name") or "Your roofing team"))
+            gmail.send_message(uid, email, "🎉 Roof update — %s" % pname, body)
+            db.add_activity("job", job_id, "automation",
+                            "Homeowner emailed milestone update: %s" % pname)
+        except Exception:
+            pass
+
+
 def _decorate(j):
     payments = db.load_json(j.get("payments"), {})
     j["_payments"] = payments
@@ -290,9 +341,17 @@ def home(token):
                     "done": ph < cur_phase, "current": ph == cur_phase}
                    for ph, t in VALUE_STEPS]
     value_done = sum(1 for v in value_steps if v["done"])
+    # Milestone update feed + confetti: newest first; if any are unseen, celebrate the
+    # latest, then mark them all seen so the party only fires once per new milestone.
+    updates = db.all_rows("portal_updates", "job_id=?", (j["id"],), "id DESC")
+    unseen = [u for u in updates if not u.get("seen")]
+    celebrate = unseen[0]["title"] if unseen else ""
+    for u in unseen:
+        db.update("portal_updates", u["id"], seen=1)
     return render_template("portal_dashboard.html", j=j, token=token,
                            value_steps=value_steps, value_done=value_done,
                            value_total=len(value_steps),
+                           updates=updates, celebrate=celebrate,
                            phases=CUSTOMER_PHASES, estimates=estimates, photos=photos,
                            documents=documents, docs_to_sign=docs_to_sign, invoices=invoices,
                            activity=activity, pay_url=j.get("pay_url"), signup_packet=signup_packet,
