@@ -27,7 +27,13 @@ try:
     db.execute("ALTER TABLE jobs ADD COLUMN portal_token TEXT")
 except Exception:
     pass
-for _c in ("photo_app_url TEXT", "tutorials TEXT"):
+# Leads get their own portal token + an "invited" flag (dedupe the auto-invite email).
+for _lc in ("portal_token TEXT", "portal_invited TEXT"):
+    try:
+        db.execute("ALTER TABLE leads ADD COLUMN %s" % _lc)
+    except Exception:
+        pass
+for _c in ("photo_app_url TEXT", "tutorials TEXT", "auto_portal_invite INTEGER DEFAULT 0"):
     try:
         db.execute("ALTER TABLE company_settings ADD COLUMN %s" % _c)
     except Exception:
@@ -35,21 +41,46 @@ for _c in ("photo_app_url TEXT", "tutorials TEXT"):
 # Document e-signature + a per-job payment link (Stripe/Square/QBO/PayPal/etc.).
 for _t, _c in (("documents", "needs_sign INTEGER DEFAULT 0"), ("documents", "signed_name TEXT"),
                ("documents", "signed_at TEXT"), ("documents", "signature TEXT"),
-               ("jobs", "pay_url TEXT")):
+               ("jobs", "pay_url TEXT"), ("jobs", "sitecam_url TEXT")):
     try:
         db.execute("ALTER TABLE %s ADD COLUMN %s" % (_t, _c))
     except Exception:
         pass
 db._COLCACHE.clear()
 
-# Customer-facing "what to expect" — description + typical timeframe per phase.
+# Customer-facing "what to expect" — per phase: what WE do, your typical timeframe,
+# and a thorough checklist of what YOU (the homeowner) can do at that stage.
 PHASE_INFO = [
-    ("Approved", "We finalize your contract, color/material selections, and paperwork.", "1–3 days"),
-    ("Permitting", "We submit your permit (and HOA approval if needed) to the city and wait for it to be issued.", "1–4 weeks"),
-    ("Scheduling", "We order your materials, schedule the crew, and confirm your install date with you.", "3–7 days"),
-    ("Installation", "Tear-off, dry-in, and your new roof goes on. Most homes are completed in 1–2 days.", "1–3 days"),
-    ("Final Inspection", "The city inspects the finished roof and we close out the permit.", "1–2 weeks"),
-    ("Complete", "Final walkthrough, warranty registration, and you're all set. Thank you!", "—"),
+    {"name": "Approved", "tf": "1–3 days",
+     "desc": "We finalize your contract, color & material selections, and paperwork so your project is ready to move.",
+     "you": ["Review & sign your Sign-Up Package (button above)",
+             "Confirm your shingle/tile/metal color & product choices",
+             "Finish any financing paperwork if you're financing"]},
+    {"name": "Permitting", "tf": "1–4 weeks",
+     "desc": "We prepare and submit your building permit — plus HOA approval if your community requires it — then wait for the city to issue it.",
+     "you": ["Sign the HOA application if you're in an HOA community",
+             "Upload any HOA or insurance documents we request",
+             "Otherwise sit tight — issue time is up to the city/HOA"]},
+    {"name": "Scheduling", "tf": "3–7 days",
+     "desc": "Your permit is in hand. We order your materials, schedule the crew, and lock in your install date with you.",
+     "you": ["Confirm the install date we propose",
+             "Plan to move vehicles out of the driveway that morning",
+             "Arrange to keep kids & pets indoors during the work"]},
+    {"name": "Installation", "tf": "1–3 days",
+     "desc": "Tear-off, dry-in, and your new roof goes on. Most homes are finished in 1–2 days.",
+     "you": ["Move vehicles away from the house & driveway",
+             "Take down fragile wall hangings — tear-off causes vibration",
+             "Keep pets indoors; expect noise starting early in the day",
+             "Stay clear of the work area for your safety"]},
+    {"name": "Final Inspection", "tf": "1–2 weeks",
+     "desc": "The city inspects the finished roof and we close out your permit. We coordinate everything with the inspector.",
+     "you": ["Nothing required — we schedule the inspection for you",
+             "Just make sure the inspector can access your property if asked"]},
+    {"name": "Complete", "tf": "—",
+     "desc": "Final walkthrough, warranty registration, and you're all set. Thank you for trusting us with your home!",
+     "you": ["Walk the property with us & confirm the magnet nail-sweep",
+             "Make your final payment",
+             "Keep your warranty — we register it with the manufacturer for you"]},
 ]
 
 
@@ -68,8 +99,7 @@ def _tutorials(company):
     return out
 
 # Map the detailed production milestone -> a friendly customer-facing phase.
-CUSTOMER_PHASES = ["Approved", "Permitting", "Scheduling", "Installation",
-                   "Final Inspection", "Complete"]
+CUSTOMER_PHASES = [p["name"] for p in PHASE_INFO]
 _STAGE_TO_PHASE = {
     "approved": 0, "finance_ntp": 0, "documentation": 0,
     "permit_applied": 1, "permit_approved": 1,
@@ -107,6 +137,31 @@ def portal_link(job_id):
     return url_for("portal.home", token=tok, _external=True) if tok else ""
 
 
+def ensure_lead_token(lead_id):
+    """Return the lead's portal token, generating + saving one if needed."""
+    l = db.get("leads", lead_id)
+    if not l:
+        return None
+    tok = l.get("portal_token")
+    if not tok:
+        tok = secrets.token_urlsafe(12)
+        db.update("leads", lead_id, portal_token=tok)
+    return tok
+
+
+def _lead_by_token(token):
+    if not token:
+        return None
+    rows = db.all_rows("leads", "portal_token=?", (token,))
+    return rows[0] if rows else None
+
+
+def lead_portal_link(lead_id):
+    """Shareable homeowner-portal URL for a lead (pre-job welcome view)."""
+    tok = ensure_lead_token(lead_id)
+    return url_for("portal.home", token=tok, _external=True) if tok else ""
+
+
 def _phase_index(stage):
     return _STAGE_TO_PHASE.get(stage, 0)
 
@@ -119,6 +174,14 @@ def _decorate(j):
     j["_balance"] = j["_value"] * (1 - j["_paid_pct"])
     j["_phase"] = _phase_index(j.get("stage"))
     j["_stage_name"] = constants.job_stage(j.get("stage")).get("name", "")
+    # Clean customer display name: job names are stored as
+    # "R-26061: Belinda Souza (PBC) (S17) (Danny)" — strip the job-number prefix
+    # and the trailing (AHJ)(code)(rep) tags so the portal greets the real person.
+    nm = j.get("name") or ""
+    nm = re.sub(r"^\s*[A-Za-z]?-?\d{3,}\s*[:\-]\s*", "", nm)
+    nm = re.sub(r"\s*\([^)]*\)", "", nm).strip(" -·,")
+    j["_client"] = nm
+    j["_first"] = nm.split(" ")[0] if nm else ""
     return j
 
 
@@ -126,6 +189,15 @@ def _decorate(j):
 def home(token):
     j = _job_by_token(token)
     if not j:
+        # Pre-job: a lead's lightweight welcome portal.
+        l = _lead_by_token(token)
+        if l:
+            nm = re.sub(r"^\s*[A-Za-z]?-?\d{3,}\s*[:\-]\s*", "", (l.get("name") or ""))
+            nm = re.sub(r"\s*\([^)]*\)", "", nm)
+            nm = re.sub(r"\s+L\s*$", "", nm).strip(" -·,")
+            rep = next((u for u in db.all_rows("users") if u.get("name") == l.get("rep")), None)
+            return render_template("lead_portal.html", l=l, client=nm or "there",
+                                   rep=rep, company=db.get_company(), token=token)
         abort(404)
     _decorate(j)
     estimates = db.all_rows("estimates", "job_id=?", (j["id"],), "id DESC")
@@ -141,10 +213,12 @@ def home(token):
                 if a.get("kind") in ("stage", "note", "automation")][:10]
     rep = next((u for u in db.all_rows("users") if u.get("name") == j.get("rep")), None)
     company = db.get_company()
-    # Build the what's-next checklist: each phase with done/current flag + timeframe.
+    # Build the what's-next checklist: each phase with done/current flag, timeframe,
+    # and the homeowner's own to-do items for that stage.
     checklist = []
-    for i, (name, desc, tf) in enumerate(PHASE_INFO):
-        checklist.append({"name": name, "desc": desc, "timeframe": tf,
+    for i, p in enumerate(PHASE_INFO):
+        checklist.append({"name": p["name"], "desc": p["desc"], "timeframe": p["tf"],
+                          "you": p.get("you", []),
                           "done": i < j["_phase"], "current": i == j["_phase"]})
     contract = next((d for d in documents if (d.get("category") or "") == "Contract"), None)
     # Product collateral from the company Document Library, matched to this roof's

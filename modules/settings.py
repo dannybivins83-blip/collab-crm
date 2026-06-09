@@ -28,6 +28,8 @@ def set_department():
 def index():
     if request.method == "POST":
         data = {f: request.form.get(f, "").strip() for f in COMPANY_FIELDS}
+        # Checkbox: auto-email the homeowner their portal invite on lead creation.
+        data["auto_portal_invite"] = 1 if request.form.get("auto_portal_invite") else 0
         logo = request.files.get("logo")
         if logo and logo.filename:
             fn = "logo_%d_%s" % (int(time.time()), re.sub(r"[^A-Za-z0-9._-]+", "_", logo.filename))

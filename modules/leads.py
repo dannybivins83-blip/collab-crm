@@ -198,6 +198,31 @@ def new():
                     notify_msg = " · team draft ready in Gmail"
         except Exception:
             pass
+        # Optional homeowner-portal invite — auto-SEND the magic link to the customer.
+        # OFF by default (enable in Settings). Safeguards: only when enabled + the lead
+        # has an email + the rep's Gmail is connected; deduped via portal_invited.
+        try:
+            comp = db.get_company()
+            if (str(comp.get("auto_portal_invite") or "0") in ("1", "true", "True", "on")
+                    and (data.get("email") or "").strip()):
+                from flask import session as _ps
+                from modules import portal as _portal, gmail as _gm
+                uid = _ps.get("user_id")
+                link = _portal.lead_portal_link(lid)
+                cname = (data.get("name") or "there").split("(")[0].strip()
+                cn = comp.get("name") or "our team"
+                subj = "Welcome to %s — your private project page" % cn
+                body = ("Hi %s,\n\nThanks for reaching out to %s. Here is your private "
+                        "project page to follow your roof project and review your estimate "
+                        "once it's ready:\n\n%s\n\nWe'll be in touch shortly to schedule "
+                        "your inspection.\n\n— %s" % (cname, cn, link, cn))
+                if uid and _gm.send_message(uid, data["email"], subj, body):
+                    db.update("leads", lid, portal_invited=db.now())
+                    db.add_activity("lead", lid, "email",
+                                    "Homeowner portal invite emailed to %s" % data["email"])
+                    notify_msg += " · portal invite sent to homeowner"
+        except Exception:
+            pass
         flash("Lead created. AHJ: %s%s%s%s" % (
             resolved_ahj or "—", (" · " + system) if system else "", est_msg, notify_msg), "ok")
         return redirect(url_for("leads.detail", lead_id=lid))

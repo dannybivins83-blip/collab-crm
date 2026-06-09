@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ company.name or 'Your Project' }} — Welcome</title>
+<style>
+  :root{--brand:{{ company.color_masthead or '#24476C' }}}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#eef2f7;color:#1c2733}
+  .top{background:var(--brand);color:#fff;padding:18px 20px;text-align:center}
+  .top h1{margin:0;font-size:18px;letter-spacing:.3px}
+  .wrap{max-width:620px;margin:0 auto;padding:18px}
+  .card{background:#fff;border:1px solid #dfe6ef;border-radius:14px;padding:22px;margin:14px 0;box-shadow:0 1px 4px rgba(20,40,80,.05)}
+  h2{margin:0 0 10px;font-size:20px}
+  .muted{color:#5b6b7d}
+  .row{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid #eef2f7;font-size:15px}
+  .row:last-child{border-bottom:0}
+  .row .k{width:120px;color:#5b6b7d;flex:none}
+  .row .v{font-weight:600}
+  .rep{display:flex;align-items:center;gap:12px;margin-top:6px}
+  .rep .av{width:44px;height:44px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+  a.btn{display:inline-block;background:var(--brand);color:#fff;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700;margin-top:8px}
+  .foot{text-align:center;color:#8595a6;font-size:12px;padding:14px}
+</style>
+</head>
+<body>
+  <div class="top"><h1>{{ company.name or 'Your Roofing Project' }}</h1></div>
+  <div class="wrap">
+    <div class="card">
+      <h2>Welcome, {{ client }}! 👋</h2>
+      <p class="muted">Thanks for reaching out to {{ company.name or 'us' }}. We've received your request and your project is in our system. This is your private project page — bookmark it; we'll keep it updated as things move forward.</p>
+    </div>
+
+    <div class="card">
+      <h2>Your request</h2>
+      {% if l.address %}<div class="row"><span class="k">Property</span><span class="v">{{ l.address }}</span></div>{% endif %}
+      {% if l.work_type %}<div class="row"><span class="k">Service</span><span class="v">{{ l.work_type }}</span></div>{% endif %}
+      {% if l.ahj %}<div class="row"><span class="k">Permit office</span><span class="v">{{ l.ahj }}</span></div>{% endif %}
+    </div>
+
+    {% if rep %}
+    <div class="card">
+      <h2>Your point of contact</h2>
+      <div class="rep">
+        <div class="av">{{ (rep.name or '?')[0]|upper }}</div>
+        <div>
+          <div style="font-weight:700">{{ rep.name }}</div>
+          <div class="muted">{{ company.name }}</div>
+        </div>
+      </div>
+      {% if company.phone %}<a class="btn" href="tel:{{ company.phone }}">📞 Call us: {{ company.phone }}</a>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <h2>What happens next</h2>
+      <p class="muted">A member of our team will reach out shortly to schedule your inspection and measurements. Once we've prepared your estimate, it'll appear right here for you to review and approve.</p>
+    </div>
+    <div class="foot">{{ company.name }}{% if company.license %} · Lic. {{ company.license }}{% endif %}</div>
+  </div>
+</body>
+</html>

@@ -378,6 +378,20 @@ def create_draft(uid, to, subject, body, in_reply_to=None, references=None, thre
     return res.get("id") if res else None
 
 
+def send_message(uid, to, subject, body):
+    """SEND an email immediately from user `uid`'s connected Gmail (gmail.modify grant
+    permits send). Returns the sent message id, or None if not connected / failed.
+    Used only where the user has explicitly enabled an auto-send feature."""
+    if not (to or "").strip() or not account_for_user(uid):
+        return None
+    msg = MIMEText(body or "", "plain", "utf-8")
+    msg["To"] = (to or "").strip()
+    msg["Subject"] = subject or ""
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+    res = _api_post(uid, "/messages/send", {"raw": raw})
+    return res.get("id") if res else None
+
+
 @bp.route("/draft", methods=["POST"])
 def draft():
     """Create a Gmail DRAFT (never auto-send — house rule). Supports a fresh compose

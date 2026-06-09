@@ -65,6 +65,14 @@
   <div class="field"><label>Tutorials &amp; tips (one per line — “Title | https://link”, or just a tip with no link)</label>
     <textarea name="tutorials" placeholder="What to expect during your roof replacement | https://youtu.be/...&#10;How to prepare your home for installation | https://...">{{ c.tutorials or '' }}</textarea></div>
 
+  <div class="field" style="border-top:1px solid var(--line);padding-top:12px;margin-top:6px">
+    <label class="check" style="align-items:flex-start">
+      <input type="checkbox" name="auto_portal_invite" {{ 'checked' if c.auto_portal_invite }}>
+      <span><b>Auto-email homeowner portal invite on lead creation</b><br>
+      <span class="muted" style="font-weight:400">When ON, each new lead with an email is automatically sent their private portal link from your connected Gmail. Leave OFF to send manually. Tip: create one lead with your own email first to preview it.</span></span>
+    </label>
+  </div>
+
   <button class="primary" type="submit">💾 Save & apply branding</button>
   {% if c.logo_path %}<button class="btn" formaction="{{ url_for('settings.clear_logo') }}" formnovalidate>Clear logo</button>{% endif %}
 </form>
