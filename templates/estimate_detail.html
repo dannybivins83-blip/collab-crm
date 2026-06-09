@@ -139,7 +139,7 @@
         <canvas id="pad" width="300" height="120" style="border:1px solid var(--line);border-radius:8px;margin-top:8px;width:100%;touch-action:none"></canvas>
         <label class="check" style="margin-top:8px;align-items:flex-start;font-size:12px;font-weight:600">
           <input type="checkbox" id="sigConsent">
-          <span>I authorize this signature to be applied on my behalf to <b>all signature and acceptance lines</b> across this proposal, the <b>sign-up / contract documents</b>, and the <b>permit packet</b> for this project, and I accept the options included here.</span>
+          <span>I authorize this signature to be applied on my behalf to <b>all signature and acceptance lines</b> across this proposal and the <b>sign-up / contract documents</b>, and I accept the options included here. <span class="muted" style="font-weight:400">(Notarized permit forms — NOC, nailing affidavit — are signed separately in the notary's presence.)</span></span>
         </label>
         <div style="display:flex;gap:8px;margin-top:8px">
           <button type="button" class="btn sm" onclick="clearPad()">Clear</button>
@@ -270,7 +270,7 @@ if(pad){const ctx=pad.getContext('2d');let drawing=false;
   pad.addEventListener('touchstart',start);pad.addEventListener('touchmove',move);pad.addEventListener('touchend',()=>drawing=false);
   window.clearPad=()=>ctx.clearRect(0,0,pad.width,pad.height);
   window.submitSig=()=>{const name=document.getElementById('signer').value.trim();if(!name){alert('Enter the customer name.');return}
-    if(!document.getElementById('sigConsent').checked){alert('Please check the authorization box — it applies your signature to the proposal, sign-up documents, and permit packet.');return}
+    if(!document.getElementById('sigConsent').checked){alert('Please check the authorization box — it applies your signature to the proposal and the sign-up documents.');return}
     fetch('{{ url_for("estimates.sign", est_id=e.id) }}',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body:'signed_name='+encodeURIComponent(name)+'&consent=1&signature='+encodeURIComponent(pad.toDataURL())}).then(r=>r.json()).then(d=>{if(d.ok)location.reload()});};
 }

@@ -1,68 +1,31 @@
-# Permit Packet — Stamping the Owner Signature
+# Permit Packet — Signatures (CRM behavior)
 
-The CRM captures the homeowner's signature once (at estimate e-sign, with explicit
-authorization to apply it to the permit packet) and passes it into the permit build
-engine. This is what `build.py`'s `build_packet(...)` needs to do with it.
+**Authoritative rule:** see the **Permit Signature & Notarization Runbook**
+(`../../docs/PERMIT_SIGNATURE.md`, the parent project folder). This file only documents
+what the CRM code does.
 
-## What the CRM passes you
+## The CRM does NOT put a captured signature on the permit packet — by design
 
-`build_packet(client, ahj, system, attachments, out_path, underlayment, product)` —
-the `client` dict now includes three extra keys:
+Earlier plumbing forwarded the customer's captured e-signature into `build.py` via
+`client["signature"]`. **That was removed** (`modules/permits.py`, `build_packet`).
 
-| key           | type | value                                                                 |
-|---------------|------|-----------------------------------------------------------------------|
-| `signature`   | str  | A **PNG data URL** — `data:image/png;base64,<...>` — the drawn signature. **Empty string `""`** if the customer did not authorize applying it to the permit packet. |
-| `signed_name` | str  | The customer's typed name (e.g. `"Brian Wetherington"`).             |
-| `signed_at`   | str  | ISO-ish timestamp string of when they signed (e.g. `"2026-06-09 14:32:10"`). |
+Why: the permit packet's owner-signature forms — the **Notice of Commencement** and the
+**re-roof nailing affidavit** — are **notarized**. The owner's signature on them *is* the
+notarized signature and must be **wet-signed or RON-signed in the notary's presence**.
+Stamping a pre-captured signature there would be forgery of a notarized instrument.
 
-**Contract:** only stamp the signature when `client.get("signature")` is non-empty.
-Empty means "not authorized / not signed yet" — leave the owner-signature lines blank
-for a wet signature, exactly as today.
+So `build_packet()` receives only data fields (owner, address, PCN, area, slope, etc.) and
+leaves every signature / date / notary block **blank**, exactly as the build engine already
+does.
 
-## What to do
+## Where the captured signature DOES apply (non-notarized only)
+- **Estimate proposal** — acceptance + signature block (the customer accepting their own quote).
+- **Sign-up / contract package** — auto-signed from the authorized signature; this is a
+  plain contract, not a notarized form (audited: `signups.py` references no notarized form).
 
-On the forms the engine already generates that have an **owner / applicant signature
-line** (typically the **permit application** and the **NOC**), draw the signature image
-on that line, with the name + date beneath or beside it.
+The estimate e-sign consent text reflects this — it authorizes the proposal + sign-up docs
+only, and explicitly notes notarized permit forms are signed separately.
 
-Do **not** stamp it on a notary block or any line that legally requires a separate
-witnessed/notarized signature — only the owner/applicant signature lines.
-
-## Decode + draw (reportlab example)
-
-```python
-import base64, io
-from reportlab.lib.utils import ImageReader
-
-def _sig_reader(data_url):
-    """data:image/png;base64,XXXX  ->  ImageReader, or None if absent/invalid."""
-    if not data_url or "," not in data_url:
-        return None
-    try:
-        raw = base64.b64decode(data_url.split(",", 1)[1])
-        return ImageReader(io.BytesIO(raw))
-    except Exception:
-        return None
-
-# at the owner-signature line on the canvas `c` (x, y in points):
-sig = _sig_reader(client.get("signature"))
-if sig:
-    c.drawImage(sig, x, y, width=140, height=40,
-                preserveAspectRatio=True, mask="auto")
-    c.setFont("Helvetica", 8)
-    c.drawString(x, y - 10, "%s   %s" % (client.get("signed_name", ""),
-                                         (client.get("signed_at") or "")[:10]))
-# else: leave the line blank (wet signature)
-```
-
-If the engine uses a fillable-PDF / overlay approach instead of drawing on a canvas,
-write the decoded PNG into the signature field's rectangle the same way (any PDF lib
-that supports image stamping works — pypdf overlay, pdf-lib, etc.).
-
-## Test
-- **With signature:** pass a `client` where `signature` is a real data URL → the owner
-  signature line shows the image + name + date.
-- **Without:** pass `signature=""` → the line is blank (unchanged from today).
-
-The data URL is small (a hand-drawn PNG, typically a few KB). Sign over nothing — just
-render it; the CRM already handled capture, authorization, and storage.
+## If the permit engine ever needs a NON-notarized owner line stamped
+It would have to be a line that is genuinely not notarized (rare on these packets). Only
+then revisit forwarding `client["signature"]`. Default: don't.
