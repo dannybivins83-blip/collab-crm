@@ -228,6 +228,17 @@
   .perk:last-child{border:0}
   .perk .pk-ic{font-size:23px;flex:none}
   .perk .pk-b b{display:block}
+  /* value checklist */
+  .vprog{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:-2px 0 15px}
+  .vprog span{display:block;height:100%;border-radius:99px;transition:width .7s ease;
+    background:linear-gradient(90deg, var(--green), var(--green-deep))}
+  .vrow{display:flex;gap:11px;padding:8px 0;align-items:flex-start;font-size:14px}
+  .vrow .vck{flex:none;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:800;border:2px solid var(--line);color:var(--mut);background:#fff;margin-top:1px}
+  .vrow.done .vck{background:var(--green);border-color:var(--green);color:#fff}
+  .vrow.cur .vck{border-color:var(--green);color:var(--green-deep);
+    box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 18%,#fff)}
+  .vrow.done .vtx{color:var(--ink2)} .vrow.todo .vtx{color:var(--mut)} .vrow .vtx{line-height:1.4}
 </style>
 </head>
 <body{% if (signup_packet) or (pay_url and j._balance > 0) %} class="has-cta"{% endif %}>
@@ -320,6 +331,21 @@
     </div>
     {% endfor %}
     <div class="muted" style="margin-top:12px">Timeframes are typical estimates — your project contact will confirm exact dates.</div>
+  </div>
+
+  <!-- VALUE CHECKLIST — everything we're doing for you -->
+  <div class="card">
+    <div class="h">✅ Everything We're Doing For You
+      <span style="margin-left:auto;font-weight:800;color:var(--green-deep)">{{ value_done }}/{{ value_total }} done</span>
+    </div>
+    <div class="vprog"><span style="width:{{ (100 * value_done / value_total)|round|int if value_total else 0 }}%"></span></div>
+    {% for v in value_steps %}
+    <div class="vrow {{ 'done' if v.done else ('cur' if v.current else 'todo') }}">
+      <span class="vck">{{ '✓' if v.done else ('●' if v.current else '○') }}</span>
+      <span class="vtx">{{ v.text }}{% if v.current %} <span class="pill green">happening now</span>{% endif %}</span>
+    </div>
+    {% endfor %}
+    <div class="muted" style="margin-top:13px;font-size:12.5px">Every box is real work the {{ company.name }} team does on your project — the standard you're paying for, tracked in the open.</div>
   </div>
 
   <!-- REFER & EARN -->

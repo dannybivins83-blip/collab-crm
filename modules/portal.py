@@ -101,6 +101,36 @@ def _tutorials(company):
 
 # Map the detailed production milestone -> a friendly customer-facing phase.
 CUSTOMER_PHASES = [p["name"] for p in PHASE_INFO]
+
+# Homeowner-facing "value" checklist — the SeaBreeze team playbook translated into
+# what the CUSTOMER gets, grouped by the production phase it's completed in. Items
+# auto-check as the project advances, so the homeowner sees the value rack up.
+# phase: -1 = pre-sale (always done by the time they're in the portal), 0..5 = phases.
+VALUE_STEPS = [
+    (-1, "Responded fast and got you on the schedule"),
+    (-1, "Measured your roof precisely with aerial RoofGraf technology"),
+    (-1, "Built your detailed, itemized estimate for the right system"),
+    (-1, "Walked you through your options and answered every question"),
+    (0, "Collected your signed agreement and sent you copies of all paperwork"),
+    (0, "Confirmed your color, material & product selections"),
+    (0, "Opened your project file and assigned your crew"),
+    (1, "Prepared your building permit packet (NOC, PCN, legal description)"),
+    (1, "Attached engineered wind-load & product-approval docs (PE-sealed where required)"),
+    (1, "Submitted your permit and tracked it through the city"),
+    (1, "Handled HOA / architectural approval — colors, samples & follow-ups (if applicable)"),
+    (2, "Took off your exact materials from the roof measurements"),
+    (2, "Ordered your premium materials and confirmed delivery"),
+    (2, "Verified your colors match your approved selections"),
+    (2, "Locked in your install date with you"),
+    (3, "Staged materials, permit box & yard sign before the crew arrived"),
+    (3, "Tore off the old roof and inspected the deck"),
+    (3, "Installed your new roof system to Florida Building Code"),
+    (3, "Cleaned up daily and swept for nails"),
+    (4, "Completed our punch-list walkthrough"),
+    (4, "Passed your final city inspection"),
+    (5, "Delivered your warranty documents"),
+    (5, "Made sure you're 100% happy and asked how we did"),
+]
 _STAGE_TO_PHASE = {
     "approved": 0, "finance_ntp": 0, "documentation": 0,
     "permit_applied": 1, "permit_approved": 1,
@@ -253,7 +283,16 @@ def home(token):
     product_docs = product_docs[:16]
     from modules import signups
     signup_packet = signups.open_packet_for_job(j["id"])
+    # Homeowner value checklist — done if its phase is already behind us, in-progress at
+    # the current phase, upcoming if ahead. Shows the customer the work they're paying for.
+    cur_phase = j.get("_phase", 0)
+    value_steps = [{"text": t, "phase": ph,
+                    "done": ph < cur_phase, "current": ph == cur_phase}
+                   for ph, t in VALUE_STEPS]
+    value_done = sum(1 for v in value_steps if v["done"])
     return render_template("portal_dashboard.html", j=j, token=token,
+                           value_steps=value_steps, value_done=value_done,
+                           value_total=len(value_steps),
                            phases=CUSTOMER_PHASES, estimates=estimates, photos=photos,
                            documents=documents, docs_to_sign=docs_to_sign, invoices=invoices,
                            activity=activity, pay_url=j.get("pay_url"), signup_packet=signup_packet,
