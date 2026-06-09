@@ -89,6 +89,179 @@ def draw_amount(contract_value, draw, payments):
 
 
 # ---------------------------------------------------------------------------
+# SeaBreeze job-name composition (reference_job_naming_convention)
+#   R-26179: Richard Reis (PBC) (S17) (DB)
+#   = [job_no]: [client] ([AHJ]) ([roof_code]) ([rep])
+# Structured parts (client_name, ahj_abbrev, roof_letter, squares, rep_code,
+# job_seq/job_no) are stored on the row so the composed `name` is always
+# regenerable and reports/filters can use the pieces. Unknown AHJ/rep codes are
+# blanked + flagged (see modules/ahj.ahj_abbrev) — never invented. The roof-letter
+# + AHJ-abbrev maps live in modules/ahj; the rep map is here.
+# ---------------------------------------------------------------------------
+
+# Documented rep -> code (confirmed in reference_job_naming_convention). Anything
+# not listed falls back to a deterministic rule (single name -> UPPER, multi-word
+# -> initials) and is flagged as derived, not trusted as the official shop code.
+REP_CODES = {
+    "danny bivins": "DB",
+    "francis ferrer": "FF",
+    "jacin carreiro": "Jacin",
+    "scott": "SCOTT",
+}
+
+
+def rep_code(rep):
+    """(code, documented) for a salesperson. documented=False means the code was
+    derived (not an official shop code) and should be flagged for confirmation."""
+    raw = (rep or "").strip()
+    if not raw:
+        return "", True
+    norm = re.sub(r"\s+", " ", raw).lower()
+    if norm in REP_CODES:
+        return REP_CODES[norm], True
+    toks = [t for t in re.split(r"\s+", raw) if t]
+    if len(toks) == 1:
+        return toks[0].upper(), False
+    return "".join(t[0] for t in toks).upper(), False
+
+
+def _squares_int(squares):
+    try:
+        n = int(round(float(squares)))
+    except (TypeError, ValueError):
+        return 0
+    return n if n > 0 else 0
+
+
+def roof_code(roof_letter, squares=None):
+    """Roof code like 'S17' (letter + squares). Letter alone ('S') until squares
+    are known; '' when there's no material letter."""
+    if not roof_letter:
+        return ""
+    n = _squares_int(squares)
+    return "%s%s" % (roof_letter, n if n else "")
+
+
+def compose_job_name(client_name, ahj_abbrev="", roof_letter="", squares=None,
+                     rep_code="", job_no=""):
+    """Assemble the SeaBreeze display name from already-resolved parts. Empty
+    parts are omitted (no stray '()'); job_no prefixes once it exists."""
+    client = (client_name or "").strip() or "Unknown"
+    segs = []
+    if ahj_abbrev:
+        segs.append("(%s)" % ahj_abbrev)
+    rc = roof_code(roof_letter, squares)
+    if rc:
+        segs.append("(%s)" % rc)
+    if rep_code:
+        segs.append("(%s)" % rep_code)
+    name = client + (" " + " ".join(segs) if segs else "")
+    return ("%s: %s" % (job_no, name)) if job_no else name
+
+
+def naming_parts(row, squares=None, job_no=""):
+    """Resolve the structured naming parts + flags for a lead/job row.
+    Returns (name, parts_dict, flags_list). parts_dict keys: client_name,
+    ahj_abbrev, roof_letter, squares, rep_code."""
+    from modules import ahj as ahj_mod
+    client = (row.get("client_name") or row.get("name") or "").strip()
+    resolved_ahj = row.get("ahj") or ""
+    abbr, _ahj_ok = ahj_mod.ahj_abbrev(resolved_ahj)
+    letter = ahj_mod.roof_letter(row.get("work_type") or "")
+    rep_raw = row.get("rep") or ""
+    rcode, rep_ok = rep_code(rep_raw)
+    if squares is None:
+        squares = row.get("squares")
+    name = compose_job_name(client, abbr, letter, squares, rcode, job_no)
+    parts = {"client_name": client, "ahj_abbrev": abbr, "roof_letter": letter,
+             "squares": _squares_int(squares) or None, "rep_code": rcode}
+    flags = []
+    if resolved_ahj and not abbr:
+        flags.append("AHJ '%s' has no documented abbreviation" % resolved_ahj)
+    if (row.get("work_type") or "") and not letter:
+        flags.append("work type '%s' has no roof-code letter" % row.get("work_type"))
+    if rep_raw and not rep_ok:
+        flags.append("rep code '%s' derived from '%s' (confirm)" % (rcode, rep_raw))
+    return name, parts, flags
+
+
+def _apply_name(table, row_id, row, squares, job_no):
+    """Shared writer: recompose + persist name + structured parts; log flags.
+    Never nulls an existing `squares` (only writes a positive value)."""
+    name, parts, flags = naming_parts(row, squares=squares, job_no=job_no)
+    upd = {"name": name, "ahj_abbrev": parts["ahj_abbrev"],
+           "roof_letter": parts["roof_letter"], "rep_code": parts["rep_code"]}
+    sq = _squares_int(squares if squares is not None else row.get("squares"))
+    if sq:
+        upd["squares"] = sq
+    db.update(table, row_id, **upd)
+    if flags:
+        db.add_activity(table[:-1], row_id, "automation",
+                        "Job-name flags: " + "; ".join(flags))
+    return name
+
+
+def refresh_lead_name(lead_id, squares=None):
+    """Recompose a lead's display name from its stored parts — capturing the raw
+    client name into client_name the FIRST time so the real name is never lost —
+    update the structured fields, and log any unknown-code flags. Returns name."""
+    l = db.get("leads", lead_id)
+    if not l:
+        return ""
+    if not (l.get("client_name") or "").strip():
+        raw = (l.get("name") or "").strip()
+        db.update("leads", lead_id, client_name=raw)
+        l["client_name"] = raw
+    return _apply_name("leads", lead_id, l, squares, job_no="")
+
+
+def next_job_number(year2=None, prefix="R"):
+    """Next sequential SeaBreeze job number, e.g. ('R-26179', 179). Sequence is
+    max existing job_seq + 1 across ALL jobs (also parsed from legacy 'R-YYNNN'
+    names/rids), stamped with the current 2-digit year. Returns (job_no, seq)."""
+    if year2 is None:
+        year2 = db.today()[2:4]
+    seq = 0
+    try:
+        rows = db.all_rows("jobs")
+    except Exception:
+        rows = []
+    pat = re.compile(r"%s-?\d{2}(\d{1,4})\b" % re.escape(prefix), re.I)
+    for j in rows:
+        try:
+            s = int(j.get("job_seq") or 0)
+        except (TypeError, ValueError):
+            s = 0
+        if not s:
+            for field in (j.get("job_no"), j.get("name"), j.get("rid")):
+                m = pat.search(str(field or ""))
+                if m:
+                    s = int(m.group(1))
+                    break
+        if s > seq:
+            seq = s
+    nseq = seq + 1
+    return "%s-%s%03d" % (prefix, year2, nseq), nseq
+
+
+def refresh_job_name(job_id, squares=None):
+    """Recompose a job's standardized name (R-26###: Client (AHJ) (S17) (Rep))
+    from its stored parts, capturing client_name the first time (stripping any
+    existing job-number prefix). Returns the new name."""
+    j = db.get("jobs", job_id)
+    if not j:
+        return ""
+    if not (j.get("client_name") or "").strip():
+        raw = (j.get("name") or "").strip()
+        m = re.match(r"^[A-Za-z]-?\d{2,6}:\s*(.*)$", raw)
+        captured = m.group(1).strip() if m else raw
+        db.update("jobs", job_id, client_name=captured)
+        j["client_name"] = captured
+    job_no = (j.get("job_no") or j.get("rid") or "").strip()
+    return _apply_name("jobs", job_id, j, squares, job_no=job_no)
+
+
+# ---------------------------------------------------------------------------
 # Flask wiring: inject brand + helpers into every template
 # ---------------------------------------------------------------------------
 

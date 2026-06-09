@@ -419,6 +419,20 @@ def _migrate_columns():
         # reads `start_at`/`end_at`. Add the new columns on legacy DBs and backfill.
         ("appointments", "start_at TEXT"),
         ("appointments", "end_at TEXT"),
+        # SeaBreeze standardized job-name parts (agent/lead-naming). Structured so
+        # the composed `name` is always regenerable and reports can filter on them.
+        ("leads", "client_name TEXT"),
+        ("leads", "ahj_abbrev TEXT"),
+        ("leads", "roof_letter TEXT"),
+        ("leads", "squares REAL"),
+        ("leads", "rep_code TEXT"),
+        ("jobs", "client_name TEXT"),
+        ("jobs", "ahj_abbrev TEXT"),
+        ("jobs", "roof_letter TEXT"),
+        ("jobs", "squares REAL"),
+        ("jobs", "rep_code TEXT"),
+        ("jobs", "job_seq INTEGER"),
+        ("jobs", "job_no TEXT"),
     ]
     conn = connect()
     for table, coldef in adds:

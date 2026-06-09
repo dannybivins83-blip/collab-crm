@@ -22,6 +22,19 @@ NUMERIC = {"squares", "ridge_lf", "hip_lf", "valley_lf", "rake_lf", "eave_lf",
            "step_flash_lf", "facets", "waste_pct"}
 
 
+def _refresh_name(kind, entity_id, squares):
+    """Recompose the SeaBreeze standardized name now that squares are known
+    (RoofCode picks up the squares -> e.g. S17). Best-effort; never blocks a save."""
+    try:
+        import theme
+        if kind == "lead":
+            theme.refresh_lead_name(entity_id, squares=squares)
+        else:
+            theme.refresh_job_name(entity_id, squares=squares)
+    except Exception:
+        pass
+
+
 def for_job(job_id):
     rows = db.all_rows("measurements", "job_id=?", (job_id,), "id DESC")
     return rows[0] if rows else None
@@ -57,6 +70,7 @@ def save_job(job_id):
         mid = db.insert("measurements", data)
     # Mirror the headline numbers onto the job for quick reference.
     db.update("jobs", job_id, area=str(data.get("squares") or ""), slope=data.get("pitch") or "")
+    _refresh_name("job", job_id, data.get("squares"))
     db.add_activity("job", job_id, "automation", "Roof measurements saved (%.0f sq, pitch %s)" % (
         data.get("squares") or 0, data.get("pitch") or "—"))
     if request.form.get("ajax"):
@@ -88,6 +102,7 @@ def upload_job(job_id):
     else:
         data["job_id"] = job_id
         db.insert("measurements", data)
+    _refresh_name("job", job_id, parsed.get("squares"))
     # Also file it under job documents for the record.
     db.insert("documents", {"job_id": job_id, "category": "Measurement",
                             "filename": fn, "original_name": f.filename,
@@ -114,6 +129,7 @@ def save_lead(lead_id):
     else:
         data["lead_id"] = lead_id
         mid = db.insert("measurements", data)
+    _refresh_name("lead", lead_id, data.get("squares"))
     db.add_activity("lead", lead_id, "automation", "Roof measurements saved (%.0f sq, pitch %s)" % (
         data.get("squares") or 0, data.get("pitch") or "—"))
     if request.form.get("ajax"):
@@ -145,6 +161,7 @@ def upload_lead(lead_id):
     else:
         data["lead_id"] = lead_id
         db.insert("measurements", data)
+    _refresh_name("lead", lead_id, parsed.get("squares"))
     db.insert("documents", {"lead_id": lead_id, "category": "Measurement",
                             "filename": fn, "original_name": f.filename,
                             "size": os.path.getsize(path), "notes": "RoofGraf report"})

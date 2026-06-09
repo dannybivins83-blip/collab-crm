@@ -87,3 +87,58 @@ def work_type_to_system(work_type):
     if "repair" in low:
         return ""  # repairs usually don't need a re-roof permit packet
     return "shingle"
+
+
+# ---------------------------------------------------------------------------
+# SeaBreeze job-name encoding helpers (see reference_job_naming_convention):
+#   R-26179: Richard Reis (PBC) (S17) (DB)
+# The roof code's leading letter is the material; the AHJ gets a shop abbrev.
+# Only DOCUMENTED abbreviations are emitted — unknown jurisdictions are left
+# blank + flagged (never invented), so reports never carry a made-up code.
+# ---------------------------------------------------------------------------
+
+def roof_letter(work_type):
+    """Leading letter(s) of the roof code from a work type (S/T/M/F, or 5V for
+    5V-crimp metal). Order matters for combo types ("Shingle + Flat" -> S): the
+    predominant material is named first, so tile/metal/shingle are tested before
+    flat. Returns '' for non-roofing work types (Repair/Other) — the caller
+    should flag rather than guess a letter."""
+    low = (work_type or "").lower()
+    if not low:
+        return ""
+    if "5v" in low or "5-v" in low:
+        return "5V"
+    if "tile" in low:
+        return "T"
+    if "metal" in low:
+        return "M"
+    if "shingle" in low:
+        return "S"
+    if "flat" in low or "tpo" in low or "mod" in low or "bur" in low or "hot-mop" in low:
+        return "F"
+    return ""
+
+
+# Documented AHJ abbreviations only (confirmed in reference_job_naming_convention),
+# keyed on the lower-cased jurisdiction name. The default county "Palm Beach
+# County" -> PBC covers unincorporated addresses that fall back to the county.
+AHJ_ABBREV = {
+    "palm beach county": "PBC",
+    "boynton beach": "BB",
+    "lake worth beach": "LWB",
+    "royal palm beach": "RPB",
+}
+
+
+def ahj_abbrev(resolved):
+    """(abbrev, confident) for a resolved AHJ/jurisdiction label.
+
+    confident is False when there's a jurisdiction but no DOCUMENTED abbreviation
+    — the caller should leave the AHJ slot blank and flag it for Danny to confirm
+    rather than inventing a code. An empty input is 'confident' (nothing to flag)."""
+    if not resolved:
+        return "", True
+    norm = re.sub(r"[_\s]+", " ", str(resolved)).strip().lower()
+    if norm in AHJ_ABBREV:
+        return AHJ_ABBREV[norm], True
+    return "", False

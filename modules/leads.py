@@ -95,6 +95,11 @@ def new():
         if resolved_ahj:
             db.add_activity("lead", lid, "automation",
                             "AHJ auto-set to %s%s" % (resolved_ahj, (" · system: " + system) if system else ""))
+        # Standardized SeaBreeze display name: Client (AHJ) (RoofLetter) (Rep).
+        # The raw client name is preserved in client_name so `name` stays
+        # regenerable; squares (and the job#) fill in later in the lifecycle.
+        std_name = theme.refresh_lead_name(lid)
+        db.add_activity("lead", lid, "automation", "Lead name standardized: %s" % std_name)
         # Auto-build a starter estimate from the matching system template (base
         # scope + every system upgrade at qty 0) the moment a work type is set.
         est_msg = ""
@@ -232,9 +237,14 @@ def convert(lead_id):
     if not l:
         return redirect(url_for("leads.board"))
     parts = [p.strip() for p in (l.get("address") or "").split(",")]
+    # Assign the next sequential SeaBreeze job number (R-26###) and compose the
+    # full standardized name from the lead's stored parts: R-26###: Client (AHJ)
+    # (S17) (Rep). Squares come from the lead's measurement (stored on the lead).
+    job_no, job_seq = theme.next_job_number()
+    job_name, nparts, nflags = theme.naming_parts(l, job_no=job_no)
     job = {
         "contact_id": l.get("contact_id"), "lead_id": lead_id,
-        "rid": (l.get("rid") or "").replace("L-", "J-"), "name": l.get("name"),
+        "rid": job_no, "name": job_name,
         "phone": l.get("phone"), "email": l.get("email"),
         "address": parts[0] if parts else l.get("address"),
         "city": parts[1] if len(parts) > 1 else "",
@@ -244,8 +254,15 @@ def convert(lead_id):
         "county": l.get("county") or db.get_company().get("default_county", ""),
         "ahj": l.get("ahj") or "", "system": l.get("system") or "",
         "department": l.get("department") or current_department(),
+        # Structured naming fields (regenerable name + report filters).
+        "client_name": nparts["client_name"], "ahj_abbrev": nparts["ahj_abbrev"],
+        "roof_letter": nparts["roof_letter"], "squares": nparts["squares"],
+        "rep_code": nparts["rep_code"], "job_seq": job_seq, "job_no": job_no,
     }
     jid = db.insert("jobs", job)
+    db.add_activity("job", jid, "automation", "Job number assigned: %s" % job_no)
+    if nflags:
+        db.add_activity("job", jid, "automation", "Job-name flags: " + "; ".join(nflags))
     # Auto-create the permit record (pre-filled from the lead's AHJ + roof system).
     from modules import ahj as ahj_mod
     p_ahj = l.get("ahj") or ahj_mod.resolve_ahj(l.get("address", ""), job.get("city", ""), job["county"])
