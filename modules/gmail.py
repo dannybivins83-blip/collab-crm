@@ -353,6 +353,26 @@ def message(mid):
     })
 
 
+def create_draft(uid, to, subject, body, in_reply_to=None, references=None, thread_id=None):
+    """Create a Gmail DRAFT for user `uid` (never auto-send — house rule). Returns the
+    draft id, or None if the user's Gmail isn't connected / the API call failed.
+    Callable from other modules (e.g. invoice pay reminders), not just the HTTP route."""
+    if not account_for_user(uid):
+        return None
+    msg = MIMEText(body or "", "plain", "utf-8")
+    msg["To"] = (to or "").strip()
+    msg["Subject"] = subject or ""
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+        msg["References"] = references or in_reply_to
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+    resource = {"message": {"raw": raw}}
+    if thread_id:
+        resource["message"]["threadId"] = thread_id
+    res = _api_post(uid, "/drafts", resource)
+    return res.get("id") if res else None
+
+
 @bp.route("/draft", methods=["POST"])
 def draft():
     """Create a Gmail DRAFT (never auto-send — house rule). Supports a fresh compose
@@ -361,20 +381,9 @@ def draft():
     if not account_for_user(uid):
         return jsonify({"ok": False, "error": "not connected"}), 200
     data = request.get_json(silent=True) or {}
-    to = (data.get("to") or "").strip()
-    subject = data.get("subject") or ""
-    body = data.get("body") or ""
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["To"] = to
-    msg["Subject"] = subject
-    if data.get("in_reply_to"):
-        msg["In-Reply-To"] = data["in_reply_to"]
-        msg["References"] = data.get("references") or data["in_reply_to"]
-    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    resource = {"message": {"raw": raw}}
-    if data.get("threadId"):
-        resource["message"]["threadId"] = data["threadId"]
-    res = _api_post(uid, "/drafts", resource)
-    if res:
-        return jsonify({"ok": True, "draft_id": res.get("id")})
+    did = create_draft(uid, data.get("to"), data.get("subject"), data.get("body"),
+                       in_reply_to=data.get("in_reply_to"), references=data.get("references"),
+                       thread_id=data.get("threadId"))
+    if did:
+        return jsonify({"ok": True, "draft_id": did})
     return jsonify({"ok": False, "error": "draft failed"}), 200

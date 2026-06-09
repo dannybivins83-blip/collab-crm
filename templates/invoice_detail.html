@@ -17,6 +17,16 @@
     {% if inv.status!='paid' %}<form method="post" action="{{ url_for('invoices.pay', inv_id=inv.id) }}"><button class="accent" type="submit">Mark paid</button></form>{% endif %}
     <form method="post" action="{{ url_for('invoices.delete', inv_id=inv.id) }}" onsubmit="return confirm('Delete invoice?')"><button class="danger" type="submit">Delete</button></form>
   </div>
+  {% if overdue %}
+  <form method="post" action="{{ url_for('invoices.remind', inv_id=inv.id) }}" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+    <label>Email a payment reminder <span class="badge" style="color:var(--danger)">overdue</span></label>
+    <div class="row" style="align-items:flex-end">
+      <div class="field" style="flex:1;min-width:200px;margin:0"><input name="email" type="email" value="{{ default_email }}" placeholder="customer@email.com"></div>
+      <button class="btn" type="submit" title="Drafts a friendly reminder with the pay link in your Gmail">✉️ Draft pay reminder</button>
+    </div>
+    <div class="muted" style="margin-top:6px">Creates a Gmail draft with a secure pay link — you review &amp; send.{% if inv.reminded_at %} Last drafted {{ inv.reminded_at[:10] }}.{% endif %}</div>
+  </form>
+  {% endif %}
 </div>
 
 <div class="card" style="max-width:560px">

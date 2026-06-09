@@ -159,6 +159,9 @@ def _apply_measurement(est_id, m):
         if d.startswith("upgrade") or d.startswith("add-on"):
             continue  # optional upgrades stay at qty 0 until the rep turns them on
         u = (ln.get("unit") or "").upper()
+        if u == "LS":
+            continue  # lump-sum lines (permit, dumpster) keep their fixed template qty
+
         q = None
         if re.search(r"ridge|hip", d):
             q = ridge
@@ -167,7 +170,9 @@ def _apply_measurement(est_id, m):
         elif re.search(r"drip edge|eave|rake", d):
             q = drip
         elif u == "SQ" or re.search(r"tear ?off|deck|re-?nail|underlay|shingle|tile|membrane|\biso\b|base sheet|cap|gravel", d):
-            q = sq if "tear" in d else sqW
+            # Tear-off and re-nail/re-deck are billed by actual deck area (no
+            # material waste); everything else carries the waste factor.
+            q = sq if re.search(r"tear|re-?nail|re-?deck", d) else sqW
         if q and q > 0:
             db.update("estimate_lines", ln["id"], qty=round(q, 2))
 

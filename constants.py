@@ -156,74 +156,103 @@ WORK_TYPES = ["Roofing - Shingle", "Roofing - Tile", "Roofing - Metal (Galvalume
 # Each template carries starter line items so the builder is pre-populated;
 # qty/price are editable. unit: SQ (square = 100 sf), EA, LF, LS (lump sum).
 # ---------------------------------------------------------------------------
+# NOTE on costs: the `price` field below is the unit COST that seeds each line
+# (the builder derives the sell PRICE from it via the 30% margin model). Per-SQ
+# and per-LF lines carry qty 0 — _apply_measurement fills them from the roof
+# measurement. EA flashing lines carry a small default count (typical residence).
+#
+# CALIBRATION: shingle / tile / metal SQ+LF+labor costs are set so a typical job
+# lands on the REAL contract $/installed-square observed in live job data
+# (shingle ~$600/sq, tile ~$1,060/sq, metal ~$1,100/sq — derived from job-name
+# system/square codes cross-referenced with real contract_value). They are NOT
+# extracted from supplier purchase orders (no real material-order data exists in
+# the DB yet — see reference_acculynx_sync_depth). Flat systems are uncalibrated
+# (only one usable flat data point) and use market-standard FL costs.
 ESTIMATE_TEMPLATES = {
     "shingle": {
         "name": "Shingle Estimating Template",
         "work_types": ["Roofing - Shingle"],
         "lines": [
-            {"desc": "Tear off existing roof to deck", "unit": "SQ", "qty": 0, "price": 65.0},
-            {"desc": "Re-nail deck to current code", "unit": "SQ", "qty": 0, "price": 35.0},
-            {"desc": "Synthetic / self-adhered underlayment (Polystick IR-XE)", "unit": "SQ", "qty": 0, "price": 55.0},
-            {"desc": "Architectural shingles (Owens Corning TruDefinition Duration)", "unit": "SQ", "qty": 0, "price": 285.0},
-            {"desc": "Ridge cap shingles", "unit": "LF", "qty": 0, "price": 6.5},
-            {"desc": "Drip edge / metal edge", "unit": "LF", "qty": 0, "price": 4.0},
-            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 0, "price": 45.0},
+            {"desc": "Tear off existing roof to deck", "unit": "SQ", "qty": 0, "price": 40.0},
+            {"desc": "Re-nail / re-deck fasteners to current code", "unit": "SQ", "qty": 0, "price": 22.0},
+            {"desc": "Self-adhered underlayment (Polystick IR-XE / synthetic)", "unit": "SQ", "qty": 0, "price": 32.0},
+            {"desc": "Architectural shingles — material (Owens Corning TruDefinition Duration)", "unit": "SQ", "qty": 0, "price": 139.0},
+            {"desc": "Shingle install labor", "unit": "SQ", "qty": 0, "price": 70.0},
+            {"desc": "Starter strip + hip & ridge cap shingles", "unit": "LF", "qty": 0, "price": 4.0},
+            {"desc": "Drip edge / metal edge", "unit": "LF", "qty": 0, "price": 3.5},
+            {"desc": "Pipe boots / lead flashings", "unit": "EA", "qty": 4, "price": 35.0},
             {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 650.0},
-            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 550.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "tile": {
         "name": "Tile Estimating Template",
         "work_types": ["Roofing - Tile"],
+        # Costs from real SeaBreeze worksheets (Richard Reis T28 etc.): tile $131/SQ,
+        # tear-off labor $110/SQ, install labor $165/SQ, loading $43/SQ, mortar-set
+        # (Tile Tite + oxide), 2 dumpsters @ $250.
         "lines": [
-            {"desc": "Tear off existing tile to deck", "unit": "SQ", "qty": 0, "price": 95.0},
-            {"desc": "Re-nail deck to current code", "unit": "SQ", "qty": 0, "price": 35.0},
-            {"desc": "2-ply self-adhered underlayment (Polystick TU Plus)", "unit": "SQ", "qty": 0, "price": 110.0},
-            {"desc": "Concrete tile (Westlake Royal Saxony 900)", "unit": "SQ", "qty": 0, "price": 425.0},
-            {"desc": "Tile adhesive foam set (Polyset AH-160)", "unit": "SQ", "qty": 0, "price": 95.0},
-            {"desc": "Hip & ridge / mortar", "unit": "LF", "qty": 0, "price": 12.0},
-            {"desc": "Lead pipe flashing / valley metal", "unit": "EA", "qty": 0, "price": 65.0},
-            {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 850.0},
-            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 750.0},
+            {"desc": "Tear off existing tile to deck (labor)", "unit": "SQ", "qty": 0, "price": 110.0},
+            {"desc": "Re-nail / re-deck fasteners to current code", "unit": "SQ", "qty": 0, "price": 22.0},
+            {"desc": "2-ply self-adhered underlayment (Polystick TU Plus)", "unit": "SQ", "qty": 0, "price": 80.0},
+            {"desc": "Concrete tile — material (Westlake Royal Saxony 900)", "unit": "SQ", "qty": 0, "price": 131.0},
+            {"desc": "Mortar set (Tile Tite + oxide) — material", "unit": "SQ", "qty": 0, "price": 18.0},
+            {"desc": "Tile install labor", "unit": "SQ", "qty": 0, "price": 165.0},
+            {"desc": "Tile loading / handling", "unit": "SQ", "qty": 0, "price": 43.0},
+            {"desc": "Hip & ridge tile, mortar / weather-block", "unit": "LF", "qty": 0, "price": 8.0},
+            {"desc": "Valley metal (26-ga galvanized)", "unit": "LF", "qty": 0, "price": 9.0},
+            {"desc": "Lead pipe flashings", "unit": "EA", "qty": 4, "price": 65.0},
+            {"desc": "Permit + inspections + tile uplift test", "unit": "LS", "qty": 1, "price": 950.0},
+            {"desc": "Dumpster + disposal (tear-off + install)", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "metal_galvalume": {
         "name": "Standing Seam Galvalume Estimating Template",
         "work_types": ["Roofing - Metal (Galvalume)"],
+        # Costs from real SeaBreeze metal worksheets (Didier Maillet M12 etc.).
+        # NOTE: SeaBreeze's common metal is 1.5" mechanical .032 aluminum (~$330/SQ
+        # material, $180/SQ install); galvalume 24-ga is comparable. Underlayment is
+        # Polyglass MTS hi-temp (~$115/roll = $64/SQ); tear-off + dry-in labor ~$110/SQ.
         "lines": [
-            {"desc": "Tear off existing roof to deck", "unit": "SQ", "qty": 0, "price": 75.0},
-            {"desc": "Re-nail deck to current code", "unit": "SQ", "qty": 0, "price": 35.0},
-            {"desc": "2-ply self-adhered underlayment (Polystick MTS)", "unit": "SQ", "qty": 0, "price": 110.0},
-            {"desc": "Standing seam Galvalume panels 24ga", "unit": "SQ", "qty": 0, "price": 575.0},
-            {"desc": "Ridge / hip / eave trim", "unit": "LF", "qty": 0, "price": 9.0},
-            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 0, "price": 65.0},
-            {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 850.0},
-            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 650.0},
+            {"desc": "Tear off existing roof + dry-in labor", "unit": "SQ", "qty": 0, "price": 100.0},
+            {"desc": "Re-nail / re-deck fasteners to current code", "unit": "SQ", "qty": 0, "price": 22.0},
+            {"desc": "2-ply self-adhered underlayment (Polyglass MTS, hi-temp)", "unit": "SQ", "qty": 0, "price": 64.0},
+            {"desc": "Standing seam panels 24-ga / 1.5\" .032 aluminum — material", "unit": "SQ", "qty": 0, "price": 270.0},
+            {"desc": "Panel fabrication + install labor", "unit": "SQ", "qty": 0, "price": 175.0},
+            {"desc": "Ridge / hip / eave & gable trim (.032)", "unit": "LF", "qty": 0, "price": 9.0},
+            {"desc": "Valley metal / closed valley pan", "unit": "LF", "qty": 0, "price": 12.0},
+            {"desc": "Pipe boots / flashings", "unit": "EA", "qty": 4, "price": 65.0},
+            {"desc": "Permit + inspections + uplift test", "unit": "LS", "qty": 1, "price": 850.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "metal_color": {
         "name": "Standing Seam Standard Color Estimating Template",
         "work_types": ["Roofing - Metal (Standard Color)"],
         "lines": [
-            {"desc": "Tear off existing roof to deck", "unit": "SQ", "qty": 0, "price": 75.0},
-            {"desc": "Re-nail deck to current code", "unit": "SQ", "qty": 0, "price": 35.0},
-            {"desc": "2-ply self-adhered underlayment (Polystick MTS)", "unit": "SQ", "qty": 0, "price": 110.0},
-            {"desc": "Standing seam standard color panels 24ga", "unit": "SQ", "qty": 0, "price": 625.0},
-            {"desc": "Ridge / hip / eave trim", "unit": "LF", "qty": 0, "price": 9.0},
-            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 0, "price": 65.0},
-            {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 850.0},
-            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 650.0},
+            {"desc": "Tear off existing roof + dry-in labor", "unit": "SQ", "qty": 0, "price": 100.0},
+            {"desc": "Re-nail / re-deck fasteners to current code", "unit": "SQ", "qty": 0, "price": 22.0},
+            {"desc": "2-ply self-adhered underlayment (Polyglass MTS, hi-temp)", "unit": "SQ", "qty": 0, "price": 64.0},
+            {"desc": "Standing seam standard color panels 24-ga — material", "unit": "SQ", "qty": 0, "price": 310.0},
+            {"desc": "Panel fabrication + install labor", "unit": "SQ", "qty": 0, "price": 175.0},
+            {"desc": "Ridge / hip / eave & gable trim", "unit": "LF", "qty": 0, "price": 9.0},
+            {"desc": "Valley metal / closed valley pan", "unit": "LF", "qty": 0, "price": 12.0},
+            {"desc": "Pipe boots / flashings", "unit": "EA", "qty": 4, "price": 65.0},
+            {"desc": "Permit + inspections + uplift test", "unit": "LS", "qty": 1, "price": 850.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "flat_tpo": {
         "name": "Commercial TPO Estimate",
         "work_types": ["Roofing - Flat (TPO)"],
+        # Flat systems uncalibrated (insufficient real data) — market-standard FL costs.
         "lines": [
-            {"desc": "Tear off existing flat roof to deck", "unit": "SQ", "qty": 0, "price": 85.0},
-            {"desc": "ISO insulation board", "unit": "SQ", "qty": 0, "price": 95.0},
-            {"desc": "60-mil TPO membrane (mechanically fastened)", "unit": "SQ", "qty": 0, "price": 295.0},
+            {"desc": "Tear off existing flat roof to deck", "unit": "SQ", "qty": 0, "price": 55.0},
+            {"desc": "ISO insulation board", "unit": "SQ", "qty": 0, "price": 60.0},
+            {"desc": "60-mil TPO membrane — material", "unit": "SQ", "qty": 0, "price": 120.0},
+            {"desc": "TPO install labor (mechanically fastened, heat-welded)", "unit": "SQ", "qty": 0, "price": 85.0},
             {"desc": "Termination bar / edge metal", "unit": "LF", "qty": 0, "price": 8.0},
-            {"desc": "Pipe boots / curb flashing", "unit": "EA", "qty": 0, "price": 85.0},
+            {"desc": "Pipe boots / curb flashing", "unit": "EA", "qty": 2, "price": 85.0},
             {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 850.0},
             {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 650.0},
         ],
@@ -231,23 +260,25 @@ ESTIMATE_TEMPLATES = {
     "flat_sa": {
         "name": "Flat - 3-ply SA Estimate",
         "work_types": ["Roofing - Flat (3-ply SA)"],
+        # Costs from real SeaBreeze flat worksheets: 3-ply Polyglass SA system —
+        # Elastobase SA ($122.60/roll) + Elastoflex SA V Base ($119) + Polyflex SAP
+        # ($110.91); flat tear-off + install labor ~$120/SQ.
         "lines": [
-            {"desc": "Tear off existing flat roof to deck", "unit": "SQ", "qty": 0, "price": 85.0},
-            {"desc": "Base sheet (mechanically fastened)", "unit": "SQ", "qty": 0, "price": 75.0},
-            {"desc": "3-ply self-adhered modified bitumen (Polyglass SA)", "unit": "SQ", "qty": 0, "price": 245.0},
-            {"desc": "Edge metal / gravel stop", "unit": "LF", "qty": 0, "price": 7.0},
-            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 0, "price": 65.0},
-            {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 750.0},
-            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 600.0},
+            {"desc": "3-ply self-adhered modified bitumen — material (Polyglass Elastobase/Elastoflex/Polyflex SAP)", "unit": "SQ", "qty": 0, "price": 230.0},
+            {"desc": "Flat tear-off + membrane install labor", "unit": "SQ", "qty": 0, "price": 120.0},
+            {"desc": "Edge metal / gravel stop (break metal)", "unit": "LF", "qty": 0, "price": 7.0},
+            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 3, "price": 65.0},
+            {"desc": "Permit + inspections + engineered calcs", "unit": "LS", "qty": 1, "price": 750.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "flat_hotmop": {
         "name": "Flat - Hot-Mop Estimate",
         "work_types": ["Roofing - Flat (Hot-Mop)"],
         "lines": [
-            {"desc": "Tear off existing flat roof to deck", "unit": "SQ", "qty": 0, "price": 85.0},
-            {"desc": "Hot-mop built-up roofing (3-ply)", "unit": "SQ", "qty": 0, "price": 265.0},
-            {"desc": "Gravel surfacing", "unit": "SQ", "qty": 0, "price": 45.0},
+            {"desc": "Tear off existing flat roof to deck", "unit": "SQ", "qty": 0, "price": 55.0},
+            {"desc": "Hot-mop built-up roofing (3-ply)", "unit": "SQ", "qty": 0, "price": 180.0},
+            {"desc": "Gravel surfacing", "unit": "SQ", "qty": 0, "price": 35.0},
             {"desc": "Edge metal / gravel stop", "unit": "LF", "qty": 0, "price": 7.0},
             {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 750.0},
             {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 600.0},
@@ -256,47 +287,59 @@ ESTIMATE_TEMPLATES = {
     "shingle_flat": {
         "name": "Shingle & Flat Split Estimating Template",
         "work_types": ["Shingle + Flat"],
+        # Split: measurement-apply fills SQ lines with the SAME squares for both the
+        # sloped and flat sections — the rep splits squares per section by hand.
         "lines": [
-            {"desc": "Tear off existing roof to deck (shingle area)", "unit": "SQ", "qty": 0, "price": 65.0},
-            {"desc": "Architectural shingles (sloped area)", "unit": "SQ", "qty": 0, "price": 285.0},
-            {"desc": "Self-adhered underlayment (sloped)", "unit": "SQ", "qty": 0, "price": 55.0},
-            {"desc": "3-ply SA modified bitumen (flat area)", "unit": "SQ", "qty": 0, "price": 245.0},
+            {"desc": "Tear off existing roof to deck (shingle area)", "unit": "SQ", "qty": 0, "price": 40.0},
+            {"desc": "Self-adhered underlayment (sloped)", "unit": "SQ", "qty": 0, "price": 32.0},
+            {"desc": "Architectural shingles — material (sloped area)", "unit": "SQ", "qty": 0, "price": 139.0},
+            {"desc": "Shingle install labor (sloped)", "unit": "SQ", "qty": 0, "price": 70.0},
+            {"desc": "Starter strip + hip & ridge cap shingles", "unit": "LF", "qty": 0, "price": 4.0},
+            {"desc": "Drip edge / metal edge (sloped)", "unit": "LF", "qty": 0, "price": 3.5},
+            {"desc": "3-ply SA modified bitumen — material (flat area)", "unit": "SQ", "qty": 0, "price": 230.0},
+            {"desc": "Flat tear-off + membrane install labor (flat area)", "unit": "SQ", "qty": 0, "price": 120.0},
+            {"desc": "Edge metal / gravel stop (flat)", "unit": "LF", "qty": 0, "price": 7.0},
+            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 4, "price": 35.0},
             {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 850.0},
-            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 650.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "tile_flat": {
         "name": "Tile & Flat Split Estimating Template",
         "work_types": ["Tile + Flat"],
         "lines": [
-            {"desc": "Tear off existing tile to deck (sloped area)", "unit": "SQ", "qty": 0, "price": 95.0},
-            {"desc": "Tear off existing flat roof to deck", "unit": "SQ", "qty": 0, "price": 85.0},
-            {"desc": "Re-nail deck to current code", "unit": "SQ", "qty": 0, "price": 35.0},
-            {"desc": "Self-adhered tile underlayment (sloped)", "unit": "SQ", "qty": 0, "price": 75.0},
-            {"desc": "Concrete tile (Westlake Royal Saxony 900)", "unit": "SQ", "qty": 0, "price": 425.0},
-            {"desc": "Tile adhesive foam set (Polyset AH-160)", "unit": "SQ", "qty": 0, "price": 95.0},
-            {"desc": "3-ply SA modified bitumen (flat area)", "unit": "SQ", "qty": 0, "price": 245.0},
+            {"desc": "Tear off existing tile to deck (sloped area, labor)", "unit": "SQ", "qty": 0, "price": 110.0},
+            {"desc": "Re-nail / re-deck fasteners to current code", "unit": "SQ", "qty": 0, "price": 22.0},
+            {"desc": "Self-adhered tile underlayment (Polystick TU Plus, sloped)", "unit": "SQ", "qty": 0, "price": 80.0},
+            {"desc": "Concrete tile — material (Westlake Royal Saxony 900)", "unit": "SQ", "qty": 0, "price": 131.0},
+            {"desc": "Mortar set (Tile Tite + oxide) — material", "unit": "SQ", "qty": 0, "price": 18.0},
+            {"desc": "Tile install labor (sloped)", "unit": "SQ", "qty": 0, "price": 165.0},
+            {"desc": "Tile loading / handling", "unit": "SQ", "qty": 0, "price": 43.0},
+            {"desc": "Hip & ridge tile, mortar / weather-block", "unit": "LF", "qty": 0, "price": 8.0},
+            {"desc": "3-ply SA modified bitumen — material (flat area)", "unit": "SQ", "qty": 0, "price": 230.0},
+            {"desc": "Flat tear-off + membrane install labor (flat area)", "unit": "SQ", "qty": 0, "price": 120.0},
             {"desc": "Edge metal / gravel stop (flat)", "unit": "LF", "qty": 0, "price": 7.0},
-            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 0, "price": 65.0},
-            {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 950.0},
-            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 750.0},
+            {"desc": "Lead pipe flashings", "unit": "EA", "qty": 4, "price": 65.0},
+            {"desc": "Permit + inspections + tile uplift test", "unit": "LS", "qty": 1, "price": 950.0},
+            {"desc": "Dumpster + disposal (tear-off + install)", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "metal_flat": {
         "name": "Metal & Flat Split Estimating Template",
         "work_types": ["Metal + Flat"],
         "lines": [
-            {"desc": "Tear off existing roof to deck (sloped area)", "unit": "SQ", "qty": 0, "price": 65.0},
-            {"desc": "Tear off existing flat roof to deck", "unit": "SQ", "qty": 0, "price": 85.0},
-            {"desc": "Re-nail deck to current code", "unit": "SQ", "qty": 0, "price": 35.0},
-            {"desc": "Self-adhered underlayment (sloped)", "unit": "SQ", "qty": 0, "price": 55.0},
-            {"desc": "Standing-seam metal panels (Galvalume, 24-ga)", "unit": "SQ", "qty": 0, "price": 645.0},
-            {"desc": "3-ply SA modified bitumen (flat area)", "unit": "SQ", "qty": 0, "price": 245.0},
+            {"desc": "Tear off existing roof + dry-in labor (sloped area)", "unit": "SQ", "qty": 0, "price": 100.0},
+            {"desc": "Re-nail / re-deck fasteners to current code", "unit": "SQ", "qty": 0, "price": 22.0},
+            {"desc": "Self-adhered underlayment (Polyglass MTS, sloped)", "unit": "SQ", "qty": 0, "price": 64.0},
+            {"desc": "Standing-seam panels 24-ga / 1.5\" .032 aluminum — material", "unit": "SQ", "qty": 0, "price": 270.0},
+            {"desc": "Panel fabrication + install labor (sloped)", "unit": "SQ", "qty": 0, "price": 175.0},
             {"desc": "Trim metal / drip edge / valleys (sloped)", "unit": "LF", "qty": 0, "price": 9.0},
+            {"desc": "3-ply SA modified bitumen — material (flat area)", "unit": "SQ", "qty": 0, "price": 230.0},
+            {"desc": "Flat tear-off + membrane install labor (flat area)", "unit": "SQ", "qty": 0, "price": 120.0},
             {"desc": "Edge metal / gravel stop (flat)", "unit": "LF", "qty": 0, "price": 7.0},
-            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 0, "price": 85.0},
-            {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 950.0},
-            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 750.0},
+            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 4, "price": 65.0},
+            {"desc": "Permit + inspections + uplift test", "unit": "LS", "qty": 1, "price": 950.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "repair": {

@@ -17,6 +17,10 @@ bp = Blueprint("automations", __name__, url_prefix="/workflow")
 
 ACTION_TYPES = ["create_task", "draft_email", "create_reminder"]
 
+# Synthetic triggers that aren't pipeline stages (invoices carry no stage). Surfaced
+# in the Workflow admin and fired explicitly from their own module.
+_EXTRA_TRIGGERS = [("invoice_overdue", "Invoice overdue")]
+
 # stage display-name -> key (lead + job stage keys are disjoint, so one map is safe)
 _STAGE_BY_NAME = {}
 for _s in constants.LEAD_STAGES + constants.JOB_STAGES:
@@ -80,8 +84,36 @@ def _maybe_fire(entity_type, entity_id, text):
             pass
 
 
+def fire_invoice_overdue(inv, job=None):
+    """Status-engine entry point for overdue invoices. Invoices have no pipeline stage,
+    so the invoice layer calls this when one is first observed overdue. Fires any active
+    'invoice_overdue' automations against the linked job (draft nudge — never sends)."""
+    if not inv or not inv.get("job_id"):
+        return
+    for auto in db.all_rows("automations", "trigger_stage=? AND active=1", ("invoice_overdue",)):
+        try:
+            _execute(auto, "job", inv["job_id"])
+        except Exception:
+            pass
+
+
+def _ensure_invoice_overdue_default():
+    """Idempotently ensure the 'invoice overdue -> draft reminder' rule exists, even on
+    DBs seeded before this rule shipped (defaults only seed on a fresh, empty table)."""
+    if db.all_rows("automations", "trigger_stage=?", ("invoice_overdue",)):
+        return
+    db.insert("automations", {
+        "name": "Invoice overdue — draft customer reminder",
+        "trigger_stage": "invoice_overdue", "action_type": "draft_email",
+        "template_text": ("Hi {customer}, a friendly reminder from {company} that your "
+                          "invoice is past due. Please use the secure pay link we sent, "
+                          "or reply with any questions."),
+        "offset_days": 0, "active": 1})
+
+
 def _seed_defaults():
     if db.all_rows("automations"):
+        _ensure_invoice_overdue_default()
         return
     defaults = [
         ("Permit submitted — track it", "permit_applied", "create_task",
@@ -101,6 +133,7 @@ def _seed_defaults():
     for name, stg, act, tmpl, off in defaults:
         db.insert("automations", {"name": name, "trigger_stage": stg, "action_type": act,
                                   "template_text": tmpl, "offset_days": off, "active": 1})
+    _ensure_invoice_overdue_default()
 
 
 def init_automations(app):
@@ -124,13 +157,15 @@ def init_automations(app):
 
 def _stage_choices():
     return ([("lead", s["key"], s["name"]) for s in constants.LEAD_STAGES] +
-            [("job", s["key"], s["name"]) for s in constants.JOB_STAGES])
+            [("job", s["key"], s["name"]) for s in constants.JOB_STAGES] +
+            [("invoice", k, n) for k, n in _EXTRA_TRIGGERS])
 
 
 @bp.route("/")
 def index():
     rows = db.all_rows("automations", order="trigger_stage, id")
     name_of = {s["key"]: s["name"] for s in constants.LEAD_STAGES + constants.JOB_STAGES}
+    name_of.update(dict(_EXTRA_TRIGGERS))
     for a in rows:
         a["_stage_name"] = name_of.get(a["trigger_stage"], a["trigger_stage"])
     return render_template("workflow.html", autos=rows, stages=_stage_choices(),

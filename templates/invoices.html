@@ -1,21 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Invoicing{% endblock %}
 {% block body %}
-<div class="page-head"><h1>💵 Invoicing & Payments</h1><div class="grow"></div><a class="btn primary" href="{{ url_for('invoices.new') }}">+ New Invoice</a></div>
+<div class="page-head"><h1>💵 Invoicing & Payments</h1><div class="grow"></div>
+  {% if overdue_n %}
+  <form method="post" action="{{ url_for('invoices.remind_overdue') }}" style="margin:0"
+        onsubmit="return confirm('Draft a payment reminder in your Gmail for all {{ overdue_n }} overdue invoice(s)?')">
+    <button class="btn danger" type="submit">✉️ Draft reminders for {{ overdue_n }} overdue</button>
+  </form>{% endif %}
+  <a class="btn primary" href="{{ url_for('invoices.new') }}">+ New Invoice</a></div>
 <div class="kpis">
   <div class="kpi"><div class="v">{{ money(total) }}</div><div class="l">Invoiced</div></div>
   <div class="kpi"><div class="v accent">{{ money(paid) }}</div><div class="l">Collected</div></div>
   <div class="kpi"><div class="v danger">{{ money(due) }}</div><div class="l">Outstanding</div></div>
+  <div class="kpi"><div class="v danger">{{ money(overdue) }}</div><div class="l">Overdue ({{ overdue_n }})</div></div>
 </div>
 <table class="grid">
-  <tr><th>Invoice</th><th>Job</th><th>Draw</th><th class="right">Amount</th><th>Status</th><th>Due</th></tr>
+  <tr><th>Invoice</th><th>Job</th><th>Draw</th><th class="right">Amount</th><th>Status</th><th>Due</th><th></th></tr>
   {% for i in invoices %}
-  <tr onclick="location.href='{{ url_for('invoices.detail', inv_id=i.id) }}'" style="cursor:pointer">
+  <tr onclick="location.href='{{ url_for('invoices.detail', inv_id=i.id) }}'" style="cursor:pointer{{ ';border-left:3px solid var(--danger)' if i._overdue }}">
     <td><b>{{ i.number }}</b></td><td>{% if i._job %}{{ i._job.name }}{% endif %}</td><td>{{ i.draw_key }}</td>
     <td class="right">{{ money(i.amount) }}</td>
-    <td><span class="pill" style="background:{{ 'var(--ok)22' if i.status=='paid' else 'var(--danger)22' }};color:{{ 'var(--ok)' if i.status=='paid' else 'var(--danger)' }}">{{ i.status }}</span></td>
+    <td><span class="pill" style="background:{{ 'var(--ok)22' if i.status=='paid' else 'var(--danger)22' }};color:{{ 'var(--ok)' if i.status=='paid' else 'var(--danger)' }}">{{ i.status }}</span>
+      {% if i._overdue %}<span class="pill" style="background:var(--danger)22;color:var(--danger);margin-left:4px">overdue</span>{% endif %}</td>
     <td class="muted">{{ i.due_date or '' }}</td>
+    <td onclick="event.stopPropagation()">{% if i.status!='paid' %}
+      <form method="post" action="{{ url_for('invoices.remind', inv_id=i.id) }}" style="margin:0">
+        <button class="btn sm" type="submit" title="Draft a payment reminder in Gmail">✉️ Remind</button>
+      </form>{% endif %}</td>
   </tr>
-  {% else %}<tr><td colspan="6" class="empty">No invoices yet.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="7" class="empty">No invoices yet.</td></tr>{% endfor %}
 </table>
 {% endblock %}

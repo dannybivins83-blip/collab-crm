@@ -1,7 +1,10 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Settings{% endblock %}
 {% block body %}
-<div class="page-head"><h1>⚙️ White-Label Settings</h1><span class="sub">Everything here re-brands the app + every generated PDF</span></div>
+{% set _scheme = 'http' if request.host.startswith(('127.0.0.1','localhost')) else 'https' %}
+{% set _base = _scheme ~ '://' ~ request.host %}
+<div class="page-head"><h1>{{ icon('gear') }} White-Label Settings</h1><span class="sub">Everything here re-brands the app + every generated PDF</span></div>
 
 <form method="post" enctype="multipart/form-data" class="card" style="max-width:840px">
   <h2>Company profile</h2>
@@ -81,5 +84,30 @@
     <div class="field"><label>Role</label><select name="role"><option>admin</option><option>sales</option><option>production</option><option>office</option></select></div>
     <button class="primary" type="submit">Add user</button>
   </form>
+</div>
+
+<div class="card" style="max-width:840px">
+  <h2>{{ icon('gear') }} Integrations &amp; webhooks</h2>
+
+  <h3 style="margin:14px 0 4px">Google sign-in &amp; Gmail
+    <span class="badge" style="color:{{ 'var(--ok)' if google_configured else 'var(--warn)' }}">
+      {{ 'configured' if google_configured else 'not configured' }}</span></h3>
+  <p class="muted" style="margin:2px 0 8px">If "Sign in with Google" shows <b>Error 400: redirect_uri_mismatch</b>, add the exact URLs below to your Google Cloud OAuth client (APIs &amp; Services → Credentials → your OAuth Client ID).</p>
+  <div class="field"><label>Authorized redirect URIs (add both)</label>
+    <input readonly onclick="this.select()" value="{{ _base }}/auth/google/callback">
+    <input readonly onclick="this.select()" style="margin-top:6px" value="{{ _base }}/gmail/callback"></div>
+  <div class="field"><label>Authorized JavaScript origin</label>
+    <input readonly onclick="this.select()" value="{{ _base }}"></div>
+  <p class="muted" style="margin:4px 0 0">These are built from the address you're viewing right now ({{ request.host }}). Always sign in from your stable URL — not a one-off Vercel preview URL — or the redirect won't match.</p>
+
+  <h3 style="margin:18px 0 4px">Lead-intake webhooks
+    <span class="badge" style="color:{{ 'var(--ok)' if intake_enabled else 'var(--warn)' }}">
+      {{ 'enabled' if intake_enabled else 'disabled — set CRM_INTAKE_TOKEN' }}</span></h3>
+  <p class="muted" style="margin:2px 0 8px">Auto-capture leads from email parsers, web forms, Craigslist/OfferUp relays, and RingCentral. POST with header <code>X-Intake-Token</code> (or <code>?token=</code>). Each creates a contact + lead, resolves the AHJ, and drafts a starter estimate. Draft-only — never auto-sends.</p>
+  <div class="field"><label>Endpoints</label>
+    <input readonly onclick="this.select()" value="{{ _base }}/leads/intake (JSON: name, phone, email, address, work_type, source)">
+    <input readonly onclick="this.select()" style="margin-top:6px" value="{{ _base }}/leads/intake/email (JSON: from, subject, body)">
+    <input readonly onclick="this.select()" style="margin-top:6px" value="{{ _base }}/leads/intake/ringcentral (RingCentral call/voicemail webhook)"></div>
+  {% if not intake_enabled %}<p class="muted" style="margin:4px 0 0">Set environment variable <code>CRM_INTAKE_TOKEN</code> to a long random string to turn these on.</p>{% endif %}
 </div>
 {% endblock %}

@@ -126,7 +126,8 @@ def register(app):
     app.jinja_env.globals.update(
         follow_status=follow_status, paid_pct=paid_pct, draw_amount=draw_amount,
         load_json=db.load_json, rep_options=rep_options,
-        estimate_templates=estimate_templates, followup_email=followup_email)
+        estimate_templates=estimate_templates, followup_email=followup_email,
+        address_line=address_line, closeout_email=closeout_email)
 
 
 def rep_options():
@@ -202,6 +203,68 @@ def followup_email(kind, rec):
             lines.append("")
             lines.append("Your estimate is %s — happy to answer questions or set up financing." % rec["estimate"])
     body = "Hi %s,\n\n%s\n\nQuestions? Just reply here or call %s.\n\nThank you,\n%s\n%s\n%s" % (
+        first, "\n".join(lines), phone, rec.get("rep") or company.get("qualifier", ""), cname, phone)
+    return "https://mail.google.com/mail/?view=cm&fs=1&to=%s&su=%s&body=%s" % (
+        urllib.parse.quote(email), urllib.parse.quote(su), urllib.parse.quote(body))
+
+
+def _addr_ok(v):
+    """A field value is displayable only if it's non-empty, not the literal
+    'None', and not a corrupted object/dict fragment (e.g. \"{'id': 9\")."""
+    if not v:
+        return False
+    s = str(v).strip()
+    if not s or s.lower() == "none":
+        return False
+    if s[:1] in "{[" or "'id'" in s or '"id"' in s:
+        return False
+    return True
+
+
+def address_line(rec):
+    """Clean single-line address for display — skips empty / None / corrupted
+    parts so the UI never shows 'None' or a raw '{...}' object."""
+    addr = (rec.get("address") or "") if _addr_ok(rec.get("address")) else ""
+    city = (rec.get("city") or "") if _addr_ok(rec.get("city")) else ""
+    state = (rec.get("state") or "") if _addr_ok(rec.get("state")) else ""
+    zc = (rec.get("zip") or "") if _addr_ok(rec.get("zip")) else ""
+    sz = ("%s %s" % (state, zc)).strip()
+    head = ", ".join([p for p in [str(addr).strip(), str(city).strip()] if p])
+    return (head + (" " + sz if sz else "")).strip().strip(",").strip()
+
+
+def closeout_email(rec):
+    """One-click Gmail draft for a COMPLETED/INVOICED job: thank-you, closeout
+    docs (warranty + Certificate of Completion) waiting in the portal, and the
+    final balance + payment link. Draft only — never sends. (House rule.)"""
+    import urllib.parse
+    company = db.get_company()
+    cname = company.get("name", "")
+    phone = company.get("phone", "")
+    email = rec.get("email", "") or ""
+    if not email and rec.get("contact_id"):
+        c = db.get("contacts", rec["contact_id"])
+        email = (c or {}).get("email", "") if c else ""
+    first = (rec.get("name") or "there").split(" ")[0]
+    val = est_num(rec.get("contract_value"))
+    payments = db.load_json(rec.get("payments"), {})
+    pct = paid_pct(payments)
+    link = rec.get("pay_url") or _payment_link_for_job(rec.get("id"))
+    lines = ["Great news — your roof project is complete. Thank you for choosing %s!" % cname, ""]
+    lines.append("Your closeout documents — workmanship & manufacturer warranties and the "
+                 "Certificate of Completion — are ready in your homeowner portal.")
+    if val:
+        bal = val * (1 - pct)
+        if bal > 0.5:
+            lines += ["", "Final balance due: %s of %s." % (money(bal), money(val))]
+            if link:
+                lines.append("Pay your final balance securely here: %s" % link)
+            else:
+                lines.append("Reply here and we'll send your final payment link or schedule a check pickup.")
+        else:
+            lines += ["", "Your account is paid in full — thank you!"]
+    su = "%s — your roof is complete: closeout docs & final payment" % cname
+    body = "Hi %s,\n\n%s\n\nQuestions? Reply here or call %s.\n\nThank you,\n%s\n%s\n%s" % (
         first, "\n".join(lines), phone, rec.get("rep") or company.get("qualifier", ""), cname, phone)
     return "https://mail.google.com/mail/?view=cm&fs=1&to=%s&su=%s&body=%s" % (
         urllib.parse.quote(email), urllib.parse.quote(su), urllib.parse.quote(body))

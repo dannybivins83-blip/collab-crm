@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}{{ l.name }}{% endblock %}
 {% block body %}
 <div class="page-head">
@@ -20,7 +21,7 @@
     <div class="card">
       <div class="row">
         <div>📍 {{ l.address or '—' }}</div>
-        {% if l.phone %}<div><a href="tel:{{ l.phone }}">📞 {{ l.phone }}</a></div>{% endif %}
+        {% if l.phone %}<div><a href="tel:{{ l.phone }}">{{ icon('phone') }} {{ l.phone }}</a></div>{% endif %}
         {% if l.email %}<div><a href="mailto:{{ l.email }}">✉️ {{ l.email }}</a></div>{% endif %}
       </div>
       <div class="muted" style="margin-top:8px">{{ l.work_type }}{% if l.source %} · {{ l.source }}{% endif %}{% if l.rep %} · {{ l.rep }}{% endif %}{% if l.estimate %} · <b class="est">{{ l.estimate }}</b>{% endif %}</div>

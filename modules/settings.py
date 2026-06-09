@@ -36,7 +36,10 @@ def index():
         db.save_company(data)
         flash("Company settings saved — branding applied across the app and PDFs.", "ok")
         return redirect(url_for("settings.index"))
-    return render_template("settings.html", c=db.get_company(), users=db.all_rows("users", order="id"))
+    from modules import gmail
+    return render_template("settings.html", c=db.get_company(), users=db.all_rows("users", order="id"),
+                           google_configured=gmail.configured(),
+                           intake_enabled=bool(os.environ.get("CRM_INTAKE_TOKEN")))
 
 
 @bp.route("/logo/clear", methods=["POST"])

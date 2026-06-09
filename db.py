@@ -323,6 +323,7 @@ def init_db():
     _ensure_change_requests_table()
     _ensure_library_table()
     _seed_if_empty()
+    _migrate_columns()  # idempotent; run unconditionally so renamed/added columns land
     _migrate_stages()
     # Default departments for any existing company row that lacks them.
     co = get_company()
@@ -410,6 +411,10 @@ def _migrate_columns():
         ("estimate_lines", "waste_pct REAL DEFAULT 0"),
         ("estimate_lines", "cost REAL DEFAULT 0"),
         ("company_settings", "color_masthead TEXT DEFAULT '#24476C'"),
+        # Appointments shipped originally with `start`/`end` columns; the app now
+        # reads `start_at`/`end_at`. Add the new columns on legacy DBs and backfill.
+        ("appointments", "start_at TEXT"),
+        ("appointments", "end_at TEXT"),
     ]
     conn = connect()
     for table, coldef in adds:
@@ -417,6 +422,16 @@ def _migrate_columns():
             conn.execute("ALTER TABLE %s ADD COLUMN %s" % (table, coldef))
         except Exception:
             pass  # already exists
+    # Backfill renamed appointment columns from the legacy start/end (reserved
+    # words, so quoted) where present and the new columns are still empty.
+    legacy = {"start": "start_at", "end": "end_at"}
+    for old, new in legacy.items():
+        try:
+            conn.execute('UPDATE appointments SET %s="%s" '
+                         'WHERE (%s IS NULL OR %s="") AND "%s" IS NOT NULL'
+                         % (new, old, new, new, old))
+        except Exception:
+            pass  # legacy column doesn't exist (fresh schema) — nothing to copy
     conn.commit()
     conn.close()
     _COLCACHE.clear(); _NUMCACHE.clear()
@@ -689,6 +704,41 @@ def _seed_templates():
             "work_type": (tpl["work_types"][0] if tpl.get("work_types") else ""),
             "scope_text": constants.scope_for_template(key),
             "lines": dump_json(lines), "is_builtin": 1})
+
+
+def sync_builtin_templates():
+    """Re-sync the editable templates table from the code defaults in constants.
+
+    The estimate builder (_resolve_template) prefers DB template rows over the
+    code defaults, so changing constants.ESTIMATE_TEMPLATES alone does NOT change
+    live estimates — the existing builtin rows shadow the code. This refreshes the
+    builtin rows (name / work_type / scope / lines) in place, matched by tkey.
+
+    Only is_builtin=1 rows are touched — user-created custom templates and the
+    user's own edits to custom rows are never modified. This is NOT called on
+    startup (that would clobber legitimate UI edits to builtins); run it
+    explicitly after intentionally changing the code templates. Returns
+    (updated, inserted) counts.
+    """
+    import constants
+    existing = {r["tkey"]: r for r in all_rows("templates") if r.get("is_builtin")}
+    updated = inserted = 0
+    for key, tpl in constants.ESTIMATE_TEMPLATES.items():
+        lines = [{"description": l["desc"], "unit": l["unit"], "qty": l["qty"], "cost": l["price"]}
+                 for l in tpl["lines"]]
+        payload = {
+            "name": tpl["name"],
+            "work_type": (tpl["work_types"][0] if tpl.get("work_types") else ""),
+            "scope_text": constants.scope_for_template(key),
+            "lines": dump_json(lines)}
+        row = existing.get(key)
+        if row:
+            update("templates", row["id"], **payload)
+            updated += 1
+        else:
+            insert("templates", {"tkey": key, "is_builtin": 1, **payload})
+            inserted += 1
+    return updated, inserted
 
 
 def _seed_samples():

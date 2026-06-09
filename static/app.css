@@ -53,8 +53,21 @@ a:hover{text-decoration:underline}
 .dropdown{display:none;position:absolute;top:42px;left:0;min-width:190px;background:#fff;
   border:1px solid var(--line);border-radius:0 0 8px 8px;box-shadow:0 8px 22px rgba(20,40,80,.18);z-index:50;overflow:hidden}
 .navgroup:hover .dropdown{display:block}
-.dropdown a{display:block;padding:10px 15px;color:var(--txt);font-size:13px;font-weight:600}
+.dropdown a{display:flex;align-items:center;gap:10px;padding:10px 15px;color:var(--txt);font-size:13px;font-weight:600}
 .dropdown a:hover{background:var(--panel2);text-decoration:none}
+
+/* Monochrome inline-SVG icon set — single color via currentColor, one weight.
+   Replaces the old multicolor emoji so nav/toolbar/menus read clean + uniform. */
+.ic{width:1.05em;height:1.05em;flex:none;display:inline-block;vertical-align:-0.16em;
+  stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+.navitem .ic{margin-right:7px}
+.dropdown a .ic{opacity:.82}
+.mh-sync .ic{vertical-align:-0.2em;margin-right:5px}
+.mh-bell .ic,.mh-user .ic{vertical-align:-0.22em}
+.brand-mark .ic{width:22px;height:22px;color:#fff}
+/* Click-to-call phone numbers (tel: dialer on tap). */
+.telcall{cursor:pointer;color:var(--accent);border-bottom:1px dotted currentColor}
+.telcall:hover{opacity:.8}
 .navsearch input{background:#fff;border:1px solid #3a6aa0;border-radius:7px;padding:7px 11px;width:300px;font-size:13px;margin:6px 8px}
 .content{max-width:1280px;margin:0 auto;padding:22px 26px 70px}
 
@@ -72,7 +85,8 @@ a:hover{text-decoration:underline}
 
 /* buttons */
 button,.btn{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--txt);
-  padding:8px 13px;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;display:inline-block}
+  padding:8px 13px;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;vertical-align:middle}
 button:hover,.btn:hover{border-color:var(--accent);text-decoration:none}
 .btn.primary,button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn.accent{background:var(--accent2);border-color:var(--accent2);color:#fff}

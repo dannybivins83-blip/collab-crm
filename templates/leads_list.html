@@ -31,7 +31,7 @@
       <span class="res-badge" style="background:{{ constants.BUCKET_BY_KEY[l._stage.bucket].color }}">{{ constants.BUCKET_BY_KEY[l._stage.bucket].letter }}</span>
       <div class="res-main">
         <div class="res-name">{{ l.rid ~ ': ' if l.rid }}{{ l.name }}</div>
-        <div class="res-sub">{{ l.phone }}{% if l.address %} · {{ l.address }}{% endif %}</div>
+        <div class="res-sub">{% if l.phone %}<span class="telcall" onclick="event.preventDefault();event.stopPropagation();location.href='tel:{{ l.phone }}'">{{ l.phone }}</span>{% endif %}{% if l.address %} · {{ l.address }}{% endif %}</div>
         <div class="res-sub">{{ l.work_type }}{% if l.source %} · {{ l.source }}{% endif %}{% if l.rep %} · {{ l.rep }}{% endif %}</div>
         <div class="rankbars" title="Lead Rank — click to set">
           {% for n in [1,2,3,4] %}<span class="rankbar {{ 'on' if (l.rank or 0) >= n }}" onclick="event.preventDefault();event.stopPropagation();setRank({{ l.id }},{{ n }},this)"></span>{% endfor %}

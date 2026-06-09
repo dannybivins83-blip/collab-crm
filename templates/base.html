@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -45,12 +45,12 @@
 {% set seg = request.path %}
 <!-- Masthead (navy) -->
 <header class="masthead">
-  <button class="hamburger" type="button" aria-label="Menu" title="Menu" onclick="document.querySelector('.mainnav').classList.toggle('open')">☰</button>
+  <button class="hamburger" type="button" aria-label="Menu" title="Menu" onclick="document.querySelector('.mainnav').classList.toggle('open')">{{ icon('menu', size=22) }}</button>
   <a class="brand" href="{{ url_for('dashboard.home') }}">
     {% if company.logo_path %}
       <img src="{{ url_for('uploads', subpath=company.logo_path) }}" alt="logo" class="brand-logo" />
     {% else %}
-      <span class="brand-mark">🌊</span>
+      <span class="brand-mark">{{ icon('home') }}</span>
     {% endif %}
     <span class="brand-name">{{ company.brand_short or company.name or 'White-Label CRM' }}</span>
   </a>
@@ -67,11 +67,11 @@
   </div>
   <div class="grow"></div>
   <form method="post" action="{{ url_for('sync.run') }}" style="margin:0" title="Sync from AccuLynx">
-    <button class="mh-sync" type="submit" onclick="this.textContent='⏳';this.disabled=true;this.form.submit()">🔄 Sync</button>
+    <button class="mh-sync" type="submit" onclick="this.disabled=true;this.form.submit()">{{ icon('refresh') }}<span class="nlbl">Sync</span></button>
   </form>
-  <a class="mh-sync" href="{{ company.gmail_url or 'https://mail.google.com/mail/u/0/' }}" target="_blank" rel="noopener" title="Open team Gmail" style="text-decoration:none">📨 Gmail</a>
+  <a class="mh-sync" href="{{ company.gmail_url or 'https://mail.google.com/mail/u/0/' }}" target="_blank" rel="noopener" title="Open team Gmail" style="text-decoration:none">{{ icon('mail') }}<span class="nlbl">Gmail</span></a>
   <div class="notif-wrap">
-    <button type="button" class="mh-bell" title="Notifications" onclick="this.parentElement.querySelector('.notif-menu').classList.toggle('open')">🔔{% if notif_unread %}<span class="notif-badge">{{ notif_unread if notif_unread < 100 else '99+' }}</span>{% endif %}</button>
+    <button type="button" class="mh-bell" title="Notifications" onclick="this.parentElement.querySelector('.notif-menu').classList.toggle('open')">{{ icon('bell') }}{% if notif_unread %}<span class="notif-badge">{{ notif_unread if notif_unread < 100 else '99+' }}</span>{% endif %}</button>
     <div class="dropdown notif-menu">
       <div class="notif-head"><span>Notifications</span>
         {% if notif_unread %}<form method="post" action="{{ url_for('notifications.read_all') }}" style="margin:0"><input type="hidden" name="next" value="{{ request.path }}"><button class="notif-readall" type="submit">Mark all read</button></form>{% endif %}
@@ -87,16 +87,16 @@
   <span class="mh-lic">Lic. {{ company.license or '—' }}</span>
   <span class="mh-user">
     {{ current_user.name if current_user else (company.qualifier or 'Admin') }}
-    <a href="{{ url_for('auth.account') }}" style="color:#cdd9e8" title="My account">👤</a>
-    <a href="{{ url_for('settings.index') }}" style="color:#cdd9e8" title="Settings">⚙</a>
-    <a href="{{ url_for('auth.logout') }}" style="color:#cdd9e8" title="Sign out">⏻</a>
+    <a href="{{ url_for('auth.account') }}" style="color:#cdd9e8" title="My account">{{ icon('user') }}</a>
+    <a href="{{ url_for('settings.index') }}" style="color:#cdd9e8" title="Settings">{{ icon('gear') }}</a>
+    <a href="{{ url_for('auth.logout') }}" style="color:#cdd9e8" title="Sign out">{{ icon('power') }}</a>
   </span>
 </header>
 
 <!-- Primary nav (blue) -->
 <nav class="mainnav">
   <div class="navgroup">
-    <a class="navitem dropdown-toggle">＋ New</a>
+    <a class="navitem dropdown-toggle">{{ icon('plus') }}<span class="nlbl">New</span></a>
     <div class="dropdown">
       <a href="{{ url_for('leads.new') }}">New Lead</a>
       <a href="{{ url_for('contacts.new') }}">New Contact</a>
@@ -116,36 +116,36 @@
       <a href="{{ url_for('jobs.list_view') }}?bucket=invoiced">Invoiced</a>
       <a href="{{ url_for('jobs.list_view') }}?stage=closed">Closed</a>
       <a href="{{ url_for('jobs.list_view') }}?stage=canceled">Canceled</a>
-      <a href="{{ url_for('jobs.board') }}">▦ Board view</a>
+      <a href="{{ url_for('jobs.board') }}">{{ icon('columns') }}Board view</a>
     </div>
   </div>
   <a class="navitem {{ 'on' if seg.startswith('/estimates') }}" href="{{ url_for('estimates.index') }}">Estimates</a>
-  <a class="navitem {{ 'on' if seg.startswith('/sitecam') }}" href="{{ url_for('sitecam.index') }}">📷 Site Photos</a>
+  <a class="navitem {{ 'on' if seg.startswith('/sitecam') }}" href="{{ url_for('sitecam.index') }}">{{ icon('camera') }}<span class="nlbl">Site Photos</span></a>
   <a class="navitem {{ 'on' if seg.startswith('/reports') }}" href="{{ url_for('reports.index') }}">Reports</a>
   <div class="navgroup">
     <a class="navitem dropdown-toggle">Tools ▾</a>
     <div class="dropdown">
-      <a href="{{ url_for('tools.mass_email') }}">📧 Mass Email</a>
-      <a href="{{ url_for('tools.callsheet') }}">🖨 Call Sheet</a>
-      <a href="{{ url_for('tools.checklist') }}">📋 Team Checklist</a>
-      <a href="{{ url_for('tools.export') }}?entity=leads">⬇ Export (CSV)</a>
-      <a href="{{ url_for('tools.backup') }}">💾 Backup</a>
-      <a href="{{ url_for('tools.restore') }}">⤴ Restore</a>
-      <a href="{{ url_for('invoices.index') }}">💵 Invoicing</a>
-      <a href="{{ url_for('quickbooks.settings') }}">💳 QuickBooks</a>
-      <a href="{{ url_for('permits.index') }}">🏛️ Permits</a>
-      <a href="{{ url_for('orders.index') }}">📦 Order Manager</a>
-      <a href="{{ url_for('templates.index') }}">🧩 Estimate Templates</a>
-      <a href="{{ url_for('library.index') }}">📚 Document Library</a>
-      <a href="{{ url_for('sync.index') }}">🔄 Sync from AccuLynx</a>
-      <a href="{{ url_for('calendar.index') }}">📅 Calendar</a>
-      <a href="{{ url_for('tasks.index') }}">✅ Tasks</a>
-      <a href="{{ url_for('comms.index') }}">💬 Communications</a>
-      <a href="{{ url_for('customize.index') }}">🎨 Customize (type changes)</a>
-      <a href="{{ url_for('commissions.index') }}">💰 Commissions</a>
-      <a href="{{ url_for('automations.index') }}">🔀 Workflow Manager</a>
-      <a href="{{ url_for('customfields.index') }}">🧰 Custom Fields & Lists</a>
-      <a href="{{ url_for('settings.index') }}">⚙️ Settings</a>
+      <a href="{{ url_for('tools.mass_email') }}">{{ icon('mail') }}<span class="nlbl">Mass Email</span></a>
+      <a href="{{ url_for('tools.callsheet') }}">{{ icon('printer') }}<span class="nlbl">Call Sheet</span></a>
+      <a href="{{ url_for('tools.checklist') }}">{{ icon('clipboard') }}<span class="nlbl">Team Checklist</span></a>
+      <a href="{{ url_for('tools.export') }}?entity=leads">{{ icon('download') }}<span class="nlbl">Export (CSV)</span></a>
+      <a href="{{ url_for('tools.backup') }}">{{ icon('save') }}<span class="nlbl">Backup</span></a>
+      <a href="{{ url_for('tools.restore') }}">{{ icon('upload') }}<span class="nlbl">Restore</span></a>
+      <a href="{{ url_for('invoices.index') }}">{{ icon('dollar') }}<span class="nlbl">Invoicing</span></a>
+      <a href="{{ url_for('quickbooks.settings') }}">{{ icon('card') }}<span class="nlbl">QuickBooks</span></a>
+      <a href="{{ url_for('permits.index') }}">{{ icon('building') }}<span class="nlbl">Permits</span></a>
+      <a href="{{ url_for('orders.index') }}">{{ icon('box') }}<span class="nlbl">Order Manager</span></a>
+      <a href="{{ url_for('templates.index') }}">{{ icon('grid') }}<span class="nlbl">Estimate Templates</span></a>
+      <a href="{{ url_for('library.index') }}">{{ icon('book') }}<span class="nlbl">Document Library</span></a>
+      <a href="{{ url_for('sync.index') }}">{{ icon('refresh') }}<span class="nlbl">Sync from AccuLynx</span></a>
+      <a href="{{ url_for('calendar.index') }}">{{ icon('calendar') }}<span class="nlbl">Calendar</span></a>
+      <a href="{{ url_for('tasks.index') }}">{{ icon('check') }}<span class="nlbl">Tasks</span></a>
+      <a href="{{ url_for('comms.index') }}">{{ icon('message') }}<span class="nlbl">Communications</span></a>
+      <a href="{{ url_for('customize.index') }}">{{ icon('palette') }}<span class="nlbl">Customize (type changes)</span></a>
+      <a href="{{ url_for('commissions.index') }}">{{ icon('percent') }}<span class="nlbl">Commissions</span></a>
+      <a href="{{ url_for('automations.index') }}">{{ icon('shuffle') }}<span class="nlbl">Workflow Manager</span></a>
+      <a href="{{ url_for('customfields.index') }}">{{ icon('sliders') }}<span class="nlbl">Custom Fields & Lists</span></a>
+      <a href="{{ url_for('settings.index') }}">{{ icon('gear') }}<span class="nlbl">Settings</span></a>
     </div>
   </div>
   <div class="grow"></div>
@@ -167,7 +167,7 @@
   var L; try{ L = {{ (company.labels or '{}')|safe }}; }catch(e){ L = {}; }
   var keys = Object.keys(L||{}); if(!keys.length) return;
   function relabel(el){
-    el.querySelectorAll('.navitem, .dropdown a, h1, .page-title, .jtab, .side a').forEach(function(n){
+    el.querySelectorAll('.nlbl, .navitem, .dropdown a, h1, .page-title, .jtab, .side a').forEach(function(n){
       keys.forEach(function(k){
         if(n.childNodes.length===1 && n.firstChild.nodeType===3){
           var t=n.textContent;

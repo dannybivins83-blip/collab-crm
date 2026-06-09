@@ -56,6 +56,23 @@ def resolve_ahj(address="", city="", county=""):
     return cand or (county or "")
 
 
+def resolve_ahj_strict(address="", city="", county=""):
+    """Like resolve_ahj, but return a real permit-library AHJ key ONLY — '' when there's
+    no confident municipality match. Use where a wrong/garbage AHJ (e.g. a 'FL 33414'
+    city field) is worse than leaving it blank, such as bulk backfills."""
+    a = resolve_ahj(address, city, county)
+    return a if a in set(_ahj_keys()) else ""
+
+
+def system_from_work_type_strict(work_type):
+    """Roof system from the work type ONLY when a roofing material is explicitly named
+    (else '') — avoids defaulting generic work types like 'New'/'Retail' to shingle."""
+    low = (work_type or "").lower()
+    if any(k in low for k in ("tile", "metal", "flat", "tpo", "mod", "bur", "shingle")):
+        return work_type_to_system(work_type)
+    return ""
+
+
 def work_type_to_system(work_type):
     """Map a roof work type to a permit system key (shingle/tile/metal/flat)."""
     low = (work_type or "").lower()

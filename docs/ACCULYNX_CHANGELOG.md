@@ -1,5 +1,98 @@
 # AccuLynx Replica — Changelog
 
+## Research watch
+
+Recurring public-surface research passes. Each entry: sources checked + NEW/CHANGED
+items vs our specs (`ACCULYNX_SPEC.md`) + LIVE_CAPTURE + the clone, or "no public
+changes detected." LIVE_CAPTURE values stay authoritative; exact in-app values
+(hex, pixel sizes, verbatim labels) require a live my.acculynx.com capture — public
+sources only surface announced/approximate changes.
+
+### 2026-06-08 — First research-watch pass (baseline)
+
+This is the first dated entry under this heading (prior "Pass 5" on 2026-06-07 set up
+the watch but logged no findings), so everything below is flagged relative to our
+existing specs + clone rather than "since last watch."
+
+**Sources checked:**
+- changelog.acculynx.com (official release feed) — CHECKED FIRST
+- acculynx.com/spring-2026-product-updates/ (Spring '26 / March '26 release)
+- acculynx.com/fall-2025-product-updates/ (Fall '25 release)
+- Web search: "AccuLynx new feature release 2026", "AccuLynx 2026 navigation/milestone/brand color change"
+- (support.acculynx.com help-center surfaced via the above; G2/Capterra/SoftwareAdvice/GetApp 2026 review listings referenced but not deep-fetched)
+
+**NEW / CHANGED vs our specs + clone** (each = announced publicly; exact in-app labels still need live capture):
+
+1. **Custom Fields Manager (Spring '26)** — AccuLynx now has a native UI to "create and
+   manage your own custom fields for both contacts and jobs" via Account Settings,
+   deployable on contact forms, lead forms, job overview pages, and **reports**, and
+   exposed through API/HubSpot/Spotio. Source: acculynx.com/spring-2026-product-updates/ (2026).
+   *Clone status:* we ALREADY have a Custom Fields module (Phase 5, `modules/customfields.py`)
+   for lead/job/contact. Gap vs AccuLynx: ours doesn't surface custom fields in **reports**
+   or on the **job overview** page (only lead detail). Minor parity gap, not a contradiction.
+
+2. **Appointment Outcomes tracking (Spring '26)** — new system to "record and track specific
+   outcomes of calendar appointments," with custom outcomes defined in settings and an
+   **Appointments Report**; also exposed in the Field App calendar view. Source:
+   changelog.acculynx.com; acculynx.com/spring-2026-product-updates/ (2026).
+   *Clone status:* not present. New feature we haven't cloned.
+
+3. **Estimating enhancements (Spring '26)** — three concrete changes to the estimate/proposal flow:
+   - **Smart Fields now pull from multiple estimates** to enable **"Good, Better, Best"** pricing presentations.
+   - **Hide/remove the tax line item** (and **hide O&P**) on proposal PDFs for lump-sum presentation.
+   - **Pitch-based labor** — templates can **calculate labor by roof pitch** (auto rate per roof angle).
+   Source: changelog.acculynx.com; acculynx.com/spring-2026-product-updates/ (2026).
+   *Clone status:* our estimate builder has sections/lines/margin/measurements but none of these
+   three. Proposal print-options panel exists (has a Tax toggle already) — could add O&P hide +
+   "Good/Better/Best" multi-estimate compare + a per-pitch labor multiplier. These are the most
+   relevant changes to our priority area (estimating).
+
+4. **Mobile (Field App) full estimating (Fall '25)** — build complete estimates on phone
+   (materials, labor, tax, profit margin). Confirms our margin/tax/section model is correct;
+   no web-UI change. Source: acculynx.com/fall-2025-product-updates/.
+
+5. **DataMart add-on (Fall '25)** — enterprise data-export layer for Tableau/Power BI/Klipfolio.
+   Out of scope for the clone. Source: acculynx.com/fall-2025-product-updates/.
+
+6. **Two-Factor Authentication (Fall '25)** — phone-code 2FA, account- or user-level. Source:
+   acculynx.com/fall-2025-product-updates/. *Clone status:* not present (auth is single-factor).
+
+7. **Calendar overhaul + multi-calendar (Fall '25 / Spring '26)** — real-time Outlook + iCal
+   (Apple iCloud) sync, multi-attendee appointments w/ notifications, new filters (trade/work
+   type/category/crew), schedule from lead form, and **multiple calendars viewed side-by-side**.
+   Source: acculynx.com/fall-2025-product-updates/, /spring-2026-product-updates/, changelog.acculynx.com.
+
+8. **Trade-level financial reporting (Fall '25)** — Financial Worksheet now ties revenue/expense
+   to specific **trades**; new "Job Value by Trade" + "Job Worksheet" reports. Relevant to our
+   Worksheet module if we want per-trade profit. Source: acculynx.com/fall-2025-product-updates/.
+
+9. **Integrations (Fall '25–Spring '26)** — Geospan **3D rendering** ("View 3D Rendering" button
+   in Measurements), **RoofScope** aerial-report ordering embedded in estimating (Feb '26, ~12 hr
+   turnaround), **Hover** inspection-report + photo import, **CallRail** call/lead capture, Sage
+   Intacct roll-up. Measurement-provider list is broader than our spec notes. Source:
+   changelog.acculynx.com; web search (2026).
+
+10. **Lead Form redesign (Spring '26)** — "modernized" lead form with improved contact/project-
+    location layout and a **"possible matches"** dedupe panel. Cosmetic; suggests a refreshed lead
+    intake screen. Exact new layout NOT publicly pixel-detailed — needs live capture. Source:
+    acculynx.com/spring-2026-product-updates/.
+
+11. **SmarterDocs (Spring '26)** — "Edit Company SmartDocs" permission role, viewed-packet
+    notifications for reps, e-signed watermark display setting, additional estimate smart fields.
+    Source: changelog.acculynx.com.
+
+**NO change detected** in: top/primary **navigation structure & labels**, **pipeline milestone
+names**, **brand colors** (masthead #24476C / nav #4680BF / Help orange #F5863B), **Roboto**
+typography, or the core **Estimate → Section → Slope → narrative-scope + Cost/Price/Margin**
+hierarchy. No public source indicates a nav redesign, milestone rename, or palette change since
+our LIVE_CAPTURE. Our LIVE_CAPTURE values therefore remain GROUND TRUTH and are not contradicted.
+
+> Caveat: exact in-app labels for the new Spring '26 features (e.g. whether the multi-estimate
+> control literally reads "Good, Better, Best", the O&P-hide toggle wording, the pitch-labor field)
+> are **not publicly stated; needs live capture** in a logged-in my.acculynx.com session.
+
+---
+
 ## 2026-06-07 — Major replica pass (live-capture driven)
 
 Built from the verified live capture (`ACCULYNX_LIVE_CAPTURE.md`). All changes

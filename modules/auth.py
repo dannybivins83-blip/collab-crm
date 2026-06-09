@@ -20,7 +20,8 @@ DEFAULT_PASSWORD = os.environ.get("CRM_DEFAULT_PASSWORD", "seabreeze2026")
 # Endpoints reachable without being logged in.
 PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "static", "uploads", "favicon", "leads.import_leads",
-          "leads.intake", "leads.intake_email", "sync.browser_import", "sync.cron",
+          "leads.intake", "leads.intake_email", "leads.intake_ringcentral",
+          "sync.browser_import", "sync.cron",
           "sync.doc_import", "sync.doc_manifest",
           "sync.billing_import", "sync.billing_manifest",
           "sync.estimate_import", "sync.comm_import", "sync.worksheet_import",

@@ -271,6 +271,138 @@ def delete(lead_id):
     return redirect(url_for("leads.board"))
 
 
+# ---------------------------------------------------------------------------
+# Automated single-lead intake (Part C prototype)
+# Public, token-guarded webhook for inbound leads from email parsers, web forms,
+# Craigslist relays, RingCentral call/voicemail events, etc. Unlike /import (a
+# CORS-open bulk scraper feed), this runs the SAME enrichment as a hand-keyed
+# lead: AHJ resolve + roof system + auto-starter-estimate. Drafts only — it never
+# emails anyone. Set CRM_INTAKE_TOKEN to enable; unset = endpoint disabled.
+# ---------------------------------------------------------------------------
+
+def _default_intake_department():
+    co = db.get_company() or {}
+    depts = [d.strip() for d in (co.get("departments") or "").split(",") if d.strip()]
+    return depts[0] if depts else "REROOF Department"
+
+
+def _intake_authorized():
+    import os
+    want = os.environ.get("CRM_INTAKE_TOKEN")
+    if not want:
+        return None  # not configured
+    got = request.headers.get("X-Intake-Token") or request.args.get("token") or ""
+    return got == want
+
+
+def _create_lead_from_intake(data):
+    """Create contact + lead from a normalized intake dict, with the same AHJ +
+    starter-estimate enrichment as leads.new. Dedupes by email or name+phone.
+    Returns (lead_id, created_bool)."""
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    phone = (data.get("phone") or "").strip()
+    # Dedupe: same email, or same name+phone, already in the pipeline.
+    for l in db.all_rows("leads"):
+        le = (l.get("email") or "").strip().lower()
+        if email and le == email:
+            return l["id"], False
+        if name and phone and (l.get("name") or "").strip().lower() == name.lower() \
+                and (l.get("phone") or "").strip() == phone:
+            return l["id"], False
+    dept = _default_intake_department()
+    parts = [p.strip() for p in (data.get("address") or "").split(",")]
+    cid = db.insert("contacts", {
+        "kind": "person", "first_name": name.split(" ")[0] if name else "",
+        "last_name": " ".join(name.split(" ")[1:]) if name else "",
+        "email": email, "phone": phone,
+        "address": parts[0] if parts else data.get("address", ""),
+        "city": parts[1] if len(parts) > 1 else "",
+        "state": "FL", "source": data.get("source", ""), "tags": "Auto-intake",
+        "department": dept})
+    lid = db.insert("leads", {
+        "contact_id": cid, "name": name, "phone": phone, "email": email,
+        "address": data.get("address", ""), "work_type": data.get("work_type", ""),
+        "rep": data.get("rep") or "", "source": data.get("source", ""),
+        "stage": constants.LEAD_DEFAULT_STAGE, "stage_since": db.today(),
+        "last_contact": db.today(), "checks": "{}", "department": dept,
+        "notes": data.get("notes", "")})
+    db.add_activity("lead", lid, "automation",
+                    "Lead auto-captured from %s" % (data.get("source") or "intake"))
+    # AHJ + roof system, mirroring leads.new.
+    try:
+        from modules import ahj as ahj_mod
+        county = db.get_company().get("default_county", "")
+        resolved = ahj_mod.resolve_ahj(data.get("address", ""), "", county)
+        system = ahj_mod.work_type_to_system(data.get("work_type", ""))
+        db.update("leads", lid, ahj=resolved, county=county, system=system)
+    except Exception:
+        pass
+    # Auto-starter estimate when a work type came through.
+    if data.get("work_type"):
+        try:
+            from modules import estimates as est_mod
+            eid = est_mod.build_estimate(lead_id=lid, work_type=data["work_type"])
+            e = db.get("estimates", eid)
+            db.add_activity("lead", lid, "automation",
+                            "Estimate %s auto-drafted from %s template"
+                            % ((e or {}).get("number", ""), data["work_type"]))
+        except Exception:
+            pass
+    return lid, True
+
+
+def _cors(resp):
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Intake-Token"
+    return resp
+
+
+@bp.route("/intake", methods=["POST", "OPTIONS"])
+def intake():
+    """Single normalized lead → enriched CRM lead. JSON body:
+    {name, phone, email, address, work_type, source}."""
+    if request.method == "OPTIONS":
+        from flask import make_response
+        return _cors(make_response("", 204))
+    auth = _intake_authorized()
+    if auth is None:
+        return _cors(jsonify({"ok": False, "error": "intake disabled — set CRM_INTAKE_TOKEN"})), 503
+    if not auth:
+        return _cors(jsonify({"ok": False, "error": "bad token"})), 403
+    from modules import lead_intake
+    payload = request.get_json(force=True, silent=True) or {}
+    data = lead_intake.normalize(payload)
+    if not (data.get("name") or data.get("phone") or data.get("email")):
+        return _cors(jsonify({"ok": False, "error": "need at least a name, phone, or email"})), 400
+    lid, created = _create_lead_from_intake(data)
+    return _cors(jsonify({"ok": True, "lead_id": lid, "created": created,
+                          "url": url_for("leads.detail", lead_id=lid)}))
+
+
+@bp.route("/intake/email", methods=["POST", "OPTIONS"])
+def intake_email():
+    """Raw inbound lead email → parsed + enriched CRM lead. JSON body:
+    {from, subject, body}. Pair with a Gmail watcher or an email-relay webhook."""
+    if request.method == "OPTIONS":
+        from flask import make_response
+        return _cors(make_response("", 204))
+    auth = _intake_authorized()
+    if auth is None:
+        return _cors(jsonify({"ok": False, "error": "intake disabled — set CRM_INTAKE_TOKEN"})), 503
+    if not auth:
+        return _cors(jsonify({"ok": False, "error": "bad token"})), 403
+    from modules import lead_intake
+    payload = request.get_json(force=True, silent=True) or {}
+    data = lead_intake.parse_email(payload.get("from", ""), payload.get("subject", ""),
+                                   payload.get("body", ""))
+    if not data:
+        return _cors(jsonify({"ok": False, "error": "could not parse a lead from this email"})), 422
+    lid, created = _create_lead_from_intake(data)
+    return _cors(jsonify({"ok": True, "lead_id": lid, "created": created, "parsed": data,
+                          "url": url_for("leads.detail", lead_id=lid)}))
+
+
 @bp.route("/import", methods=["POST", "OPTIONS"])
 def import_leads():
     """Bulk-import scraped AccuLynx prospects (JSON list). CORS-open so it can be
@@ -313,3 +445,55 @@ def import_leads():
     r.headers["Access-Control-Allow-Origin"] = "*"
     r.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return r
+
+
+@bp.route("/intake/ringcentral", methods=["POST", "OPTIONS"])
+def intake_ringcentral():
+    """RingCentral telephony / voicemail webhook ("Ping Central" on the build list).
+    Inbound call or voicemail → log a call activity on the matching lead/contact by
+    phone, or create a new lead (source RingCentral) if the caller is unknown.
+
+    Register the webhook URL with ?token=<CRM_INTAKE_TOKEN> appended. RingCentral's
+    one-time subscription handshake sends a Validation-Token header that we echo back
+    (no auth needed for that ping)."""
+    from flask import make_response
+    # 1) Subscription validation handshake — echo the token, 200, done.
+    vtok = request.headers.get("Validation-Token")
+    if vtok:
+        resp = make_response("", 200)
+        resp.headers["Validation-Token"] = vtok
+        return _cors(resp)
+    if request.method == "OPTIONS":
+        return _cors(make_response("", 204))
+    auth = _intake_authorized()
+    if auth is None:
+        return _cors(jsonify({"ok": False, "error": "intake disabled — set CRM_INTAKE_TOKEN"})), 503
+    if not auth:
+        return _cors(jsonify({"ok": False, "error": "bad token"})), 403
+    from modules import lead_intake
+    payload = request.get_json(force=True, silent=True) or {}
+    data = lead_intake.parse_ringcentral(payload)
+    if not data:
+        # Non-call event (e.g. message-count ping) — accept so RC doesn't retry.
+        return _cors(jsonify({"ok": True, "ignored": True}))
+    if (data.get("direction") or "Inbound") != "Inbound":
+        return _cors(jsonify({"ok": True, "ignored": "outbound"}))
+    phone = data["phone"]
+    digits = "".join(ch for ch in phone if ch.isdigit())[-10:]
+    # Try to link to an existing lead, then contact, by last-10-digits of phone.
+    def _digits(v):
+        return "".join(ch for ch in (v or "") if ch.isdigit())[-10:]
+    lead = next((l for l in db.all_rows("leads") if _digits(l.get("phone")) == digits and digits), None)
+    if lead:
+        db.add_activity("lead", lead["id"], "call", data["notes"])
+        return _cors(jsonify({"ok": True, "linked": "lead", "lead_id": lead["id"]}))
+    contact = next((c for c in db.all_rows("contacts") if _digits(c.get("phone")) == digits and digits), None)
+    if contact:
+        db.add_activity("contact", contact["id"], "call", data["notes"])
+        # Surface the call as a fresh lead too, so it lands in the pipeline.
+    lid, created = _create_lead_from_intake({
+        "name": data["name"], "phone": phone, "source": data["source"],
+        "notes": data["notes"]})
+    db.add_activity("lead", lid, "call", data["notes"])
+    return _cors(jsonify({"ok": True, "linked": "new" if created else "existing",
+                          "lead_id": lid, "created": created}))

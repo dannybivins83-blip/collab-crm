@@ -536,6 +536,20 @@ def run_sync(deep=False, batch=50):
                     for _c in ("system", "squares", "ahj", "rep"):
                         if _pj.get(_c):
                             jrow[_c] = _pj[_c]
+                    # Fallback when the job name didn't encode them: derive the AHJ from the
+                    # property address and the roof system from the work type (mirrors lead
+                    # intake) so the permit builder defaults correctly. Strict resolvers only
+                    # write a confident value (real library AHJ / explicitly-named material),
+                    # leaving messy rows blank rather than guessing.
+                    from modules import ahj as _ahj
+                    if not jrow.get("ahj"):
+                        _a = _ahj.resolve_ahj_strict(jrow.get("address", ""), jrow.get("city", ""), jrow.get("county", ""))
+                        if _a:
+                            jrow["ahj"] = _a
+                    if not jrow.get("system"):
+                        _s = _ahj.system_from_work_type_strict(jrow.get("work_type", ""))
+                        if _s:
+                            jrow["system"] = _s
                     crm_id = db.insert("jobs", jrow)
                     db.add_activity("job", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
                     added_j += 1

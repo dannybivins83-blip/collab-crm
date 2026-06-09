@@ -59,7 +59,7 @@ def home():
     overdue.sort(key=lambda x: (0 if x[3]["level"] == "hot" else 1, -x[3]["days"]))
 
     # Recent activity feed (newest across all entities).
-    feed = db.all_rows("activities", order="id DESC")[:15]
+    feed = db.all_rows("activities", order="id DESC")[:80]  # show ~15, scroll the rest
     for a in feed:
         a["_who"] = _activity_name(a)
 
@@ -70,12 +70,15 @@ def home():
 
     # Outstanding invoices (department-scoped) for the dashboard Send panel.
     from modules import quickbooks as qb
+    from modules import invoices as invmod
     job_ids = {j["id"] for j in jobs}
     outstanding = [inv for inv in db.all_rows("invoices", order="id DESC")
                    if inv["status"] != "paid" and (inv.get("job_id") in job_ids or not inv.get("job_id"))]
     job_by_id = {j["id"]: j for j in jobs}
     for inv in outstanding:
         inv["_job"] = job_by_id.get(inv.get("job_id"))
+        inv["_overdue"] = invmod._is_overdue(inv)
+    invmod.sweep_overdue_automations(outstanding)
     outstanding_total = sum(i.get("amount") or 0 for i in outstanding)
 
     return render_template("dashboard.html", pipeline=pipeline, active_jobs=active_jobs,
