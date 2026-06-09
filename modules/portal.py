@@ -446,12 +446,16 @@ def home(token):
     # Balance Due + Paid% from the ACTUAL numbers instead of the generic draw schedule.
     paid_real = sum(theme.est_num(p.get("amount")) for p in payments)
     inv_total = sum(theme.est_num(i.get("amount")) for i in invoices)
-    j["_has_billing"] = bool(invoices or payments)
-    if j["_has_billing"]:
-        base = j["_value"] or inv_total
-        if paid_real or invoices:
-            j["_balance"] = max(0.0, base - paid_real) if base else j["_balance"]
-            j["_paid_pct"] = (paid_real / base) if base else j["_paid_pct"]
+    j["_has_billing"] = bool(invoices or payments or (j.get("balance") not in (None, "")))
+    base = j["_value"] or inv_total
+    if j.get("balance") not in (None, "") and base:
+        # AccuLynx's exact Balance Due wins (Collected = value - balance).
+        j["_balance"] = theme.est_num(j.get("balance"))
+        paid_real = max(paid_real, base - j["_balance"])
+        j["_paid_pct"] = max(0.0, min(1.0, (base - j["_balance"]) / base))
+    elif j["_has_billing"] and (paid_real or invoices):
+        j["_balance"] = max(0.0, base - paid_real) if base else j["_balance"]
+        j["_paid_pct"] = (paid_real / base) if base else j["_paid_pct"]
     j["_paid_real"] = paid_real
     activity = [a for a in db.entity_activity("job", j["id"])
                 if a.get("kind") in ("stage", "note", "automation")][:10]

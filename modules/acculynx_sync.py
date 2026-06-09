@@ -1436,15 +1436,17 @@ def _apply_billing(guid, payload):
            "value_set": False, "invoices_added": 0, "invoices_updated": 0,
            "payments_added": 0, "payments_updated": 0}
 
+    _m2 = lambda n: "$%s" % format(round(float(n), 2), ",.2f")  # keep cents for exact AccuLynx match
+
     # --- job/contract value -> the column the dashboard SUMS -----------------
     val = _money_num(_g(payload, "value", "jobValue", "contractValue", "totalValue",
                         "totalContractValue", "jobTotal", "totalJobValue",
                         "estimateTotal", "contractTotal", "amount", default=""))
     if val:
         col = "contract_value" if kind == "job" else "estimate"
-        db.update(kind + "s", rec["id"], **{col: _money_str(val)})
+        db.update(kind + "s", rec["id"], **{col: _m2(val)})
         out["value_set"] = True
-        out["value"] = _money_str(val)
+        out["value"] = _m2(val)
 
     balance = _money_num(_g(payload, "balance", "balanceDue", "balance_due",
                             "arBalance", "amountDue", default=""))
@@ -1510,6 +1512,17 @@ def _apply_billing(guid, payload):
                     pe_ext[ext] = {"id": pid, "ext_id": ext}
                 pe_ad[akey] = {"id": pid}
                 out["payments_added"] += 1
+
+    # Store AccuLynx's OWN Balance Due + Collected on the job so the CRM shows the exact
+    # same numbers (Collected = JobValue - BalanceDue) — never recomputed from the draws.
+    if job_id and balance is not None and balance != "":
+        upd = {"balance": _m2(balance)}
+        if val:
+            coll = val - balance
+            if coll >= 0:
+                upd["collected"] = _m2(coll)
+        db.update("jobs", job_id, **upd)
+        out["balance_set"] = _m2(balance)
 
     # Single deduped activity summarizing the billing pull.
     if job_id and (out["value_set"] or out["invoices_added"] or out["payments_added"]

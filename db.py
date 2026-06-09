@@ -428,6 +428,8 @@ def _migrate_columns():
         ("estimate_lines", "waste_pct REAL DEFAULT 0"),
         ("estimate_lines", "cost REAL DEFAULT 0"),
         ("estimate_lines", "qrule TEXT"),  # JSON measurement->qty formula (AccuLynx mirror)
+        ("jobs", "balance TEXT"),     # AccuLynx Balance Due, stored verbatim
+        ("jobs", "collected TEXT"),   # AccuLynx Collected (value - balance), stored verbatim
         ("company_settings", "color_masthead TEXT DEFAULT '#24476C'"),
         # Appointments shipped originally with `start`/`end` columns; the app now
         # reads `start_at`/`end_at`. Add the new columns on legacy DBs and backfill.

@@ -61,7 +61,11 @@ def est_num(text):
 def money(n):
     if not n:
         return "$0"
-    return "$" + format(int(round(n)), ",")
+    # Show cents only when present (matches AccuLynx: $6,870.01 but $9,160 stays clean).
+    r = round(float(n), 2)
+    if abs(r - round(r)) < 0.005:
+        return "$" + format(int(round(r)), ",")
+    return "$" + format(r, ",.2f")
 
 
 def money_k(n):

@@ -30,6 +30,16 @@ def _decorate(j):
     j["_total"] = len(sd["checklist"])
     j["_pct"] = round(100 * done / len(sd["checklist"])) if sd["checklist"] else 0
     j["_paid_pct"] = theme.paid_pct(payments)
+    # When AccuLynx billing is synced, show ITS exact Balance Due / Collected — the
+    # job detail header computes balance = value*(1 - _paid_pct), so deriving _paid_pct
+    # from the stored balance reproduces AccuLynx to the penny.
+    val = theme.est_num(j.get("contract_value"))
+    bal = j.get("balance")
+    if bal not in (None, "") and val:
+        j["_balance"] = theme.est_num(bal)
+        j["_collected"] = max(0.0, val - j["_balance"])
+        j["_paid_pct"] = j["_collected"] / val
+        j["_billing_synced"] = True
     return j
 
 
