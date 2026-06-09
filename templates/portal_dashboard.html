@@ -407,13 +407,19 @@
     </div>
     <div class="vprog"><span style="width:{{ (100 * value_done / value_total)|round|int if value_total else 0 }}%"></span></div>
     {% for v in value_steps %}
-    <div class="vrow {{ 'done' if v.done else ('cur' if v.current else 'todo') }}">
+    <div class="vrow {{ 'done' if v.done else ('cur' if v.current else 'todo') }}{{ ' vhide' if loop.index > 8 }}">
       <span class="vck">{{ '✓' if v.done else ('●' if v.current else '○') }}</span>
       <span class="vtx">{{ v.text }}{% if v.current %} <span class="pill green">happening now</span>{% endif %}</span>
     </div>
     {% endfor %}
+    {% if value_steps|length > 8 %}
+    <button type="button" class="btn ghost block vmore-btn" style="margin-top:10px" data-n="{{ value_steps|length }}" onclick="toggleVMore(this)">Show all {{ value_steps|length }} steps →</button>
+    {% endif %}
     <div class="muted" style="margin-top:13px;font-size:12.5px">Every box is real work the {{ company.name }} team does on your project — the standard you're paying for, tracked in the open.</div>
   </div>
+  <style>.vrow.vhide{display:none}.card.vshow .vrow.vhide{display:flex}</style>
+  <script>function toggleVMore(b){var c=b.closest('.card'),open=c.classList.toggle('vshow');
+    b.textContent=open?'Show fewer ↑':('Show all '+b.dataset.n+' steps →');}</script>
 
   <!-- REFERRAL GAME -->
   <div class="card cta-card" id="refGame">
@@ -621,8 +627,11 @@
   </div>
 
   <!-- PHOTOS -->
-  <div class="card" id="photos"><div class="h">Project Photos</div>
-    {% if j.sitecam_url %}<a class="btn block" style="margin-bottom:14px" href="{{ j.sitecam_url }}" target="_blank" rel="noopener">📸 View your project photos →</a>
+  <div class="card" id="photos"><div class="h">📸 Your Site Photos — live from the field</div>
+    {% if j.sitecam_url %}
+    <iframe src="{{ j.sitecam_url }}" loading="lazy" referrerpolicy="origin" title="Your job site photos"
+            style="width:100%;height:520px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:10px"></iframe>
+    <a class="btn ghost block sm" style="margin-bottom:14px" href="{{ j.sitecam_url }}" target="_blank" rel="noopener">⛶ Open your photos full-screen →</a>
     {% elif photo_app_url %}<a class="btn ghost block" style="margin-bottom:14px" href="{{ photo_app_url }}" target="_blank" rel="noopener">📸 View all job photos in our photo app</a>{% endif %}
     {% if photos %}
     <div class="gallery" style="margin-bottom:14px">{% for ph in photos %}<a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" title="{{ ph.caption }}"></a>{% endfor %}</div>
