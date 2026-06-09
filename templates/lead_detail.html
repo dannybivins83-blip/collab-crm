@@ -32,13 +32,13 @@
   </form>{% endif %}
 </div>
 
-<!-- Unified lifecycle bar + big Next Step button (spans lead → job) -->
+<!-- Single consolidated pipeline card: lifecycle bar + Next Step + jump-to-stage -->
 <div class="card" style="margin-bottom:14px">
   {{ lifecycle_bar('lead', l.stage) }}
   {% set ns = constants.next_step('lead', l.stage) %}
   {% set _pct = l._pct if l._pct is defined else 100 %}
-  {% if ns %}
-  <div style="display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap">
+  <div style="display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap">
+    {% if ns %}
     {% if _pct < 100 %}<span class="muted" style="font-size:12px">Stage checklist {{ _pct }}% done</span>{% endif %}
     {% if ns.action == 'convert' %}
     <form method="post" action="{{ url_for('leads.convert', lead_id=l.id) }}" onsubmit="return lcGate(this,{{ _pct }})">
@@ -50,8 +50,14 @@
       <button class="btn lg primary" type="submit">{{ ns.label }} →</button>
     </form>
     {% endif %}
+    {% endif %}
+    <form method="post" action="{{ url_for('leads.set_stage', lead_id=l.id) }}" style="margin:0">
+      <select name="stage" onchange="this.form.submit()" title="Jump to a specific stage"
+              style="width:auto;max-width:210px" class="btn sm">
+        {% for s in constants.LEAD_STAGES %}<option value="{{ s.key }}" {{ 'selected' if s.key==l.stage }}>{{ loop.index }}. {{ s.name }}</option>{% endfor %}
+      </select>
+    </form>
   </div>
-  {% endif %}
 </div>
 <script>
 function lcGate(form,pct){
@@ -59,29 +65,6 @@ function lcGate(form,pct){
   return confirm("Some checklist items for this stage aren't checked off yet ("+pct+"% done). Move forward anyway?");
 }
 </script>
-
-<!-- Milestone track (lead pipeline) -->
-<div class="card mstone">
-  <div class="mstone-left">
-    <div><span class="muted">STATUS:</span> <b>{{ l._stage.name }}</b></div>
-    {% if l.todo %}<div><span class="muted">NEXT STEP:</span> <b style="color:var(--accent2)">{{ l.todo }}</b></div>{% endif %}
-    <form method="post" action="{{ url_for('leads.set_stage', lead_id=l.id) }}" style="margin-top:8px">
-      <select name="stage" onchange="this.form.submit()" style="width:auto;max-width:230px">
-        {% for s in constants.LEAD_STAGES %}<option value="{{ s.key }}" {{ 'selected' if s.key==l.stage }}>{{ loop.index }}. {{ s.name }}</option>{% endfor %}
-      </select>
-    </form>
-  </div>
-  <div class="mstone-track">
-    {% for s in constants.LEAD_STAGES if s.key != 'lost' %}
-    {% set reached = loop.index0 <= cur_idx %}
-    <div class="mnode {{ 'on' if s.key==l.stage }}">
-      <span class="mcircle" style="background:{{ s.color if reached else '#c9d2dd' }}">{{ s.name[0] }}</span>
-      <span class="mlbl">{{ s.name }}</span>
-    </div>
-    {% if not loop.last %}<span class="mline {{ 'done' if loop.index0 < cur_idx }}"></span>{% endif %}
-    {% endfor %}
-  </div>
-</div>
 
 <!-- Primary Contact + Location Info (dashboard parity) -->
 <div class="detail" style="grid-template-columns:1fr 1fr;margin-bottom:18px">
