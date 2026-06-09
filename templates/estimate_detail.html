@@ -160,6 +160,10 @@ function applyMeasurements(){
   let n=0;
   document.querySelectorAll('.section tbody tr').forEach(tr=>{
     const d=(tr.querySelector('.l-desc').value||'').toLowerCase(), u=(tr.querySelector('.l-unit').value||'').toUpperCase();
+    // Optional upgrades stay at their (zero) qty; lump-sum lines (permit, dumpster) are
+    // always qty 1 — never multiplied by squares even if their text mentions a material.
+    if(d.startsWith('upgrade')||d.startsWith('add-on')) return;
+    if(u==='LS'){const qi=tr.querySelector('.l-qty'); if((+qi.value||0)!==1){qi.value=1; priceFromMargin(qi); n++;} return;}
     let q=null;
     if(/ridge|hip/.test(d)) q=ridge;
     else if(/valley/.test(d)) q=valley;

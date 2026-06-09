@@ -160,7 +160,10 @@ def _apply_measurement(est_id, m):
             continue  # optional upgrades stay at qty 0 until the rep turns them on
         u = (ln.get("unit") or "").upper()
         if u == "LS":
-            continue  # lump-sum lines (permit, dumpster) keep their fixed template qty
+            # lump-sum lines (permit, dumpster) are always qty 1 — never square-driven
+            if float(ln.get("qty") or 0) != 1:
+                db.update("estimate_lines", ln["id"], qty=1)
+            continue
 
         q = None
         if re.search(r"ridge|hip", d):
@@ -207,8 +210,10 @@ def build_estimate(lead_id=None, job_id=None, template_id=None, work_type="", ap
                                      "description": line.get("description", ""),
                                      "unit": line.get("unit", "EA"), "qty": line.get("qty", 0),
                                      "waste_pct": 0, "cost": line.get("cost", 0)})
-    # Upgrades & Options — the system's premium add-ons, all at qty 0.
-    ups = constants.upgrades_for(work_type)
+    # Upgrades & Options — the system's premium add-ons, all at qty 0. Fall back to the
+    # template's own work type (wt) / key so tile/metal/flat estimates never get the
+    # generic shingle upgrades just because the lead's work_type was blank.
+    ups = constants.upgrades_for(work_type or wt or (template_id or ""))
     if ups:
         usid = db.insert("estimate_sections", {
             "estimate_id": eid, "sort": 1, "name": "Upgrades & Options", "margin_pct": 30,
