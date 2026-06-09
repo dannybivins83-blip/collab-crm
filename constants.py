@@ -146,8 +146,9 @@ LEAD_SOURCES = ["Referral", "Repeat Customer", "Website", "Google", "Facebook",
 # Work types
 # ---------------------------------------------------------------------------
 WORK_TYPES = ["Roofing - Shingle", "Roofing - Tile", "Roofing - Metal (Galvalume)",
-              "Roofing - Metal (Standard Color)", "Roofing - Flat (TPO)",
-              "Roofing - Flat (3-ply SA)", "Roofing - Flat (Hot-Mop)",
+              "Roofing - Metal (Standard Color)", "Roofing - Metal (5V Crimp)",
+              "Roofing - Metal (Nailstrip)", "Roofing - Metal (Snap Lock)",
+              "Roofing - Flat (TPO)", "Roofing - Flat (3-ply SA)", "Roofing - Flat (Hot-Mop)",
               "Shingle + Flat", "Tile + Flat", "Metal + Flat", "Repair", "Other"]
 
 # ---------------------------------------------------------------------------
@@ -235,6 +236,58 @@ ESTIMATE_TEMPLATES = {
             {"desc": "2-ply self-adhered underlayment (Polyglass MTS, hi-temp)", "unit": "SQ", "qty": 0, "price": 64.0},
             {"desc": "Standing seam standard color panels 24-ga — material", "unit": "SQ", "qty": 0, "price": 310.0},
             {"desc": "Panel fabrication + install labor", "unit": "SQ", "qty": 0, "price": 175.0},
+            {"desc": "Ridge / hip / eave & gable trim", "unit": "LF", "qty": 0, "price": 9.0},
+            {"desc": "Valley metal / closed valley pan", "unit": "LF", "qty": 0, "price": 12.0},
+            {"desc": "Pipe boots / flashings", "unit": "EA", "qty": 4, "price": 65.0},
+            {"desc": "Permit + inspections + uplift test", "unit": "LS", "qty": 1, "price": 850.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
+        ],
+    },
+    "metal_5v": {
+        "name": "5V Crimp Estimating Template",
+        "work_types": ["Roofing - Metal (5V Crimp)"],
+        # Calibrated from a real SeaBreeze 5V job: DM500 5V Crimp 24-ga panel $148.62/SQ,
+        # 5V install $100/SQ, tear-off + dry-in $110/SQ, Polyglass MTS underlayment $64/SQ.
+        # 5V is the budget metal system (exposed-fastener screw-down) vs standing seam.
+        "lines": [
+            {"desc": "Tear off existing roof + dry-in labor", "unit": "SQ", "qty": 0, "price": 110.0},
+            {"desc": "2-ply self-adhered underlayment (Polyglass MTS, hi-temp)", "unit": "SQ", "qty": 0, "price": 64.0},
+            {"desc": "5V Crimp panels 24-ga (DM500, Galvalume) — material", "unit": "SQ", "qty": 0, "price": 148.0},
+            {"desc": "5V panel install labor", "unit": "SQ", "qty": 0, "price": 100.0},
+            {"desc": "Ridge cap / eave & gable trim (26-ga mill)", "unit": "LF", "qty": 0, "price": 9.0},
+            {"desc": "Valley metal", "unit": "LF", "qty": 0, "price": 12.0},
+            {"desc": "Pipe boots / flashings", "unit": "EA", "qty": 4, "price": 65.0},
+            {"desc": "Permit + inspections + uplift test", "unit": "LS", "qty": 1, "price": 850.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
+        ],
+    },
+    "metal_nailstrip": {
+        "name": "Nailstrip Metal Estimating Template",
+        "work_types": ["Roofing - Metal (Nailstrip)"],
+        # Concealed-fastener nail-flange standing seam (snapped). UNCALIBRATED — no real
+        # nailstrip jobs in the worksheet data; costs are industry-standard, rep-adjustable.
+        "lines": [
+            {"desc": "Tear off existing roof + dry-in labor", "unit": "SQ", "qty": 0, "price": 100.0},
+            {"desc": "2-ply self-adhered underlayment (Polyglass MTS, hi-temp)", "unit": "SQ", "qty": 0, "price": 64.0},
+            {"desc": "Nailstrip standing-seam panels 24-ga — material", "unit": "SQ", "qty": 0, "price": 220.0},
+            {"desc": "Panel install labor (nail-flange / snap)", "unit": "SQ", "qty": 0, "price": 130.0},
+            {"desc": "Ridge / hip / eave & gable trim", "unit": "LF", "qty": 0, "price": 9.0},
+            {"desc": "Valley metal / closed valley pan", "unit": "LF", "qty": 0, "price": 12.0},
+            {"desc": "Pipe boots / flashings", "unit": "EA", "qty": 4, "price": 65.0},
+            {"desc": "Permit + inspections + uplift test", "unit": "LS", "qty": 1, "price": 850.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
+        ],
+    },
+    "metal_snaplock": {
+        "name": "Snap Lock Metal Estimating Template",
+        "work_types": ["Roofing - Metal (Snap Lock)"],
+        # Concealed-fastener snap-together standing seam (no seaming tool). UNCALIBRATED —
+        # no real snap-lock jobs in the worksheet data; industry-standard, rep-adjustable.
+        "lines": [
+            {"desc": "Tear off existing roof + dry-in labor", "unit": "SQ", "qty": 0, "price": 100.0},
+            {"desc": "2-ply self-adhered underlayment (Polyglass MTS, hi-temp)", "unit": "SQ", "qty": 0, "price": 64.0},
+            {"desc": "Snap-lock standing-seam panels 24-ga — material", "unit": "SQ", "qty": 0, "price": 240.0},
+            {"desc": "Panel install labor (snap-together)", "unit": "SQ", "qty": 0, "price": 135.0},
             {"desc": "Ridge / hip / eave & gable trim", "unit": "LF", "qty": 0, "price": 9.0},
             {"desc": "Valley metal / closed valley pan", "unit": "LF", "qty": 0, "price": 12.0},
             {"desc": "Pipe boots / flashings", "unit": "EA", "qty": 4, "price": 65.0},
@@ -517,7 +570,13 @@ def template_for_work_type(work_type):
         return "shingle"
     if "tile" in low:
         return "tile"
-    if "metal" in low:
+    if "metal" in low or "5v" in low or "nailstrip" in low or "nail strip" in low or "snap" in low:
+        if "5v" in low or "5-v" in low or "crimp" in low:
+            return "metal_5v"
+        if "nailstrip" in low or "nail strip" in low or "nail-strip" in low:
+            return "metal_nailstrip"
+        if "snap" in low:
+            return "metal_snaplock"
         return "metal_color" if "color" in low else "metal_galvalume"
     if "tpo" in low:
         return "flat_tpo"
