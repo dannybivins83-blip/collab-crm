@@ -61,7 +61,10 @@
 </style>
 </head>
 <body>
-  <div class="top"><h1>🎓 Roof School</h1><p>Learn how roofs really work — and test your Roof IQ.</p></div>
+  <div class="top" style="position:relative">
+    <a href="{{ url_for('portal.home', token=token) }}" style="position:absolute;left:14px;top:calc(16px + env(safe-area-inset-top));color:#fff;text-decoration:none;font-weight:700;font-size:14px;background:rgba(255,255,255,.16);padding:7px 12px;border-radius:999px">‹ Back</a>
+    <h1>🎓 Roof School</h1><p>Learn how roofs really work — and test your Roof IQ.</p>
+  </div>
   <div class="wrap">
 
     {% if my_system %}
