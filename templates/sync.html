@@ -5,6 +5,19 @@
   <span class="sub">{% if company.acculynx_last_sync %}Last sync: {{ company.acculynx_last_sync }}{% else %}Never synced{% endif %}</span>
 </div>
 
+<div class="card" style="border:2px solid var(--accent2);background:linear-gradient(180deg,#fff,#f4f9ff)">
+  <h2>📥 Install all sync bookmarks at once</h2>
+  <p class="muted">Instead of dragging each button below to your bookmarks bar one at a time, download them <b>all in one folder</b>. Re-download anytime to <b>update</b> them to the latest version.</p>
+  <button type="button" class="btn lg accent" onclick="downloadBookmarkFolder()">📥 Download all 10 bookmarks as a folder</button>
+  <ol style="font-size:13px;line-height:1.8;margin:10px 0 0 18px">
+    <li>Click the button — it saves <code>acculynx-crm-bookmarks.html</code>.</li>
+    <li>In Chrome open <b>⋮ → Bookmarks &amp; lists → Bookmark manager</b> (or <code>chrome://bookmarks</code>).</li>
+    <li>Click <b>⋮ (top right) → Import bookmarks</b>, pick that file. A folder <b>“AccuLynx → CRM Sync”</b> appears with all 10 tools.</li>
+    <li>To <b>update</b> later: re-download here and import again (drag the old folder to Trash first if you want a clean swap).</li>
+  </ol>
+  <div id="bmDlMsg" class="muted" style="margin-top:8px"></div>
+</div>
+
 <div class="detail">
   <div class="card">
     <h2>API connection</h2>
@@ -592,5 +605,43 @@
   }
   document.getElementById('bmall').href='javascript:('+pullAll.toString()+')('+JSON.stringify({BASE:BASE})+')';
 })();
+</script>
+<script>
+// Build a Chrome-importable bookmarks file from the live bookmarklet hrefs on this page,
+// so the user installs all of them as one folder (and can re-download to update).
+function downloadBookmarkFolder(){
+  var ITEMS=[
+    ['bm','📥 AccuLynx Records → CRM'],
+    ['bmall','⭐ AccuLynx Sync All → CRM'],
+    ['bmbill','💵 AccuLynx Billing → CRM'],
+    ['bmest','📝 AccuLynx Estimates → CRM'],
+    ['bmestlines','🧾 AccuLynx Estimate Lines → CRM'],
+    ['bmcomm','💬 AccuLynx Comms → CRM'],
+    ['bmdocs','📎 AccuLynx Permits → CRM'],
+    ['bmalldocs','📂 AccuLynx Documents → CRM'],
+    ['bmroof','📐 AccuLynx Roof Reports → CRM'],
+    ['bmphotos','📸 AccuLynx Photos → CRM']
+  ];
+  function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  var rows=[],missing=0;
+  ITEMS.forEach(function(it){
+    var a=document.getElementById(it[0]);
+    var href=a?(a.getAttribute('href')||''):'';
+    if(href.indexOf('javascript:')!==0){missing++;return;}
+    rows.push('        <DT><A HREF="'+esc(href)+'">'+esc(it[1])+'</A>');
+  });
+  var html='<!DOCTYPE NETSCAPE-Bookmark-file-1>\n'+
+    '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n'+
+    '<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n'+
+    '    <DT><H3>AccuLynx → CRM Sync</H3>\n    <DL><p>\n'+
+    rows.join('\n')+'\n    </DL><p>\n</DL><p>\n';
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download='acculynx-crm-bookmarks.html';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},3000);
+  var msg=document.getElementById('bmDlMsg');
+  if(msg) msg.innerHTML='✓ Downloaded <b>'+rows.length+'</b> bookmarks as <code>acculynx-crm-bookmarks.html</code>'+(missing?(' ('+missing+' not ready — reload the page and try again)'):'')+'. Now import it in Chrome’s Bookmark manager.';
+}
 </script>
 {% endblock %}
