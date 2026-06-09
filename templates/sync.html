@@ -44,15 +44,15 @@
   </div>
 </div>
 
-<div class="card">
-  <h2>🧭 Browser-tab sync — no API key needed</h2>
-  <p class="muted">Pulls data straight from the AccuLynx page you're logged into (uses your browser session, not the API). Great when you can't get an API key.</p>
+<div class="card" style="border:2px solid var(--accent)">
+  <h2>🧭 Records &amp; Milestones → CRM — no API key needed</h2>
+  <p class="muted">Pulls leads/jobs straight from the AccuLynx page you're logged into (uses your browser session, not the API). <b>Now captures the EXACT milestone</b> of whatever list you open — so the CRM stage matches AccuLynx 1:1 (Documentation Needed, Permit Applied For, Tear Off Started, etc.), not just the top-level bucket.</p>
   <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag this button to your <b>bookmarks bar</b> →&nbsp;<a id="bm" class="btn accent" href="#" onclick="return false">📥 AccuLynx → CRM</a></li>
-    <li>In AccuLynx, open <b>Jobs → Prospects</b> (or Approved / Assigned / Invoiced / Completed).</li>
-    <li><b>Click the bookmark once.</b> It auto-scrolls the whole list, shows a live "Collecting…" counter, and imports everything into the CRM — no scrolling or repeat-clicking. Run it once per list; duplicates are skipped.</li>
+    <li><b>One-time setup:</b> drag this button to your <b>bookmarks bar</b> →&nbsp;<a id="bm" class="btn accent" href="#" onclick="return false">📥 AccuLynx Records → CRM</a></li>
+    <li>In AccuLynx, click a <b>Milestone Pipeline</b> filter on the left (e.g. <b>Approved</b>, <b>Permit Applied For</b>, <b>Invoiced</b>) so the URL shows that milestone.</li>
+    <li><b>Click the bookmark once.</b> It auto-scrolls the whole list, shows a live "Collecting…" counter, and imports everyone at that exact milestone. Run it once per milestone list to get every stage right — duplicates are skipped/updated.</li>
   </ol>
-  <div class="muted">If your browser blocks the cross-site request the first time, allow it — it's just posting to your own CRM at <code>{{ request.host_url }}</code>.</div>
+  <div class="muted">Tip: to fix mismatched stages, walk each granular milestone list once. If your browser blocks the cross-site request the first time, allow it — it's just posting to your own CRM at <code>{{ request.host_url }}</code>.</div>
 </div>
 
 <div class="card" style="border:2px solid var(--accent)">
@@ -273,6 +273,7 @@
   var code="(async function(){"+
     "var B=(location.href.match(/currentMilestoneList:(\\w+)/)||[])[1]||'Prospect';"+
     "var bk={Assigned:'assigned',Prospect:'prospect',Negotiation:'prospect',LongTerm:'prospect',Approved:'approved',Completed:'completed',Invoiced:'invoiced',Closed:'closed'}[B]||'prospect';"+
+    "var MS=B.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g,'$1 $2').trim();"+
     "var out=[],seen={};"+
     "var bn=document.createElement('div');bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35)';document.body.appendChild(bn);"+
     "function collect(){[].forEach.call(document.querySelectorAll('a[href*=\"/jobs/\"]'),function(a){"+
@@ -282,7 +283,7 @@
       "var t=c.innerText||'';if(!/Source:/.test(t))return;"+
       "var g=(h.match(/\\/jobs\\/([0-9a-f-]{30,})/)||[])[1];if(seen[g])return;seen[g]=1;"+
       "var M=function(re){return((t.match(re)||['',''])[1]||'').trim()};"+
-      "out.push({bucket:bk,guid:g,rid:(nm.match(/R-\\d+/)||[''])[0],name:nm.replace(/^R-\\d+:\\s*/,''),"+
+      "out.push({bucket:bk,milestone:MS,guid:g,rid:(nm.match(/R-\\d+/)||[''])[0],name:nm.replace(/^R-\\d+:\\s*/,''),"+
         "phone:(t.match(/\\(\\d{3}\\) ?\\d{3}-\\d{4}/)||[''])[0],"+
         "email:(t.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/)||[''])[0],"+
         "address:M(/\\n([^\\n]*\\d{5}[^\\n]*)\\n/),work_type:M(/\\n(Roofing[^\\n]*|Repair[^\\n]*|Gutter[^\\n]*|Sheet Metal[^\\n]*)\\n/),"+

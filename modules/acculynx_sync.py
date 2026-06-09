@@ -784,11 +784,14 @@ def start_auto_sync(app, interval_hours=4):
 
 
 def _upsert_record(rec):
-    """Upsert one scraped record (from the browser bookmarklet) by bucket. Returns 'added'|'updated'|None."""
+    """Upsert one scraped record (from the browser bookmarklet). Returns 'added'|'updated'|None.
+    Prefers the GRANULAR milestone (e.g. 'Permit Applied For') so the CRM stage matches
+    AccuLynx exactly; falls back to the top-level bucket only when no milestone was sent."""
     name = (rec.get("name") or "").strip()
     if not name:
         return None
     bucket = rec.get("bucket") or "prospect"
+    milestone = (rec.get("milestone") or "").strip()
     url = "https://my.acculynx.com/jobs/%s" % rec.get("guid") if rec.get("guid") else ""
     parts = [p.strip() for p in (rec.get("address") or "").split(",")]
     company = db.get_company()
@@ -808,19 +811,29 @@ def _upsert_record(rec):
                 return hit
         return next((r for r in rows if (r.get("name") or "").lower() == name.lower()), None)
 
-    if bucket in ("lead", "assigned", "prospect", "negotiation", "long_term"):
+    # Resolve to a precise (kind, stage). Granular milestone wins; else bucket.
+    if milestone:
+        kind, stage = _resolve_stage(milestone)
+    elif bucket in ("lead", "assigned", "prospect", "negotiation", "long_term"):
+        kind = "lead"
         stage = "assigned" if bucket in ("lead", "assigned") else "prospect"
+    else:
+        kind = "job"
+        stage = {"approved": "approved", "completed": "completed", "invoiced": "invoiced",
+                 "closed": "closed", "canceled": "canceled"}.get(bucket, "approved")
+    tag = milestone or bucket
+
+    if kind == "lead":
         cur = _find(db.all_rows("leads"))
         if cur:
-            db.update("leads", cur["id"], stage=stage, external_url=url, phone=base["phone"] or cur.get("phone"))
+            db.update("leads", cur["id"], stage=stage, external_url=url,
+                      phone=base["phone"] or cur.get("phone"))
             return "updated"
         cid = _ensure_contact(name, {**base, "address": rec.get("address", "")})
         db.insert("leads", {**base, "address": rec.get("address", ""), "contact_id": cid, "stage": stage,
                             "stage_since": db.today(), "last_contact": db.today(),
-                            "narrative": "Imported from AccuLynx (browser) — %s." % bucket})
+                            "narrative": "Imported from AccuLynx (browser) — %s." % tag})
         return "added"
-    stage = {"approved": "approved", "completed": "completed", "invoiced": "invoiced",
-             "closed": "closed"}.get(bucket, "approved")
     cur = _find(db.all_rows("jobs"))
     if cur:
         db.update("jobs", cur["id"], stage=stage, external_url=url)
@@ -829,7 +842,7 @@ def _upsert_record(rec):
     db.insert("jobs", {**base, "contact_id": cid, "stage": stage, "stage_since": db.today(),
                        "address": parts[0] if parts else "", "city": parts[1] if len(parts) > 1 else "",
                        "county": company.get("default_county", ""),
-                       "narrative": "Imported from AccuLynx (browser) — %s." % bucket})
+                       "narrative": "Imported from AccuLynx (browser) — %s." % tag})
     return "added"
 
 
