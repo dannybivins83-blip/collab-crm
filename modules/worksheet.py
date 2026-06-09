@@ -52,7 +52,12 @@ def _signed_estimate(job_id):
 
 
 def seed_from_estimate(ws_id, job_id):
-    """Populate budget+actual lines from the job's estimate section line costs."""
+    """Build the worksheet from the job's estimate line items (the estimate is built
+    from the per-system estimate template). Each estimate line becomes a worksheet
+    line with its Qty | Unit | Unit Cost | Cost. Then append a Wood Replacement line
+    at $0.01 — a placeholder the supervisor edits on tear-off day with the actual
+    decking/fascia replaced. Skips the optional 'Upgrades & Options' section and any
+    line not turned on (zero cost)."""
     e = _signed_estimate(job_id)
     if not e:
         return 0
@@ -62,15 +67,30 @@ def seed_from_estimate(ws_id, job_id):
     i = 0
     for s in sections:
         for ln in s["_lines"]:
-            cost = est.line_cost(ln)
+            cost = est.line_cost(ln)              # extended: qty × (1+waste) × unit cost
+            if not cost:
+                continue                          # line not turned on (qty 0) — skip
+                                                  # (so un-selected upgrades drop out,
+                                                  #  but accepted ones flow through)
+            base_qty = ln.get("qty") or 0
+            eff_qty = round(base_qty * (1 + (ln.get("waste_pct") or 0) / 100.0), 2)
             db.insert("worksheet_lines", {
                 "worksheet_id": ws_id, "sort": i,
                 "category": _category_for(ln.get("description"), ln.get("unit")),
                 "description": ln.get("description", ""),
+                "qty": eff_qty, "unit": ln.get("unit") or "",
+                "unit_cost": ln.get("cost") or 0,
                 "budget_cost": cost, "actual_cost": cost})
             i += 1
+    # Wood Replacement placeholder — supervisor enters sheets of plywood / LF of
+    # fascia at unit price on the day of tear-off (Qty × Unit Cost auto-fills Cost).
+    db.insert("worksheet_lines", {
+        "worksheet_id": ws_id, "sort": i, "category": "Wood Replacement",
+        "description": "Wood replacement (decking / fascia — enter actuals at tear-off)",
+        "qty": 0, "unit": "EA", "unit_cost": 0.01,
+        "budget_cost": 0.01, "actual_cost": 0.01})
     db.update("worksheets", ws_id, contract_value=totals["total"], seeded_from_estimate=e["id"])
-    return i
+    return i + 1
 
 
 def get_or_create(job_id):

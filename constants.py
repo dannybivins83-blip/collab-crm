@@ -245,7 +245,9 @@ ESTIMATE_TEMPLATES = {
     "flat_tpo": {
         "name": "Commercial TPO Estimate",
         "work_types": ["Roofing - Flat (TPO)"],
-        # Flat systems uncalibrated (insufficient real data) — market-standard FL costs.
+        # SeaBreeze's real flat work is hot-mop built-up + 3-ply SA (see flat_hotmop /
+        # flat_sa, calibrated from 8 real jobs); no TPO jobs exist to calibrate against,
+        # so this commercial-TPO template stays market-standard FL costs.
         "lines": [
             {"desc": "Tear off existing flat roof to deck", "unit": "SQ", "qty": 0, "price": 55.0},
             {"desc": "ISO insulation board", "unit": "SQ", "qty": 0, "price": 60.0},
@@ -260,28 +262,34 @@ ESTIMATE_TEMPLATES = {
     "flat_sa": {
         "name": "Flat - 3-ply SA Estimate",
         "work_types": ["Roofing - Flat (3-ply SA)"],
-        # Costs from real SeaBreeze flat worksheets: 3-ply Polyglass SA system —
-        # Elastobase SA ($122.60/roll) + Elastoflex SA V Base ($119) + Polyflex SAP
-        # ($110.91); flat tear-off + install labor ~$120/SQ.
+        # Calibrated from real SeaBreeze flat worksheets (8 flat jobs). 3-ply Polyglass
+        # SA system, itemized per ply; flat tear-off + SA install labor ~$150/SQ.
         "lines": [
-            {"desc": "3-ply self-adhered modified bitumen — material (Polyglass Elastobase/Elastoflex/Polyflex SAP)", "unit": "SQ", "qty": 0, "price": 230.0},
-            {"desc": "Flat tear-off + membrane install labor", "unit": "SQ", "qty": 0, "price": 120.0},
+            {"desc": "Flat tear-off + 3-ply SA membrane install labor", "unit": "SQ", "qty": 0, "price": 150.0},
+            {"desc": "SA base ply — Polyglass Elastobase SA", "unit": "SQ", "qty": 0, "price": 123.0},
+            {"desc": "SA mid ply — Polyglass Elastoflex SA V Base", "unit": "SQ", "qty": 0, "price": 119.0},
+            {"desc": "SA cap ply — Polyglass Polyflex SAP", "unit": "SQ", "qty": 0, "price": 111.0},
             {"desc": "Edge metal / gravel stop (break metal)", "unit": "LF", "qty": 0, "price": 7.0},
-            {"desc": "Pipe boots / flashing", "unit": "EA", "qty": 3, "price": 65.0},
-            {"desc": "Permit + inspections + engineered calcs", "unit": "LS", "qty": 1, "price": 750.0},
+            {"desc": "Lead pipe stacks / flashings", "unit": "EA", "qty": 3, "price": 16.0},
+            {"desc": "Permit + inspections + engineered calcs", "unit": "LS", "qty": 1, "price": 850.0},
             {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "flat_hotmop": {
         "name": "Flat - Hot-Mop Estimate",
         "work_types": ["Roofing - Flat (Hot-Mop)"],
+        # Calibrated from real SeaBreeze hot-mop worksheets. 3-ply built-up (Certainteed
+        # Glass Base + Ply IV + Glascap cap), hot-mopped; tear-off + install labor ~$250/SQ.
         "lines": [
-            {"desc": "Tear off existing flat roof to deck", "unit": "SQ", "qty": 0, "price": 55.0},
-            {"desc": "Hot-mop built-up roofing (3-ply)", "unit": "SQ", "qty": 0, "price": 180.0},
-            {"desc": "Gravel surfacing", "unit": "SQ", "qty": 0, "price": 35.0},
+            {"desc": "Flat tear-off + 3-ply hot-mop install labor", "unit": "SQ", "qty": 0, "price": 250.0},
+            {"desc": "Glass base sheet — Certainteed Glass Base", "unit": "SQ", "qty": 0, "price": 64.0},
+            {"desc": "Fiberglass ply — Certainteed Ply IV", "unit": "SQ", "qty": 0, "price": 40.0},
+            {"desc": "Mineral-surfaced cap sheet — Certainteed Glascap", "unit": "SQ", "qty": 0, "price": 86.0},
+            {"desc": "Hot asphalt + granule surfacing", "unit": "SQ", "qty": 0, "price": 25.0},
             {"desc": "Edge metal / gravel stop", "unit": "LF", "qty": 0, "price": 7.0},
-            {"desc": "Permit + inspections", "unit": "LS", "qty": 1, "price": 750.0},
-            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 600.0},
+            {"desc": "Lead pipe stacks / flashings", "unit": "EA", "qty": 3, "price": 16.0},
+            {"desc": "Permit + inspections + engineered calcs", "unit": "LS", "qty": 1, "price": 850.0},
+            {"desc": "Dumpster + disposal", "unit": "LS", "qty": 1, "price": 500.0},
         ],
     },
     "shingle_flat": {
@@ -575,33 +583,27 @@ def resources_for(work_type):
 # Options" section (qty 0 = not included until the rep turns it on). Matched to
 # the lead/job work type so the right premium options are always presented.
 # ---------------------------------------------------------------------------
+# These mirror SeaBreeze's real AccuLynx upgrade templates (Shingle/Tile/Metal
+# "Upgrades"), which are customer accept/decline scope options priced per job.
+# Costs here are best-effort defaults (qty 0 — the rep turns one on and adjusts the
+# price). The shared options (skylights, gutters, hurricane clips, wall flashing &
+# stucco) live under "common" since they appear on every system in AccuLynx.
 UPGRADES = {
     "shingle": [
-        {"desc": "UPGRADE: Premium architectural shingle (GAF Timberline HDZ / OC Duration)", "unit": "SQ", "qty": 0, "cost": 40.0},
-        {"desc": "UPGRADE: Designer / luxury shingle (Grand Sequoia, Camelot)", "unit": "SQ", "qty": 0, "cost": 120.0},
-        {"desc": "UPGRADE: Full ice & water shield (entire deck, vs eaves only)", "unit": "SQ", "qty": 0, "cost": 45.0},
-        {"desc": "UPGRADE: Full peel-and-stick synthetic underlayment", "unit": "SQ", "qty": 0, "cost": 30.0},
-        {"desc": "UPGRADE: Ridge vent system (replace static vents)", "unit": "LF", "qty": 0, "cost": 9.0},
-        {"desc": "UPGRADE: Premium hip & ridge cap shingles", "unit": "LF", "qty": 0, "cost": 4.0},
-        {"desc": "UPGRADE: Lifetime pipe boots / lead jacks", "unit": "EA", "qty": 0, "cost": 35.0},
-        {"desc": "UPGRADE: Re-deck / replace plywood", "unit": "SQ", "qty": 0, "cost": 250.0},
-        {"desc": "UPGRADE: Extended workmanship warranty (GAF Golden Pledge)", "unit": "LS", "qty": 0, "cost": 600.0},
+        {"desc": "UPGRADE: 26GA 5V Crimp metal panels (Galvalume) vs shingle", "unit": "SQ", "qty": 0, "cost": 375.0},
     ],
     "tile": [
-        {"desc": "UPGRADE: 2-ply self-adhered underlayment", "unit": "SQ", "qty": 0, "cost": 55.0},
-        {"desc": "UPGRADE: Premium tile profile / color (Eagle Capistrano, Saxony slate)", "unit": "SQ", "qty": 0, "cost": 90.0},
-        {"desc": "UPGRADE: Foam-set adhesive system (vs mortar)", "unit": "SQ", "qty": 0, "cost": 60.0},
-        {"desc": "UPGRADE: Mortar hip & ridge, color-matched finish", "unit": "LF", "qty": 0, "cost": 5.0},
-        {"desc": "ADD-ON: Birdstop / eave closure", "unit": "LF", "qty": 0, "cost": 6.0},
-        {"desc": "UPGRADE: Lead / copper pipe flashings", "unit": "EA", "qty": 0, "cost": 65.0},
+        {"desc": "UPGRADE: 2-ply mechanically-attached base underlayment (Polyanchor HV + Polyglass TU Plus)", "unit": "SQ", "qty": 0, "cost": 50.0},
+        {"desc": "UPGRADE: 2-ply self-adhered underlayment (Polyglass MTS + TU Plus)", "unit": "SQ", "qty": 0, "cost": 80.0},
+        {"desc": "UPGRADE: Premium / Designer tile selection", "unit": "SQ", "qty": 0, "cost": 90.0},
+        {"desc": "UPGRADE: Color-Coat / Slurry-Coat tile selection", "unit": "SQ", "qty": 0, "cost": 60.0},
+        {"desc": "ADD-ON: Saltwater package — copper drip edge & valley flashing", "unit": "LF", "qty": 0, "cost": 20.0},
     ],
     "metal": [
-        {"desc": "UPGRADE: Kynar 500 premium color finish", "unit": "SQ", "qty": 0, "cost": 75.0},
-        {"desc": "UPGRADE: 24-gauge panel (vs 26-gauge)", "unit": "SQ", "qty": 0, "cost": 90.0},
-        {"desc": "UPGRADE: 2-ply self-adhered underlayment", "unit": "SQ", "qty": 0, "cost": 55.0},
-        {"desc": "ADD-ON: Ridge vent (vented closure)", "unit": "LF", "qty": 0, "cost": 10.0},
-        {"desc": "ADD-ON: Snow guards", "unit": "EA", "qty": 0, "cost": 12.0},
-        {"desc": "UPGRADE: Custom trim / flashing color match", "unit": "LF", "qty": 0, "cost": 6.0},
+        {"desc": "UPGRADE: 2-ply #30 felt underlayment system", "unit": "SQ", "qty": 0, "cost": 45.0},
+        {"desc": "UPGRADE: 2-ply self-adhered underlayment (Polyglass MTS)", "unit": "SQ", "qty": 0, "cost": 64.0},
+        {"desc": "UPGRADE: Standard color panels & trim (vs Galvalume)", "unit": "SQ", "qty": 0, "cost": 40.0},
+        {"desc": "ADD-ON: Saltwater package — .032 aluminum panels, drip & valley", "unit": "SQ", "qty": 0, "cost": 30.0},
     ],
     "flat": [
         {"desc": "UPGRADE: 80-mil TPO membrane (vs 60-mil)", "unit": "SQ", "qty": 0, "cost": 45.0},
@@ -611,9 +613,11 @@ UPGRADES = {
         {"desc": "ADD-ON: Additional roof drain / scupper", "unit": "EA", "qty": 0, "cost": 350.0},
     ],
     "common": [
-        {"desc": "ADD-ON: Skylight replacement", "unit": "EA", "qty": 0, "cost": 650.0},
-        {"desc": "ADD-ON: New seamless aluminum gutters", "unit": "LF", "qty": 0, "cost": 9.0},
-        {"desc": "ADD-ON: Gutter guards / leaf protection", "unit": "LF", "qty": 0, "cost": 8.0},
+        {"desc": "ADD-ON: Hurricane impact-rated skylights (Bronze / Smoke lens)", "unit": "EA", "qty": 0, "cost": 650.0},
+        {"desc": "ADD-ON: Gutters & downspouts — 6\" aluminum K-style (all eaves)", "unit": "LF", "qty": 0, "cost": 9.0},
+        {"desc": "ADD-ON: Gutters & downspouts — 6\" aluminum K-style (zero side, per FBC)", "unit": "LF", "qty": 0, "cost": 9.0},
+        {"desc": "UPGRADE: Hurricane clips — Simpson gussets + re-deck above tie beam", "unit": "LF", "qty": 0, "cost": 12.0},
+        {"desc": "UPGRADE: Wall flashing & stucco (replace; per wood sheet if corroded)", "unit": "LF", "qty": 0, "cost": 25.0},
     ],
 }
 
