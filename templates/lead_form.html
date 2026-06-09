@@ -11,11 +11,42 @@
 <div class="detail">
   <!-- ── Main column ─────────────────────────────────────────────── -->
   <div>
+    {% if mode=='new' %}
+    <!-- 🎤 Voice-guided intake (Karla) -->
+    <div class="card vintake">
+      <div class="vi-mic-wrap">
+        <button type="button" id="micBtn" class="vi-mic" aria-label="Tap to talk">🎤</button>
+        <div class="vi-state">
+          <div id="micState" class="vi-state-main">Tap the mic and just talk — I’ll fill the form as you go</div>
+          <div class="muted" style="font-size:12px">Works hands-free if the call is on speakerphone. Chrome will ask to allow the mic the first time.</div>
+        </div>
+      </div>
+      <div class="vi-guide">
+        <div class="vi-q-row">
+          <span class="vi-step-no" id="viStepNo">1/7</span>
+          <div>
+            <div class="vi-ask">Ask the customer:</div>
+            <div class="vi-q" id="viQ">What’s the customer’s full name?</div>
+          </div>
+        </div>
+        <div id="viHeard" class="vi-heard"></div>
+        <div class="vi-nav">
+          <button type="button" class="btn" id="viPrev">← Back</button>
+          <button type="button" class="btn primary" id="viNext">Next question →</button>
+          <button type="button" class="btn ghost" id="viSkip">Skip</button>
+        </div>
+        <div class="vi-chips" id="viChips"></div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Primary Contact -->
     <div class="card">
       <div class="panel-head"><span>👤 Primary Contact</span><span class="muted" style="color:var(--danger)">* Required</span></div>
       <div class="row">
-        <div class="field"><label>Name *</label><input name="name" value="{{ lead.name or '' }}" required placeholder="First &amp; Last"></div>
+        <div class="field"><label>Name *</label><input name="name" id="f_name" value="{{ lead.name or '' }}" required placeholder="First &amp; Last" list="contactList" autocomplete="off">
+          <datalist id="contactList">{% for c in contacts %}<option value="{{ (c.first_name or '') ~ ' ' ~ (c.last_name or '') }}{{ ' · ' ~ c.company if c.company }}"></option>{% endfor %}</datalist>
+        </div>
         <div class="field"><label>Ref #</label><input name="rid" value="{{ lead.rid or '' }}" placeholder="L-1003"></div>
       </div>
       <div class="row">
@@ -139,6 +170,137 @@
   var cb = document.getElementById('same_as_loc'), box = document.getElementById('mail_fields');
   function sync(){ box.style.display = cb.checked ? 'none' : ''; }
   cb.addEventListener('change', sync); sync();
+})();
+</script>
+
+<style>
+  .vintake{border:2px solid var(--accent2);background:linear-gradient(180deg,#fff, #f4f9ff)}
+  .vi-mic-wrap{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+  .vi-mic{flex:0 0 auto;width:84px;height:84px;min-height:84px;border-radius:50%;font-size:36px;
+    background:var(--accent2);border:none;color:#fff;box-shadow:0 6px 18px rgba(20,60,120,.28);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:transform .1s}
+  .vi-mic:hover{transform:scale(1.05)}
+  .vi-mic.live{background:var(--danger);animation:vipulse 1.1s infinite}
+  @keyframes vipulse{0%{box-shadow:0 0 0 0 rgba(226,80,80,.5)}70%{box-shadow:0 0 0 16px rgba(226,80,80,0)}100%{box-shadow:0 0 0 0 rgba(226,80,80,0)}}
+  .vi-state-main{font-weight:800;font-size:15px}
+  .vi-guide{border-top:1px dashed var(--line);padding-top:12px}
+  .vi-q-row{display:flex;align-items:center;gap:12px}
+  .vi-step-no{flex:0 0 auto;background:var(--accent2);color:#fff;font-weight:800;font-size:13px;
+    border-radius:999px;padding:4px 11px}
+  .vi-ask{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
+  .vi-q{font-size:19px;font-weight:800;line-height:1.2}
+  .vi-heard{margin:10px 0;min-height:20px;font-size:13px;color:var(--accent2);font-style:italic}
+  .vi-nav{display:flex;gap:8px;flex-wrap:wrap}
+  .vi-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .vi-chip{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--panel2);
+    border:1px solid var(--line);color:var(--mut)}
+  .vi-chip.done{background:#8CC63F22;border-color:#8CC63F;color:#3c6b16}
+</style>
+<script>
+(function(){
+  var micBtn=document.getElementById('micBtn');
+  if(!micBtn) return;                                   // edit mode: no wizard
+  var CONTACTS=[{% for c in contacts %}{"id":{{ c.id }},"name":{{ ((c.first_name or '')~' '~(c.last_name or ''))|trim|tojson }}}{{ ',' if not loop.last }}{% endfor %}];
+
+  // ---- existing-contact autocomplete: typing a known name links the contact ----
+  var nameEl=document.getElementById('f_name'), cidEl=document.querySelector('[name="contact_id"]');
+  function linkContact(){
+    if(!nameEl||!cidEl) return;
+    var v=(nameEl.value||'').split(' · ')[0].trim().toLowerCase();
+    if(v.indexOf(' · ')>-1){} // (datalist may append company)
+    var hit=CONTACTS.filter(function(c){return c.name.toLowerCase()===v;})[0];
+    if(hit){ cidEl.value=hit.id; nameEl.value=nameEl.value.split(' · ')[0].trim(); }
+  }
+  if(nameEl) nameEl.addEventListener('change', linkContact);
+
+  // ---- guided steps: question -> form field ----
+  var STEPS=[
+    {q:"What’s the customer’s full name?", sel:"name", kind:"name"},
+    {q:"Best phone number to reach them?", sel:"phone", kind:"phone"},
+    {q:"Email address?", sel:"email", kind:"email"},
+    {q:"What’s the property address? (street, city, zip)", sel:"address", kind:"text"},
+    {q:"What kind of roof or work do they need?", sel:"work_type", kind:"select"},
+    {q:"How did they hear about us? (lead source)", sel:"source", kind:"select"},
+    {q:"Anything else we should know? (notes)", sel:"notes", kind:"text"}
+  ];
+  var step=0;
+  var viQ=document.getElementById('viQ'), viNo=document.getElementById('viStepNo'),
+      viHeard=document.getElementById('viHeard'), viChips=document.getElementById('viChips'),
+      micState=document.getElementById('micState');
+
+  function fieldEl(sel){ return document.querySelector('[name="'+sel+'"]'); }
+  function renderChips(){
+    viChips.innerHTML='';
+    STEPS.forEach(function(s,i){
+      var el=fieldEl(s.sel), filled=el&&(''+el.value).trim();
+      var c=document.createElement('span'); c.className='vi-chip'+(filled?' done':'');
+      c.textContent=(filled?'✓ ':'')+({name:'Name',phone:'Phone',email:'Email',address:'Address',work_type:'Work type',source:'Source',notes:'Notes'}[s.sel]||s.sel);
+      c.onclick=function(){ go(i); }; c.style.cursor='pointer';
+      viChips.appendChild(c);
+    });
+  }
+  function go(i){
+    step=Math.max(0,Math.min(STEPS.length-1,i));
+    viQ.textContent=STEPS[step].q; viNo.textContent=(step+1)+'/'+STEPS.length; viHeard.textContent='';
+    var el=fieldEl(STEPS[step].sel); if(el){ try{ el.focus(); el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} }
+    renderChips();
+  }
+  document.getElementById('viNext').onclick=function(){ go(step+1); };
+  document.getElementById('viPrev').onclick=function(){ go(step-1); };
+  document.getElementById('viSkip').onclick=function(){ go(step+1); };
+
+  // ---- smart parse: pull phone/email out of ANY utterance ----
+  function setIf(sel,val){ var el=fieldEl(sel); if(el&&!(''+el.value).trim()){ el.value=val; } }
+  function selectMatch(sel,text){
+    var el=fieldEl(sel); if(!el||el.tagName!=='SELECT') return false;
+    var t=text.toLowerCase();
+    for(var i=0;i<el.options.length;i++){ var ot=(el.options[i].text||'').toLowerCase().trim(); if(ot && t.indexOf(ot)>-1){ el.selectedIndex=i; return true; } }
+    var map={tile:'tile',metal:'metal','5v':'metal',shingle:'shingle',flat:'flat',tpo:'flat',repair:'repair'};
+    for(var k in map){ if(t.indexOf(k)>-1){ for(var j=0;j<el.options.length;j++){ if((el.options[j].text||'').toLowerCase().indexOf(map[k])>-1){ el.selectedIndex=j; return true; } } } }
+    return false;
+  }
+  function smartParse(t){
+    var ph=t.match(/(\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4})/); if(ph) setIf('phone', ph[1].trim());
+    var em=t.replace(/\s+at\s+/gi,'@').replace(/\s+dot\s+/gi,'.').match(/[\w.\-]+@[\w.\-]+\.\w+/); if(em) setIf('email', em[0].toLowerCase());
+  }
+
+  // ---- write the current step's answer into its field ----
+  function applyAnswer(text){
+    var s=STEPS[step], el=fieldEl(s.sel); if(!el) return;
+    var t=text.trim(); if(!t) return;
+    if(s.kind==='phone'){ var d=t.replace(/\D/g,''); if(d.length>=10){ el.value=d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6,10); } }
+    else if(s.kind==='email'){ el.value=t.replace(/\s+at\s+/gi,'@').replace(/\s+dot\s+/gi,'.').replace(/\s+/g,'').toLowerCase(); }
+    else if(s.kind==='select'){ selectMatch(s.sel,t); }
+    else if(s.kind==='name'){ el.value=t.replace(/[0-9].*$/,'').replace(/\b\w/g,function(m){return m.toUpperCase();}).trim(); linkContact(); }
+    else { el.value=(el.value? el.value+' ' : '')+t; }
+    smartParse(t); renderChips();
+  }
+
+  // ---- speech recognition ----
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition, rec=null, listening=false;
+  if(!SR){ micBtn.disabled=true; micState.textContent='Voice input needs Chrome — you can still type the answers.'; renderChips(); go(0); return; }
+  function start(){
+    rec=new SR(); rec.lang='en-US'; rec.continuous=true; rec.interimResults=true;
+    rec.onresult=function(e){
+      var fin='',interim='';
+      for(var i=e.resultIndex;i<e.results.length;i++){ var r=e.results[i]; if(r.isFinal) fin+=r[0].transcript; else interim+=r[0].transcript; }
+      viHeard.textContent=(fin||interim)? ('“'+(fin||interim).trim()+'”') : '';
+      if(fin){
+        var low=fin.trim().toLowerCase();
+        if(/^(next|next question)\b/.test(low)){ go(step+1); return; }
+        if(/^(back|go back|previous)\b/.test(low)){ go(step-1); return; }
+        applyAnswer(fin);
+      }
+    };
+    rec.onend=function(){ if(listening){ try{rec.start();}catch(e){} } };
+    rec.onerror=function(ev){ if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){ stop(); micState.textContent='Mic blocked — click the 🔒 in the address bar and allow the microphone.'; } };
+    try{ rec.start(); }catch(e){}
+    listening=true; micBtn.classList.add('live'); micState.textContent='Listening… speak naturally. Say “next” to move on.';
+  }
+  function stop(){ listening=false; micBtn.classList.remove('live'); if(rec){ try{rec.stop();}catch(e){} } micState.textContent='Paused — tap the mic to resume.'; }
+  micBtn.onclick=function(){ listening? stop() : start(); };
+
+  renderChips(); go(0);
 })();
 </script>
 {% endblock %}
