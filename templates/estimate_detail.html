@@ -8,10 +8,10 @@
   {% if lead %}<a class="muted" href="{{ url_for('leads.detail', lead_id=lead.id) }}">· {{ lead.name }}</a>{% endif %}
   {% if job %}<a class="muted" href="{{ url_for('jobs.detail', job_id=job.id) }}">· {{ job.name }}</a>{% endif %}
   <div class="grow"></div>
-  <button class="primary" onclick="saveEstimate()">💾 Save</button>
-  <a class="btn" target="_blank" href="{{ url_for('estimates.print_view', est_id=e.id) }}">🖨 Proposal</a>
+  <button class="primary" onclick="saveEstimate()">Save</button>
+  <a class="btn" target="_blank" href="{{ url_for('estimates.print_view', est_id=e.id) }}">Print Proposal</a>
   <form method="post" action="{{ url_for('estimates.status', est_id=e.id) }}" style="display:inline">
-    <input type="hidden" name="status" value="sent"><button type="submit">Mark Sent</button>
+    <input type="hidden" name="status" value="sent"><button type="submit">Mark as Sent</button>
   </form>
 </div>
 
