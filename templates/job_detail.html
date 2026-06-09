@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
+{% from "_lifecycle.html" import lifecycle_bar %}
 {% block title %}{{ j.name }}{% endblock %}
 {% block body %}
 {% set paid = (j._paid_pct*100)|round|int %}
@@ -35,6 +36,27 @@
   {% endif %}
   <a class="btn" href="{{ url_for('jobs.edit', job_id=j.id) }}">Edit</a>
 </div>
+
+<!-- Unified lifecycle bar + big Next Step button -->
+<div class="card" style="margin-bottom:14px">
+  {{ lifecycle_bar('job', j.stage) }}
+  {% set ns = constants.next_step('job', j.stage) %}
+  {% if ns %}
+  <div style="display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap">
+    {% if j._pct < 100 %}<span class="muted" style="font-size:12px">Stage checklist {{ j._pct }}% done</span>{% endif %}
+    <form method="post" action="{{ url_for('jobs.set_stage', job_id=j.id) }}" onsubmit="return lcGate(this,{{ j._pct }})">
+      <input type="hidden" name="stage" value="{{ ns.stage }}">
+      <button class="btn lg primary" type="submit">{{ ns.label }} →</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+<script>
+function lcGate(form,pct){
+  if(pct>=100) return true;
+  return confirm("Some checklist items for this stage aren't checked off yet ("+pct+"% done). Move forward anyway?");
+}
+</script>
 
 <!-- Milestones panel -->
 <div class="card mstone">

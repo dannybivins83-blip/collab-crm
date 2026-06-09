@@ -105,6 +105,7 @@
     </div>
   </div>
   <a class="navitem {{ 'on' if seg=='/' }}" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+  <a class="navitem {{ 'on' if seg.startswith('/pipeline') }}" href="{{ url_for('pipeline.board') }}">Pipeline</a>
   <a class="navitem {{ 'on' if seg.startswith('/leads') }}" href="{{ url_for('leads.list_view') }}">Leads</a>
   <div class="navgroup">
     <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/jobs') }}" href="{{ url_for('jobs.list_view') }}">Jobs ▾</a>

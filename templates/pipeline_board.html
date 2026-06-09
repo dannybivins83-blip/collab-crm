@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Pipeline{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>Pipeline</h1>
+  <span class="sub">{{ totals.count }} records · {{ money(totals.value) }}</span>
+  <div class="grow"></div>
+  <span class="muted" style="font-size:12px">Leads → Jobs, one flow</span>
+</div>
+
+<div class="pboard">
+  {% for c in columns %}
+  <div class="pcol">
+    <div class="pcol-head" style="border-top:3px solid {{ c.def.color }}">
+      <div class="pcol-name">{{ c.def.name }}</div>
+      <div class="pcol-meta">{{ c.count }} · {{ money_k(c.value) }}</div>
+    </div>
+    <div class="pcol-body">
+      {% for card in c.shown %}
+      <a class="pcard" href="{{ card.href }}">
+        <div class="pcard-top">
+          <span class="pcard-kind {{ card.kind }}">{{ 'L' if card.kind=='lead' else 'J' }}</span>
+          <span class="pcard-name">{{ card.rid ~ ' · ' if card.rid }}{{ card.name }}</span>
+        </div>
+        {% if card.address %}<div class="pcard-sub">{{ card.address }}</div>{% endif %}
+        <div class="pcard-foot">
+          <span class="pill" style="background:{{ card.color }}22;color:{{ card.color }}">{{ card.stage_name }}</span>
+          {% if card.value %}<span class="pcard-val">{{ money_k(card.value) }}</span>{% endif %}
+        </div>
+        {% if card.rep %}<div class="pcard-rep">{{ card.rep }}</div>{% endif %}
+      </a>
+      {% else %}
+      <div class="muted" style="padding:14px;font-size:12px;text-align:center">No records</div>
+      {% endfor %}
+      {% if c.more %}
+      <div class="pcard-more">+ {{ c.more }} more</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<style>
+  .pboard{display:flex;gap:12px;overflow-x:auto;padding-bottom:14px;align-items:flex-start}
+  .pcol{flex:0 0 248px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    display:flex;flex-direction:column;max-height:calc(100vh - 190px)}
+  .pcol-head{padding:10px 12px;background:var(--panel);border-radius:12px 12px 0 0;border-bottom:1px solid var(--line)}
+  .pcol-name{font-weight:800;font-size:14px}
+  .pcol-meta{font-size:11px;color:var(--mut);font-weight:700;margin-top:2px}
+  .pcol-body{padding:8px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+  .pcard{display:block;background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    padding:9px 10px;text-decoration:none;color:var(--txt)}
+  .pcard:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(20,40,80,.08)}
+  .pcard-top{display:flex;align-items:center;gap:7px}
+  .pcard-kind{width:18px;height:18px;border-radius:5px;font-size:11px;font-weight:800;color:#fff;
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .pcard-kind.lead{background:#F78300}.pcard-kind.job{background:#8CC63F}
+  .pcard-name{font-size:13px;font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pcard-sub{font-size:11px;color:var(--mut);margin:4px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pcard-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px}
+  .pcard-val{font-size:12px;font-weight:800}
+  .pcard-rep{font-size:11px;color:var(--mut);margin-top:4px}
+  .pcard-more{text-align:center;font-size:12px;font-weight:700;color:var(--mut);padding:8px}
+</style>
+{% endblock %}
