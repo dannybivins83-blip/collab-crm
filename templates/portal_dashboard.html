@@ -526,37 +526,17 @@
   </script>
 
 
-  <!-- DOCUMENTS TO SIGN -->
-  {% if docs_to_sign %}
-  <div class="card action" id="sign">
-    <div class="h act">✍️ Action Needed — Please Sign</div>
-    {% for d in docs_to_sign %}
-    <div style="padding:6px 0 14px;{{ 'border-bottom:1px solid var(--line);margin-bottom:10px' if not loop.last }}">
-      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-        <b style="flex:1;min-width:0">{{ d.original_name }}</b>
-        <a class="btn ghost sm" href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">View</a>
-      </div>
-      <form method="post" action="{{ url_for('portal.sign_doc', token=token, doc_id=d.id) }}" onsubmit="return grabSig(this)">
-        <label>Sign below</label>
-        <canvas class="sigpad sig" width="500" height="130"></canvas>
-        <div class="stack" style="margin-top:10px">
-          <input name="signed_name" placeholder="Type your full name" required>
-          <div class="row">
-            <button type="button" class="btn ghost sm" onclick="clearSig(this)">Clear</button>
-            <input type="hidden" name="signature">
-            <button class="btn green" type="submit" style="flex:1">✓ Sign &amp; Submit</button>
-          </div>
-        </div>
-      </form>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
 
-  <!-- ESTIMATE / APPROVE -->
+  <!-- WELCOME PACKET — proposal + sign-up package + docs to sign + permit docs -->
   <div class="card" id="estimate">
-    <div class="h">Your Proposal</div>
-    {% if not estimates %}<div class="muted">Your proposal will appear here once it's ready.</div>{% endif %}
+    <style>#estimate .pkt-h{font-weight:800;font-size:14.5px;margin:0 0 8px;color:var(--ink)}
+      #estimate .pkt-sec{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}</style>
+    <div class="h">📋 Your Welcome Packet{% if j.work_type %} — {{ j.work_type }}{% endif %}</div>
+    <div class="muted" style="margin-bottom:14px">Your proposal, sign-up paperwork, and permit documents — all in one place to review and sign.</div>
+
+    <!-- 1. Proposal -->
+    <div class="pkt-h">1 · Your Proposal</div>
+    {% if not estimates %}<div class="muted" style="margin-bottom:8px">Your proposal will appear here once it's ready.</div>{% endif %}
     {% for e in estimates %}
     <div style="padding:6px 0 12px;{{ 'border-bottom:1px solid var(--line);margin-bottom:10px' if not loop.last }}">
       <div class="row" style="justify-content:space-between;align-items:center">
@@ -574,6 +554,54 @@
       {% else %}<div class="muted" style="margin-top:8px">✓ Signed by {{ e.signed_name }} on {{ (e.signed_at or '')[:10] }}.</div>{% endif %}
     </div>
     {% endfor %}
+
+    <!-- 2. Sign-up / welcome package (system-specific) -->
+    {% if signup_packet %}
+    <div class="pkt-sec">
+      <div class="pkt-h">2 · Your {{ signup_packet.system|title }} Sign-Up Package</div>
+      <div class="muted" style="margin-bottom:10px">Pre-filled with your info — review, initial each section, and sign online.</div>
+      <a class="btn green block" href="{{ url_for('signups.portal_view', token=token, packet_id=signup_packet.id) }}">Open &amp; Complete Sign-Up Package →</a>
+    </div>
+    {% endif %}
+
+    <!-- 3. Documents that need a signature -->
+    {% if docs_to_sign %}
+    <div class="pkt-sec">
+      <div class="pkt-h">3 · Documents to sign ✍️</div>
+      {% for d in docs_to_sign %}
+      <div style="padding:6px 0 14px;{{ 'border-bottom:1px solid var(--line);margin-bottom:10px' if not loop.last }}">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+          <b style="flex:1;min-width:0">{{ d.original_name }}</b>
+          <a class="btn ghost sm" href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">View</a>
+        </div>
+        <form method="post" action="{{ url_for('portal.sign_doc', token=token, doc_id=d.id) }}" onsubmit="return grabSig(this)">
+          <label>Sign below</label>
+          <canvas class="sigpad sig" width="500" height="130"></canvas>
+          <div class="stack" style="margin-top:10px">
+            <input name="signed_name" placeholder="Type your full name" required>
+            <div class="row">
+              <button type="button" class="btn ghost sm" onclick="clearSig(this)">Clear</button>
+              <input type="hidden" name="signature">
+              <button class="btn green" type="submit" style="flex:1">✓ Sign &amp; Submit</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 4. Permit documents -->
+    {% set permit_docs = documents|selectattr('category','in',['Permit','NOA','NOC'])|list %}
+    {% if permit_docs %}
+    <div class="pkt-sec">
+      <div class="pkt-h">4 · Permit Documents 📑</div>
+      {% for d in permit_docs %}
+      <div class="doc"><span class="di">📄</span><a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>
+      {% endfor %}
+      <div class="muted" style="font-size:12px;margin-top:9px">Notarized permit forms (Notice of Commencement, nailing affidavit) are signed in person with a notary — your project contact will coordinate that with you.</div>
+    </div>
+    {% endif %}
   </div>
 
   <!-- PAYMENTS -->
