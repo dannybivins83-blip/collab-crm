@@ -248,9 +248,13 @@ def detail(est_id):
         measurement = meas.for_job(e["job_id"])
     if not measurement and e.get("lead_id"):
         measurement = meas.for_lead(e["lead_id"])
+    try:
+        catalog = db.all_rows("material_catalog", order="name")
+    except Exception:
+        catalog = []
     return render_template("estimate_detail.html", e=e, sections=sections, totals=totals,
                            draws=_draws(totals["total"]), measurement=measurement,
-                           scope_templates=constants.SCOPE_TEMPLATES,
+                           scope_templates=constants.SCOPE_TEMPLATES, catalog=catalog,
                            job=db.get("jobs", e["job_id"]) if e.get("job_id") else None,
                            lead=db.get("leads", e["lead_id"]) if e.get("lead_id") else None)
 

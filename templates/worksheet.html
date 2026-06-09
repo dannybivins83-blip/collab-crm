@@ -24,7 +24,7 @@
           {% for l in lines %}
           <tr>
             <td><select class="w-cat" style="width:100px">{% for c in categories %}<option {{ 'selected' if l.category==c }}>{{ c }}</option>{% endfor %}</select></td>
-            <td><input class="w-desc" value="{{ l.description }}"></td>
+            <td><input class="w-desc" list="catlist" value="{{ l.description }}" onchange="descPick(this)"></td>
             <td class="num"><input class="w-qty num" type="number" step="0.01" value="{{ '%.2f'|format(l.qty or 0) }}" oninput="lineCalc(this)" style="width:64px"></td>
             <td><input class="w-unit" value="{{ l.unit or '' }}" style="width:44px"></td>
             <td class="num"><input class="w-uc num" type="number" step="0.01" value="{{ '%.2f'|format(l.unit_cost or 0) }}" oninput="lineCalc(this)" style="width:78px"></td>
@@ -60,7 +60,14 @@
   </div>
 </div>
 
+<datalist id="catlist">
+  {% for c in catalog %}<option value="{{ c.name }}">{{ c.unit }}{% if c.unit2 and c.unit2 != c.unit %} / {{ c.unit2 }}{% endif %} · {{ c.category }}</option>{% endfor %}
+</datalist>
+
 <script>
+// Material Catalog name -> unit (from the AccuLynx Company Library import).
+window.CATUNIT = { {% for c in catalog %}{{ c.name|tojson }}:{{ c.unit|tojson }}{{ ',' if not loop.last }}{% endfor %} };
+function descPick(el){ var u=window.CATUNIT[el.value]; if(u){ var ui=el.closest('tr').querySelector('.w-unit'); if(ui) ui.value=u; recalc(); } }
 function money(n){return '$'+(Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
 function cvNum(){return parseFloat((document.getElementById('cv').value||'').replace(/[^0-9.]/g,''))||0}
 function recalc(){
@@ -76,7 +83,7 @@ function recalc(){
 }
 function rowHTML(){
   return `<td><select class="w-cat" style="width:100px">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></td>`+
-   `<td><input class="w-desc"></td>`+
+   `<td><input class="w-desc" list="catlist" onchange="descPick(this)"></td>`+
    `<td class="num"><input class="w-qty num" type="number" step="0.01" value="0" oninput="lineCalc(this)" style="width:64px"></td>`+
    `<td><input class="w-unit" style="width:44px"></td>`+
    `<td class="num"><input class="w-uc num" type="number" step="0.01" value="0" oninput="lineCalc(this)" style="width:78px"></td>`+

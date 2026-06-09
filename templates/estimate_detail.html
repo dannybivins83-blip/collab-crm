@@ -33,7 +33,7 @@
             <tbody>
               {% for l in s._lines %}
               <tr>
-                <td><input class="l-desc" value="{{ l.description }}"></td>
+                <td><input class="l-desc" list="catlist" value="{{ l.description }}" onchange="descPick(this)"></td>
                 <td class="num"><input class="l-qty num" type="number" step="0.01" value="{{ l.qty }}" oninput="priceFromMargin(this)" style="width:66px"></td>
                 <td><input class="l-unit" value="{{ l.unit }}" style="width:52px"></td>
                 <td class="num"><input class="l-cost num" type="number" step="0.01" value="{{ l.cost }}" oninput="priceFromMargin(this)" style="width:84px"></td>
@@ -144,7 +144,12 @@
   </div>
 </div>
 
+<datalist id="catlist">
+  {% for c in catalog %}<option value="{{ c.name }}">{{ c.unit }}{% if c.unit2 and c.unit2 != c.unit %} / {{ c.unit2 }}{% endif %} · {{ c.category }}</option>{% endfor %}
+</datalist>
+
 <script>
+window.CATUNIT = { {% for c in catalog %}{{ c.name|tojson }}:{{ c.unit|tojson }}{{ ',' if not loop.last }}{% endfor %} };
 const SCOPES = {{ scope_templates|tojson }};
 const MEAS = {{ measurement|tojson if measurement else 'null' }};
 function money(n){return '$'+(Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -196,8 +201,9 @@ function recalc(){
   t_tax.textContent=money(tax); t_margin.textContent=margin.toFixed(1)+'%'; t_net.textContent=money(net);
   document.querySelectorAll('.draw-amt').forEach(el=>{el.textContent=money(total*(+el.dataset.pct||0))});
 }
+function descPick(el){ var u=(window.CATUNIT||{})[el.value]; if(u){ var ui=el.closest('tr').querySelector('.l-unit'); if(ui) ui.value=u; } }
 function lineRowHTML(){
-  return `<td><input class="l-desc"></td>`+
+  return `<td><input class="l-desc" list="catlist" onchange="descPick(this)"></td>`+
    `<td class="num"><input class="l-qty num" type="number" step="0.01" value="0" oninput="priceFromMargin(this)" style="width:66px"></td>`+
    `<td><input class="l-unit" value="EA" style="width:52px"></td>`+
    `<td class="num"><input class="l-cost num" type="number" step="0.01" value="0" oninput="priceFromMargin(this)" style="width:84px"></td>`+

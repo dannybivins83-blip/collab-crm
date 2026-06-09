@@ -131,9 +131,13 @@ def view(job_id):
     if not job:
         return redirect(url_for("jobs.board"))
     ws = get_or_create(job_id)
+    try:
+        catalog = db.all_rows("material_catalog", order="name")
+    except Exception:
+        catalog = []
     return render_template("worksheet.html", job=job, ws=ws, lines=lines_for(ws["id"]),
                            categories=CATEGORIES, profit=profit_analysis(job_id),
-                           draws=constants.DRAW_SCHEDULE)
+                           draws=constants.DRAW_SCHEDULE, catalog=catalog)
 
 
 @bp.route("/<int:job_id>/seed", methods=["POST"])
