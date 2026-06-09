@@ -123,10 +123,17 @@ def detail(lead_id):
         return redirect(url_for("leads.board"))
     _decorate(l)
     from modules import measurements as meas
+    # Quick Estimate is scoped to THIS client's system (the work type tagged at lead
+    # entry) — show only the matching template(s), not the whole catalog.
+    key = constants.template_for_work_type(l.get("work_type") or "")
+    quick_templates = [t for t in db.all_rows("templates", order="name")
+                       if constants.template_for_work_type(t.get("work_type") or "") == key
+                       and key not in ("blank",)]
     return render_template("lead_detail.html", l=l,
                            activity=db.entity_activity("lead", lead_id),
                            estimates=db.all_rows("estimates", "lead_id=?", (lead_id,)),
                            measurement=meas.for_lead(lead_id),
+                           quick_templates=quick_templates,
                            documents=db.all_rows("documents", "lead_id=?", (lead_id,)),
                            reps=[u["name"] for u in db.all_rows("users", "active=1", order="name")])
 

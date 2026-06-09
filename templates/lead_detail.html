@@ -95,9 +95,9 @@
       <div class="panel-head"><span>⚡ Quick Estimate</span>
         {% if measurement %}<span class="badge" style="color:var(--ok)">📐 {{ measurement.squares }} sq</span>{% endif %}
       </div>
-      <div class="muted" style="margin-bottom:8px">One click builds the estimate from a template{% if measurement %} and fills quantities from the roof measurement{% endif %} — opens ready to send.</div>
+      <div class="muted" style="margin-bottom:8px">{% if quick_templates %}One click builds this client's estimate for their tagged system{% if l.work_type %} (<b>{{ l.work_type }}</b>){% endif %}{% if measurement %} and fills quantities from the roof measurement{% endif %} — opens ready to send.{% else %}Tag this lead's roofing system (Edit → Work type) for a one-click estimate, or pick a template below.{% endif %}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">
-        {% for t in estimate_templates() %}
+        {% for t in quick_templates %}
         <form method="post" action="{{ url_for('estimates.quick') }}" style="margin:0">
           <input type="hidden" name="lead_id" value="{{ l.id }}">
           <input type="hidden" name="template_id" value="{{ t.id }}">
@@ -106,27 +106,8 @@
         </form>
         {% endfor %}
       </div>
-      <a class="btn sm ghost" style="margin-top:8px" href="{{ url_for('estimates.new') }}?lead_id={{ l.id }}">+ Custom / pick template…</a>
+      <a class="btn sm ghost" style="margin-top:8px" href="{{ url_for('estimates.new') }}?lead_id={{ l.id }}">+ Different system / pick template…</a>
     </div>
-    {% set cflds = custom_fields('lead') %}
-    {% if cflds %}
-    <div class="card">
-      <div class="panel-head"><span>🧰 Custom Fields</span></div>
-      {% set cvals = custom_values('lead', l.id) %}
-      <form method="post" action="{{ url_for('customfields.save_values', entity_type='lead', entity_id=l.id) }}" class="cf-grid">
-        {% for f in cflds %}
-        <div class="field"><label>{{ f.label }}</label>
-          {% if f.field_type=='select' %}<select name="cf_{{ f.id }}"><option value=""></option>{% for o in field_opts(f) %}<option {{ 'selected' if cvals.get(f.id)==o }}>{{ o }}</option>{% endfor %}</select>
-          {% elif f.field_type=='checkbox' %}<input type="checkbox" name="cf_{{ f.id }}" value="yes" {{ 'checked' if cvals.get(f.id)=='yes' }}>
-          {% elif f.field_type=='number' %}<input type="number" name="cf_{{ f.id }}" value="{{ cvals.get(f.id,'') }}">
-          {% elif f.field_type=='date' %}<input type="date" name="cf_{{ f.id }}" value="{{ cvals.get(f.id,'') }}">
-          {% else %}<input name="cf_{{ f.id }}" value="{{ cvals.get(f.id,'') }}">{% endif %}
-        </div>
-        {% endfor %}
-        <button class="btn sm primary" type="submit">Save fields</button>
-      </form>
-    </div>
-    {% endif %}
     <div class="card">
       <h2>Quick actions</h2>
       <form method="post" action="{{ url_for('leads.assign', lead_id=l.id) }}" style="display:flex;gap:6px;margin-bottom:8px">
