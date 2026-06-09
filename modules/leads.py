@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Sales pipeline (leads) — Kanban board, detail, drag-to-advance, convert-to-job."""
+import re
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 
 import db
@@ -245,6 +247,50 @@ def edit(lead_id):
         return redirect(url_for("leads.detail", lead_id=lead_id))
     return render_template("lead_form.html", lead=l, contacts=db.all_rows("contacts", order="last_name"),
                            mode="edit")
+
+
+@bp.route("/backfill-ahj", methods=["POST"])
+def backfill_ahj():
+    """One-time maintenance: for leads whose AHJ is blank or the county fallback, scan the
+    address for a known municipality, set the city, and re-resolve the permit office.
+    Never overrides a hand-set municipal AHJ. Idempotent — safe to run repeatedly."""
+    from modules import ahj as ahj_mod, acculynx_sync as S
+    county = (db.get_company().get("default_county", "") or "").strip()
+    munis = sorted({m for m in (set(ahj_mod._ahj_keys()) | set(S._AHJ_MAP.values())) if m},
+                   key=len, reverse=True)  # longest name first (West Palm Beach before Palm Beach)
+    updated = cities = 0
+    for l in db.all_rows("leads"):
+        addr = (l.get("address") or "").strip()
+        if not addr:
+            continue
+        city = (l.get("city") or "").strip()
+        if not city:
+            parts = [p.strip() for p in addr.split(",")]
+            if len(parts) >= 3 and parts[1] and not re.match(r"(?i)^[A-Z]{2}\b|^\d", parts[1]):
+                city = parts[1]
+            else:
+                for m in munis:
+                    if re.search(r"\b" + re.escape(m) + r"\b", addr, re.I):
+                        city = m
+                        break
+        if not city:
+            continue
+        new_ahj = ahj_mod.resolve_ahj(addr, city, county)
+        cur_ahj = (l.get("ahj") or "").strip()
+        is_fallback = (not cur_ahj) or (cur_ahj == county)
+        changed = {}
+        if not (l.get("city") or "").strip():
+            changed["city"] = city
+            cities += 1
+        if new_ahj and new_ahj != cur_ahj and is_fallback:
+            changed["ahj"] = new_ahj
+            db.add_activity("lead", l["id"], "automation",
+                            "AHJ backfilled to %s (from city %s)" % (new_ahj, city))
+        if changed:
+            db.update("leads", l["id"], **changed)
+            updated += 1
+    flash("AHJ backfill complete: %d leads updated (%d cities set)." % (updated, cities), "ok")
+    return redirect(url_for("leads.list_view"))
 
 
 @bp.route("/<int:lead_id>/stage", methods=["POST"])

@@ -11,6 +11,10 @@
     <a href="{{ url_for('leads.board') }}">▦ Board</a>
   </div>
   <a class="btn" href="{{ url_for('leads_dedupe.index') }}">🧬 Find Duplicates</a>
+  <form method="post" action="{{ url_for('leads.backfill_ahj') }}" style="display:inline"
+        onsubmit="return confirm('Scan lead addresses for a city and re-resolve the permit office (AHJ)? Only fills blanks/county fallbacks — never overrides a hand-set AHJ.')">
+    <button class="btn" type="submit" title="Backfill cities + permit offices from addresses">↻ Backfill AHJs</button>
+  </form>
   <a class="btn primary" href="{{ url_for('leads.new') }}">+ New Lead</a>
 </div>
 
