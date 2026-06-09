@@ -1,34 +1,46 @@
-# Render.com blueprint — runs the CRM on a real server with a PERSISTENT DISK so
-# uploaded files of ANY size (incl. the 10–22 MB product brochures Vercel can't
-# serve) just work. It reuses your existing Neon Postgres for data, so nothing is
-# re-migrated and Vercel + Render share the same database.
+# Render Blueprint — runs the CRM as ONE always-on service with the database (SQLite)
+# AND all uploads on a single PERSISTENT DISK. This replaces THREE vendors at once:
+#   Vercel (hosting) + Neon (database) + Google Drive (file storage)  ->  just Render.
+# Why it ends the cap problems: SQLite is a local file, so DB reads are $0 egress (no
+# "transfer quota"), and you deploy by pushing to git (no 100/day deploy cap).
 #
-# Deploy: Render Dashboard → New → Blueprint → connect this GitHub repo
-#   (dannybivins83-blip/collab-crm). Render reads this file. When prompted, paste
-#   DATABASE_URL (copy it from your Vercel project → Settings → Environment
-#   Variables → DATABASE_URL). Then map crm.collaborativeconceptsfl.com to the
-#   service under Settings → Custom Domains.
+# Deploy: Render Dashboard → New → Blueprint → connect this repo (dannybivins83-blip/
+#   collab-crm). Render reads this file. One-time data move: run scripts/neon_to_sqlite.py
+#   to produce crm.db, then upload it to /data via a Render Shell (or restore a CRM
+#   backup). Finally map crm.collaborativeconceptsfl.com under Settings → Custom Domains.
 services:
   - type: web
     name: collab-crm
     runtime: python
     rootDir: .
-    plan: starter              # starter includes a persistent disk; free tier does NOT
+    plan: starter              # starter includes the persistent disk; free tier does NOT
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 180
+    # 2 workers + threads share the WAL-mode SQLite file safely (concurrent readers,
+    # serialized writers) — what makes single-host SQLite hosting solid at this scale.
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 180
     healthCheckPath: /login
+    autoDeploy: true
     envVars:
-      - key: DATABASE_URL       # paste your Neon connection string (shared with Vercel)
-        sync: false
-      - key: CRM_UPLOAD_DIR     # all uploads/photos/docs/packets live on the disk
-        value: /data/uploads
+      # DATABASE_URL is intentionally OMITTED → db.IS_PG = False → the app runs on the
+      # SQLite file below. This is the whole point: no external database, no Neon.
+      - key: CRM_DB_PATH        # the SQLite database lives on the persistent disk
+        value: /data/crm.db
       - key: CRM_DATA_DIR
         value: /data
+      - key: CRM_UPLOAD_DIR     # all uploads/photos/docs/packets also live on the disk
+        value: /data/uploads
       - key: CRM_SECRET
         generateValue: true     # random, stable session secret
       - key: CRM_NOBROWSER
         value: "1"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # Keep these ONLY if you want Google login + the in-CRM Gmail widget:
+      # - key: GOOGLE_OAUTH_CLIENT_ID
+      #   sync: false
+      # - key: GOOGLE_OAUTH_CLIENT_SECRET
+      #   sync: false
     disk:
       name: crm-data
       mountPath: /data
-      sizeGB: 2                  # room for the full document library + future uploads
+      sizeGB: 5                  # room for the SQLite DB + full document library + photos

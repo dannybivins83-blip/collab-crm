@@ -80,8 +80,16 @@ class _PgConn:
 def connect():
     if IS_PG:
         return _PgConn(psycopg.connect(_PG_URL))
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
+    # WAL + a busy timeout let several gunicorn workers share one SQLite file safely
+    # (concurrent readers, serialized writers) — what makes single-host hosting viable.
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=8000")
+        conn.execute("PRAGMA synchronous=NORMAL")
+    except Exception:
+        pass
     return conn
 
 
