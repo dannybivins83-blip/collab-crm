@@ -290,6 +290,20 @@
     </div>
   </div>
 
+  <!-- REP CONTACT (top — so they always know who to reach) -->
+  <div class="card">
+    <div class="h">Your Project Contact</div>
+    <div class="contact">
+      <div class="av">{{ (j.rep or company.qualifier or company.name)[:1]|upper }}</div>
+      <div class="who"><b>{{ j.rep or company.qualifier or company.name }}</b>
+        <div class="muted">{{ company.name }} · Lic. {{ company.license }}</div></div>
+      <div class="row" style="gap:8px">
+        {% if company.phone %}<a class="btn ghost sm" href="tel:{{ company.phone }}">📞 Call</a>{% endif %}
+        {% if company.email %}<a class="btn ghost sm" href="mailto:{{ company.email }}">✉️ Email</a>{% endif %}
+      </div>
+    </div>
+  </div>
+
   <!-- LIVE STATUS (Domino's-style "your roof is HERE") -->
   {% set _ph = phases[j._phase] if j._phase < phases|length else phases[-1] %}
   {% set _fun = {
@@ -511,19 +525,6 @@
     setTimeout(function(){b.textContent=t;b.disabled=false;},1600);}
   </script>
 
-  <!-- REP CONTACT -->
-  <div class="card">
-    <div class="h">Your Project Contact</div>
-    <div class="contact">
-      <div class="av">{{ (j.rep or company.qualifier or company.name)[:1]|upper }}</div>
-      <div class="who"><b>{{ j.rep or company.qualifier or company.name }}</b>
-        <div class="muted">{{ company.name }} · Lic. {{ company.license }}</div></div>
-      <div class="row" style="gap:8px">
-        {% if company.phone %}<a class="btn ghost sm" href="tel:{{ company.phone }}">📞 Call</a>{% endif %}
-        {% if company.email %}<a class="btn ghost sm" href="mailto:{{ company.email }}">✉️ Email</a>{% endif %}
-      </div>
-    </div>
-  </div>
 
   <!-- DOCUMENTS TO SIGN -->
   {% if docs_to_sign %}
