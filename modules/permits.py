@@ -144,12 +144,14 @@ def build_packet(permit_id):
               "legal": job.get("legal", ""), "existing": job.get("existing", ""),
               "area": job.get("area", ""), "slope": job.get("slope", ""),
               "mrh": job.get("mrh", ""), "exposure": job.get("exposure", ""),
-              "value": job.get("contract_value", ""),
-              # Reusable owner signature (captured + authorized at estimate e-sign) so the
-              # build engine can stamp it on the permit/NOC owner-signature lines.
-              "signature": job.get("signature", "") if job.get("sign_consent") else "",
-              "signed_name": job.get("signed_name", ""),
-              "signed_at": job.get("signed_at", "")}
+              "value": job.get("contract_value", "")}
+    # SAFETY (docs/PERMIT_SIGNATURE.md): the captured owner e-signature is deliberately NOT
+    # forwarded into the permit packet. Permit forms — the Notice of Commencement and the
+    # re-roof nailing affidavit — are NOTARIZED: the owner's signature on them IS the
+    # notarized signature and must be wet-signed or RON-signed in the notary's presence.
+    # Stamping a pre-captured signature there would be forgery of a notarized instrument.
+    # Captured-signature auto-apply is limited to the estimate proposal and the
+    # (non-notarized) sign-up package.
 
     # Optional RoofGraf attachment.
     attachments = []
