@@ -1759,17 +1759,22 @@ def internal_test():
 # (idempotent) and reports what it pulled vs. skipped — no silent caps.
 # ===========================================================================
 
-# How the collector decides which document is the roof report. RoofGraf reports
-# Karla uploads land in a "Measurements" / "Roof Report" folder and/or carry a
-# filename with "RoofGraf" / "Roof Report" / "EagleView" in it. Folder OR file
-# match counts; permit/NOC/photos folders don't match.
-ROOFREPORT_FOLDER_RE = r"measurement|roof\s*report|roofgraf|eagleview|roof\s*measure|aerial"
-ROOFREPORT_FILE_RE = r"roofgraf|roof\s*report|eagleview|roof\s*measure|premium\s*roof|measurement"
+# How the collector decides which document is the roof report. Confirmed live on
+# SeaBreeze jobs: reports sit in the dedicated "Roof Report" document folder with
+# a filename like "Roof-Report-{guid}.pdf"; manually-uploaded ones may instead say
+# "RoofGraf"/"EagleView". Separators vary (space, hyphen, underscore), so the
+# patterns allow [\s_-] between words. Folder OR file match counts; permit/NOC/
+# photo folders don't match.
+ROOFREPORT_FOLDER_RE = r"roof[\s_-]*report|measurement|roof[\s_-]*graf|eagleview|roof[\s_-]*measure|aerial"
+ROOFREPORT_FILE_RE = r"roof[\s_-]*report|roof[\s_-]*graf|eagleview|roof[\s_-]*measure|premium[\s_-]*roof|measurement"
 
 # Pipeline the office works day-to-day — leads (Assigned) + prospects carry roof
-# reports too (Karla uploads at intake), so they're included. Same groups as the
-# milestone sync, walked newest-first with a dedicated cursor.
-_RR_GROUPS = ["lead", "prospect", "approved", "completed", "invoiced"]
+# reports too (Karla uploads at intake), so they're included. Walked newest-first
+# with a dedicated cursor. "closed" is the huge historical bucket, so it's walked
+# LAST and CAPPED to the most-recent N (see _RR_GROUP_CAP) — the rest of Closed +
+# all of Canceled stay skipped.
+_RR_GROUPS = ["lead", "prospect", "approved", "completed", "invoiced", "closed"]
+_RR_GROUP_CAP = {"closed": 500}   # only the last 500 closed jobs
 
 
 def _norm_name(s):
@@ -1987,8 +1992,15 @@ def _rr_next_batch(base, key, n):
     out = []
     PAGE = 25
     while len(out) < n and g < len(_RR_GROUPS):
+        grp = _RR_GROUPS[g]
+        cap = _RR_GROUP_CAP.get(grp)               # None = walk the whole group
+        if cap is not None and start >= cap:       # capped group fully walked
+            g += 1
+            start = 0
+            continue
+        page_size = PAGE if cap is None else max(1, min(PAGE, cap - start))
         data = _api_get(base, "/jobs", key, {
-            "milestones": _RR_GROUPS[g], "pageStartIndex": start, "pageSize": PAGE,
+            "milestones": grp, "pageStartIndex": start, "pageSize": page_size,
             "sortBy": "MilestoneDate", "sortOrder": "Descending"})
         items = data.get("items") if isinstance(data, dict) else (data or [])
         if not items:
@@ -2001,9 +2013,12 @@ def _rr_next_batch(base, key, n):
             jid = _g(it, "id", "jobId", "uid")
             nm = (_g(it, "jobName", "name", "displayName") or "").strip()
             if jid:
-                out.append({"guid": str(jid).lower(), "name": nm, "group": _RR_GROUPS[g]})
+                out.append({"guid": str(jid).lower(), "name": nm, "group": grp})
             start += 1
-        if len(items) < PAGE and len(out) < n:  # this group exhausted
+            if cap is not None and start >= cap:   # hit the cap mid-page
+                break
+        reached_cap = cap is not None and start >= cap
+        if (len(items) < page_size or reached_cap) and len(out) < n:  # group done
             g += 1
             start = 0
     done = g >= len(_RR_GROUPS)

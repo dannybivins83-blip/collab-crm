@@ -79,7 +79,7 @@
 
 <div class="card" style="border:2px solid var(--accent)">
   <h2>📐 Pull roof reports into measurements — 20 at a time</h2>
-  <p class="muted">Pulls each job's <b>RoofGraf / roof-report PDF</b> from AccuLynx job documents into the matching CRM job <i>or lead</i>, attaches it under <b>Measurements</b>, and <b>auto-parses</b> it — squares, pitch, ridge/hip/valley/eave/rake — so it feeds the estimate. The server walks your active pipeline (Assigned → Prospect → Approved → Completed → Invoiced) with a <b>resumable cursor</b>, handing the collector <b>20 jobs per click</b>; click again to continue where it left off. Jobs that already have a roof report are skipped (idempotent).</p>
+  <p class="muted">Pulls each job's <b>RoofGraf / roof-report PDF</b> from AccuLynx job documents into the matching CRM job <i>or lead</i>, attaches it under <b>Measurements</b>, and <b>auto-parses</b> it — squares, pitch, ridge/hip/valley/eave/rake — so it feeds the estimate. The server walks your active pipeline (Assigned → Prospect → Approved → Completed → Invoiced → last 500 Closed) with a <b>resumable cursor</b>, handing the collector <b>20 jobs per click</b>; click again to continue where it left off. Jobs that already have a roof report are skipped (idempotent).</p>
   <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
     <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmroof" class="btn accent" href="#" onclick="return false">📐 AccuLynx Roof Reports → CRM</a></li>
     <li>Make sure an <b>API key</b> is saved above (the server uses it to enumerate the next 20 jobs) and you've run a <b>🔄 Sync</b> so the jobs/leads exist in the CRM.</li>
@@ -170,8 +170,8 @@
   // attached + parsed into the measurement. Roof reports only.
   function pullRoofReportsBM(BASE){
     (async function(){
-      var fileRe=/roofgraf|roof\s*report|eagleview|roof\s*measure|premium\s*roof|measurement/i;
-      var folderRe=/measurement|roof\s*report|roofgraf|eagleview|roof\s*measure|aerial/i, CHUNK=400*1024;
+      var fileRe=/roof[\s_-]*report|roof[\s_-]*graf|eagleview|roof[\s_-]*measure|premium[\s_-]*roof|measurement/i;
+      var folderRe=/roof[\s_-]*report|measurement|roof[\s_-]*graf|eagleview|roof[\s_-]*measure|aerial/i, CHUNK=400*1024;
       var bn=document.createElement('div');
       bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:440px';
       document.body.appendChild(bn);
