@@ -168,6 +168,19 @@
   <div class="muted">Job must already be synced (run a Sync first). Pairs with the calibrated templates: this mirrors <i>existing</i> estimates exactly; the templates build <i>new</i> ones.</div>
 </div>
 
+<div class="card" style="border:2px solid var(--accent2)">
+  <h2>📊 Pull Estimates + Worksheets together (targeted migration)</h2>
+  <p class="muted">One pull per job that feeds <b>both</b> the CRM estimate (sell-side line items) <b>and</b> the financial Worksheet / Profit Analysis (cost-side line items + contract value), from the same AccuLynx estimate. Built for your migration plan: <b>all Approved, all Completed, and the 50 most recent Invoiced</b>.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag <u>both</u> to your bookmarks bar →&nbsp;
+      <a id="bmestws" class="btn accent" href="#" onclick="return false">📊 AccuLynx Est+WS → CRM (whole list)</a>&nbsp;
+      <a id="bmestws50" class="btn accent" href="#" onclick="return false">📊 …first 50 only</a></li>
+    <li><b>Approved:</b> open AccuLynx → Milestone <b>Approved</b> list → click <b>“whole list”</b>. Then do the same for <b>Completed</b>.</li>
+    <li><b>Invoiced:</b> open the <b>Invoiced</b> list, sort it <b>newest first</b>, then click <b>“first 50 only”</b> — it stops after the 50 most recent.</li>
+  </ol>
+  <div class="muted">Idempotent — re-running replaces each job's estimate lines + worksheet, never duplicates. Jobs must already be synced into the CRM.</div>
+</div>
+
 <div class="card">
   <h2>💬 Pull communications (notes &amp; messages) into jobs</h2>
   <p class="muted">Pulls each job's <b>messages, notes &amp; comments</b> (body, author, date, type) into the CRM as job activities + the record narrative. <b>High volume</b> — capped at 200 newest per job per run; capped counts are reported. Deduped so re-runs don't pile up.</p>
@@ -454,6 +467,68 @@
 <script>
 (function(){
   var BASE={{ request.host_url|tojson }};
+  // Combined Estimates + Worksheets collector. Per job: pull each estimate's line items,
+  // POST them to estimate-import (sell side) AND derive a worksheet (cost side) for the
+  // primary estimate -> worksheet-import. CFG.LIMIT caps the job count (e.g. 50 invoiced).
+  function pullEstWsBM(CFG){
+    var BASE=CFG.BASE, LIMIT=CFG.LIMIT||0;
+    (async function(){
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#1f6f43;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:470px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      async function gj(u,o){try{var r=await fetch(u,o||{headers:{'Accept':'application/json'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+      function arr(x){return Array.isArray(x)?x:[];}
+      function num(v){if(v==null)return 0;var n=parseFloat((''+v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;}
+      function pick(o){var names=Array.prototype.slice.call(arguments,1);for(var i=0;i<names.length;i++){if(o[names[i]]!=null&&o[names[i]]!=='')return o[names[i]];}return '';}
+      function linesFrom(o){if(!o)return [];var d=o.LineItems||o.lineItems||o.Items||o.items||o.WorkItems||o.Lines||o.lines;if(arr(d).length)return arr(d).map(function(li){return {section:'',li:li};});var secs=o.Sections||o.sections||o.WorkSheets||o.Worksheets||o.worksheets||o.Groups,out=[];arr(secs).forEach(function(s){var sn=(s.Name||s.Title||s.name||'');arr(s.LineItems||s.lineItems||s.Items||s.items||s.Lines||s.lines).forEach(function(li){out.push({section:sn,li:li});});});return out;}
+      async function estLines(e){var id=e.EstimateID||e.EstimateId||e.Id||e.id,pairs=linesFrom(e);
+        if(!pairs.length&&id){var eps=['/api/Estimatev3/GetEstimate/'+id,'/api/Estimatev3/GetEstimateForEdit/'+id,'/api/Estimatev3/GetEstimateDetails/'+id];for(var i=0;i<eps.length&&!pairs.length;i++){var det=await gj(eps[i]);if(det){pairs=linesFrom(det);if(!pairs.length&&det.Estimate)pairs=linesFrom(det.Estimate);}}}
+        return pairs.map(function(p){var li=p.li;return {description:pick(li,'Description','Name','Item','ProductName','description','name'),unit:pick(li,'Unit','UnitOfMeasure','UOM','unit')||'EA',quantity:num(pick(li,'Quantity','Qty','quantity','qty')),cost:num(pick(li,'UnitCost','Cost','CostEach','unitCost','cost')),price:num(pick(li,'UnitPrice','Price','SellPrice','PriceEach','unitPrice','price')),section:p.section||pick(li,'Category','SectionName','WorkType','section')};}).filter(function(x){return x.description;});}
+      async function post(path,p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
+      var seen={},guids=[];
+      function collect(){[].forEach.call(document.querySelectorAll('a[href*="/jobs/"]'),function(a){var m=(a.getAttribute('href')||'').match(/\/jobs\/([0-9a-f-]{30,})/);if(m&&!seen[m[1]]){seen[m[1]]=1;guids.push(m[1]);}});}
+      function scrollers(){var s=[document.scrollingElement||document.documentElement];[].forEach.call(document.querySelectorAll('div'),function(e){if(e.scrollHeight>e.clientHeight+40)s.push(e);});return s;}
+      collect();var last=-1,stable=0;
+      for(var i=0;i<120&&stable<4;i++){if(LIMIT&&guids.length>=LIMIT)break;scrollers().forEach(function(e){try{e.scrollTop=e.scrollHeight;}catch(_){}});window.scrollTo(0,document.body.scrollHeight);await sleep(500);collect();setb('Finding jobs… '+guids.length+(LIMIT?(' (cap '+LIMIT+')'):''));if(guids.length===last)stable++;else stable=0;last=guids.length;}
+      if(LIMIT&&guids.length>LIMIT)guids=guids.slice(0,LIMIT);
+      if(!guids.length){setb('No jobs found — open a Jobs milestone list first.','#c0392b');setTimeout(function(){bn.remove();},6000);return;}
+      var tot=guids.length,ests=0,wss=0,lines=0,nojob=0,fail=0,jdone=0;
+      for(var gi=0;gi<guids.length;gi++){var guid=guids[gi];
+        try{
+          var es=arr(await gj('/api/Estimatev3/GetEstimates/'+guid));
+          if(!es.length){jdone++;setb('Jobs '+jdone+'/'+tot+' · '+ests+' est · '+wss+' ws');continue;}
+          var payloadEsts=[],best=null,bestTotal=-1;
+          for(var ei=0;ei<es.length;ei++){var e=es[ei],f=e.Financials||{};var li=await estLines(e);
+            var tot2=num(f.HasOverridePrice?f.TotalOverridePrice:f.TotalPrice);
+            payloadEsts.push({id:e.EstimateID||e.EstimateId||e.Id,title:e.Title||e.Name,number:e.EstimateNumber,total:tot2,status:e.Status||e.State,date:e.CreatedDate,lineItems:li});
+            ests++;lines+=li.length;
+            if(tot2>bestTotal){bestTotal=tot2;best={li:li,total:tot2};}
+          }
+          var d=await post('sync/estimate-import',{guid:guid,estimates:payloadEsts});
+          if(d&&d.ok){if(d.results&&d.results[0]&&d.results[0].reason==='no_job')nojob++;}else fail++;
+          // Worksheet (cost side) from the primary estimate's lines.
+          if(best&&best.li.length){
+            var wlines=best.li.map(function(x){return {description:x.description,qty:x.quantity,unit:x.unit,unit_cost:x.cost,cost:Math.round(x.quantity*x.cost*100)/100,category:x.section};});
+            var ctot=wlines.reduce(function(a,b){return a+(b.cost||0);},0);
+            var w=await post('sync/worksheet-import',{guid:guid,contract_value:best.total,cost_total:ctot,lines:wlines});
+            if(w&&w.ok&&w.summary&&w.summary.worksheets)wss++;
+          }
+        }catch(e){fail++;}
+        jdone++;setb('Jobs '+jdone+'/'+tot+' · '+ests+' est · '+wss+' ws · '+lines+' lines'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' fail':''));
+      }
+      setb('✓ Done · '+tot+' jobs · '+ests+' estimates · '+wss+' worksheets · '+lines+' lines'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' failed':''),'#1f6f43');
+      setTimeout(function(){bn.remove();},24000);
+    })();
+  }
+  document.getElementById('bmestws').href='javascript:('+pullEstWsBM.toString()+')('+JSON.stringify({BASE:BASE,LIMIT:0})+')';
+  document.getElementById('bmestws50').href='javascript:('+pullEstWsBM.toString()+')('+JSON.stringify({BASE:BASE,LIMIT:50})+')';
+})();
+</script>
+<script>
+(function(){
+  var BASE={{ request.host_url|tojson }};
   // Auto-scroll bookmarklet: one click grabs the WHOLE list, shows progress, imports once.
   var code="(async function(){"+
     "var B=(location.href.match(/currentMilestoneList:(\\w+)/)||[])[1]||'Prospect';"+
@@ -616,6 +691,8 @@ function downloadBookmarkFolder(){
     ['bmbill','💵 AccuLynx Billing → CRM'],
     ['bmest','📝 AccuLynx Estimates → CRM'],
     ['bmestlines','🧾 AccuLynx Estimate Lines → CRM'],
+    ['bmestws','📊 AccuLynx Est+WS → CRM (whole list)'],
+    ['bmestws50','📊 AccuLynx Est+WS → CRM (first 50)'],
     ['bmcomm','💬 AccuLynx Comms → CRM'],
     ['bmdocs','📎 AccuLynx Permits → CRM'],
     ['bmalldocs','📂 AccuLynx Documents → CRM'],
