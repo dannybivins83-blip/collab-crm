@@ -408,35 +408,10 @@
       if(!guids.length){setb('No jobs found — open a Jobs milestone list first.','#c0392b');setTimeout(function(){bn.remove();},6000);return;}
       // Pull line items for one estimate id, trying detail endpoints.
       function arr(x){return Array.isArray(x)?x:[];}
-      function linesFrom(o){
-        if(!o)return [];
-        // direct arrays of line items under various names
-        var direct=o.LineItems||o.lineItems||o.Items||o.items||o.WorkItems||o.Lines||o.lines;
-        if(arr(direct).length) return arr(direct).map(function(li){return {section:'',li:li};});
-        // sections/worksheets each holding line items
-        var secs=o.Sections||o.sections||o.WorkSheets||o.Worksheets||o.worksheets||o.Groups;
-        var out=[];
-        arr(secs).forEach(function(s){var sn=(s.Name||s.Title||s.name||'');arr(s.LineItems||s.lineItems||s.Items||s.items||s.Lines||s.lines).forEach(function(li){out.push({section:sn,li:li});});});
-        return out;
-      }
       function num(v){if(v==null)return 0;var n=parseFloat((''+v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;}
-      function pick(o){var k,names=Array.prototype.slice.call(arguments,1);for(var i=0;i<names.length;i++){k=names[i];if(o[k]!=null&&o[k]!=='')return o[k];}return '';}
-      async function estimateLines(e){
-        var id=e.EstimateID||e.EstimateId||e.Id||e.id;
-        var pairs=linesFrom(e);
-        if(!pairs.length&&id){
-          var det=null,eps=['/api/Estimatev3/GetEstimate/'+id,'/api/Estimatev3/GetEstimateForEdit/'+id,'/api/Estimatev3/GetEstimateDetails/'+id,'/api/Estimatev3/Get/'+id];
-          for(var i=0;i<eps.length&&!pairs.length;i++){det=await gj(eps[i]);if(det){pairs=linesFrom(det);if(!pairs.length&&det.Estimate)pairs=linesFrom(det.Estimate);}}
-        }
-        return pairs.map(function(p){var li=p.li;return {
-          description:pick(li,'Description','Name','Item','ProductName','description','name'),
-          unit:pick(li,'Unit','UnitOfMeasure','UOM','unit')||'EA',
-          quantity:num(pick(li,'Quantity','Qty','quantity','qty')),
-          cost:num(pick(li,'UnitCost','Cost','CostEach','unitCost','cost')),
-          price:num(pick(li,'UnitPrice','Price','SellPrice','PriceEach','unitPrice','price')),
-          section:p.section||pick(li,'Category','SectionName','WorkType','section')
-        };}).filter(function(x){return x.description;});
-      }
+      // AccuLynx estimate detail (GET /api/Estimatev3/Get/{id}): Sections[].ItemGroups[].Items[]
+      function flattenDetail(det){var out=[];arr(det&&det.Sections).forEach(function(sec){var st=sec.Title||'';arr(sec.ItemGroups).forEach(function(g){var gn=g.OverrideName||g.Name||st;arr(g.Items).forEach(function(it){var desc=it.OverrideName||it.Name||it.Description||'';if(!desc)return;var q=num(it.Quantity);var cost=num(it.MaterialCost)+num(it.LaborCost);if(!cost&&q)cost=Math.round(num(it.TotalCost)/q*100)/100;out.push({description:desc,unit:it.UnitOfMeasure||it.EstimateUnit||it.OrderUnit||'EA',quantity:q,cost:cost,price:num(it.Price),section:gn});});});});return out;}
+      async function estimateLines(e){var id=e.EstimateID||e.EstimateId||e.Id||e.id;if(!id)return [];var det=null,eps=['/api/Estimatev3/Get/'+id,'/api/v4/estimates/'+id];for(var i=0;i<eps.length&&!(det&&det.Sections);i++){det=await gj(eps[i]);}return flattenDetail(det);}
       async function post(p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+'sync/estimate-import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
       var tot=guids.length,ok=0,nojob=0,fail=0,lines=0,ests=0,jdone=0;
       for(var gi=0;gi<guids.length;gi++){var guid=guids[gi];
@@ -482,10 +457,9 @@
       function arr(x){return Array.isArray(x)?x:[];}
       function num(v){if(v==null)return 0;var n=parseFloat((''+v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;}
       function pick(o){var names=Array.prototype.slice.call(arguments,1);for(var i=0;i<names.length;i++){if(o[names[i]]!=null&&o[names[i]]!=='')return o[names[i]];}return '';}
-      function linesFrom(o){if(!o)return [];var d=o.LineItems||o.lineItems||o.Items||o.items||o.WorkItems||o.Lines||o.lines;if(arr(d).length)return arr(d).map(function(li){return {section:'',li:li};});var secs=o.Sections||o.sections||o.WorkSheets||o.Worksheets||o.worksheets||o.Groups,out=[];arr(secs).forEach(function(s){var sn=(s.Name||s.Title||s.name||'');arr(s.LineItems||s.lineItems||s.Items||s.items||s.Lines||s.lines).forEach(function(li){out.push({section:sn,li:li});});});return out;}
-      async function estLines(e){var id=e.EstimateID||e.EstimateId||e.Id||e.id,pairs=linesFrom(e);
-        if(!pairs.length&&id){var eps=['/api/Estimatev3/GetEstimate/'+id,'/api/Estimatev3/GetEstimateForEdit/'+id,'/api/Estimatev3/GetEstimateDetails/'+id];for(var i=0;i<eps.length&&!pairs.length;i++){var det=await gj(eps[i]);if(det){pairs=linesFrom(det);if(!pairs.length&&det.Estimate)pairs=linesFrom(det.Estimate);}}}
-        return pairs.map(function(p){var li=p.li;return {description:pick(li,'Description','Name','Item','ProductName','description','name'),unit:pick(li,'Unit','UnitOfMeasure','UOM','unit')||'EA',quantity:num(pick(li,'Quantity','Qty','quantity','qty')),cost:num(pick(li,'UnitCost','Cost','CostEach','unitCost','cost')),price:num(pick(li,'UnitPrice','Price','SellPrice','PriceEach','unitPrice','price')),section:p.section||pick(li,'Category','SectionName','WorkType','section')};}).filter(function(x){return x.description;});}
+      // AccuLynx estimate detail: GET /api/Estimatev3/Get/{id} -> Sections[].ItemGroups[].Items[]
+      function flattenDetail(det){var out=[];arr(det&&det.Sections).forEach(function(sec){var st=sec.Title||'';arr(sec.ItemGroups).forEach(function(g){var gn=g.OverrideName||g.Name||st;arr(g.Items).forEach(function(it){var desc=it.OverrideName||it.Name||it.Description||'';if(!desc)return;var q=num(it.Quantity);var cost=num(it.MaterialCost)+num(it.LaborCost);if(!cost&&q)cost=Math.round(num(it.TotalCost)/q*100)/100;out.push({description:desc,unit:it.UnitOfMeasure||it.EstimateUnit||it.OrderUnit||'EA',quantity:q,cost:cost,price:num(it.Price),section:gn});});});});return out;}
+      async function estLines(e){var id=e.EstimateID||e.EstimateId||e.Id||e.id;if(!id)return [];var det=null;var eps=['/api/Estimatev3/Get/'+id,'/api/v4/estimates/'+id];for(var i=0;i<eps.length&&!(det&&det.Sections);i++){det=await gj(eps[i]);}return flattenDetail(det);}
       async function post(path,p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
       var seen={},guids=[];
       function collect(){[].forEach.call(document.querySelectorAll('a[href*="/jobs/"]'),function(a){var m=(a.getAttribute('href')||'').match(/\/jobs\/([0-9a-f-]{30,})/);if(m&&!seen[m[1]]){seen[m[1]]=1;guids.push(m[1]);}});}
