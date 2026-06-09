@@ -247,6 +247,48 @@ def referral_ctx(kind, rec):
     }
 
 
+# Roof Education game content + HOA seminar request.
+ROOF_EDU = [
+    {"key": "shingle", "name": "Asphalt Shingle", "ic": "🏠", "life": "15–30 yrs", "cost": "$", "hex": "#6c5b46",
+     "blurb": "America's most popular roof — affordable, tons of colors, quick to install.",
+     "pros": ["Lowest upfront cost", "Huge color range", "Fast install & repair"],
+     "cons": ["Shorter lifespan", "Less wind-rated than tile or metal"]},
+    {"key": "tile", "name": "Concrete / Clay Tile", "ic": "🧱", "life": "50+ yrs", "cost": "$$$", "hex": "#b14b2c",
+     "blurb": "The classic Florida & HOA look — beautiful, durable, fire & wind resistant.",
+     "pros": ["50+ year lifespan", "Hurricane & fire resistant", "Timeless curb appeal", "HOA-favored"],
+     "cons": ["Higher upfront cost", "Heavy — needs proper structure"]},
+    {"key": "metal", "name": "Standing-Seam Metal", "ic": "⬜", "life": "40–70 yrs", "cost": "$$$", "hex": "#5d666f",
+     "blurb": "Modern, energy-efficient, hurricane-built — reflects heat & sheds water fast.",
+     "pros": ["40–70 year lifespan", "Energy efficient (cooler home)", "Hurricane-rated", "Low maintenance"],
+     "cons": ["Higher upfront cost", "Fewer crews install it well"]},
+    {"key": "flat", "name": "Flat / Low-Slope (TPO)", "ic": "🟦", "life": "20–30 yrs", "cost": "$$", "hex": "#aeb4b8",
+     "blurb": "For lanais, additions & low-slope sections — a seamless waterproof membrane.",
+     "pros": ["Built for low-slope areas", "Reflective / energy saving", "Seamless & watertight"],
+     "cons": ["Not for steep roofs", "Needs periodic inspection"]},
+]
+GLOSSARY = [
+    {"t": "Underlayment", "d": "The waterproof layer under your tiles/shingles — your roof's real raincoat."},
+    {"t": "Ridge", "d": "The peak where two roof slopes meet at the very top."},
+    {"t": "Valley", "d": "The V-shaped channel where two slopes meet — where water runs off."},
+    {"t": "Eave", "d": "The lower roof edge that overhangs the wall (where gutters mount)."},
+    {"t": "Drip edge", "d": "Metal edging that guides water into the gutter, away from the fascia."},
+    {"t": "Flashing", "d": "Metal that seals joints (chimneys, walls, valleys) against leaks."},
+    {"t": "Fascia", "d": "The board along the roof edge that gutters attach to."},
+    {"t": "Decking", "d": "The wood base your roof is built on — re-nailed to code on a re-roof."},
+]
+ROOF_QUIZ = [
+    {"q": "Which roof typically lasts longest in Florida?", "a": ["Asphalt shingle", "Concrete/clay tile", "3-tab shingle"],
+     "c": 1, "why": "Concrete & clay tile commonly last 50+ years and shrug off wind and sun."},
+    {"q": "What does underlayment do?", "a": ["Adds color", "Waterproofs under the tile", "Holds the gutters"],
+     "c": 1, "why": "Underlayment is the waterproof barrier — your roof's real defense against leaks."},
+    {"q": "Which system is most energy-efficient?", "a": ["Standing-seam metal", "Dark 3-tab shingle", "None"],
+     "c": 0, "why": "Metal reflects heat, keeping your attic and home cooler."},
+    {"q": "Why re-nail the decking on a re-roof?", "a": ["For looks", "To meet FL code & wind uplift", "It's optional"],
+     "c": 1, "why": "Re-nailing to current code dramatically improves hurricane wind-uplift resistance."},
+    {"q": "Where does a valley send water?", "a": ["Up the roof", "Off the roof where slopes meet", "Into the attic"],
+     "c": 1, "why": "Valleys are the V-channels that carry water off where two slopes meet."},
+]
+
 _STAGE_TO_PHASE = {
     "approved": 0, "finance_ntp": 0, "documentation": 0,
     "permit_applied": 1, "permit_approved": 1,
@@ -566,6 +608,53 @@ def refer_msg(token):
         return jsonify({"ok": False}), 404
     db.update(kind + "s", rec["id"], referral_msg=(request.form.get("msg") or "")[:400])
     return jsonify({"ok": True})
+
+
+@bp.route("/<token>/learn")
+def learn(token):
+    """Interactive roof-education game — system explainers, a quiz (Roof IQ), and a
+    glossary. Keeps homeowners engaged and educated from the lead stage on."""
+    kind, rec = _record_by_any_token(token)
+    if not rec:
+        abort(404)
+    return render_template("learn.html", token=token, company=db.get_company(),
+                           systems=ROOF_EDU, glossary=GLOSSARY, quiz=ROOF_QUIZ)
+
+
+@bp.route("/<token>/seminar", methods=["GET", "POST"])
+def seminar(token):
+    """HOA / community lunch-and-learn request: a resident or board member organizes a
+    Q&A seminar (we bring food + knowledge + manufacturer reps). Logs to the record."""
+    kind, rec = _record_by_any_token(token)
+    if not rec:
+        abort(404)
+    if request.method == "POST":
+        f = request.form
+        systems = ", ".join(f.getlist("systems")) or "—"
+        fields = [
+            ("Organizer", f.get("organizer")), ("Role", f.get("role")),
+            ("Community / HOA", f.get("community")), ("Est. attendees", f.get("attendees")),
+            ("Preferred date(s)", f.get("dates")), ("Systems of interest", systems),
+            ("Required manufacturer", f.get("manufacturer")),
+            ("Required color/profile", f.get("color")),
+            ("Topics / questions", f.get("topics")),
+        ]
+        body = "  ·  ".join("%s: %s" % (k, v) for k, v in fields if (v or "").strip())
+        db.add_activity(kind, rec["id"], "note",
+                        "🍽️ HOA Q&A SEMINAR REQUEST (lunch-&-learn) — %s%s" % (
+                            body, "  ·  ⭐ wants manufacturer reps present" if f.get("manufacturer") else ""))
+        try:
+            db._ensure_column("leads" if kind == "lead" else "jobs", "seminar_request", "TEXT")
+            db.update("leads" if kind == "lead" else "jobs", rec["id"],
+                      seminar_request=db.dump_json({k: f.get(k) for k in
+                                                    ("organizer", "role", "community", "attendees",
+                                                     "dates", "manufacturer", "color", "topics")}))
+        except Exception:
+            pass
+        flash("Seminar request sent! We'll reach out to schedule your lunch-and-learn — "
+              "food and expert answers on us. 🍽️", "ok")
+        return redirect(url_for("portal.seminar", token=token))
+    return render_template("seminar.html", token=token, company=db.get_company(), systems=ROOF_EDU)
 
 
 @bp.route("/<token>/upload-doc", methods=["POST"])

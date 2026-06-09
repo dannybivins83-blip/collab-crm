@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="{{ company.color_masthead or '#24476C' }}">
+<title>Roof School — {{ company.name }}</title>
+<style>
+  :root{--brand:{{ company.color_masthead or '#24476C' }};--accent:{{ company.color_primary or '#4680BF' }};
+    --green:{{ company.color_accent or '#8CC63F' }};--ink:#16223b;--mut:#6a778d;--line:#e7ecf3;--bg:#eef2f7}
+  *{box-sizing:border-box} body{margin:0;color:var(--ink);background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding-bottom:40px}
+  .top{background:linear-gradient(118deg,var(--brand),color-mix(in srgb,var(--brand) 60%,var(--accent)));
+    color:#fff;padding:calc(16px + env(safe-area-inset-top)) 18px 18px;text-align:center}
+  .top h1{margin:0;font-size:21px} .top p{margin:5px 0 0;opacity:.9;font-size:13px}
+  .wrap{max-width:760px;margin:0 auto;padding:16px 14px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;
+    box-shadow:0 6px 22px -12px rgba(16,34,64,.2)}
+  .h{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:0 0 12px}
+  .flash{background:#e8f8f0;color:#0a7a5f;border:1px solid #bfe6d6;border-radius:12px;padding:13px;font-weight:700;margin-bottom:14px}
+  /* system flip cards */
+  .syscards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .flip{perspective:1000px;height:188px;cursor:pointer}
+  .flip .inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+  .flip.on .inner{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;border-radius:14px;padding:13px;color:#fff;
+    display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+  .back{transform:rotateY(180deg);background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .face .ic{font-size:30px} .face .nm{font-weight:800;font-size:15px} .face .meta{font-size:12px;opacity:.92}
+  .back .nm{font-weight:800;font-size:13px;margin-bottom:5px}
+  .back ul{margin:3px 0;padding-left:16px;font-size:11.5px;line-height:1.5}
+  .back .pro li{color:#2e7d32} .back .con li{color:#b0413c}
+  .tap{font-size:10.5px;opacity:.8;margin-top:auto}
+  /* quiz */
+  .q{font-weight:800;font-size:16px;margin-bottom:12px}
+  .opt{display:block;width:100%;text-align:left;border:1.5px solid var(--line);background:#fff;border-radius:11px;
+    padding:13px 14px;margin-bottom:9px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+  .opt:hover{border-color:var(--accent)}
+  .opt.right{border-color:var(--green);background:color-mix(in srgb,var(--green) 12%,#fff)}
+  .opt.wrong{border-color:#e0a3a0;background:#fdeceb}
+  .why{font-size:13px;color:var(--mut);margin-top:6px;display:none}
+  .why.on{display:block} .qprog{font-size:12px;color:var(--mut);margin-bottom:8px}
+  .scorebox{text-align:center;padding:6px} .scorebox .big{font-size:42px;font-weight:800}
+  .badge{font-size:38px} .btn{border:0;border-radius:11px;padding:13px 18px;font-weight:800;font-size:15px;cursor:pointer;background:var(--green);color:#1f3d10}
+  /* glossary */
+  .gl{border:1px solid var(--line);border-radius:11px;margin-bottom:8px;overflow:hidden}
+  .gl summary{padding:12px 14px;font-weight:700;cursor:pointer;list-style:none}
+  .gl summary::-webkit-details-marker{display:none}
+  .gl p{margin:0;padding:0 14px 13px;color:var(--mut);font-size:13.5px}
+</style>
+</head>
+<body>
+  <div class="top"><h1>🎓 Roof School</h1><p>Learn how roofs really work — and test your Roof IQ.</p></div>
+  <div class="wrap">
+
+    <div class="card">
+      <div class="h">The 4 roof systems — tap a card to flip it</div>
+      <div class="syscards">
+        {% for s in systems %}
+        <div class="flip" onclick="this.classList.toggle('on')">
+          <div class="inner">
+            <div class="face" style="background:{{ s.hex }}">
+              <div class="ic">{{ s.ic }}</div>
+              <div><div class="nm">{{ s.name }}</div><div class="meta">Lasts {{ s.life }} · {{ s.cost }}</div></div>
+              <div class="tap">tap to learn ↻</div>
+            </div>
+            <div class="face back">
+              <div class="nm">{{ s.name }}</div>
+              <div style="font-size:11.5px;color:var(--mut)">{{ s.blurb }}</div>
+              <ul class="pro">{% for p in s.pros %}<li>{{ p }}</li>{% endfor %}</ul>
+              <ul class="con">{% for cn in s.cons %}<li>{{ cn }}</li>{% endfor %}</ul>
+              <div class="tap" style="color:var(--mut)">↻ flip back</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card" id="quizCard">
+      <div class="h">🧠 Test your Roof IQ</div>
+      <div id="quizBody">
+        <div class="qprog" id="qprog"></div>
+        <div class="q" id="qtext"></div>
+        <div id="qopts"></div>
+        <div class="why" id="qwhy"></div>
+        <div style="text-align:center;margin-top:10px"><button class="btn" id="qnext" style="display:none" onclick="nextQ()">Next →</button></div>
+      </div>
+      <div id="quizDone" style="display:none" class="scorebox">
+        <div class="badge" id="iqBadge">🏅</div>
+        <div class="big"><span id="iqScore">0</span>/<span id="iqTotal">0</span></div>
+        <div id="iqTitle" style="font-weight:800;margin:4px 0"></div>
+        <div class="muted" style="color:var(--mut)">You know more about roofs than most! Questions for your rep? They've got answers.</div>
+        <button class="btn" style="margin-top:12px" onclick="restartQuiz()">↺ Play again</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="h">📖 Roof glossary — the terms on your estimate</div>
+      {% for g in glossary %}
+      <details class="gl"><summary>{{ g.t }}</summary><p>{{ g.d }}</p></details>
+      {% endfor %}
+    </div>
+  </div>
+
+<script>
+  var QUIZ={{ quiz|tojson }}, qi=0, score=0, answered=false;
+  function renderQ(){answered=false;var q=QUIZ[qi];
+    document.getElementById('qprog').textContent='Question '+(qi+1)+' of '+QUIZ.length+'  ·  Score '+score;
+    document.getElementById('qtext').textContent=q.q;
+    var box=document.getElementById('qopts');box.innerHTML='';
+    q.a.forEach(function(opt,idx){var b=document.createElement('button');b.className='opt';b.textContent=opt;
+      b.onclick=function(){pick(idx,b);};box.appendChild(b);});
+    document.getElementById('qwhy').classList.remove('on');
+    document.getElementById('qnext').style.display='none';}
+  function pick(idx,btn){if(answered)return;answered=true;var q=QUIZ[qi];
+    var opts=document.querySelectorAll('#qopts .opt');
+    opts[q.c].classList.add('right'); if(idx!==q.c)btn.classList.add('wrong');
+    if(idx===q.c)score++;
+    var w=document.getElementById('qwhy');w.textContent='💡 '+q.why;w.classList.add('on');
+    document.getElementById('qnext').style.display='inline-block';
+    document.getElementById('qnext').textContent=(qi<QUIZ.length-1)?'Next →':'See my Roof IQ →';}
+  function nextQ(){if(qi<QUIZ.length-1){qi++;renderQ();}else{finish();}}
+  function finish(){document.getElementById('quizBody').style.display='none';
+    var done=document.getElementById('quizDone');done.style.display='block';
+    document.getElementById('iqScore').textContent=score;document.getElementById('iqTotal').textContent=QUIZ.length;
+    var pct=score/QUIZ.length;var t,b;
+    if(pct===1){t='Roof Genius!';b='👑';} else if(pct>=.6){t='Roof Smart';b='🏆';} else {t='Roof Rookie';b='🎓';}
+    document.getElementById('iqTitle').textContent=t;document.getElementById('iqBadge').textContent=b;
+    if(pct>=.6)confetti();}
+  function restartQuiz(){qi=0;score=0;document.getElementById('quizDone').style.display='none';
+    document.getElementById('quizBody').style.display='block';renderQ();}
+  function confetti(){for(var i=0;i<70;i++){(function(){var c=document.createElement('div');
+    c.style.cssText='position:fixed;top:-10px;left:'+Math.random()*100+'vw;width:9px;height:9px;z-index:99999;border-radius:2px;background:hsl('+Math.floor(Math.random()*360)+',90%,55%);pointer-events:none';
+    document.body.appendChild(c);var top=0;var iv=setInterval(function(){top+=4+Math.random()*4;c.style.top=top+'px';c.style.transform='rotate('+top*4+'deg)';
+      if(top>window.innerHeight+20){clearInterval(iv);c.remove();}},16);})();}}
+  renderQ();
+</script>
+</body>
+</html>

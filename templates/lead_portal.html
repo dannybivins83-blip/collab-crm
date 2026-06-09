@@ -39,6 +39,18 @@
     </div>
 
     <div class="card">
+      <h2>🎓 Learn while you wait</h2>
+      <p class="muted">New to roofing decisions? Take a 2-minute tour of the systems and test your Roof IQ — so you walk into your inspection already an expert.</p>
+      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.learn', token=token) }}">🎓 Open Roof School →</a>
+    </div>
+
+    <div class="card" style="background:linear-gradient(125deg,#eef9f0,#fff);border-color:#cdeccf">
+      <h2>🍽️ HOA board or community?</h2>
+      <p class="muted">We'll bring lunch and host a Q&amp;A for your residents or board — and if a specific tile manufacturer/color is required, we'll bring their reps.</p>
+      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.seminar', token=token) }}">🍽️ Request a Lunch &amp; Learn →</a>
+    </div>
+
+    <div class="card">
       <h2>Your request</h2>
       {% if l.address %}<div class="row"><span class="k">Property</span><span class="v">{{ l.address }}</span></div>{% endif %}
       {% if l.work_type %}<div class="row"><span class="k">Service</span><span class="v">{{ l.work_type }}</span></div>{% endif %}

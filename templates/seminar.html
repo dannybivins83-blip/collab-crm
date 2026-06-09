@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="{{ company.color_masthead or '#24476C' }}">
+<title>HOA Lunch &amp; Learn — {{ company.name }}</title>
+<style>
+  :root{--brand:{{ company.color_masthead or '#24476C' }};--accent:{{ company.color_primary or '#4680BF' }};
+    --green:{{ company.color_accent or '#8CC63F' }};--ink:#16223b;--mut:#6a778d;--line:#e7ecf3;--bg:#eef2f7}
+  *{box-sizing:border-box} body{margin:0;color:var(--ink);background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding-bottom:40px}
+  .top{background:linear-gradient(118deg,var(--brand),color-mix(in srgb,var(--brand) 60%,var(--accent)));
+    color:#fff;padding:calc(16px + env(safe-area-inset-top)) 18px 18px;text-align:center}
+  .top h1{margin:0;font-size:21px} .top p{margin:5px 0 0;opacity:.92;font-size:13px}
+  .wrap{max-width:640px;margin:0 auto;padding:16px 14px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;
+    box-shadow:0 6px 22px -12px rgba(16,34,64,.2)}
+  .flash{background:#e8f8f0;color:#0a7a5f;border:1px solid #bfe6d6;border-radius:12px;padding:14px;font-weight:700;margin-bottom:14px}
+  label{display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);margin:12px 0 5px}
+  input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;font:inherit;font-size:14px}
+  textarea{min-height:72px;resize:vertical}
+  .row{display:flex;gap:10px}.row>div{flex:1}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{flex:1;min-width:120px} .chip input{display:none}
+  .chip span{display:flex;gap:7px;align-items:center;justify-content:center;border:1.5px solid var(--line);border-radius:11px;padding:11px;font-weight:700;font-size:13px;cursor:pointer}
+  .chip input:checked + span{border-color:var(--green);background:color-mix(in srgb,var(--green) 10%,#fff)}
+  .btn{width:100%;border:0;border-radius:12px;padding:15px;font-weight:800;font-size:16px;cursor:pointer;background:var(--green);color:#1f3d10;margin-top:16px}
+  .perk{display:flex;gap:10px;align-items:center;font-size:13.5px;color:var(--ink);margin:7px 0}
+  .perk .i{font-size:20px}
+</style>
+</head>
+<body>
+  <div class="top"><h1>🍽️ HOA Lunch &amp; Learn</h1><p>We bring the food &amp; the knowledge — you bring the questions.</p></div>
+  <div class="wrap">
+    {% with msgs = get_flashed_messages(with_categories=true) %}{% for cat,m in msgs %}<div class="flash">✓ {{ m }}</div>{% endfor %}{% endwith %}
+
+    <div class="card">
+      <div class="perk"><span class="i">🥪</span> We cater lunch for your residents or board — on us.</div>
+      <div class="perk"><span class="i">🧠</span> A relaxed Q&amp;A on roofing systems, costs, codes &amp; timelines.</div>
+      <div class="perk"><span class="i">🤝</span> Need a specific tile manufacturer or color? We'll bring their reps.</div>
+      <div class="perk"><span class="i">🏘️</span> Perfect for HOA boards planning community re-roofs.</div>
+    </div>
+
+    <form class="card" method="post" action="{{ url_for('portal.seminar', token=token) }}">
+      <label>Your name</label>
+      <input name="organizer" required placeholder="First & last">
+      <div class="row">
+        <div><label>You're a…</label>
+          <select name="role"><option>HOA Board Member</option><option>HOA Manager</option><option>Resident</option><option>Property Manager</option></select></div>
+        <div><label>Est. attendees</label><input name="attendees" placeholder="e.g. 25"></div>
+      </div>
+      <label>Community / HOA name</label>
+      <input name="community" placeholder="e.g. Ocean Ridge Villas HOA">
+      <label>Preferred date(s) / time</label>
+      <input name="dates" placeholder="e.g. a weekday evening in the next few weeks">
+
+      <label>Roofing systems you want to learn about</label>
+      <div class="chips">
+        {% for s in systems %}
+        <label class="chip"><input type="checkbox" name="systems" value="{{ s.name }}"><span>{{ s.ic }} {{ s.name.split(' ')[0] }}</span></label>
+        {% endfor %}
+      </div>
+
+      <label>Specific manufacturer required? (we'll bring their rep)</label>
+      <input name="manufacturer" placeholder="e.g. Eagle, Westlake, GAF — or leave blank">
+      <label>Specific color / profile required?</label>
+      <input name="color" placeholder="e.g. a community-mandated tile color">
+      <label>Topics or questions you want covered</label>
+      <textarea name="topics" placeholder="Anything specific your community is wondering about…"></textarea>
+
+      <button class="btn" type="submit">🍽️ Request our Lunch &amp; Learn</button>
+    </form>
+  </div>
+</body>
+</html>

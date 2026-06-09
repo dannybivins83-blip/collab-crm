@@ -319,6 +319,20 @@
     <div style="font-size:20px;color:var(--accent)">›</div>
   </a>
 
+  <!-- LEARN + HOA SEMINAR -->
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <a class="card cta-card" href="{{ url_for('portal.learn', token=token) }}" style="flex:1;min-width:200px;display:flex;gap:11px;align-items:center;text-decoration:none;color:inherit">
+      <div style="font-size:26px">🎓</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:800">Roof School</div>
+        <div class="muted" style="font-size:12.5px">Learn the systems + test your Roof IQ →</div></div>
+    </a>
+    <a class="card cta-card" href="{{ url_for('portal.seminar', token=token) }}" style="flex:1;min-width:200px;display:flex;gap:11px;align-items:center;text-decoration:none;color:inherit">
+      <div style="font-size:26px">🍽️</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:800">HOA Lunch &amp; Learn</div>
+        <div class="muted" style="font-size:12.5px">We bring food + answers for your board →</div></div>
+    </a>
+  </div>
+
   <!-- MILESTONE CELEBRATION (confetti once per new step) -->
   {% if celebrate %}
   <div class="celebrate">
