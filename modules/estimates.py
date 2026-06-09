@@ -177,15 +177,16 @@ def _apply_measurement(est_id, m):
 
     for ln in db.all_rows("estimate_lines", "estimate_id=?", (est_id,)):
         d = (ln.get("description") or "").lower()
-        if d.startswith("upgrade") or d.startswith("add-on"):
-            continue  # optional upgrades stay at qty 0 until the rep turns them on
-        # AccuLynx-mirror lines carry an explicit formula — use it verbatim.
+        # AccuLynx-mirror lines carry an explicit formula — use it verbatim (even for
+        # upgrade options like Premium/Color Coat tile, which auto-fill to the squares).
         rule = db.load_json(ln.get("qrule"), None) if ln.get("qrule") else None
         if rule is not None:
             qv = eval_qrule(rule)
             if qv is not None:
                 db.update("estimate_lines", ln["id"], qty=round(qv, 2))
             continue
+        if d.startswith("upgrade") or d.startswith("add-on"):
+            continue  # optional upgrades (no formula) stay at qty 0 until the rep turns them on
         u = (ln.get("unit") or "").upper()
         if u == "LS":
             # lump-sum lines (permit, dumpster) are always qty 1 — never square-driven
@@ -239,18 +240,22 @@ def build_estimate(lead_id=None, job_id=None, template_id=None, work_type="", ap
                                      "unit": line.get("unit", "EA"), "qty": line.get("qty", 0),
                                      "waste_pct": 0, "cost": line.get("cost", 0),
                                      "qrule": db.dump_json(line["q"]) if line.get("q") else ""})
-    # Upgrades & Options — the system's premium add-ons, all at qty 0. Fall back to the
-    # template's own work type (wt) / key so tile/metal/flat estimates never get the
-    # generic shingle upgrades just because the lead's work_type was blank.
-    ups = constants.upgrades_for(work_type or wt or (template_id or ""))
-    if ups:
-        usid = db.insert("estimate_sections", {
-            "estimate_id": eid, "sort": 1, "name": "Upgrades & Options", "margin_pct": 30,
-            "scope_text": "Optional upgrades for this roof — included only when a quantity is entered."})
-        for i, u in enumerate(ups):
-            db.insert("estimate_lines", {"estimate_id": eid, "section_id": usid, "sort": i,
-                                         "description": u["desc"], "unit": u.get("unit", "EA"),
-                                         "qty": 0, "waste_pct": 0, "cost": u.get("cost", 0)})
+    # Upgrade OPTION GROUPS (AccuLynx-style): each upgrade is its own collapsible section
+    # with a customer-facing scope + a Declined/Accepted line + its line items. Falls back
+    # to the template's own work type (wt) so tile/metal/flat never get generic upgrades.
+    groups = constants.upgrade_groups(work_type or wt or (template_id or ""))
+    for gi, g in enumerate(groups):
+        scope_text = (g.get("scope") or "")
+        if "Declined" not in scope_text:
+            scope_text += constants._ACCEPT_LINE
+        gsid = db.insert("estimate_sections", {
+            "estimate_id": eid, "sort": 1 + gi, "name": g["name"], "margin_pct": 30,
+            "scope_text": scope_text})
+        for i, u in enumerate(g.get("lines", [])):
+            db.insert("estimate_lines", {"estimate_id": eid, "section_id": gsid, "sort": i,
+                                         "description": u.get("desc", ""), "unit": u.get("unit", "EA"),
+                                         "qty": u.get("qty", 0), "waste_pct": 0, "cost": u.get("cost", 0),
+                                         "qrule": db.dump_json(u["q"]) if u.get("q") else ""})
     if apply_meas:
         from modules import measurements as meas
         m = meas.for_lead(lead_id) if lead_id else (meas.for_job(job_id) if job_id else None)

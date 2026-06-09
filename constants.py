@@ -805,3 +805,55 @@ def upgrades_for(work_type):
     if not out:
         out = UPGRADES["shingle"]
     return out + UPGRADES["common"]
+
+
+# ---------------------------------------------------------------------------
+# UPGRADE OPTION GROUPS — mirrors AccuLynx's design: each upgrade is its own named
+# option with a customer-facing scope + a "Declined / Accepted" line + line items
+# (vs. a flat list). build_estimate renders each group as its own collapsible
+# section. Quantities use the same q-formula engine as the base template.
+# ---------------------------------------------------------------------------
+_ACCEPT_LINE = "\n\nDeclined ____________     Accepted ____________"
+
+UPGRADE_GROUPS = {
+    "tile": [
+        {"name": "Upgrade to Premium Tile Selection",
+         "scope": "Furnish and install \"Premium\" or \"Designer\" tile selection.",
+         "lines": [{"desc": "Upgrade to Premium Tile Selection", "unit": "SQ", "cost": 5.81, "q": {"sq": 1.0}}]},
+        {"name": "Upgrade to Color Coat Tile (Slurry Coated)",
+         "scope": "Furnish and install \"Color Coat\" or \"Slurry Coat\" tile selection.",
+         "lines": [{"desc": "Color Coat (Slurry Coated Tile)", "unit": "SQ", "cost": 66.88, "q": {"sq": 1.0}}]},
+        {"name": "Saltwater Considerations",
+         "scope": "Due to the proximity of salt or brackish water, please consider using copper drip "
+                  "edge flashing and copper valley flashing.",
+         "lines": [{"desc": "Copper Drip Edge 3\" x 3\"", "unit": "EA", "cost": 53.00, "q": {"lf": "driprake", "c": 0.1}},
+                   {"desc": "Copper Valley Metal", "unit": "EA", "cost": 530.07, "q": {"lf": "valley", "c": 0.17}}]},
+        {"name": "Wall Flashing & Stucco",
+         "scope": "a. Remove and dispose of existing wall flashing.\nb. Furnish and install new wall flashing.\n"
+                  "c. Furnish and install new stucco.\nIf wall flashing is rusted and/or corroded, it will be "
+                  "removed and replaced and billed in accordance with the wood pricing sheet.",
+         "lines": [{"desc": "4x5 Wall Flashing", "unit": "EA", "cost": 4.00, "qty": 0},
+                   {"desc": "Stucco Disposal", "unit": "EA", "cost": 1.00, "qty": 0},
+                   {"desc": "Labor - Stucco Cut", "unit": "EA", "cost": 5.00, "qty": 0},
+                   {"desc": "Labor - New Stucco", "unit": "EA", "cost": 25.00, "qty": 0}]},
+        {"name": "Gutters and Downspouts (Zero Side)",
+         "scope": "Furnish and install new 6\" aluminum K-style gutters and downspouts on the \"zero side\" of "
+                  "the property. This is required by Florida Building Code.",
+         "lines": [{"desc": "6\" Aluminum K-Style Gutters", "unit": "LF", "cost": 5.25, "qty": 0}]},
+    ],
+}
+
+
+def upgrade_groups(work_type):
+    """Return AccuLynx-style upgrade OPTION GROUPS for a work type. Systems without an
+    explicit grouped menu fall back to a single group wrapping their flat upgrade list."""
+    key = template_for_work_type(work_type)
+    if key in UPGRADE_GROUPS:
+        return UPGRADE_GROUPS[key]
+    flat = upgrades_for(work_type)
+    if not flat:
+        return []
+    return [{"name": "Upgrades & Options",
+             "scope": "Optional upgrades for this roof — included only when a quantity is entered." + _ACCEPT_LINE,
+             "lines": [{"desc": u["desc"], "unit": u.get("unit", "EA"),
+                        "cost": u.get("cost", 0), "qty": u.get("qty", 0)} for u in flat]}]

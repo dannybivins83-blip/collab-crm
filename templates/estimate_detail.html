@@ -23,7 +23,7 @@
 
       <div id="sections">
         {% for s in sections %}
-        {% set _collapsed = 'upgrade' in (s.name or '')|lower or 'add-on' in (s.name or '')|lower or 'option' in (s.name or '')|lower %}
+        {% set _collapsed = 'upgrade' in (s.name or '')|lower or 'add-on' in (s.name or '')|lower or 'option' in (s.name or '')|lower or 'declined' in (s.scope_text or '')|lower %}
         <div class="section{{ ' collapsed' if _collapsed }}" data-margin="{{ s.margin_pct }}">
           <div class="section-head">
             <button type="button" class="sec-collapse" onclick="toggleSection(this)" title="Expand / collapse">▾</button>
