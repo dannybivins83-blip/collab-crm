@@ -110,6 +110,12 @@ button:active,.btn:active{transform:translateY(1px)}
 .lcline{flex:1 1 auto;height:3px;min-width:18px;background:var(--line);margin:0 -2px 20px;border-radius:2px}
 .lcline.done{background:#8CC63F}
 
+/* collapsible estimate sections */
+.sec-collapse{background:none;border:0;font-size:15px;cursor:pointer;padding:2px 6px;min-height:0;color:var(--mut);transition:transform .15s}
+.section.collapsed .sec-collapse{transform:rotate(-90deg)}
+.section.collapsed .section-body{display:none}
+.sec-count{font-size:11px;color:var(--mut);margin-left:6px}
+
 /* forms */
 input,select,textarea{background:#fff;border:1px solid var(--line);color:var(--txt);
   border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;width:100%}

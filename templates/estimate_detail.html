@@ -23,11 +23,15 @@
 
       <div id="sections">
         {% for s in sections %}
-        <div class="section" data-margin="{{ s.margin_pct }}">
+        {% set _collapsed = 'upgrade' in (s.name or '')|lower or 'add-on' in (s.name or '')|lower or 'option' in (s.name or '')|lower %}
+        <div class="section{{ ' collapsed' if _collapsed }}" data-margin="{{ s.margin_pct }}">
           <div class="section-head">
+            <button type="button" class="sec-collapse" onclick="toggleSection(this)" title="Expand / collapse">▾</button>
             <input class="sec-name" value="{{ s.name }}" placeholder="Section name (e.g. Roofing - Shingle Section)">
+            <span class="sec-count muted">{{ s._lines|length }} line{{ 's' if s._lines|length != 1 }}</span>
             <button class="btn sm" onclick="this.closest('.section').remove();recalc()">✕ Section</button>
           </div>
+          <div class="section-body">
           <table class="lines">
             <thead><tr><th style="width:36%">Product / Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Cost/Unit</th><th class="num">Cost</th><th class="num">Price</th><th></th></tr></thead>
             <tbody>
@@ -45,6 +49,7 @@
             </tbody>
           </table>
           <button type="button" class="btn sm" onclick="addLine(this)">+ Line</button>
+          </div><!-- /.section-body -->
           <div class="section-foot">
             <span class="scope-toggle" onclick="toggleScope(this)">▸ Scope of work</span>
             <div class="sec-totals">
@@ -233,6 +238,7 @@ function addSection(){
 }
 function toggleScope(el){const t=el.closest('.section').querySelector('.sec-scope');
   const open=t.style.display==='none'; t.style.display=open?'block':'none'; el.textContent=(open?'▾':'▸')+' Scope of work';}
+function toggleSection(btn){btn.closest('.section').classList.toggle('collapsed');}
 function collect(){
   const sections=[...document.querySelectorAll('.section')].map(sec=>({
     name:sec.querySelector('.sec-name').value, scope_text:sec.querySelector('.sec-scope').value,
