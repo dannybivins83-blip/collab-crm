@@ -49,6 +49,28 @@ def current_user():
     return db.get("users", uid) if uid else None
 
 
+def _after_login_redirect(nxt):
+    """Land the user where they were headed — but on first login, seamlessly
+    connect their Gmail inbox if it isn't connected yet (Part 2 of unified SSO).
+
+    CRM login itself stays identity-only (non-sensitive Google scopes, no app
+    review). The restricted gmail.modify consent is triggered ONCE per session so
+    the inbox widget is ready without a manual "Connect Gmail" click. A session
+    flag prevents a declined consent from looping."""
+    target = nxt if (nxt or "").startswith("/") else url_for("dashboard.home")
+    try:
+        from modules import gmail
+        if (gmail.configured()
+                and not session.get("gmail_autoprompted")
+                and not gmail.account_for_user(session.get("user_id"))):
+            session["gmail_autoprompted"] = True
+            session["gmail_after"] = target   # where to land after consent
+            return redirect(url_for("gmail.connect"))
+    except Exception:
+        pass
+    return redirect(target)
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("user_id"):
@@ -62,8 +84,7 @@ def login():
             session["user_id"] = user["id"]
             session["user_name"] = user["name"]
             session["user_role"] = user.get("role", "sales")
-            nxt = request.args.get("next")
-            return redirect(nxt if nxt and nxt.startswith("/") else url_for("dashboard.home"))
+            return _after_login_redirect(request.args.get("next"))
         flash("Invalid email or password.", "error")
     from modules import gmail
     return render_template("login.html", google_enabled=gmail.configured())
@@ -125,10 +146,9 @@ def google_callback():
     session["user_id"] = user["id"]
     session["user_name"] = user["name"]
     session["user_role"] = user.get("role", "sales")
-    # Login grants identity only; the Gmail inbox is a separate one-click connect
-    # (/gmail/connect) since it needs the restricted gmail.modify scope.
-    nxt = session.pop("google_login_next", "")
-    return redirect(nxt if nxt.startswith("/") else url_for("dashboard.home"))
+    # Login grants identity only; the Gmail inbox is a separate restricted-scope
+    # connect. _after_login_redirect auto-triggers it once so it's seamless.
+    return _after_login_redirect(session.pop("google_login_next", ""))
 
 
 @bp.route("/logout")

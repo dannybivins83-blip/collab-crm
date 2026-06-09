@@ -240,7 +240,12 @@ def callback():
         return redirect(url_for("dashboard.home") + "?gmail=error")
     email = userinfo_email(tok["access_token"])
     save_grant(_current_uid(), tok, email)
-    return redirect(url_for("dashboard.home") + "?gmail=connected")
+    # If we were auto-triggered right after login, return the user to where they
+    # were headed (set by auth._after_login_redirect); else the dashboard.
+    after = session.pop("gmail_after", "")
+    base = after if after.startswith("/") else url_for("dashboard.home")
+    sep = "&" if "?" in base else "?"
+    return redirect(base + sep + "gmail=connected")
 
 
 @bp.route("/disconnect", methods=["POST"])

@@ -58,12 +58,13 @@ from modules.tools import bp as tools_bp
 from modules.signups import bp as signups_bp
 from modules.gmail import bp as gmail_bp
 from modules.sitecam import bp as sitecam_bp
+from modules.sso import bp as sso_bp
 
 for _bp in (dashboard_bp, settings_bp, contacts_bp, leads_bp, jobs_bp, estimates_bp,
             permits_bp, files_bp, tasks_bp, calendar_bp, invoices_bp, materials_bp,
             reports_bp, comms_bp, templates_bp, measurements_bp, sync_bp, quickbooks_bp,
             worksheet_bp, customize_bp, orders_bp, library_bp, commissions_bp, customfields_bp,
-            portal_bp, tools_bp, signups_bp, gmail_bp, sitecam_bp):
+            portal_bp, tools_bp, signups_bp, gmail_bp, sitecam_bp, sso_bp):
     app.register_blueprint(_bp)
 
 # Real per-user login (registers its own blueprint + before-request guard).

@@ -5,16 +5,16 @@
   <h1 class="page-title" style="margin:0">📷 Site Photos</h1>
   <span class="sub">SeaBreeze SiteCam — field photo platform</span>
   <div class="grow"></div>
+  <span id="sc-sso" class="sc-sso muted">🔑 Single sign-on…</span>
   <a class="btn ghost" href="{{ sitecam_url }}" target="_blank" rel="noopener">⛶ Open in new tab</a>
 </div>
 <div class="sitecam-wrap">
-  <iframe src="{{ sitecam_url }}" class="sitecam-frame"
+  <iframe id="sitecam-frame" src="{{ sitecam_url }}" class="sitecam-frame"
           allow="camera; geolocation; clipboard-read; clipboard-write"
           referrerpolicy="origin"></iframe>
   <div class="sitecam-note muted">
-    If the photos app shows a sign-in screen, log in once here — or use
-    <a href="{{ sitecam_url }}" target="_blank" rel="noopener">Open in new tab</a>.
-    (Some browsers block the embedded login session.)
+    You're signed in automatically from the CRM. If the photos app still shows a
+    sign-in screen, <a href="{{ sitecam_url }}" target="_blank" rel="noopener">open it in a new tab</a>.
   </div>
 </div>
 <style>
@@ -22,5 +22,62 @@
 .sitecam-frame{width:100%;height:calc(100vh - 210px);min-height:520px;border:1px solid var(--line,#dde3ec);
   border-radius:10px;background:#fff}
 .sitecam-note{font-size:12px}
+.sc-sso{font-size:12px}
+.sc-sso.ok{color:#2e7d32}
+.sc-sso.err{color:var(--danger,#c62828)}
 </style>
+<script>
+// ── Unified SSO handoff: CRM parent → SiteCam iframe ───────────────────────
+// The CRM mints a short-lived, HMAC-signed assertion for the logged-in user and
+// hands it to the embedded app over an ORIGIN-CHECKED postMessage. The raw token
+// never goes in the iframe URL. The iframe announces readiness; we reply with a
+// freshly-minted assertion to its exact origin only.
+(function () {
+  var TARGET_ORIGIN = {{ sitecam_origin | tojson }};
+  var frame = document.getElementById('sitecam-frame');
+  var badge = document.getElementById('sc-sso');
+
+  function setBadge(text, cls) {
+    if (!badge) return;
+    badge.textContent = text;
+    badge.className = 'sc-sso ' + (cls || 'muted');
+  }
+
+  // Fetch a fresh assertion each time it's needed (≈90s TTL, single-use).
+  function mint() {
+    return fetch('/sso/token/sitecam', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
+  function send() {
+    return mint().then(function (data) {
+      if (!data || !data.assertion) { setBadge('🔑 SSO unavailable', 'err'); return; }
+      // Post only to SiteCam's origin — never '*'.
+      var origin = data.origin || TARGET_ORIGIN || '*';
+      try {
+        frame.contentWindow.postMessage(
+          { type: 'crm-sso-assertion', assertion: data.assertion }, origin);
+        setBadge('🔑 Signed in', 'ok');
+      } catch (e) {
+        setBadge('🔑 SSO blocked', 'err');
+      }
+    });
+  }
+
+  // The iframe pings us when it's loaded and not yet authenticated. Verify the
+  // message really came from SiteCam before responding.
+  window.addEventListener('message', function (ev) {
+    if (TARGET_ORIGIN !== '*' && ev.origin !== TARGET_ORIGIN) return;
+    var d = ev.data || {};
+    if (d.type === 'sitecam-sso-ready') send();
+    if (d.type === 'sitecam-sso-ok') setBadge('🔑 Signed in', 'ok');
+    if (d.type === 'sitecam-sso-fail') setBadge('🔑 SSO failed — open in new tab', 'err');
+  });
+
+  // Proactively push once the frame loads, in case the ready-ping was missed
+  // (e.g. the app booted before this listener attached).
+  frame.addEventListener('load', function () { setTimeout(send, 400); });
+})();
+</script>
 {% endblock %}
