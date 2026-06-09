@@ -705,7 +705,13 @@ function downloadBookmarkFolder(){
     var a=document.getElementById(it[0]);
     var href=a?(a.getAttribute('href')||''):'';
     if(href.indexOf('javascript:')!==0){missing++;return;}
-    rows.push('        <DT><A HREF="'+esc(href)+'">'+esc(it[1])+'</A>');
+    // Normalize to a SINGLE-LINE, URL-encoded javascript: URL. Raw multi-line hrefs
+    // (from fn.toString()) get silently dropped by Chrome's bookmark importer; encoding
+    // them onto one line — like the Records bookmarklet already does — fixes the import.
+    var body=href.slice('javascript:'.length);
+    try{body=decodeURIComponent(body);}catch(e){}   // un-encode Records; no-op for the rest
+    var safeHref='javascript:'+encodeURIComponent(body);
+    rows.push('        <DT><A HREF="'+esc(safeHref)+'">'+esc(it[1])+'</A>');
   });
   var html='<!DOCTYPE NETSCAPE-Bookmark-file-1>\n'+
     '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n'+
