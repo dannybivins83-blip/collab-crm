@@ -282,11 +282,48 @@ def create(job_id):
                                 "size": len(data), "drive_id": did,
                                 "notes": "Auto-filled company form (customer header)"})
         prefilled += 1
-    db.add_activity("job", job_id, "automation",
-                    "Sign-up package sent (%s) — %d company form(s) pre-filled, awaiting homeowner" % (system, prefilled))
+    # If the customer already e-signed the estimate AND authorized applying that signature
+    # to the sign-up documents, auto-complete this packet with it (one signature everywhere).
+    auto_signed = False
+    if job.get("sign_consent") and job.get("signature"):
+        import re as _re
+        raw_items = template_for(system)
+        items2 = [{**it, "body": _fill(it["body"], ctx)} for it in raw_items]
+        nm = job.get("signed_name") or job.get("name") or ""
+        initials = "".join(w[0] for w in _re.findall(r"[A-Za-z]+", nm)).upper()[:4]
+        responses = {}
+        for it in raw_items:
+            if it["type"] == "initial":
+                responses[it["key"]] = initials
+            elif it["type"] == "sign":
+                responses[it["key"]] = nm
+        responses["signature"] = nm
+        responses["signature_img"] = job["signature"]
+        responses["auto_applied"] = "authorized estimate e-signature"
+        signed_at = job.get("signed_at") or db.now()
+        db.update("signup_packets", pid, responses=json.dumps(responses),
+                  status="completed", signed_at=signed_at, customer_name=nm)
+        p2 = db.get("signup_packets", pid)
+        try:
+            fn, size, did = _generate_pdf(p2, job, items2, responses, ctx)
+            db.insert("documents", {"job_id": job_id, "category": "Contract", "filename": fn,
+                      "original_name": "Signed Sign-Up Package (%s).pdf" % system, "size": size,
+                      "drive_id": did, "signed_at": signed_at, "signed_name": nm,
+                      "notes": "Auto-signed from the customer's authorized estimate e-signature"})
+        except Exception:
+            pass
+        auto_signed = True
+
+    if auto_signed:
+        db.add_activity("job", job_id, "automation",
+                        "Sign-up package auto-signed (%s) using the customer's authorized e-signature." % system)
+    else:
+        db.add_activity("job", job_id, "automation",
+                        "Sign-up package sent (%s) — %d company form(s) pre-filled, awaiting homeowner" % (system, prefilled))
     db.update("jobs", job_id, next_follow=db.today())
-    flash("Sign-up package created%s — it's in the homeowner portal." % (
-        " (%d company form(s) pre-filled)" % prefilled if prefilled else ""), "ok")
+    flash(("Sign-up package auto-signed from the customer's authorized e-signature." if auto_signed
+           else "Sign-up package created%s — it's in the homeowner portal." % (
+               " (%d company form(s) pre-filled)" % prefilled if prefilled else "")), "ok")
     return redirect(request.referrer or url_for("jobs.detail", job_id=job_id))
 
 
