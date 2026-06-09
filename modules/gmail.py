@@ -283,19 +283,14 @@ def _hdr(headers, name):
     return ""
 
 
-@bp.route("/inbox")
-def inbox():
-    uid = _current_uid()
-    q = request.args.get("q", "")
-    params = {"maxResults": 15, "labelIds": "INBOX"}
-    if q:
-        params["q"] = q
-        params.pop("labelIds", None)
+def _list_messages(uid, params, limit=15):
+    """Return parsed inbox rows (from/subject/snippet/unread) or None if the
+    listing call failed. Shared by /inbox and the Smart To-Do generator."""
     listing = _api_get(uid, "/messages", params)
     if listing is None:
-        return jsonify({"ok": False, "connected": bool(account_for_user(uid))}), 200
+        return None
     out = []
-    for m in listing.get("messages", [])[:15]:
+    for m in listing.get("messages", [])[:limit]:
         full = _api_get(uid, "/messages/" + m["id"],
                         {"format": "metadata",
                          "metadataHeaders": ["From", "Subject", "Date"]})
@@ -312,7 +307,57 @@ def inbox():
             "snippet": full.get("snippet", ""),
             "unread": "UNREAD" in (full.get("labelIds") or []),
         })
+    return out
+
+
+def _attach_matches(messages):
+    """Tag each message with its best CRM match {type,id,url,label} (or None).
+    Builds the lookup index once for the whole batch."""
+    from modules import crm_match
+    from theme import current_department
+    try:
+        idx = crm_match.build_index(current_department())
+    except Exception:
+        idx = None
+    for m in messages or []:
+        m["match"] = crm_match.match_one(idx, m.get("from"), m.get("subject")) if idx else None
+    return messages
+
+
+def unread_inbound(uid, limit=15):
+    """Unread INBOX messages with their CRM match attached — feeds Smart To-Do.
+    Returns [] when Gmail isn't connected or the call fails."""
+    if not account_for_user(uid):
+        return []
+    msgs = _list_messages(uid, {"maxResults": limit, "labelIds": ["INBOX", "UNREAD"]}, limit)
+    return _attach_matches(msgs or [])
+
+
+@bp.route("/inbox")
+def inbox():
+    uid = _current_uid()
+    q = request.args.get("q", "")
+    params = {"maxResults": 15, "labelIds": "INBOX"}
+    if q:
+        params["q"] = q
+        params.pop("labelIds", None)
+    out = _list_messages(uid, params, 15)
+    if out is None:
+        return jsonify({"ok": False, "connected": bool(account_for_user(uid))}), 200
+    _attach_matches(out)
     return jsonify({"ok": True, "messages": out})
+
+
+@bp.route("/match")
+def match():
+    """Lightweight CRM match for one email. Query: ?from=&subject=.
+    Returns {ok, match:{type,id,url,label}|null}."""
+    from modules import crm_match
+    from theme import current_department
+    res = crm_match.match(request.args.get("from", ""),
+                          request.args.get("subject", ""),
+                          current_department())
+    return jsonify({"ok": True, "match": res})
 
 
 def _b64url_decode(s):
