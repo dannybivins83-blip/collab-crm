@@ -150,9 +150,64 @@
     </div>
   </div>
   <div class="grow"></div>
-  <form class="navsearch" action="{{ url_for('contacts.index') }}" method="get">
-    <input name="q" placeholder="Job #, Customer Name or Address" value="{{ request.args.get('q','') }}" />
+  <form class="navsearch" id="gsearch" action="{{ url_for('contacts.index') }}" method="get" autocomplete="off">
+    <input name="q" id="gsearch-in" placeholder="Job #, Customer Name or Address" value="{{ request.args.get('q','') }}" />
+    <div class="gsearch-results" id="gsearch-out"></div>
   </form>
+  <style>
+    .navsearch{position:relative}
+    .gsearch-results{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;
+      border:1px solid #dde3ec;border-radius:10px;box-shadow:0 14px 36px -10px rgba(16,34,64,.4);
+      max-height:62vh;overflow:auto;z-index:60;padding:4px}
+    .gsearch-results.open{display:block}
+    .gs-item{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:8px 11px;
+      border-radius:7px;text-decoration:none;color:#1d2a44;cursor:pointer}
+    .gs-item:hover,.gs-item.active{background:#f4f8ff;text-decoration:none}
+    .gs-nm{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .gs-sub{font-size:11px;color:#8a93a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .gs-type{font-size:10px;font-weight:800;color:#5b6b85;flex:none;text-transform:uppercase;letter-spacing:.4px}
+    .gs-empty{padding:12px;color:#8a93a6;font-size:12.5px;text-align:center}
+  </style>
+  <script>
+  (function(){
+    var inp=document.getElementById('gsearch-in'), box=document.getElementById('gsearch-out'),
+        form=document.getElementById('gsearch'), timer=null, items=[], active=-1;
+    var esc=function(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+    function close(){ box.classList.remove('open'); box.innerHTML=''; active=-1; }
+    function render(rows){
+      items=rows||[];
+      if(!inp.value.trim()){ close(); return; }
+      if(!items.length){ box.innerHTML='<div class="gs-empty">No matches for &ldquo;'+esc(inp.value)+'&rdquo;</div>'; box.classList.add('open'); return; }
+      box.innerHTML=items.map(function(r,i){
+        return '<a class="gs-item" href="'+r.url+'"><span style="min-width:0"><span class="gs-nm">'+esc(r.name)+'</span>'
+          +(r.sub?'<br><span class="gs-sub">'+esc(r.sub)+'</span>':'')+'</span><span class="gs-type">'+esc(r.type)+'</span></a>';
+      }).join('');
+      box.classList.add('open'); active=-1;
+    }
+    inp.addEventListener('input', function(){
+      clearTimeout(timer);
+      var q=inp.value.trim();
+      if(q.length<2){ close(); return; }
+      timer=setTimeout(function(){
+        fetch('{{ url_for("search.suggest") }}?q='+encodeURIComponent(q))
+          .then(function(r){return r.ok?r.json():{results:[]};})
+          .then(function(d){ render(d.results); })
+          .catch(function(){ close(); });
+      }, 200);
+    });
+    inp.addEventListener('keydown', function(e){
+      var links=box.querySelectorAll('.gs-item');
+      if(e.key==='ArrowDown'){ e.preventDefault(); active=Math.min(active+1,links.length-1); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); active=Math.max(active-1,0); }
+      else if(e.key==='Enter'){ if(active>=0&&links[active]){ e.preventDefault(); window.location=links[active].href; } return; }
+      else if(e.key==='Escape'){ close(); return; }
+      else return;
+      links.forEach(function(a,i){ a.classList.toggle('active', i===active); });
+      if(links[active]) links[active].scrollIntoView({block:'nearest'});
+    });
+    document.addEventListener('click', function(e){ if(!form.contains(e.target)) close(); });
+  })();
+  </script>
   <a class="navitem help" href="https://support.acculynx.com" target="_blank">Help</a>
 </nav>
 
