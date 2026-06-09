@@ -92,6 +92,21 @@
   </div>
 </div>
 
+<div class="card" style="border:2px solid var(--accent)">
+  <h2>📂 Pull ALL job documents into the CRM — 20 jobs at a time</h2>
+  <p class="muted">Copies <b>every file in every folder</b> of each AccuLynx job — Email Documents, Plans/Drawings, Proposals, Roof Report, Permits, NOC, contracts, everything — into the matching CRM job, keeping the original <b>folder name</b>. The server walks your active pipeline (Assigned → Prospect → Approved → Completed → Invoiced → last 500 Closed) with its <b>own resumable cursor</b>, handing the collector <b>20 jobs per click</b>. Files you already pulled are skipped (deduped by name), so re-running is always safe. This is the full document migration so you can abandon AccuLynx.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmalldocs" class="btn accent" href="#" onclick="return false">📂 AccuLynx Documents → CRM</a></li>
+    <li>Make sure an <b>API key</b> is saved above and you've run a <b>🔄 Sync</b> so the jobs exist in the CRM.</li>
+    <li>In any logged-in <b>my.acculynx.com</b> tab, <b>click the bookmark</b>. It pulls all documents for the next 20 jobs and shows a live banner. <b>Click again</b> to walk the next 20 — the banner says when a full pass is complete.</li>
+  </ol>
+  <div class="muted">Pulls every folder (use the Roof-Reports tool above if you only want measurements). To restart the walk from the top:
+    <form method="post" action="{{ url_for('sync.doc_reset') }}" style="display:inline">
+      <button class="btn ghost sm" type="submit" style="margin-left:6px">↺ Reset cursor</button>
+    </form>
+  </div>
+</div>
+
 <div class="card">
   <h2>💵 Pull billing &amp; payments into jobs</h2>
   <p class="muted">Pulls each job's <b>job/contract value, invoices, payments &amp; balance</b> from your logged-in AccuLynx session into the matching CRM job. <b>This is what fixes the dashboard L/P/A/C/I dollar totals</b> — the public jobs API has no money field, so values only arrive via this bridge. Re-running updates the same records (deduped by AccuLynx id); never duplicates.</p>
@@ -208,6 +223,47 @@
     })();
   }
   document.getElementById('bmroof').href='javascript:('+pullRoofReportsBM.toString()+')('+JSON.stringify(BASE)+')';
+})();
+</script>
+<script>
+(function(){
+  var BASE={{ request.host_url|tojson }};
+  // All-documents collector: ask the CRM for the next 20 jobs (its own server cursor),
+  // then per job pull EVERY file in EVERY folder, posting each to /sync/doc-import with
+  // the original folder name. Deduped by filename via the doc-manifest. Click again = next 20.
+  function pullAllDocsBM(BASE){
+    (async function(){
+      var CHUNK=400*1024;
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:460px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      setb('Asking CRM for the next 20 jobs…');
+      var resp;try{resp=await (await fetch(BASE+'sync/doc-batch?n=20')).json();}catch(e){setb('Could not reach the CRM at '+BASE+' — is it open?','#c0392b');setTimeout(function(){bn.remove();},8000);return;}
+      if(!resp||!resp.ok){setb('Batch failed: '+((resp&&(resp.error||resp.reason))||'unknown')+(resp&&resp.reason==='no_api_key'?' (save an API key on the Sync page)':''),'#c0392b');setTimeout(function(){bn.remove();},9000);return;}
+      var batch=resp.batch||[];
+      if(!batch.length){setb('✓ Document pass complete — no more jobs in the pipeline. (Reset the cursor to walk again.)','#2e7d32');setTimeout(function(){bn.remove();},12000);return;}
+      async function postSmall(g,fo,n,b){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var fd=new FormData();fd.append('guid',g);fd.append('folder',fo);fd.append('filename',n);fd.append('file',b,n);var j=await (await fetch(BASE+'sync/doc-import',{method:'POST',body:fd})).json();if(j.ok)return j.added?'a':'s';if(j.reason&&j.reason!=='no_job')return 'x';}catch(e){}}return 'x';}
+      async function postChunked(g,fo,n,b){var uid='d'+Date.now()+Math.floor(Math.random()*1e4),total=Math.ceil(b.size/CHUNK);for(var i=0;i<total;i++){var part=b.slice(i*CHUNK,(i+1)*CHUNK),ok=false;for(var a=0;a<4&&!ok;a++){try{if(a)await sleep(400*a);var fd=new FormData();fd.append('uploadId',uid);fd.append('chunkIndex',i);fd.append('chunkTotal',total);fd.append('file',part,'chunk');if(i===total-1){fd.append('guid',g);fd.append('folder',fo);fd.append('filename',n);}var j=await (await fetch(BASE+'sync/doc-import',{method:'POST',body:fd})).json();if(j.ok){ok=true;if(i===total-1)return j.added?'a':'s';}else if(j.reason&&j.reason!=='no_job')return 'x';}catch(e){}}if(!ok)return 'x';}return 'x';}
+      var tot=batch.length,added=0,skip=0,fail=0,nojob=0,jdone=0;
+      for(var gi=0;gi<batch.length;gi++){var it=batch[gi],guid=it.guid;
+        if(!it.in_crm){nojob++;jdone++;setb('Jobs '+jdone+'/'+tot+' · +'+added+' new docs · '+nojob+' not in CRM');continue;}
+        try{
+          var have={},m=null;try{m=await (await fetch(BASE+'sync/doc-manifest?guid='+guid)).json();}catch(e){}
+          if(m&&m.ok){(m.names||[]).forEach(function(x){have[x.toLowerCase()]=1;});}
+          var folders=await (await fetch('/api/v4/job-documents/'+guid+'/job-document-folders',{headers:{'Accept':'application/json'}})).json();
+          var files=[];(folders||[]).forEach(function(f){var fn=(f.Name||'AccuLynx').trim();(f.Files||[]).forEach(function(fl){files.push({folder:fn,name:fl.Name,url:fl.Url});});});
+          for(var fi=0;fi<files.length;fi++){var t=files[fi];if(have[(t.name||'').toLowerCase()]){skip++;continue;}var b;try{b=await (await fetch(t.url)).blob();}catch(e){fail++;continue;}var r=b.size>CHUNK?await postChunked(guid,t.folder,t.name,b):await postSmall(guid,t.folder,t.name,b);if(r==='a')added++;else if(r==='s')skip++;else fail++;setb('Jobs '+(jdone+1)+'/'+tot+' · +'+added+' new · '+skip+' have'+(fail?' · '+fail+' fail':''));}
+        }catch(e){}
+        jdone++;setb('Jobs '+jdone+'/'+tot+' · +'+added+' new · '+skip+' have'+(fail?' · '+fail+' fail':''));
+      }
+      var more=resp.done?' — ✓ full pass complete':' — click again for the next 20';
+      setb('✓ '+tot+' jobs · '+added+' new documents · '+skip+' already had'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' failed':'')+more,'#2e7d32');
+      setTimeout(function(){bn.remove();},22000);
+    })();
+  }
+  document.getElementById('bmalldocs').href='javascript:('+pullAllDocsBM.toString()+')('+JSON.stringify(BASE)+')';
 })();
 </script>
 <script>

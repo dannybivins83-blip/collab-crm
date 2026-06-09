@@ -38,7 +38,8 @@ def _ensure_schema():
     for col in ("acculynx_api_key TEXT", "acculynx_api_base TEXT",
                 "acculynx_last_sync TEXT", "acculynx_auto INTEGER DEFAULT 0",
                 "acculynx_cursor INTEGER DEFAULT 0", "acculynx_group INTEGER DEFAULT 0",
-                "acculynx_rr_cursor INTEGER DEFAULT 0", "acculynx_rr_group INTEGER DEFAULT 0"):
+                "acculynx_rr_cursor INTEGER DEFAULT 0", "acculynx_rr_group INTEGER DEFAULT 0",
+                "acculynx_doc_cursor INTEGER DEFAULT 0", "acculynx_doc_group INTEGER DEFAULT 0"):
         try:
             db.execute("ALTER TABLE company_settings ADD COLUMN %s" % col)
         except Exception:
@@ -2062,12 +2063,16 @@ def roofreport_import():
 
 
 def _rr_next_batch(base, key, n):
+    return _pipeline_next_batch(base, key, n, "acculynx_rr_group", "acculynx_rr_cursor")
+
+
+def _pipeline_next_batch(base, key, n, gkey, ckey):
     """Walk the active AccuLynx pipeline (GUIDs only) and return the next `n` jobs
-    after the saved roof-report cursor, advancing it. Each item: {guid, name}.
+    after the saved cursor (gkey/ckey), advancing it. Each item: {guid, name}.
     Resumable across clicks; wraps the cursor to 0 when the pipeline is exhausted."""
     company = db.get_company()
-    g = int(company.get("acculynx_rr_group") or 0)
-    start = int(company.get("acculynx_rr_cursor") or 0)
+    g = int(company.get(gkey) or 0)
+    start = int(company.get(ckey) or 0)
     out = []
     PAGE = 25
     while len(out) < n and g < len(_RR_GROUPS):
@@ -2101,8 +2106,7 @@ def _rr_next_batch(base, key, n):
             g += 1
             start = 0
     done = g >= len(_RR_GROUPS)
-    db.save_company({"acculynx_rr_group": 0 if done else g,
-                     "acculynx_rr_cursor": 0 if done else start})
+    db.save_company({gkey: 0 if done else g, ckey: 0 if done else start})
     return out, (_RR_GROUPS[g] if not done else "all"), done
 
 
@@ -2145,4 +2149,50 @@ def roofreport_reset():
     """Reset the roof-report sync cursor to the top of the pipeline."""
     db.save_company({"acculynx_rr_group": 0, "acculynx_rr_cursor": 0})
     flash("Roof-report sync cursor reset — the next batch starts at the top of the pipeline.", "ok")
+    return redirect(url_for("sync.index"))
+
+
+@bp.route("/doc-batch")
+def doc_batch():
+    """CORS-open: hand the collector the NEXT batch of job GUIDs to pull ALL documents
+    for (every folder), walking the pipeline with its OWN resumable cursor (separate
+    from the roof-report walk). Annotates each with how many docs the CRM already has
+    for that job, so the bookmarklet can show progress. `?reset=1` restarts the walk."""
+    company = db.get_company()
+    key = (company.get("acculynx_api_key") or "").strip()
+    base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
+    if not key:
+        return _cors({"ok": False, "reason": "no_api_key",
+                      "error": "Set an AccuLynx API key on the Sync page first."}, 400)
+    if request.args.get("reset"):
+        db.save_company({"acculynx_doc_group": 0, "acculynx_doc_cursor": 0})
+    try:
+        n = max(1, min(50, int(request.args.get("n") or 20)))
+    except Exception:
+        n = 20
+    try:
+        batch, group, done = _pipeline_next_batch(base, key, n,
+                                                   "acculynx_doc_group", "acculynx_doc_cursor")
+    except Exception as e:
+        return _cors({"ok": False, "reason": "api_failed",
+                      "error": "%s: %s" % (type(e).__name__, e)})
+    # Annotate each job with the matching CRM job id + how many docs already stored.
+    for it in batch:
+        kind, rec, how = _roofreport_record(it["guid"], it.get("name"))
+        it["in_crm"] = bool(rec)
+        if rec and kind == "job":
+            try:
+                it["have"] = len(db.all_rows("documents", where="job_id=?", params=(rec["id"],)))
+            except Exception:
+                it["have"] = 0
+        else:
+            it["have"] = 0
+    return _cors({"ok": True, "batch": batch, "count": len(batch), "group": group, "done": done})
+
+
+@bp.route("/doc-reset", methods=["POST"])
+def doc_reset():
+    """Reset the all-documents sync cursor to the top of the pipeline."""
+    db.save_company({"acculynx_doc_group": 0, "acculynx_doc_cursor": 0})
+    flash("Document sync cursor reset — the next batch starts at the top of the pipeline.", "ok")
     return redirect(url_for("sync.index"))
