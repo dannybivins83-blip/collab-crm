@@ -40,7 +40,8 @@ def _ensure_schema():
                 "acculynx_cursor INTEGER DEFAULT 0", "acculynx_group INTEGER DEFAULT 0",
                 "acculynx_rr_cursor INTEGER DEFAULT 0", "acculynx_rr_group INTEGER DEFAULT 0",
                 "acculynx_doc_cursor INTEGER DEFAULT 0", "acculynx_doc_group INTEGER DEFAULT 0",
-                "acculynx_photo_cursor INTEGER DEFAULT 0", "acculynx_photo_group INTEGER DEFAULT 0"):
+                "acculynx_photo_cursor INTEGER DEFAULT 0", "acculynx_photo_group INTEGER DEFAULT 0",
+                "debug_probe TEXT", "debug_probe_at TEXT"):
         try:
             db.execute("ALTER TABLE company_settings ADD COLUMN %s" % col)
         except Exception:
@@ -2404,6 +2405,23 @@ def photo_batch():
         else:
             it["have"] = 0
     return _cors({"ok": True, "batch": batch, "count": len(batch), "group": group, "done": done})
+
+
+@bp.route("/debug-probe", methods=["POST", "OPTIONS"])
+def debug_probe():
+    """CORS-open temporary diagnostic: stores a posted JSON blob (e.g. AccuLynx endpoint
+    probe results) so the dev can read which internal API paths return data, without the
+    user copying console output. Truncated; overwritten each call. Remove after use."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    body = (request.get_data(as_text=True) or "")[:60000]
+    db.save_company({"debug_probe": body, "debug_probe_at": db.now()})
+    return _cors({"ok": True, "stored": len(body)})
 
 
 @bp.route("/photo-reset", methods=["POST"])
