@@ -118,8 +118,9 @@ def new():
         lid = db.insert("jobs", data)
         gc = db.get("contacts", data.get("contact_id")) if data.get("contact_id") else None
         if gc and gc.get("is_gc"):
-            db.add_activity("job", lid, "stage", "Job created under GC %s %s" % (
-                gc.get("first_name") or "", gc.get("last_name") or "").strip())
+            gname = ("%s %s" % (gc.get("first_name") or "", gc.get("last_name") or "")).strip() \
+                or gc.get("company") or "GC"
+            db.add_activity("job", lid, "stage", "Job created under GC %s" % gname)
             db.add_activity("contact", gc["id"], "note", "New job created under this GC: %s" % data.get("name"))
         else:
             db.add_activity("job", lid, "stage", "Job created")
@@ -153,7 +154,12 @@ def detail(job_id):
     from modules import measurements as meas
     idx = constants.JOB_STAGE_INDEX.get(j["stage"], 0)
     next_stage = constants.JOB_STAGES[idx + 1] if idx < len(constants.JOB_STAGES) - 1 else None
+    # Quick Estimate scoped to the job's tagged system (work type from sign-up), not the full catalog.
+    _k = constants.template_for_work_type(j.get("work_type") or "")
+    quick_templates = [t for t in db.all_rows("templates", order="name")
+                       if constants.template_for_work_type(t.get("work_type") or "") == _k and _k != "blank"]
     return render_template("job_detail.html", j=j, measurement=meas.for_job(job_id),
+                           quick_templates=quick_templates,
                            meas_fields=meas.FIELDS,
                            activity=db.entity_activity("job", job_id),
                            estimates=db.all_rows("estimates", "job_id=?", (job_id,)),
