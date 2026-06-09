@@ -5,7 +5,11 @@
   <h1>Pipeline</h1>
   <span class="sub">{{ totals.count }} records · {{ money(totals.value) }}</span>
   <div class="grow"></div>
-  <span class="muted" style="font-size:12px">Leads → Jobs, one flow</span>
+  <span class="muted" style="font-size:12px;margin-right:10px">Leads → Jobs, one flow</span>
+  <div class="viewtoggle">
+    <a class="on">⬚ Pipeline</a>
+    <a href="{{ url_for('leads.list_view') }}">☰ Leads list</a>
+  </div>
 </div>
 
 <div class="pboard">

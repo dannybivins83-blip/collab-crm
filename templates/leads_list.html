@@ -6,6 +6,7 @@
   <span class="sub">{{ rows|length }} of {{ total }}</span>
   <div class="grow"></div>
   <div class="viewtoggle">
+    <a href="{{ url_for('pipeline.board') }}">⬚ Pipeline</a>
     <a class="on">☰ List</a>
     <a href="{{ url_for('leads.board') }}">▦ Board</a>
   </div>
