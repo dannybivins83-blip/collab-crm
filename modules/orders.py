@@ -80,6 +80,8 @@ def generate(job_id):
     sections = est._load_sections(e["id"])
     buckets = {"Material": [], "Labor": []}
     for s in sections:
+        if s.get("optional"):
+            continue  # Upgrades & Options menu — don't order un-accepted upgrades
         for ln in s["_lines"]:
             cat = ws._category_for(ln.get("description"), ln.get("unit"))
             kind = "Labor" if cat == "Labor" else "Material"  # Permit/Overhead/Other -> Material PO

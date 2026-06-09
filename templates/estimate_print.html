@@ -17,6 +17,8 @@
   .parties{display:flex;justify-content:space-between;border:1px solid #d6deeb;border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:12.5px;line-height:1.5}
   .section{margin-bottom:16px}
   .section h3{margin:0 0 8px;background:#eef1f5;padding:9px 12px;font-size:14px;border-radius:4px}
+  .section.options{border:1px dashed #b9c6db;border-radius:6px;padding:4px 10px 8px}
+  .section.options h3{background:#f0f7ff}
   .scope{white-space:pre-wrap;font-size:12.5px;line-height:1.55;color:#333;padding:0 4px 8px}
   table.li{width:100%;border-collapse:collapse;margin:6px 0}
   table.li th,table.li td{padding:5px 8px;border-bottom:1px solid #eef1f5;font-size:12px;text-align:left}
@@ -75,7 +77,7 @@
       <div>Estimate: {{ e.number }}<br>Status: {{ e.status }}</div>
     </div>
 
-    {% for s in sections %}
+    {% for s in sections if not s.optional %}
     {% set m = (s.margin_pct or 0)/100 %}
     <div class="section">
       <h3>{{ s.name }}</h3>
@@ -95,6 +97,24 @@
     {% endfor %}
 
     <div class="total"><span>ESTIMATE TOTAL</span><span>{{ money(totals.total) }}</span></div>
+
+    {% for s in sections if s.optional %}
+    {% set m = (s.margin_pct or 0)/100 %}
+    <div class="section options">
+      <h3>{{ s.name }} <span style="font-weight:400;font-size:11px;color:#5b6b86">— optional add-ons, priced per line (not included in the total above)</span></h3>
+      {% if s.scope_text %}<div class="scope">{{ s.scope_text }}</div>{% endif %}
+      <table class="li">
+        <thead><tr><th>Optional upgrade / add-on</th><th class="num col-qty">Qty</th><th class="col-qty">Unit</th><th class="num col-price">Add Price</th></tr></thead>
+        <tbody>
+        {% for l in s._lines if (l.qty or 0) > 0 %}
+          {% set lc = (l.qty or 0) * (l.cost or 0) %}
+          <tr><td>{{ l.description }}</td><td class="num col-qty">{{ l.qty }}</td><td class="col-qty">{{ l.unit }}</td>
+            <td class="num col-price">+{{ money(lc/(1-m) if (1-m) else lc) }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
 
     <div class="terms">
       <b>Payment schedule</b>

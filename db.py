@@ -414,6 +414,9 @@ def _migrate_columns():
         ("estimate_lines", "section_id INTEGER"),
         ("estimate_lines", "waste_pct REAL DEFAULT 0"),
         ("estimate_lines", "cost REAL DEFAULT 0"),
+        # Optional sections (the "Upgrades & Options" menu) are priced but kept
+        # OUT of the estimate total — an accept/decline menu, not base scope.
+        ("estimate_sections", "optional INTEGER DEFAULT 0"),
         ("company_settings", "color_masthead TEXT DEFAULT '#24476C'"),
         # Appointments shipped originally with `start`/`end` columns; the app now
         # reads `start_at`/`end_at`. Add the new columns on legacy DBs and backfill.
@@ -436,6 +439,13 @@ def _migrate_columns():
                          % (new, old, new, new, old))
         except Exception:
             pass  # legacy column doesn't exist (fresh schema) — nothing to copy
+    # Backfill: mark existing "Upgrades & Options" sections optional so they drop
+    # out of the total (harmless on legacy rows — their upgrade lines are qty 0).
+    try:
+        conn.execute("UPDATE estimate_sections SET optional=1 "
+                     "WHERE optional=0 AND name='Upgrades & Options'")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
     _COLCACHE.clear(); _NUMCACHE.clear()

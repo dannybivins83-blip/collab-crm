@@ -681,18 +681,19 @@ UPGRADES = {
 }
 
 
-def upgrades_for(work_type):
-    """Upgrade/add-on line items matched to a work type (+ common add-ons)."""
+def upgrades_for(work_type=None):
+    """Every system's upgrade/add-on line items + the common add-ons.
+
+    The first estimate carries the FULL upgrade menu (shingle + tile + metal +
+    flat + common) regardless of the chosen system, so the rep can present any
+    option to the customer. `work_type` is accepted for backwards compatibility
+    and only sets the order — the matched system leads, the others follow.
+    """
     low = (work_type or "").lower()
+    order = ["shingle", "tile", "metal", "flat"]
+    lead = [k for k in order if k in low or (k == "flat" and "tpo" in low)]
+    rest = [k for k in order if k not in lead]
     out = []
-    if "shingle" in low:
-        out += UPGRADES["shingle"]
-    if "tile" in low:
-        out += UPGRADES["tile"]
-    if "metal" in low:
-        out += UPGRADES["metal"]
-    if "flat" in low or "tpo" in low:
-        out += UPGRADES["flat"]
-    if not out:
-        out = UPGRADES["shingle"]
+    for k in lead + rest:
+        out += UPGRADES[k]
     return out + UPGRADES["common"]

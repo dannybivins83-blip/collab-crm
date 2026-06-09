@@ -33,14 +33,20 @@ def line_price(l, margin_pct):
 
 
 def estimate_totals(est, sections):
-    cost = sum(s["_cost"] for s in sections)
-    subtotal = sum(s["_price"] for s in sections)
+    # Optional sections (the "Upgrades & Options" menu) are priced but excluded
+    # from the estimate total — the customer accepts/declines them separately.
+    core = [s for s in sections if not s.get("optional")]
+    opt = [s for s in sections if s.get("optional")]
+    cost = sum(s["_cost"] for s in core)
+    subtotal = sum(s["_price"] for s in core)
     tax = subtotal * (est.get("tax_pct") or 0) / 100.0
     total = subtotal + tax
     net = total - cost
     margin = (net / total * 100.0) if total else 0
     return {"cost": cost, "subtotal": subtotal, "tax": tax, "total": total,
-            "net": net, "margin": margin}
+            "net": net, "margin": margin,
+            "options_cost": sum(s["_cost"] for s in opt),
+            "options_price": sum(s["_price"] for s in opt)}
 
 
 def _load_sections(est_id):
@@ -139,9 +145,35 @@ def new():
                            templates=db.all_rows("templates", order="name"))
 
 
+def _upgrade_qty(d, u, ms):
+    """Measurement-driven quantity for an optional UPGRADE / ADD-ON line, so the
+    options menu prices out off the real roof. Unit leads (SQ→area, LF→the best
+    linear run by keyword), EA defaults to 1 (a representative count the rep
+    adjusts). `d` lowercased description, `u` uppercased unit, `ms` measures."""
+    if u == "SQ":
+        return ms["sqW"]
+    if u == "LF":
+        if "valley" in d and ("drip" in d or "copper" in d):
+            return ms["drip"] + ms["valley"]
+        if "valley" in d:
+            return ms["valley"]
+        if "gutter" in d or "eave" in d:
+            return ms["eave"]
+        if "drip" in d or "rake" in d:
+            return ms["drip"]
+        if "step" in d or "wall flashing" in d:
+            return ms["step"] or ms["rake"]
+        return ms["eave"]  # hurricane clips / tie-beam / generic perimeter run
+    if u == "EA":
+        return 1  # skylights, drains, walk pads — representative count
+    return 0
+
+
 def _apply_measurement(est_id, m):
     """Server-side mirror of the estimate builder's 'Apply measurements' — fills line
-    quantities from a roof measurement so a quick estimate is ready immediately."""
+    quantities from a roof measurement so a quick estimate is ready immediately.
+    Base scope is quantified normally; optional UPGRADE/ADD-ON lines are also
+    quantified (unit-driven) so the options menu shows real prices."""
     if not m:
         return
     def num(k):
@@ -154,25 +186,28 @@ def _apply_measurement(est_id, m):
     ridge = num("ridge_lf") + num("hip_lf")
     valley = num("valley_lf")
     drip = num("eave_lf") + num("rake_lf")
+    ms = {"sqW": sqW, "valley": valley, "drip": drip,
+          "eave": num("eave_lf"), "rake": num("rake_lf"), "step": num("step_flash_lf")}
     for ln in db.all_rows("estimate_lines", "estimate_id=?", (est_id,)):
         d = (ln.get("description") or "").lower()
-        if d.startswith("upgrade") or d.startswith("add-on"):
-            continue  # optional upgrades stay at qty 0 until the rep turns them on
         u = (ln.get("unit") or "").upper()
         if u == "LS":
             continue  # lump-sum lines (permit, dumpster) keep their fixed template qty
 
-        q = None
-        if re.search(r"ridge|hip", d):
-            q = ridge
-        elif "valley" in d:
-            q = valley
-        elif re.search(r"drip edge|eave|rake", d):
-            q = drip
-        elif u == "SQ" or re.search(r"tear ?off|deck|re-?nail|underlay|shingle|tile|membrane|\biso\b|base sheet|cap|gravel", d):
-            # Tear-off and re-nail/re-deck are billed by actual deck area (no
-            # material waste); everything else carries the waste factor.
-            q = sq if re.search(r"tear|re-?nail|re-?deck", d) else sqW
+        if d.startswith("upgrade") or d.startswith("add-on"):
+            q = _upgrade_qty(d, u, ms)  # priced options menu — quantify it too
+        else:
+            q = None
+            if re.search(r"ridge|hip", d):
+                q = ridge
+            elif "valley" in d:
+                q = valley
+            elif re.search(r"drip edge|eave|rake", d):
+                q = drip
+            elif u == "SQ" or re.search(r"tear ?off|deck|re-?nail|underlay|shingle|tile|membrane|\biso\b|base sheet|cap|gravel", d):
+                # Tear-off and re-nail/re-deck are billed by actual deck area (no
+                # material waste); everything else carries the waste factor.
+                q = sq if re.search(r"tear|re-?nail|re-?deck", d) else sqW
         if q and q > 0:
             db.update("estimate_lines", ln["id"], qty=round(q, 2))
 
@@ -207,12 +242,14 @@ def build_estimate(lead_id=None, job_id=None, template_id=None, work_type="", ap
                                      "description": line.get("description", ""),
                                      "unit": line.get("unit", "EA"), "qty": line.get("qty", 0),
                                      "waste_pct": 0, "cost": line.get("cost", 0)})
-    # Upgrades & Options — the system's premium add-ons, all at qty 0.
+    # Upgrades & Options — the full upgrade menu (every system + common add-ons).
+    # Marked optional so it prices out as an accept/decline menu, NOT in the total.
     ups = constants.upgrades_for(work_type)
     if ups:
         usid = db.insert("estimate_sections", {
             "estimate_id": eid, "sort": 1, "name": "Upgrades & Options", "margin_pct": 30,
-            "scope_text": "Optional upgrades for this roof — included only when a quantity is entered."})
+            "optional": 1,
+            "scope_text": "Optional upgrades & add-ons — priced for the customer to accept or decline. Not included in the estimate total."})
         for i, u in enumerate(ups):
             db.insert("estimate_lines", {"estimate_id": eid, "section_id": usid, "sort": i,
                                          "description": u["desc"], "unit": u.get("unit", "EA"),
@@ -269,6 +306,7 @@ def save(est_id):
         sid = db.insert("estimate_sections", {
             "estimate_id": est_id, "sort": si, "name": sec.get("name", ""),
             "scope_text": sec.get("scope_text", ""),
+            "optional": 1 if sec.get("optional") else 0,
             "margin_pct": float(sec.get("margin_pct") or 0)})
         for li, ln in enumerate(sec.get("lines", [])):
             if not (ln.get("description") or "").strip():

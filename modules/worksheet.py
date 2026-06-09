@@ -66,12 +66,13 @@ def seed_from_estimate(ws_id, job_id):
     db.execute("DELETE FROM worksheet_lines WHERE worksheet_id=?", (ws_id,))
     i = 0
     for s in sections:
+        if s.get("optional"):
+            continue                              # Upgrades & Options menu — priced
+                                                  # for the customer, not job budget
         for ln in s["_lines"]:
             cost = est.line_cost(ln)              # extended: qty × (1+waste) × unit cost
             if not cost:
                 continue                          # line not turned on (qty 0) — skip
-                                                  # (so un-selected upgrades drop out,
-                                                  #  but accepted ones flow through)
             base_qty = ln.get("qty") or 0
             eff_qty = round(base_qty * (1 + (ln.get("waste_pct") or 0) / 100.0), 2)
             db.insert("worksheet_lines", {

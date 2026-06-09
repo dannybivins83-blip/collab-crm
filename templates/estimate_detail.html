@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ e.number }}{% endblock %}
 {% block body %}
+<style>
+  .section.optional{border:1px dashed var(--accent,#29ABE2);border-radius:8px;background:var(--accent,#29ABE2)08;padding:6px 8px;margin-bottom:10px}
+  .section.optional .section-head .sec-name{font-style:italic}
+  .opt-toggle{font-size:11px;color:#5b6b85;display:inline-flex;align-items:center;gap:4px;margin:0 8px;white-space:nowrap;cursor:pointer}
+  .opt-toggle input{margin:0}
+  .estimate-total.options-total{background:transparent;color:var(--accent,#29ABE2);border-top:1px dashed var(--accent,#29ABE2);font-weight:700}
+</style>
 <div class="page-head">
   <a href="{{ url_for('estimates.index') }}" class="muted">← Estimates</a>
   <h1 style="margin-left:8px">{{ e.number }}</h1>
@@ -23,9 +30,12 @@
 
       <div id="sections">
         {% for s in sections %}
-        <div class="section" data-margin="{{ s.margin_pct }}">
+        <div class="section{{ ' optional' if s.optional }}" data-margin="{{ s.margin_pct }}" data-optional="{{ 1 if s.optional else 0 }}">
           <div class="section-head">
             <input class="sec-name" value="{{ s.name }}" placeholder="Section name (e.g. Roofing - Shingle Section)">
+            <label class="opt-toggle" title="Optional sections are priced for the customer but kept out of the estimate total">
+              <input type="checkbox" class="sec-optional" {{ 'checked' if s.optional }} onchange="this.closest('.section').dataset.optional=this.checked?'1':'0';recalc()"> options menu (not in total)
+            </label>
             <button class="btn sm" onclick="this.closest('.section').remove();recalc()">✕ Section</button>
           </div>
           <table class="lines">
@@ -65,6 +75,11 @@
         <span>ESTIMATE TOTAL</span>
         <span class="num" id="t_cost">$0</span>
         <span class="num" id="t_price">$0</span>
+      </div>
+      <div class="estimate-total options-total" id="optionsTotalRow" style="display:none">
+        <span>＋ Upgrades &amp; Options <span class="muted" style="font-weight:400">(priced menu — not in total)</span></span>
+        <span class="num" id="t_opt_cost">$0</span>
+        <span class="num" id="t_opt_price">$0</span>
       </div>
       <div class="tax-profit">
         <div>
@@ -178,7 +193,7 @@ function applyMargin(inp){ // margin changed → reprice every line in the secti
   recalc();
 }
 function recalc(){
-  let totCost=0, totPrice=0;
+  let totCost=0, totPrice=0, optCost=0, optPrice=0;
   document.querySelectorAll('.section').forEach(sec=>{
     let sc=0, sp=0;
     sec.querySelectorAll('tbody tr').forEach(tr=>{
@@ -188,12 +203,18 @@ function recalc(){
     const dispMargin=sp?((sp-sc)/sp*100):0;
     sec.querySelector('.sec-cost').textContent=money(sc);
     sec.querySelector('.sec-price').textContent=money(sp)+' · '+dispMargin.toFixed(1)+'%';
-    totCost+=sc; totPrice+=sp;
+    sec.classList.toggle('optional', sec.dataset.optional==='1');
+    if(sec.dataset.optional==='1'){ optCost+=sc; optPrice+=sp; }   // priced menu — out of the total
+    else { totCost+=sc; totPrice+=sp; }
   });
   const tax=totPrice*(+document.getElementById('tax').value||0)/100;
   const total=totPrice+tax, net=total-totCost, margin=total?net/total*100:0;
   t_cost.textContent=money(totCost); t_price.textContent=money(totPrice);
   t_tax.textContent=money(tax); t_margin.textContent=margin.toFixed(1)+'%'; t_net.textContent=money(net);
+  const optRow=document.getElementById('optionsTotalRow');
+  optRow.style.display = optPrice ? '' : 'none';
+  document.getElementById('t_opt_cost').textContent=money(optCost);
+  document.getElementById('t_opt_price').textContent=money(optPrice);
   document.querySelectorAll('.draw-amt').forEach(el=>{el.textContent=money(total*(+el.dataset.pct||0))});
 }
 function lineRowHTML(){
@@ -210,8 +231,10 @@ function addLine(btn){
 }
 function addSection(){
   const wrap=document.getElementById('sections');
-  const div=document.createElement('div'); div.className='section';
-  div.innerHTML=`<div class="section-head"><input class="sec-name" placeholder="Section name (e.g. Roofing - Shingle Section)"><button class="btn sm" onclick="this.closest('.section').remove();recalc()">✕ Section</button></div>`+
+  const div=document.createElement('div'); div.className='section'; div.dataset.optional='0';
+  div.innerHTML=`<div class="section-head"><input class="sec-name" placeholder="Section name (e.g. Roofing - Shingle Section)">`+
+   `<label class="opt-toggle" title="Optional sections are priced for the customer but kept out of the estimate total"><input type="checkbox" class="sec-optional" onchange="this.closest('.section').dataset.optional=this.checked?'1':'0';recalc()"> options menu (not in total)</label>`+
+   `<button class="btn sm" onclick="this.closest('.section').remove();recalc()">✕ Section</button></div>`+
    `<table class="lines"><thead><tr><th style="width:36%">Product / Description</th><th class="num">Qty</th><th>Unit</th><th class="num">Cost/Unit</th><th class="num">Cost</th><th class="num">Price</th><th></th></tr></thead><tbody></tbody></table>`+
    `<button type="button" class="btn sm" onclick="addLine(this)">+ Line</button>`+
    `<div class="section-foot"><span class="scope-toggle" onclick="toggleScope(this)">▸ Scope of work</span>`+
@@ -227,6 +250,7 @@ function collect(){
   const sections=[...document.querySelectorAll('.section')].map(sec=>({
     name:sec.querySelector('.sec-name').value, scope_text:sec.querySelector('.sec-scope').value,
     margin_pct:+sec.querySelector('.sec-margin').value||0,
+    optional:sec.dataset.optional==='1'?1:0,
     lines:[...sec.querySelectorAll('tbody tr')].map(tr=>({
       description:tr.querySelector('.l-desc').value, unit:tr.querySelector('.l-unit').value,
       qty:+tr.querySelector('.l-qty').value||0, waste_pct:0,
