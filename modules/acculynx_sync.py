@@ -37,7 +37,8 @@ except Exception:
 def _ensure_schema():
     for col in ("acculynx_api_key TEXT", "acculynx_api_base TEXT",
                 "acculynx_last_sync TEXT", "acculynx_auto INTEGER DEFAULT 0",
-                "acculynx_cursor INTEGER DEFAULT 0", "acculynx_group INTEGER DEFAULT 0"):
+                "acculynx_cursor INTEGER DEFAULT 0", "acculynx_group INTEGER DEFAULT 0",
+                "acculynx_rr_cursor INTEGER DEFAULT 0", "acculynx_rr_group INTEGER DEFAULT 0"):
         try:
             db.execute("ALTER TABLE company_settings ADD COLUMN %s" % col)
         except Exception:
@@ -1736,3 +1737,318 @@ def internal_test():
                 }
     return render_template("sync_internal_test.html", which=which, sample=sample,
                            mapped=mapped, host=request.host_url)
+
+
+# ===========================================================================
+# ROOF-REPORT SYNC — pull RoofGraf / roof-report PDFs from AccuLynx job
+# DOCUMENTS into the CRM and auto-parse them into measurements (squares, pitch,
+# ridge/hip/valley/eave/rake) so they feed estimates.
+#
+# Same browser-bridge pattern as the permit doc-import: the AccuLynx public API
+# can't serve documents (404), so a collector running in the logged-in
+# my.acculynx.com tab fetches each job's `/api/v4/job-documents/{guid}/
+# job-document-folders`, picks the roof-report file, downloads it, and POSTs the
+# bytes here (chunked for big aerial PDFs). We match the CRM job/lead by AccuLynx
+# GUID (in external_url), attach the file under Measurements, run it through
+# measurements._try_parse, and upsert the measurement record.
+#
+# "20 at a time": the SERVER walks the active pipeline via the API (GUIDs only —
+# no documents) with its own resumable cursor (acculynx_rr_group/_rr_cursor,
+# independent of the milestone sync's cursor) and hands the collector the next 20
+# GUIDs per click. The collector skips any that already have a roof report
+# (idempotent) and reports what it pulled vs. skipped — no silent caps.
+# ===========================================================================
+
+# How the collector decides which document is the roof report. RoofGraf reports
+# Karla uploads land in a "Measurements" / "Roof Report" folder and/or carry a
+# filename with "RoofGraf" / "Roof Report" / "EagleView" in it. Folder OR file
+# match counts; permit/NOC/photos folders don't match.
+ROOFREPORT_FOLDER_RE = r"measurement|roof\s*report|roofgraf|eagleview|roof\s*measure|aerial"
+ROOFREPORT_FILE_RE = r"roofgraf|roof\s*report|eagleview|roof\s*measure|premium\s*roof|measurement"
+
+# Pipeline the office works day-to-day — leads (Assigned) + prospects carry roof
+# reports too (Karla uploads at intake), so they're included. Same groups as the
+# milestone sync, walked newest-first with a dedicated cursor.
+_RR_GROUPS = ["lead", "prospect", "approved", "completed", "invoiced"]
+
+
+def _norm_name(s):
+    """Normalize a person/job name for fallback matching: strip an 'R-####:'
+    prefix and any (PBC)(T28)(SCOTT) tags, fold accents (José→jose), lowercase,
+    collapse to alphanumerics + single spaces."""
+    import unicodedata
+    s = re.sub(r"^\s*R-?\d+\s*:?\s*", "", str(s or ""), flags=re.I)
+    s = re.sub(r"\([^)]*\)", " ", s)               # drop (PBC) (T28) (SCOTT) tags
+    s = "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ", s.lower())).strip()
+
+
+def _roofreport_record(guid, scan_name="", scan_addr=""):
+    """Find the CRM job/lead this roof report belongs to. GUID first (robust);
+    then an exact normalized-name fallback so records not yet carrying an AccuLynx
+    GUID (e.g. a hand-entered lead) still match. Returns (kind, row, how)."""
+    kind, rec = _record_by_guid(guid)
+    if rec:
+        return kind, rec, "guid"
+    nm = _norm_name(scan_name)
+    if nm and len(nm) >= 4:
+        for k, rows in (("job", db.all_rows("jobs")), ("lead", db.all_rows("leads"))):
+            hit = next((r for r in rows if _norm_name(r.get("name")) == nm), None)
+            if hit:
+                return k, hit, "name"
+    return None, None, "none"
+
+
+def _measurement_of(kind, rec_id):
+    col = "job_id" if kind == "job" else "lead_id"
+    rows = db.all_rows("measurements", where=col + "=?", params=(rec_id,), order="id DESC")
+    return rows[0] if rows else None
+
+
+def _has_roof_report(kind, rec):
+    """True if this job/lead already has a parsed roof report on file — used to
+    skip on re-runs (idempotent). A measurement row carrying a report_file counts;
+    so does a Roof Report document with retrievable bytes."""
+    m = _measurement_of(kind, rec["id"])
+    if m and (m.get("report_file") or "").strip():
+        return True
+    col = "job_id" if kind == "job" else "lead_id"
+    docs = db.all_rows("documents", where=col + "=?", params=(rec["id"],))
+    return any((d.get("category") or "").lower() in ("roof report", "measurement")
+               and _doc_has_bytes(d) for d in docs)
+
+
+def _finalize_roofreport(guid, folder, name, src_path, scan_name="", scan_addr=""):
+    """Attach a roof-report PDF (already saved at src_path under MEAS_DIR) to the
+    matching CRM job/lead, mirror it to Drive, parse it into a measurement, and
+    file it under the record's Documents. Removes src_path on any rejection."""
+    size = os.path.getsize(src_path) if os.path.exists(src_path) else 0
+
+    def _drop():
+        try:
+            os.remove(src_path)
+        except Exception:
+            pass
+
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    if ext and ext not in ALLOWED_DOC_EXT:
+        _drop()
+        return _cors({"ok": False, "reason": "ext_blocked:%s" % ext, "name": name})
+    if size > 64 * 1024 * 1024:
+        _drop()
+        return _cors({"ok": False, "reason": "too_large", "size": size, "name": name})
+
+    kind, rec, how = _roofreport_record(guid, scan_name, scan_addr)
+    if not rec:
+        _drop()
+        return _cors({"ok": False, "reason": "no_record", "guid": guid, "scan_name": scan_name})
+
+    if _has_roof_report(kind, rec):
+        _drop()
+        return _cors({"ok": True, "skipped": "already_has_report", "record": rec.get("name"),
+                      "kind": kind, "name": name})
+
+    base_fn = os.path.basename(src_path)
+    drive_id = _drive_mirror(src_path)
+
+    # --- parse the report into measurement fields ---------------------------
+    try:
+        from modules import measurements as _meas
+        parsed = _meas._try_parse(src_path)
+    except Exception:
+        parsed = {}
+
+    link_col = "job_id" if kind == "job" else "lead_id"
+    mdata = {"report_file": "measurements/" + base_fn, "source": "RoofGraf"}
+    mdata.update({k: v for k, v in parsed.items() if v})
+    existing = _measurement_of(kind, rec["id"])
+    if existing:
+        db.update("measurements", existing["id"], **mdata)
+        mid = existing["id"]
+    else:
+        mdata[link_col] = rec["id"]
+        mid = db.insert("measurements", mdata)
+
+    # Mirror the headline numbers onto a JOB for quick reference (matches the
+    # manual measurement save). Leads carry the measurement row only.
+    if kind == "job" and parsed.get("squares"):
+        try:
+            db.update("jobs", rec["id"], area=str(parsed.get("squares") or ""),
+                      slope=parsed.get("pitch") or "")
+        except Exception:
+            pass
+
+    # --- file it under the record's Documents (dedup by name) ---------------
+    same = [d for d in db.all_rows("documents", where=link_col + "=?", params=(rec["id"],))
+            if (d.get("original_name") or "").lower() == name.lower()]
+    for d in same:
+        if not _doc_has_bytes(d):
+            db.delete("documents", d["id"])
+    if not any(_doc_has_bytes(d) for d in same):
+        db.insert("documents", {link_col: rec["id"], "category": "Roof Report",
+                                "filename": base_fn, "original_name": name, "size": size,
+                                "notes": "RoofGraf report synced from AccuLynx (%s)" % folder,
+                                "drive_id": drive_id})
+
+    filled = [k for k in ("squares", "pitch", "ridge_lf", "hip_lf", "valley_lf",
+                          "rake_lf", "eave_lf", "step_flash_lf", "facets") if parsed.get(k)]
+    msg = "Roof report synced from AccuLynx: %s" % name
+    if filled:
+        msg += " — auto-filled %d field%s (%.0f sq, pitch %s)" % (
+            len(filled), "" if len(filled) == 1 else "s",
+            parsed.get("squares") or 0, parsed.get("pitch") or "-")
+    else:
+        msg += " — attached (auto-parse found no measurements; enter them manually)"
+    db.add_activity(kind, rec["id"], "automation", msg)
+
+    return _cors({"ok": True, "added": True, "kind": kind, "record": rec.get("name"),
+                  "matched_by": how, "name": name, "measurement_id": mid,
+                  "filled": filled, "squares": parsed.get("squares") or 0,
+                  "pitch": parsed.get("pitch") or "", "parsed": bool(filled)})
+
+
+@bp.route("/roofreport-manifest")
+def roofreport_manifest():
+    """CORS-open: does this AccuLynx GUID's matching CRM job/lead already have a
+    roof report? Lets the collector skip it WITHOUT downloading the PDF."""
+    guid = (request.args.get("guid") or "").strip().lower()
+    name = (request.args.get("name") or "").strip()
+    if not guid and not name:
+        return _cors({"ok": False, "reason": "missing guid"}, 400)
+    kind, rec, how = _roofreport_record(guid, name)
+    if not rec:
+        return _cors({"ok": True, "in_crm": False, "has_report": False, "guid": guid})
+    return _cors({"ok": True, "in_crm": True, "kind": kind, "record": rec.get("name"),
+                  "matched_by": how, "has_report": _has_roof_report(kind, rec)})
+
+
+@bp.route("/roofreport-import", methods=["POST", "OPTIONS"])
+def roofreport_import():
+    """CORS-open: receive one roof-report PDF scraped from the AccuLynx tab and
+    attach + parse it. Matches the CRM job/lead by AccuLynx GUID (then name).
+    Supports CHUNKED uploads (uploadId/chunkIndex/chunkTotal) for big aerial PDFs,
+    same as doc-import. Finalizes into MEAS_DIR so the measurement 'View report'
+    link resolves. Guarded: allow-listed extensions, 64 MB cap, idempotent."""
+    from flask import make_response
+    if request.method == "OPTIONS":
+        r = make_response("", 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+
+    f = request.files.get("file")
+    guid = (request.form.get("guid") or "").strip().lower()
+    folder = (request.form.get("folder") or "Measurements").strip()[:60]
+    name = (request.form.get("filename") or (f.filename if f else "") or "roof_report.pdf").strip()
+    scan_name = (request.form.get("name") or "").strip()
+    scan_addr = (request.form.get("address") or "").strip()
+    upload_id = request.form.get("uploadId")
+
+    if upload_id:  # chunked: append each part, finalize into MEAS_DIR on the last
+        uid = re.sub(r"[^A-Za-z0-9_-]", "", upload_id)[:80]
+        idx = int(request.form.get("chunkIndex") or 0)
+        total = int(request.form.get("chunkTotal") or 1)
+        if not uid or f is None:
+            return _cors({"ok": False, "reason": "bad_chunk"}, 400)
+        cdir = os.path.join(config.MEAS_DIR, "_chunks")
+        os.makedirs(cdir, exist_ok=True)
+        part = os.path.join(cdir, uid + ".part")
+        if idx == 0 and os.path.exists(part):
+            os.remove(part)
+        with open(part, "ab") as out:
+            out.write(f.read())
+        if os.path.getsize(part) > 64 * 1024 * 1024:
+            os.remove(part)
+            return _cors({"ok": False, "reason": "too_large"})
+        if idx < total - 1:
+            return _cors({"ok": True, "chunk": idx})
+        safe = "%d_%s" % (int(time.time() * 1000), _safe_name(name))
+        final = os.path.join(config.MEAS_DIR, safe)
+        os.replace(part, final)
+        return _finalize_roofreport(guid, folder, name, final, scan_name, scan_addr)
+
+    # single-shot (small files)
+    if (not guid and not scan_name) or not f:
+        return _cors({"ok": False, "reason": "missing guid or file"}, 400)
+    safe = "%d_%s" % (int(time.time() * 1000), _safe_name(name))
+    path = os.path.join(config.MEAS_DIR, safe)
+    f.save(path)
+    return _finalize_roofreport(guid, folder, name, path, scan_name, scan_addr)
+
+
+def _rr_next_batch(base, key, n):
+    """Walk the active AccuLynx pipeline (GUIDs only) and return the next `n` jobs
+    after the saved roof-report cursor, advancing it. Each item: {guid, name}.
+    Resumable across clicks; wraps the cursor to 0 when the pipeline is exhausted."""
+    company = db.get_company()
+    g = int(company.get("acculynx_rr_group") or 0)
+    start = int(company.get("acculynx_rr_cursor") or 0)
+    out = []
+    PAGE = 25
+    while len(out) < n and g < len(_RR_GROUPS):
+        data = _api_get(base, "/jobs", key, {
+            "milestones": _RR_GROUPS[g], "pageStartIndex": start, "pageSize": PAGE,
+            "sortBy": "MilestoneDate", "sortOrder": "Descending"})
+        items = data.get("items") if isinstance(data, dict) else (data or [])
+        if not items:
+            g += 1
+            start = 0
+            continue
+        for it in items:
+            if len(out) >= n:
+                break
+            jid = _g(it, "id", "jobId", "uid")
+            nm = (_g(it, "jobName", "name", "displayName") or "").strip()
+            if jid:
+                out.append({"guid": str(jid).lower(), "name": nm, "group": _RR_GROUPS[g]})
+            start += 1
+        if len(items) < PAGE and len(out) < n:  # this group exhausted
+            g += 1
+            start = 0
+    done = g >= len(_RR_GROUPS)
+    db.save_company({"acculynx_rr_group": 0 if done else g,
+                     "acculynx_rr_cursor": 0 if done else start})
+    return out, (_RR_GROUPS[g] if not done else "all"), done
+
+
+@bp.route("/roofreport-batch")
+def roofreport_batch():
+    """CORS-open: hand the collector the NEXT batch of job GUIDs to pull roof
+    reports for, walking the pipeline with a resumable server cursor (20 per
+    click by default). Annotates each with whether the matching CRM record already
+    has a report, so the collector can skip cheaply. `?reset=1` restarts the walk."""
+    company = db.get_company()
+    key = (company.get("acculynx_api_key") or "").strip()
+    base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
+    if not key:
+        return _cors({"ok": False, "reason": "no_api_key",
+                      "error": "Set an AccuLynx API key on the Sync page first."}, 400)
+    if request.args.get("reset"):
+        db.save_company({"acculynx_rr_group": 0, "acculynx_rr_cursor": 0})
+    try:
+        n = max(1, min(50, int(request.args.get("n") or 20)))
+    except Exception:
+        n = 20
+    try:
+        batch, group, done = _rr_next_batch(base, key, n)
+    except Exception as e:
+        return _cors({"ok": False, "reason": "api_failed",
+                      "error": "%s: %s" % (type(e).__name__, e)})
+    have = 0
+    for it in batch:
+        kind, rec, how = _roofreport_record(it["guid"], it.get("name"))
+        it["in_crm"] = bool(rec)
+        it["have"] = bool(rec and _has_roof_report(kind, rec))
+        if it["have"]:
+            have += 1
+    return _cors({"ok": True, "batch": batch, "count": len(batch), "group": group,
+                  "done": done, "already_have": have})
+
+
+@bp.route("/roofreport-reset", methods=["POST"])
+def roofreport_reset():
+    """Reset the roof-report sync cursor to the top of the pipeline."""
+    db.save_company({"acculynx_rr_group": 0, "acculynx_rr_cursor": 0})
+    flash("Roof-report sync cursor reset — the next batch starts at the top of the pipeline.", "ok")
+    return redirect(url_for("sync.index"))
