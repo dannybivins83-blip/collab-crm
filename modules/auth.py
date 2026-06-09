@@ -34,6 +34,10 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "portal.learn", "portal.seminar", "portal.design_photo",
           "signups.portal_view", "signups.portal_complete",
           "measurements.ingest",
+          # Branded demo portal (shareable, login-free sales tool). The generator
+          # UI (demo.generator/create/delete) is intentionally NOT public.
+          "demo.portal", "demo.design", "demo.design_request",
+          "demo.refer_share", "demo.refer_msg",
           "sitecam.gallery_link"}
 # Endpoints only admins may hit (prefix match on the path).
 ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow")

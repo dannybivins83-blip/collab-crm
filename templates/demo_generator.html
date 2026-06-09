@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Demo Portal Generator{% endblock %}
+{% block body %}
+<div class="page-head"><h1>✨ Demo Portal Generator</h1></div>
+<p class="muted" style="margin:-6px 0 18px;max-width:720px">
+  Spin up a fully-branded, shareable <b>demo homeowner portal</b> for a prospect contractor — their logo and
+  colors on a sample job with the live milestone tracker, Design Studio, and Referral Game. Text them the link
+  before a sales meeting: <i>"here, play with your customer portal on your phone."</i> No real data is created.
+</p>
+
+<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+
+  <!-- CREATE FORM -->
+  <form method="post" action="{{ url_for('demo.create') }}" enctype="multipart/form-data"
+        class="card" style="flex:1;min-width:320px;max-width:480px" id="demoForm">
+    <h3 style="margin:0 0 14px">Create a demo</h3>
+    <div class="field"><label>Prospect company name *</label>
+      <input name="company_name" id="f_name" placeholder="e.g. Summit Roofing Co." required></div>
+    <div class="field"><label>Tagline (optional)</label>
+      <input name="tagline" placeholder="Quality roofing, done right."></div>
+    <div class="field"><label>Phone (optional)</label>
+      <input name="phone" placeholder="(555) 123-4567"></div>
+
+    <div class="field"><label>Logo URL (optional)</label>
+      <input name="logo_url" id="f_logo" placeholder="https://…/logo.png"></div>
+    <div class="field"><label>…or upload a logo file</label>
+      <input type="file" name="logo_file" accept="image/*"></div>
+
+    <div class="field"><label>Sample roof system</label>
+      <select name="sample_system">
+        <option value="shingle">Asphalt Shingle</option>
+        <option value="tile">Concrete / Clay Tile</option>
+        <option value="metal">Standing-Seam Metal</option>
+        <option value="flat">Flat / TPO</option>
+      </select></div>
+
+    <label style="margin-top:6px">Brand colors</label>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 14px">
+      <label style="font-weight:600;font-size:13px">Masthead<br>
+        <input type="color" name="color_masthead" id="c_mast" value="{{ defaults.masthead }}" style="width:56px;height:34px;padding:2px;border:1px solid var(--line,#ccc);border-radius:8px"></label>
+      <label style="font-weight:600;font-size:13px">Primary<br>
+        <input type="color" name="color_primary" id="c_prim" value="{{ defaults.primary }}" style="width:56px;height:34px;padding:2px;border:1px solid var(--line,#ccc);border-radius:8px"></label>
+      <label style="font-weight:600;font-size:13px">Accent<br>
+        <input type="color" name="color_accent" id="c_acc" value="{{ defaults.accent }}" style="width:56px;height:34px;padding:2px;border:1px solid var(--line,#ccc);border-radius:8px"></label>
+    </div>
+
+    <!-- live preview chip -->
+    <div id="preview" style="border-radius:12px;overflow:hidden;border:1px solid var(--line,#e7ecf3);margin-bottom:16px">
+      <div id="pv_top" style="padding:10px 14px;color:#fff;font-weight:800;display:flex;align-items:center;gap:8px">
+        <span id="pv_logo" style="display:none;background:#fff;border-radius:5px;padding:2px 5px"><img id="pv_logo_img" style="height:18px;display:block" alt=""></span>
+        <span id="pv_name">Your Roofing Co.</span>
+        <span style="margin-left:auto;font-size:10px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:99px">Customer Portal</span>
+      </div>
+      <div style="padding:12px 14px;background:#fff;display:flex;gap:8px;align-items:center">
+        <span id="pv_acc" style="width:30px;height:30px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">✓</span>
+        <span class="muted" style="font-size:12px">Milestone tracker · Design Studio · Referral Game</span>
+      </div>
+    </div>
+
+    <button class="primary" type="submit">Generate demo portal →</button>
+  </form>
+
+  <!-- EXISTING DEMOS -->
+  <div style="flex:1.3;min-width:340px">
+    <h3 style="margin:4px 0 12px">Your demos ({{ demos|length }})</h3>
+    {% if not demos %}
+      <div class="card muted">No demos yet — create one on the left.</div>
+    {% endif %}
+    {% for d in demos %}
+    <div class="card" id="demo-{{ d.slug }}" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="width:38px;height:38px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;
+          color:#fff;font-weight:800;background:{{ d.color_masthead or '#24476C' }};overflow:hidden">
+          {% if d._logo_src %}<img src="{{ d._logo_src }}" style="width:100%;height:100%;object-fit:contain;background:#fff" alt="">{% else %}{{ d.company_name[:1]|upper }}{% endif %}
+        </span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800">{{ d.company_name }}</div>
+          <div class="muted" style="font-size:12px">{{ d.sample_system|capitalize }} · created {{ (d.created or '')[:10] }}{% if d.created_by %} by {{ d.created_by }}{% endif %}</div>
+        </div>
+        <span style="display:flex;gap:4px">
+          <span title="Masthead" style="width:16px;height:16px;border-radius:4px;background:{{ d.color_masthead }}"></span>
+          <span title="Primary" style="width:16px;height:16px;border-radius:4px;background:{{ d.color_primary }}"></span>
+          <span title="Accent" style="width:16px;height:16px;border-radius:4px;background:{{ d.color_accent }}"></span>
+        </span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+        <input readonly value="{{ d._link }}" id="lnk-{{ d.slug }}"
+               style="flex:1;min-width:180px;font-size:12px;padding:8px 10px;border:1px solid var(--line,#e7ecf3);border-radius:8px;background:#f7f9fc;color:#445">
+        <button type="button" class="btn ghost" onclick="copyLink('{{ d.slug }}', this)">📋 Copy</button>
+        <a class="btn ghost" href="{{ d._link }}" target="_blank" rel="noopener">↗ Open</a>
+        <a class="btn ghost" href="sms:?&body={{ ('Check out your customer portal demo: ' ~ d._link)|urlencode }}">💬 Text</a>
+        <form method="post" action="{{ url_for('demo.delete', slug=d.slug) }}" style="display:inline"
+              onsubmit="return confirm('Delete this demo?')">
+          <button class="btn ghost" type="submit" style="color:#c0392b">🗑</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+(function(){
+  var name=document.getElementById('f_name'), logo=document.getElementById('f_logo'),
+      mast=document.getElementById('c_mast'), prim=document.getElementById('c_prim'), acc=document.getElementById('c_acc');
+  function up(){
+    var top=document.getElementById('pv_top');
+    top.style.background='linear-gradient(118deg,'+mast.value+', '+prim.value+')';
+    document.getElementById('pv_name').textContent=name.value||'Your Roofing Co.';
+    document.getElementById('pv_acc').style.background=acc.value;
+    var lw=document.getElementById('pv_logo'), li=document.getElementById('pv_logo_img');
+    if(logo.value){li.src=logo.value;lw.style.display='inline-block';}else{lw.style.display='none';}
+  }
+  [name,logo,mast,prim,acc].forEach(function(el){el.addEventListener('input',up);});
+  up();
+})();
+function copyLink(slug, btn){
+  var i=document.getElementById('lnk-'+slug); i.select(); i.setSelectionRange(0,9999);
+  try{navigator.clipboard.writeText(i.value);}catch(e){try{document.execCommand('copy');}catch(_){}}
+  var t=btn.textContent; btn.textContent='✓ Copied'; setTimeout(function(){btn.textContent=t;},1400);
+}
+</script>
+{% endblock %}

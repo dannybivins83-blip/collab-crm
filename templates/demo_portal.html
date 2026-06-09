@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="{{ company.color_masthead or '#24476C' }}" />
+<title>{{ company.name }} — Customer Portal (Demo)</title>
+<style>
+  :root{
+    --brand:{{ company.color_masthead or '#24476C' }}; --accent:{{ company.color_primary or '#4680BF' }};
+    --green:{{ company.color_accent or '#8CC63F' }};
+    --ink:#16223b; --ink2:#3a4760; --mut:#6a778d; --line:#e7ecf3; --bg:#eef2f7;
+    --brand-tint:color-mix(in srgb, var(--brand) 7%, #fff);
+    --accent-tint:color-mix(in srgb, var(--accent) 9%, #fff);
+    --green-tint:color-mix(in srgb, var(--green) 16%, #fff);
+    --green-deep:color-mix(in srgb, var(--green) 78%, #1d2a14);
+    --r:16px; --sh-sm:0 1px 2px rgba(16,34,64,.06);
+    --sh:0 6px 22px -10px rgba(16,34,64,.20), 0 2px 6px -3px rgba(16,34,64,.10);
+  }
+  *{box-sizing:border-box} html{-webkit-text-size-adjust:100%}
+  body{margin:0;color:var(--ink);font-size:15px;line-height:1.55;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1100px 460px at 50% -200px, color-mix(in srgb, var(--accent) 22%, transparent), transparent 72%), var(--bg);
+    -webkit-font-smoothing:antialiased;padding-bottom:calc(28px + env(safe-area-inset-bottom));}
+  a{color:var(--accent);text-decoration:none}
+  /* demo banner */
+  .demobar{background:#16223b;color:#fff;text-align:center;font-size:12.5px;font-weight:700;
+    padding:7px 14px;letter-spacing:.2px}
+  .demobar b{color:var(--green)}
+  /* top bar */
+  .top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:11px;
+    padding:calc(12px + env(safe-area-inset-top)) 18px 12px;color:#fff;background:var(--brand);
+    background:linear-gradient(118deg, var(--brand), color-mix(in srgb, var(--brand) 64%, var(--accent)));
+    box-shadow:0 8px 24px -14px rgba(16,34,64,.7)}
+  .top img{height:32px;background:#fff;border-radius:7px;padding:3px 6px;box-shadow:var(--sh-sm);object-fit:contain}
+  .top .nm{font-weight:800;font-size:16px;letter-spacing:.2px;line-height:1.2}
+  .top .sub{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+    opacity:.92;background:rgba(255,255,255,.16);padding:5px 11px;border-radius:999px;white-space:nowrap}
+  .wrap{max-width:880px;margin:0 auto;padding:18px 15px 40px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:15px;box-shadow:var(--sh)}
+  .card.flush{padding:0;overflow:hidden}
+  .h{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.7px;color:var(--mut);margin:0 0 14px}
+  .h:before{content:"";width:4px;height:15px;border-radius:3px;background:var(--accent);flex:none}
+  .h.act{color:var(--green-deep)} .h.act:before{background:var(--green)}
+  .flash{padding:13px 16px;border-radius:12px;margin-bottom:14px;font-weight:600;box-shadow:var(--sh-sm);display:flex;gap:9px;align-items:center}
+  .flash:before{font-size:17px;content:"✓"}
+  .flash.ok{background:#e8f8f0;color:#0a7a5f;border:1px solid #bfe6d6}
+  /* hero */
+  .hero-band{position:relative;overflow:hidden;color:#fff;padding:24px 22px 22px;background:var(--brand);
+    background:linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--accent) 82%, var(--brand)))}
+  .hero-band:after{content:"";position:absolute;right:-70px;top:-90px;width:230px;height:230px;border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,.16), transparent 68%);pointer-events:none}
+  .hero-band h1{margin:0 0 5px;font-size:25px;font-weight:800;letter-spacing:-.2px;position:relative}
+  .hero-band .addr{color:rgba(255,255,255,.9);font-size:14px;position:relative}
+  .badges{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;position:relative}
+  .badges .pill{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.22)}
+  .badges .pill.green{background:var(--green);color:#14240a;border-color:transparent;box-shadow:0 3px 10px -3px rgba(0,0,0,.3)}
+  /* tracker */
+  .track-wrap{padding:18px 16px 20px;background:#fff}
+  .track-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+  .track-head .t{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--mut)}
+  .track-head .c{font-size:12px;font-weight:800;color:var(--green-deep);background:var(--green-tint);padding:3px 10px;border-radius:999px}
+  .track{display:flex;align-items:flex-start;justify-content:space-between;gap:2px}
+  .step{flex:1;text-align:center;position:relative;min-width:0}
+  .step .dot{width:32px;height:32px;border-radius:50%;background:#fff;border:2px solid var(--line);color:var(--mut);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 7px;font-weight:800;font-size:13px;position:relative;z-index:2;transition:.2s}
+  .step.done .dot{background:linear-gradient(160deg, color-mix(in srgb,var(--green) 88%,#fff), var(--green));
+    border-color:transparent;color:#fff;box-shadow:0 4px 10px -3px color-mix(in srgb,var(--green) 60%,transparent)}
+  .step.cur .dot{background:#fff;border-color:var(--green);color:var(--green-deep);box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 26%,#fff)}
+  .step .lbl{font-size:10.5px;line-height:1.25;color:var(--mut);font-weight:700;padding:0 1px}
+  .step.cur .lbl{color:var(--ink);font-weight:800}
+  .step:not(:first-child):before{content:"";position:absolute;top:15px;left:-50%;width:100%;height:3px;background:var(--line);z-index:1;border-radius:3px}
+  .step.done:before,.step.cur:before{background:linear-gradient(90deg, color-mix(in srgb,var(--green) 70%,#fff), var(--green))}
+  /* buttons */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--accent);
+    background:linear-gradient(180deg, color-mix(in srgb,var(--accent) 90%,#fff), var(--accent));
+    color:#fff;padding:12px 18px;border-radius:11px;font-weight:700;border:0;cursor:pointer;font-size:15px;
+    min-height:46px;line-height:1.1;text-align:center;box-shadow:0 4px 12px -4px color-mix(in srgb,var(--accent) 55%,transparent);transition:filter .18s, transform .05s}
+  .btn:hover{filter:brightness(1.05)} .btn:active{transform:translateY(1px)}
+  .btn.green{background:var(--green);background:linear-gradient(180deg, color-mix(in srgb,var(--green) 88%,#fff), var(--green));
+    color:#16240a;box-shadow:0 5px 14px -4px color-mix(in srgb,var(--green) 60%,transparent)}
+  .btn.ghost{background:#fff;color:var(--accent);border:1.5px solid color-mix(in srgb,var(--accent) 40%,#fff);box-shadow:none}
+  .btn.block{display:flex;width:100%} .btn.sm{min-height:40px;padding:9px 15px;font-size:14px}
+  .pill{display:inline-block;font-size:12px;font-weight:800;padding:4px 11px;border-radius:999px;background:var(--accent-tint);color:var(--accent);letter-spacing:.2px;white-space:nowrap}
+  .pill.green{background:var(--green-tint);color:var(--green-deep)}
+  .muted{color:var(--mut);font-size:13px} .row{display:flex;gap:12px;flex-wrap:wrap}
+  /* roadmap */
+  .step-row{display:flex;gap:13px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .step-row:last-child{border:0;padding-bottom:2px}
+  .step-row .ic{font-size:15px;width:28px;height:28px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:var(--brand-tint);color:var(--mut)}
+  .step-row.done .ic{background:var(--green-tint)}
+  .step-row.cur .ic{background:var(--green);color:#fff;box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 22%,#fff)}
+  .step-row .nm{font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .step-row .tf{margin-left:auto;white-space:nowrap;font-weight:800;font-size:12px;color:var(--mut);background:var(--bg);padding:3px 9px;border-radius:999px;align-self:flex-start}
+  /* contact */
+  .contact{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .contact .av{width:46px;height:46px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;background:linear-gradient(140deg, var(--accent), var(--brand))}
+  .contact .who{flex:1;min-width:140px} .contact .who b{font-size:16px}
+  /* payments mini */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .stat{border:1px solid var(--line);border-radius:13px;padding:13px 12px;background:var(--brand-tint)}
+  .stat .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);font-weight:800;margin-bottom:3px}
+  .stat .v{font-size:19px;font-weight:800;letter-spacing:-.3px}
+  .stat.bal{background:linear-gradient(160deg, var(--green-tint), #fff);border-color:color-mix(in srgb,var(--green) 40%,#fff)}
+  .stat.bal .v{color:var(--green-deep)}
+  .foot{text-align:center;color:var(--mut);font-size:12px;margin-top:22px;line-height:1.7}
+  /* livebar */
+  .livebar{margin:15px 16px 2px;border-radius:15px;padding:15px 16px;display:flex;gap:14px;align-items:center;background:linear-gradient(120deg, var(--green-tint), #fff);border:1px solid color-mix(in srgb, var(--green) 32%, #fff)}
+  .livebar .lb-em{font-size:33px;line-height:1;flex:none;animation:bob 2.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .livebar .lb-stage{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--green-deep)}
+  .livebar .lb-msg{font-weight:700;color:var(--ink);margin-top:2px;line-height:1.4}
+  .livedot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;vertical-align:middle;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--green) 55%,transparent)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  .cta-card{background:linear-gradient(125deg, var(--accent-tint), #fff)}
+  /* value checklist */
+  .vprog{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:-2px 0 15px}
+  .vprog span{display:block;height:100%;border-radius:99px;transition:width .7s ease;background:linear-gradient(90deg, var(--green), var(--green-deep))}
+  .vrow{display:flex;gap:11px;padding:8px 0;align-items:flex-start;font-size:14px}
+  .vrow .vck{flex:none;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid var(--line);color:var(--mut);background:#fff;margin-top:1px}
+  .vrow.done .vck{background:var(--green);border-color:var(--green);color:#fff}
+  .vrow.cur .vck{border-color:var(--green);color:var(--green-deep);box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 18%,#fff)}
+  .vrow.done .vtx{color:var(--ink2)} .vrow.todo .vtx{color:var(--mut)} .vrow .vtx{line-height:1.4;min-width:0;overflow-wrap:anywhere}
+  .upd{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)} .upd:last-child{border:0}
+  .upd-dot{width:11px;height:11px;border-radius:50%;background:var(--green);flex:none;margin-top:5px;box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 18%,#fff)}
+  /* referral game */
+  #refGame textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;resize:vertical}
+  .refhdr{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .reflvl{display:flex;align-items:center;gap:10px} .reflvl>span:first-child{font-size:30px}
+  .refnext{font-size:12.5px;text-align:right}
+  .refbar{height:10px;background:#e7ecf3;border-radius:999px;margin-top:10px;overflow:hidden}
+  .refbar #refFill{height:100%;background:linear-gradient(90deg,var(--green),#5fae28);transition:width .5s}
+  .refbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .refbtns .btn{flex:1;min-width:120px;text-align:center;text-decoration:none}
+  .btn.share{background:#eef2f7;color:var(--brand)}
+  .ladder{display:flex;flex-direction:column;gap:7px}
+  .rung{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;opacity:.62}
+  .rung.won{opacity:1;border-color:var(--green);background:color-mix(in srgb,var(--green) 9%,#fff)}
+  .rung .ic{font-size:20px} .rung .rw{flex:1;min-width:0;font-size:13px} .rung .tag{font-size:10px;font-weight:800;color:#3c6b16}
+  @media(min-width:620px){.hero-band h1{font-size:28px} .card{padding:24px}}
+</style>
+</head>
+<body>
+<div class="demobar">✨ DEMO PORTAL — branded for <b>{{ company.name }}</b>. This is what YOUR customers would see.</div>
+<div class="top">
+  {% if company.logo_src %}<img src="{{ company.logo_src }}" alt="{{ company.name }}">{% endif %}
+  <span class="nm">{{ company.name }}</span>
+  <span class="sub">Customer Portal</span>
+</div>
+<div class="wrap">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+
+  <!-- HERO + PROGRESS -->
+  <div class="card flush">
+    <div class="hero-band">
+      <h1>Hi {{ j._first }} 👋</h1>
+      <div class="addr">📍 {{ j.address }}, {{ j.city }} {{ j.state }} {{ j.zip }}</div>
+      <div class="badges">
+        <span class="pill green">{{ j._stage_name }}</span>
+        <span class="pill">{{ j.work_type }}</span>
+      </div>
+    </div>
+    <div class="track-wrap">
+      <div class="track-head">
+        <span class="t">Project progress</span>
+        <span class="c">Step {{ j._phase + 1 }} of {{ phases|length }}</span>
+      </div>
+      <div class="track">
+        {% for p in phases %}
+        <div class="step {{ 'done' if loop.index0 < j._phase else ('cur' if loop.index0 == j._phase else '') }}">
+          <div class="dot">{{ '✓' if loop.index0 < j._phase else loop.index }}</div>
+          <div class="lbl">{{ p }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE STATUS -->
+  {% set _ph = phases[j._phase] if j._phase < phases|length else phases[-1] %}
+  {% set _fun = {
+    "Approved":["🎉","Welcome aboard! Your project is officially a GO — here's everything that happens next."],
+    "Permitting":["📝","We're at the city pulling your permit. We'll ping you the moment it's issued."],
+    "Scheduling":["📅","Permit's in hand! We're ordering materials and locking in an install date with you."],
+    "Installation":["🔨","It's happening! Our crew is bringing your new roof to life — watch the updates roll in. 📸"],
+    "Final Inspection":["🔎","Final inspection time — the finish line is in sight!"],
+    "Complete":["🏡","All done — enjoy your beautiful new roof!"]
+  } %}
+  {% set _fe = _fun.get(_ph, ["🏗️","Your project is moving right along — here's exactly what's next."]) %}
+  <div class="livebar" style="margin:0 0 15px">
+    <div class="lb-em">{{ _fe[0] }}</div>
+    <div style="min-width:0">
+      <div class="lb-stage"><span class="livedot"></span>Live now · {{ _ph }}</div>
+      <div class="lb-msg">{{ _fe[1] }}</div>
+    </div>
+  </div>
+
+  <!-- DESIGN STUDIO CTA -->
+  <a class="card cta-card" href="{{ url_for('demo.design', slug=slug) }}" style="display:flex;gap:13px;align-items:center;text-decoration:none;color:inherit">
+    <div style="font-size:30px">🎨</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:800">Design Your Roof &amp; Pick Your Colors</div>
+      <div class="muted" style="font-size:13px">Mock up your roof, compare colors &amp; options, request samples →</div>
+    </div>
+    <div style="font-size:20px;color:var(--accent)">›</div>
+  </a>
+
+  <!-- PROJECT UPDATES FEED -->
+  {% if updates %}
+  <div class="card">
+    <div class="h act">🎉 Your Project Updates</div>
+    {% for u in updates %}
+    <div class="upd">
+      <div class="upd-dot"></div>
+      <div style="min-width:0"><b>{{ u.title }}</b> <span class="muted">— milestone reached ✓</span></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- WHAT TO EXPECT / ROADMAP -->
+  <div class="card">
+    <div class="h">What to Expect — Your Roadmap</div>
+    {% for s in checklist %}
+    <div class="step-row {{ 'done' if s.done else ('cur' if s.current else '') }}">
+      <div class="ic">{{ '✓' if s.done else ('★' if s.current else loop.index) }}</div>
+      <div style="flex:1;min-width:0">
+        <div class="nm">{{ s.name }}{% if s.current %} <span class="pill green">You are here</span>{% endif %}</div>
+        <div class="muted">{{ s.desc }}</div>
+        {% if s.you %}
+        <div style="margin-top:8px">
+          <div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:{{ 'var(--green-deep)' if s.current else 'var(--mut)' }};margin-bottom:4px">{{ 'Your part — do this now' if s.current else 'Your part' }}</div>
+          <ul style="list-style:none;margin:0;padding:0">
+            {% for it in s.you %}
+            <li style="position:relative;padding:4px 0 4px 22px;font-size:13px;color:var(--ink2)">
+              <span style="position:absolute;left:1px;top:3px;color:{{ 'var(--green-deep)' if s.current else 'var(--mut)' }}">{{ '☐' if s.current else '•' }}</span>{{ it }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+      <div class="tf">{{ s.timeframe }}</div>
+    </div>
+    {% endfor %}
+    <div class="muted" style="margin-top:12px">Timeframes are typical estimates — your project contact will confirm exact dates.</div>
+  </div>
+
+  <!-- VALUE CHECKLIST -->
+  <div class="card">
+    <div class="h">✅ Everything We're Doing For You
+      <span style="margin-left:auto;font-weight:800;color:var(--green-deep)">{{ value_done }}/{{ value_total }} done</span>
+    </div>
+    <div class="vprog"><span style="width:{{ (100 * value_done / value_total)|round|int if value_total else 0 }}%"></span></div>
+    {% for v in value_steps %}
+    <div class="vrow {{ 'done' if v.done else ('cur' if v.current else 'todo') }}">
+      <span class="vck">{{ '✓' if v.done else ('●' if v.current else '○') }}</span>
+      <span class="vtx">{{ v.text }}{% if v.current %} <span class="pill green">happening now</span>{% endif %}</span>
+    </div>
+    {% endfor %}
+    <div class="muted" style="margin-top:13px;font-size:12.5px">Every box is real work the {{ company.name }} team does on your project — the standard you're paying for, tracked in the open.</div>
+  </div>
+
+  <!-- SAMPLE PROPOSAL -->
+  <div class="card">
+    <div class="h">Your Proposal</div>
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div style="flex:1;min-width:0"><b>Proposal #DEMO-1042</b> — {{ j.work_type }} <span class="pill green">✓ Approved</span></div>
+    </div>
+    <div class="stats" style="margin-top:14px">
+      <div class="stat"><div class="k">Contract</div><div class="v">{{ money(j._value) }}</div></div>
+      <div class="stat bal"><div class="k">Balance Due</div><div class="v">{{ money(j._balance) }}</div></div>
+      <div class="stat"><div class="k">Paid</div><div class="v" style="color:var(--green-deep)">{{ (j._paid_pct*100)|round|int }}%</div></div>
+    </div>
+    <div class="muted" style="margin-top:12px">In the live portal, homeowners e-sign their proposal and pay each draw right here.</div>
+  </div>
+
+  <!-- REFERRAL GAME -->
+  <div class="card cta-card" id="refGame">
+    <div class="h">🎮 Referral Game — Level Up &amp; Win</div>
+    <div class="refhdr">
+      <div class="reflvl"><span id="refIcon">{{ referral.level.ic }}</span>
+        <span><b id="refLvlName">{{ referral.level.name }}</b><br><span class="muted" id="refShares">{{ referral.shares }} sent</span></span></div>
+      <div class="refnext muted" id="refNext">
+        {% if referral.next_level %}{{ referral.next_level.n - referral.shares }} more to <b>{{ referral.next_level.name }}</b> {{ referral.next_level.ic }}{% else %}Max level — you're a legend! 👑{% endif %}</div>
+    </div>
+    <div class="refbar"><div id="refFill" style="width:{{ ((referral.shares / (referral.next_level.n if referral.next_level else referral.shares or 1)) * 100)|round|int if referral.next_level else 100 }}%"></div></div>
+
+    <div class="muted" style="margin:12px 0 6px">Your personal invite — edit it, then send it to neighbors. Every send levels you up:</div>
+    <textarea id="refMsg" rows="3">I'm getting my roof done by {{ company.name }} and they've been great! Get a free quote 👉 {{ referral.link }}</textarea>
+    <div class="refbtns">
+      <button class="btn green" type="button" onclick="sendRef()">📋 Copy &amp; Send</button>
+      <a class="btn share" id="refSms" href="sms:?&body=" onclick="bumpShare()">💬 Text it</a>
+      <button class="btn ghost" type="button" onclick="saveRefMsg(this)">💾 Save my message</button>
+    </div>
+
+    <div class="h" style="margin:18px 0 8px">🏆 Rewards you can unlock <span class="muted" style="text-transform:none;font-weight:600">({{ referral.signed }} signed so far)</span></div>
+    <div class="ladder">
+      {% for t in referral.tiers %}
+      <div class="rung {{ 'won' if t.unlocked }}">
+        <span class="ic">{{ t.ic if t.unlocked else '🔒' }}</span>
+        <span class="rw"><b>{{ t.n }} referral{{ 's' if t.n>1 }}</b> — {{ t.reward }}</span>
+        {% if t.unlocked %}<span class="tag">UNLOCKED ✓</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if referral.next_tier %}<div class="muted" style="margin-top:10px;font-size:12.5px">🎯 <b>{{ referral.next_tier.n - referral.signed }}</b> more signed referral{{ 's' if (referral.next_tier.n - referral.signed)>1 }} to win <b>{{ referral.next_tier.reward }}</b>.</div>{% endif %}
+  </div>
+  <script>
+  var REFTOK={{ slug|tojson }};
+  function refBody(){return document.getElementById('refMsg').value;}
+  function bumpShare(){
+    fetch('/demo/'+REFTOK+'/refer/share',{method:'POST'}).then(function(r){return r.json();}).then(function(d){
+      if(!d||!d.ok)return; var prev=document.getElementById('refLvlName').textContent;
+      document.getElementById('refShares').textContent=d.shares+' sent';
+      document.getElementById('refIcon').textContent=d.icon;
+      document.getElementById('refLvlName').textContent=d.level;
+      document.getElementById('refNext').innerHTML=d.next?((d.nextAt-d.shares)+' more to <b>'+d.next+'</b>'):"Max level — you're a legend! 👑";
+      var pct=d.next?Math.round(d.shares/d.nextAt*100):100; document.getElementById('refFill').style.width=pct+'%';
+      if(d.level!==prev) refConfetti();
+    });
+  }
+  function sendRef(){ if(navigator.share){navigator.share({text:refBody()}).then(bumpShare).catch(function(){copyRefText();bumpShare();}); }
+    else {copyRefText();bumpShare();} }
+  function copyRefText(){var t=document.getElementById('refMsg');t.select();try{document.execCommand('copy');}catch(e){}
+    if(navigator.clipboard)navigator.clipboard.writeText(t.value); }
+  function saveRefMsg(b){var fd=new URLSearchParams();fd.append('msg',refBody());
+    fetch('/demo/'+REFTOK+'/refer/msg',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
+      .then(function(){b.textContent='✓ Saved';setTimeout(function(){b.textContent='💾 Save my message';},1500);});}
+  document.getElementById('refSms').addEventListener('click',function(){this.href='sms:?&body='+encodeURIComponent(refBody());});
+  function refConfetti(){for(var i=0;i<60;i++){(function(){var c=document.createElement('div');
+    c.style.cssText='position:fixed;top:-10px;left:'+Math.random()*100+'vw;width:9px;height:9px;z-index:99999;border-radius:2px;background:hsl('+Math.floor(Math.random()*360)+',90%,55%);pointer-events:none';
+    document.body.appendChild(c);var top=0,L=parseFloat(c.style.left),drift=(Math.random()-.5)*40,t=0;
+    var iv=setInterval(function(){t+=1;top+=4+Math.random()*3;c.style.top=top+'px';c.style.left=(L+Math.sin(t/8)*drift/10)+'vw';c.style.transform='rotate('+t*20+'deg)';
+      if(top>window.innerHeight+20){clearInterval(iv);c.remove();}},16);})();}}
+  </script>
+
+  <!-- REP CONTACT -->
+  <div class="card">
+    <div class="h">Your Project Contact</div>
+    <div class="contact">
+      <div class="av">{{ (j.rep or company.name)[:1]|upper }}</div>
+      <div class="who"><b>{{ j.rep }}</b>
+        <div class="muted">{{ company.name }}</div></div>
+      <div class="row" style="gap:8px">
+        {% if company.phone %}<a class="btn ghost sm" href="tel:{{ company.phone }}">📞 Call</a>{% endif %}
+        {% if company.email %}<a class="btn ghost sm" href="mailto:{{ company.email }}">✉️ Email</a>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">{{ company.name }}{% if company.phone %} · {{ company.phone }}{% endif %}<br>
+    This is a branded demo of the customer portal. Sample data — no real project.</div>
+</div>
+</body>
+</html>

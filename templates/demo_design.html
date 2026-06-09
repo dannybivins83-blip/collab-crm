@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="{{ company.color_masthead or '#24476C' }}">
+<title>Design Your Roof — {{ company.name }} (Demo)</title>
+<style>
+  :root{--brand:{{ company.color_masthead or '#24476C' }};--accent:{{ company.color_primary or '#4680BF' }};
+    --green:{{ company.color_accent or '#8CC63F' }};--ink:#16223b;--mut:#6a778d;--line:#e7ecf3;--bg:#eef2f7}
+  *{box-sizing:border-box} body{margin:0;color:var(--ink);background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding-bottom:120px}
+  .demobar{background:#16223b;color:#fff;text-align:center;font-size:12px;font-weight:700;padding:6px 14px}
+  .demobar a{color:var(--green);text-decoration:none}
+  .top{background:linear-gradient(118deg,var(--brand),color-mix(in srgb,var(--brand) 64%,var(--accent)));
+    color:#fff;padding:calc(14px + env(safe-area-inset-top)) 18px 16px;text-align:center}
+  .top h1{margin:0;font-size:19px} .top p{margin:4px 0 0;opacity:.9;font-size:13px}
+  .wrap{max-width:760px;margin:0 auto;padding:16px 14px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;
+    box-shadow:0 6px 22px -12px rgba(16,34,64,.2)}
+  .flash{background:#e8f8f0;color:#0a7a5f;border:1px solid #bfe6d6;border-radius:12px;padding:13px 15px;
+    font-weight:700;margin-bottom:14px}
+  .h{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:0 0 12px}
+  .preview{background:linear-gradient(#cfe3f5,#eaf3fb);border-radius:14px;padding:10px;text-align:center}
+  .preview svg{width:100%;max-width:420px;height:auto}
+  .selname{margin-top:8px;font-weight:800}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .tab{flex:1;min-width:74px;border:1px solid var(--line);background:#fff;border-radius:11px;padding:10px 8px;
+    font-weight:800;font-size:13px;text-align:center;cursor:pointer;color:var(--ink)}
+  .tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px}
+  .sw{border:2px solid var(--line);border-radius:12px;padding:7px;cursor:pointer;text-align:center;background:#fff}
+  .sw .chip{height:46px;border-radius:8px;box-shadow:inset 0 -10px 16px -10px rgba(0,0,0,.5)}
+  .sw .nm{font-size:11.5px;font-weight:700;margin-top:6px;line-height:1.2}
+  .sw.on{border-color:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 22%,#fff)}
+  .sysblock,.optblock{display:none} .sysblock.on,.optblock.on{display:block}
+  .opt{display:flex;gap:11px;align-items:center;border:1.5px solid var(--line);border-radius:12px;
+    padding:11px 13px;margin-bottom:9px;cursor:pointer;background:#fff}
+  .opt.on{border-color:var(--green);background:color-mix(in srgb,var(--green) 9%,#fff)}
+  .opt .ic{font-size:21px} .opt .ck{margin-left:auto;width:22px;height:22px;border-radius:6px;border:2px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+  .opt.on .ck{background:var(--green);border-color:var(--green)}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px -16px rgba(16,34,64,.4);z-index:20}
+  .bar .inr{max-width:760px;margin:0 auto;display:flex;gap:10px;align-items:center}
+  .bar .sum{flex:1;min-width:0;font-size:12.5px;color:var(--mut)}
+  .btn{border:0;border-radius:11px;padding:13px 18px;font-weight:800;font-size:15px;cursor:pointer}
+  .btn.green{background:var(--green);color:#1f3d10} .btn.ghost{background:#eef2f7;color:var(--ink)}
+  label.samp{display:flex;gap:9px;align-items:center;font-weight:700;margin-top:6px}
+</style>
+</head>
+<body>
+  <div class="demobar">✨ DEMO · <a href="{{ url_for('demo.portal', slug=slug) }}">← Back to portal</a></div>
+  <div class="top">
+    <h1>🎨 Design Your Roof</h1>
+    <p>Pick your system, play with colors, add your options — see it come to life.</p>
+  </div>
+  <div class="wrap">
+    {% with msgs = get_flashed_messages(with_categories=true) %}{% for cat,m in msgs %}<div class="flash">✓ {{ m }}</div>{% endfor %}{% endwith %}
+
+    <!-- LIVE PREVIEW -->
+    <div class="card">
+      <div class="preview">
+        <svg viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
+          <rect x="70" y="150" width="260" height="95" fill="#efe7da" stroke="#d8ccba"/>
+          <polygon id="roofShape" points="50,150 200,55 350,150" fill="#36393d"/>
+          <polygon points="50,150 200,55 350,150" fill="url(#tex)" opacity=".18"/>
+          <defs><pattern id="tex" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(0)">
+            <line x1="0" y1="0" x2="14" y2="0" stroke="#000" stroke-width="1.4"/></pattern></defs>
+          <rect x="120" y="180" width="44" height="65" fill="#7c5a3a"/>
+          <rect x="240" y="178" width="55" height="48" fill="#bfe0f5" stroke="#cdbfa9" stroke-width="3"/>
+          <rect x="172" y="118" width="22" height="40" fill="#8a8f96"/>
+        </svg>
+        <div class="selname">Your roof in <b id="selName">Charcoal</b></div>
+      </div>
+    </div>
+
+    <!-- SYSTEM + COLOR -->
+    <div class="card">
+      <div class="h">1 · Choose your roof system</div>
+      <div class="tabs">
+        {% for s in ['shingle','tile','metal','flat'] %}{% if colors[s] %}
+        <div class="tab {{ 'on' if s==start_system }}" data-sys="{{ s }}" onclick="pickSys('{{ s }}')">{{ {'shingle':'🏠 Shingle','tile':'🧱 Tile','metal':'⬜ Metal','flat':'🟦 Flat'}[s] }}</div>
+        {% endif %}{% endfor %}
+      </div>
+      <div class="h">2 · Pick a color</div>
+      {% for s in ['shingle','tile','metal','flat'] %}{% if colors[s] %}
+      <div class="sysblock {{ 'on' if s==start_system }}" id="sys-{{ s }}">
+        <div class="grid">
+          {% for c in colors[s] %}
+          <div class="sw" data-hex="{{ c.hex }}" data-name="{{ c.name }}" onclick="pickColor(this)">
+            <div class="chip" style="background:{{ c.hex }}"></div><div class="nm">{{ c.name }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}{% endfor %}
+    </div>
+
+    <!-- OPTIONS -->
+    <div class="card">
+      <div class="h">3 · Add your options</div>
+      {% for s in ['shingle','tile','metal','flat'] %}{% if colors[s] %}
+      <div class="optblock {{ 'on' if s==start_system }}" id="opt-{{ s }}">
+        {% for o in (options.get(s, []) + options['common']) %}
+        <div class="opt" data-name="{{ o.name }}" onclick="toggleOpt(this)">
+          <span class="ic">{{ o.ic }}</span><span>{{ o.name }}</span><span class="ck">✓</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}{% endfor %}
+    </div>
+  </div>
+
+  <!-- STICKY SUBMIT -->
+  <form class="bar" method="post" action="{{ url_for('demo.design_request', slug=slug) }}">
+    <input type="hidden" name="system" id="fSystem" value="{{ start_system }}">
+    <input type="hidden" name="color" id="fColor" value="">
+    <input type="hidden" name="options" id="fOptions" value="">
+    <div class="inr">
+      <div class="sum">
+        <label class="samp"><input type="checkbox" name="samples" value="1"> Mail / bring me physical samples</label>
+        <span id="sumtext">Pick a color to get started.</span>
+      </div>
+      <button class="btn green" type="submit">Save my selections →</button>
+    </div>
+  </form>
+
+<script>
+  var roof=document.getElementById('roofShape'),selName=document.getElementById('selName'),
+      fColor=document.getElementById('fColor'),fSystem=document.getElementById('fSystem'),
+      fOptions=document.getElementById('fOptions'),sumtext=document.getElementById('sumtext'),
+      curSys='{{ start_system }}',opts={};
+  function pickSys(s){curSys=s;fSystem.value=s;
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.sys===s);});
+    document.querySelectorAll('.sysblock').forEach(function(b){b.classList.toggle('on',b.id==='sys-'+s);});
+    document.querySelectorAll('.optblock').forEach(function(b){b.classList.toggle('on',b.id==='opt-'+s);});
+  }
+  function pickColor(el){document.querySelectorAll('.sw').forEach(function(s){s.classList.remove('on');});
+    el.classList.add('on');var hex=el.dataset.hex,nm=el.dataset.name;
+    roof.setAttribute('fill',hex);selName.textContent=nm;fColor.value=nm;sync();}
+  function toggleOpt(el){var n=el.dataset.name;if(opts[n]){delete opts[n];el.classList.remove('on');}
+    else{opts[n]=1;el.classList.add('on');}fOptions.value=Object.keys(opts).join(', ');sync();}
+  function sync(){var parts=[];if(fColor.value)parts.push(curSys+' · '+fColor.value);
+    var n=Object.keys(opts).length;if(n)parts.push(n+' option'+(n>1?'s':''));
+    sumtext.textContent=parts.length?('Selected: '+parts.join(' · ')):'Pick a color to get started.';}
+</script>
+</body>
+</html>
