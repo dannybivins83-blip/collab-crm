@@ -159,7 +159,11 @@ function lcGate(form,pct){
         {% if documents %}{% for d in documents %}<div class="rowline">
           <span class="badge">{{ d.category }}</span>
           <a href="{{ url_for('uploads', subpath='measurements/' ~ d.filename) }}" target="_blank" style="flex:1">{{ d.original_name }}</a>
-        </div>{% endfor %}{% else %}<div class="muted">No documents yet. Upload a RoofGraf report under Measurements to attach it here.</div>{% endif %}
+        </div>{% endfor %}{% else %}<div class="muted">No documents yet.</div>{% endif %}
+        <form method="post" action="{{ url_for('measurements.upload_lead', lead_id=l.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+          <div style="flex:1"><label>Upload roof report (PDF — auto-parses squares/pitch &amp; files here)</label><input type="file" name="file" accept="application/pdf" required></div>
+          <button class="primary" type="submit">Upload</button>
+        </form>
       </div>
     </div>
 
