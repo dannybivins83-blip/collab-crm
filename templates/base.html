@@ -66,10 +66,6 @@
     </div>
   </div>
   <div class="grow"></div>
-  <form method="post" action="{{ url_for('sync.run') }}" style="margin:0" title="Sync from AccuLynx">
-    <button class="mh-sync" type="submit" onclick="this.disabled=true;this.form.submit()">{{ icon('refresh') }}<span class="nlbl">Sync</span></button>
-  </form>
-  <a class="mh-sync" href="{{ company.gmail_url or 'https://mail.google.com/mail/u/0/' }}" target="_blank" rel="noopener" title="Open team Gmail" style="text-decoration:none">{{ icon('mail') }}<span class="nlbl">Gmail</span></a>
   <div class="notif-wrap">
     <button type="button" class="mh-bell" title="Notifications" onclick="this.parentElement.querySelector('.notif-menu').classList.toggle('open')">{{ icon('bell') }}{% if notif_unread %}<span class="notif-badge">{{ notif_unread if notif_unread < 100 else '99+' }}</span>{% endif %}</button>
     <div class="dropdown notif-menu">
