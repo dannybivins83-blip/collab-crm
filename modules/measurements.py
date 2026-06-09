@@ -213,3 +213,174 @@ def _try_parse(path):
     edge("eave_lf", r"Eave")
     edge("step_flash_lf", r"Step\s*Flashing")
     return out
+
+
+# ---------------------------------------------------------------------------
+# External ingest: the in-house roof-measurement app POSTs a finished report here
+# (HMAC-signed with the shared MEASURE_CRM_WEBHOOK_SECRET — same convention as SSO).
+# It matches a CRM lead/job by id, external ref, or address/name; stores the
+# measurement (squares/pitch/LF), attaches the PDF, and auto-parses if not provided.
+# Contract (JSON or multipart):
+#   headers:  X-Signature: hex(hmac_sha256(secret, raw_request_body))
+#   body:     {lead_id|job_id|external_ref|address|name, squares, pitch, ridge_lf,...,
+#              report_url | pdf_base64 | (multipart file), filename}
+# ---------------------------------------------------------------------------
+def _ingest_secret():
+    import os
+    val = os.environ.get("MEASURE_CRM_WEBHOOK_SECRET", "").strip()
+    if val:
+        return val
+    try:
+        from modules import sso
+        return "%s-webhook-secret" % sso._tenant_key()   # dev fallback (matches SSO)
+    except Exception:
+        return "measure-webhook-secret"
+
+
+def _verify_sig(raw):
+    import hmac
+    import hashlib
+    sig = (request.headers.get("X-Signature") or "").strip().lower()
+    if not sig:
+        return False
+    expect = hmac.new(_ingest_secret().encode("utf-8"), raw or b"", hashlib.sha256).hexdigest()
+    try:
+        return hmac.compare_digest(sig, expect)
+    except Exception:
+        return False
+
+
+def _match_record(b):
+    if b.get("job_id"):
+        j = db.get("jobs", b["job_id"])
+        if j:
+            return "job", j
+    if b.get("lead_id"):
+        l = db.get("leads", b["lead_id"])
+        if l:
+            return "lead", l
+    ref = str(b.get("external_ref") or "").strip().lower()
+    if ref:
+        for j in db.all_rows("jobs"):
+            if ref in (j.get("external_url") or "").lower():
+                return "job", j
+        for l in db.all_rows("leads"):
+            if ref in (l.get("external_url") or "").lower():
+                return "lead", l
+    addr = str(b.get("address") or "").strip().lower()
+    name = str(b.get("name") or "").strip().lower()
+    if addr or name:
+        for j in db.all_rows("jobs"):
+            if (addr and addr in (j.get("address") or "").lower()) or (name and name == (j.get("name") or "").lower()):
+                return "job", j
+        for l in db.all_rows("leads"):
+            if (addr and addr in (l.get("address") or "").lower()) or (name and name == (l.get("name") or "").lower()):
+                return "lead", l
+    return None, None
+
+
+def _ingest_cors(payload, code=200):
+    from flask import make_response
+    import json as _json
+    r = make_response(_json.dumps(payload), code)
+    r.headers["Content-Type"] = "application/json"
+    r.headers["Access-Control-Allow-Origin"] = "*"
+    r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Signature"
+    r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    return r
+
+
+@bp.route("/ingest", methods=["POST", "OPTIONS"])
+def ingest():
+    if request.method == "OPTIONS":
+        return _ingest_cors({"ok": True})
+    raw = request.get_data() or b""
+    if not _verify_sig(raw):
+        return _ingest_cors({"ok": False, "reason": "bad_signature"}, 401)
+
+    pdf_bytes, filename, fields, body = None, "roof-report.pdf", {}, {}
+    f = request.files.get("file")
+    if f and f.filename:                       # multipart
+        pdf_bytes = f.read()
+        filename = f.filename
+        body = {k: request.form.get(k) for k in request.form}
+    else:                                       # JSON
+        import json as _json
+        try:
+            body = _json.loads(raw.decode("utf-8") or "{}")
+        except Exception:
+            body = {}
+        filename = body.get("filename") or filename
+        if body.get("pdf_base64"):
+            import base64
+            try:
+                pdf_bytes = base64.b64decode(body["pdf_base64"])
+            except Exception:
+                pdf_bytes = None
+        elif body.get("report_url"):
+            import urllib.request
+            try:
+                with urllib.request.urlopen(body["report_url"], timeout=30) as resp:
+                    pdf_bytes = resp.read()
+            except Exception:
+                pdf_bytes = None
+
+    kind, rec = _match_record(body)
+    if not rec:
+        return _ingest_cors({"ok": False, "reason": "no_match",
+                             "hint": "send lead_id/job_id, external_ref, or address/name"}, 404)
+
+    # Measurement fields explicitly provided by the app.
+    for fld in FIELDS:
+        if body.get(fld) not in (None, ""):
+            v = body.get(fld)
+            if fld in NUMERIC:
+                try:
+                    v = float(re.sub(r"[^0-9.]", "", str(v)) or 0)
+                except Exception:
+                    v = 0
+            fields[fld] = v
+    fields.setdefault("source", "Measurement App")
+
+    # Save the PDF (if any), auto-parse to fill gaps, attach as a document.
+    report_rel, parsed = None, {}
+    if pdf_bytes:
+        fn = "%d_%s" % (int(time.time() * 1000), re.sub(r"[^A-Za-z0-9._-]+", "_", filename))
+        os.makedirs(config.MEAS_DIR, exist_ok=True)
+        path = os.path.join(config.MEAS_DIR, fn)
+        with open(path, "wb") as out:
+            out.write(pdf_bytes)
+        try:
+            from modules import gdrive
+            if gdrive.enabled():
+                gdrive.mirror(path, fn)
+        except Exception:
+            pass
+        report_rel = "measurements/" + fn
+        try:
+            parsed = _try_parse(path)
+        except Exception:
+            parsed = {}
+        db.insert("documents", {("job_id" if kind == "job" else "lead_id"): rec["id"],
+                                "category": "Measurement", "filename": fn,
+                                "original_name": filename, "size": len(pdf_bytes),
+                                "notes": "Roof report (measurement app)"})
+
+    data = dict(fields)
+    for k, v in (parsed or {}).items():        # parsed fills only what the app didn't send
+        if v and not data.get(k):
+            data[k] = v
+    if report_rel:
+        data["report_file"] = report_rel
+    existing = for_job(rec["id"]) if kind == "job" else for_lead(rec["id"])
+    if existing:
+        db.update("measurements", existing["id"], **data)
+        mid = existing["id"]
+    else:
+        data[("job_id" if kind == "job" else "lead_id")] = rec["id"]
+        mid = db.insert("measurements", data)
+    db.add_activity(kind, rec["id"], "note",
+                    "Roof report received from the measurement app (%.0f sq, pitch %s)."
+                    % (float(data.get("squares") or 0), data.get("pitch") or "—"))
+    return _ingest_cors({"ok": True, "matched": kind, "record": rec.get("name"),
+                         "id": mid, "squares": data.get("squares")})

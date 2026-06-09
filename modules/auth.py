@@ -29,7 +29,9 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "sync.job_guids", "sync.catalog_import",
           "portal.home", "portal.message", "portal.sign", "portal.sign_doc", "portal.pay",
           "portal.upload_doc", "portal.upload_photo",
-          "signups.portal_view", "signups.portal_complete"}
+          "signups.portal_view", "signups.portal_complete",
+          "measurements.ingest",
+          "sitecam.gallery_link"}
 # Endpoints only admins may hit (prefix match on the path).
 ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow")
 
