@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Link leads under one client{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a href="{{ url_for('leads_dedupe.index') }}" class="muted">← Cancel</a>
+  <h1 style="margin-left:8px">🔗 Link {{ members|length }} leads under one client</h1>
+</div>
+
+<div class="card" style="max-width:820px">
+  <p>These {{ members|length }} leads are the <b>same client across {{ projects|length }} different
+  properties</b> — separate projects, not duplicates. They'll all be linked under one client
+  contact{% if created %} (a new client contact will be created){% else %}:
+  <b>{{ survivor_c.first_name }} {{ survivor_c.last_name }}</b>{% endif %}.
+  {% if dupe_count %}<b>{{ dupe_count }}</b> duplicate contact record(s) the CRM auto-created will be
+  consolidated into it (their jobs &amp; history move too).{% endif %}
+  <b>No leads or projects are deleted</b> — every project stays as its own lead.</p>
+
+  <h2 style="margin-top:14px">Projects kept separate</h2>
+  <ul>
+    {% for p in projects %}<li>📍 {{ p }}</li>{% endfor %}
+  </ul>
+
+  <table class="grid" style="margin-top:8px">
+    <tr><th>Lead</th><th>Property</th><th>Stage</th><th>Estimate</th></tr>
+    {% for m in members %}
+    <tr>
+      <td><b>{{ m.name or '—' }}</b> <span class="muted">#{{ m.id }}</span></td>
+      <td>{{ m.address or '(no address)' }}</td>
+      <td><span class="badge">{{ constants.lead_stage(m.stage).name }}</span></td>
+      <td>{{ m.estimate or '' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <form method="post" action="{{ url_for('leads_dedupe.link_client') }}" style="margin-top:16px;display:flex;gap:10px">
+    <input type="hidden" name="confirm" value="1">
+    {% for mid in member_ids %}<input type="hidden" name="member_ids" value="{{ mid }}">{% endfor %}
+    <button class="primary" type="submit">✓ Link under one client</button>
+    <a class="btn ghost" href="{{ url_for('leads_dedupe.index') }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

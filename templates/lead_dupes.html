@@ -1,43 +1,94 @@
 {% extends "base.html" %}
 {% block title %}Duplicate Leads{% endblock %}
+
+{% macro lead_row(m, survivor_id, with_controls) %}
+<tr>
+  {% if with_controls %}
+  <td><input type="radio" name="survivor_id" value="{{ m.id }}" {{ 'checked' if m.id==survivor_id }}></td>
+  <td><input type="checkbox" name="dupe_ids" value="{{ m.id }}" {{ 'checked' if m.id!=survivor_id }}></td>
+  {% endif %}
+  <td><a href="{{ url_for('leads.detail', lead_id=m.id) }}">{{ m.name or '—' }}</a>
+      {% if m.id==survivor_id %}<span class="badge" style="background:#0f9e82;color:#fff">keep</span>{% endif %}</td>
+  <td>{{ m.phone or '' }}</td>
+  <td><span class="badge">{{ m._stage.name }}</span></td>
+  <td>{{ m.estimate or '' }}</td>
+</tr>
+{% endmacro %}
+
 {% block body %}
 <div class="page-head">
   <a href="{{ url_for('leads.list_view') }}" class="muted">← Leads</a>
   <h1 style="margin-left:8px">🧬 Duplicate Leads</h1>
-  <span class="sub">{{ groups|length }} group{{ '' if groups|length==1 else 's' }} · {{ total_dupes }} dupe{{ '' if total_dupes==1 else 's' }} · {{ dept }}</span>
+  <span class="sub">{{ repeat_clients|length }} repeat client{{ '' if repeat_clients|length==1 else 's' }} · {{ duplicates|length }} duplicate group{{ '' if duplicates|length==1 else 's' }} · {{ dept }}</span>
 </div>
 
-{% if not groups %}
-<div class="card"><p class="muted">No duplicate leads found in {{ dept }}. 🎉</p></div>
+{% if not repeat_clients and not duplicates %}
+<div class="card"><p class="muted">No duplicate or repeat-client leads found in {{ dept }}. 🎉</p></div>
 {% endif %}
 
-{% for g in groups %}
+{% if repeat_clients %}
+<h2 style="margin:18px 0 6px">🔁 Same client — different projects ({{ repeat_clients|length }})</h2>
+<p class="muted" style="margin:0 0 10px">These are <b>repeat clients</b> with separate properties — real, distinct projects, <b>not</b> duplicates. Link them under one client to see every project together; the projects stay separate.</p>
+{% for c in repeat_clients %}
 <div class="card">
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <b>{{ g.survivor.name or 'Unnamed lead' }}</b>
-    <span class="muted">· {{ g.count }} leads</span>
-    {% for cat in g.categories %}<span class="tag">{{ cat }}</span>{% endfor %}
+    <b>{{ c.survivor.name or 'Unnamed client' }}</b>
+    <span class="badge" style="background:#2f6df6;color:#fff">{{ c.distinct_props }} projects</span>
+    {% for cat in c.categories %}<span class="tag">{{ cat }}</span>{% endfor %}
   </div>
-  <form method="post" action="{{ url_for('leads_dedupe.merge') }}" style="margin-top:10px">
-    <table class="grid">
-      <tr><th>Keep</th><th>Merge</th><th>Lead</th><th>Phone</th><th>Email</th><th>Property</th><th>Stage</th><th>Estimate</th></tr>
-      {% for m in g.members %}
-      <tr>
-        <td><input type="radio" name="survivor_id" value="{{ m.id }}" {{ 'checked' if m.id==g.survivor.id }}></td>
-        <td><input type="checkbox" name="dupe_ids" value="{{ m.id }}" {{ 'checked' if m.id!=g.survivor.id }}></td>
-        <td><a href="{{ url_for('leads.detail', lead_id=m.id) }}">{{ m.name or '—' }}</a>
-            {% if m.id==g.survivor.id %}<span class="badge" style="background:#0f9e82;color:#fff">survivor</span>{% endif %}</td>
-        <td>{{ m.phone or '' }}</td>
-        <td>{{ m.email or '' }}</td>
-        <td>{{ m.address or '' }}</td>
-        <td><span class="badge">{{ m._stage.name }}</span></td>
-        <td>{{ m.estimate or '' }}</td>
-      </tr>
-      {% endfor %}
+
+  {% for p in c.projects %}
+  <div style="margin-top:12px;padding-left:10px;border-left:3px solid var(--line)">
+    <div style="display:flex;align-items:center;gap:8px">
+      <b>📍 {{ p.label }}</b>
+      {% if p.is_dupe %}<span class="tag" style="background:#d9820022;color:#7a4a00">duplicate ×{{ p.leads|length }} — same property</span>{% endif %}
+    </div>
+    {% if p.is_dupe %}
+    <form method="post" action="{{ url_for('leads_dedupe.merge') }}" style="margin-top:6px">
+      <table class="grid">
+        <tr><th>Keep</th><th>Merge</th><th>Lead</th><th>Phone</th><th>Stage</th><th>Estimate</th></tr>
+        {% for m in p.leads %}{{ lead_row(m, p.survivor.id, true) }}{% endfor %}
+      </table>
+      <button class="btn" type="submit" style="margin-top:6px">Preview merge of this property →</button>
+    </form>
+    {% else %}
+    <table class="grid" style="margin-top:6px">
+      <tr><th>Lead</th><th>Phone</th><th>Stage</th><th>Estimate</th></tr>
+      {% for m in p.leads %}{{ lead_row(m, None, false) }}{% endfor %}
     </table>
-    <p class="muted" style="margin-top:6px;font-size:.85em">Pick which lead to <b>keep</b> (default = furthest along). Checked rows merge into it — their jobs, estimates, docs, appointments &amp; history move to the survivor. You'll preview before anything changes.</p>
-    <button class="primary" type="submit" style="margin-top:6px">Preview merge →</button>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <form method="post" action="{{ url_for('leads_dedupe.link_client') }}" style="margin-top:14px">
+    {% for mid in c.member_ids %}<input type="hidden" name="member_ids" value="{{ mid }}">{% endfor %}
+    <button class="primary" type="submit">🔗 Link all {{ c.count }} leads under one client →</button>
   </form>
 </div>
 {% endfor %}
+{% endif %}
+
+{% if duplicates %}
+<h2 style="margin:22px 0 6px">♊ Duplicate leads — same property ({{ duplicates|length }})</h2>
+<p class="muted" style="margin:0 0 10px">Same client <b>and</b> same property entered more than once. Safe to merge into one lead.</p>
+{% for c in duplicates %}
+  {% for p in c.dupe_sets %}
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <b>{{ c.survivor.name or 'Unnamed lead' }}</b>
+      <span class="muted">· 📍 {{ p.label }}</span>
+      {% for cat in c.categories %}<span class="tag">{{ cat }}</span>{% endfor %}
+    </div>
+    <form method="post" action="{{ url_for('leads_dedupe.merge') }}" style="margin-top:8px">
+      <table class="grid">
+        <tr><th>Keep</th><th>Merge</th><th>Lead</th><th>Phone</th><th>Stage</th><th>Estimate</th></tr>
+        {% for m in p.leads %}{{ lead_row(m, p.survivor.id, true) }}{% endfor %}
+      </table>
+      <p class="muted" style="margin-top:6px;font-size:.85em">Pick which to <b>keep</b> (default = furthest along). Checked rows merge into it — their jobs, estimates, docs &amp; history move to the survivor. Preview before anything changes.</p>
+      <button class="primary" type="submit" style="margin-top:4px">Preview merge →</button>
+    </form>
+  </div>
+  {% endfor %}
+{% endfor %}
+{% endif %}
 {% endblock %}
