@@ -335,13 +335,25 @@ def status(est_id):
 
 @bp.route("/<int:est_id>/sign", methods=["POST"])
 def sign(est_id):
-    db.update("estimates", est_id, status="signed",
-              signed_name=request.form.get("signed_name", ""),
-              signed_at=db.now(), signature=request.form.get("signature", ""))
+    name = request.form.get("signed_name", "")
+    sig = request.form.get("signature", "")
+    when = db.now()
+    consent = "1" if request.form.get("consent") else ""
+    db.update("estimates", est_id, status="signed", signed_name=name,
+              signed_at=when, signature=sig)
     e = db.get("estimates", est_id)
+    # With consent, store the signature on the job/lead so it auto-applies to the
+    # sign-up documents and permit packet too (one signature, applied everywhere).
     for et, eid in (("job", e.get("job_id")), ("lead", e.get("lead_id"))):
         if eid:
-            db.add_activity(et, eid, "automation", "Estimate %s signed by %s" % (e["number"], e.get("signed_name")))
+            if consent and sig:
+                db.update(et + "s", eid, signature=sig, signed_name=name,
+                          signed_at=when, sign_consent=consent)
+            db.add_activity(et, eid, "automation",
+                            "Estimate %s e-signed by %s%s" % (
+                                e["number"], name,
+                                " — signature authorized for sign-up docs + permit packet"
+                                if consent else ""))
     return jsonify({"ok": True})
 
 

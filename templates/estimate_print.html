@@ -27,6 +27,7 @@
   .total{display:flex;align-items:center;background:#7cb342;color:#fff;border-radius:8px;padding:14px 16px;font-size:18px;font-weight:800;margin:14px 0}
   .total span:first-child{flex:1}
   .terms{font-size:12px;color:#333;background:#f7f9fc;border:1px solid #e1e8f2;border-radius:8px;padding:12px 14px;margin-top:14px}
+  .opt-accept{font-size:12px;font-weight:700;color:#1d2a44;padding:2px 4px 8px}
   .sign{margin-top:30px;display:flex;gap:40px}
   .sigbox{flex:1;border-top:1px solid #1d2a44;padding-top:6px;font-size:12px;color:#555}
   .brandfoot{margin-top:26px;border-top:2px solid {{ company.color_primary or '#4680BF' }};padding-top:10px;text-align:center}
@@ -80,6 +81,14 @@
     <div class="section">
       <h3>{{ s.name }}</h3>
       {% if s.scope_text %}<div class="scope">{{ s.scope_text }}</div>{% endif %}
+      {% if 'declined' in (s.scope_text or '')|lower %}
+        {% if e.status == 'signed' and e.signature and s._price and s._price > 0 %}
+        <div class="opt-accept">Accepted: <img src="{{ e.signature }}" style="height:30px;vertical-align:middle">
+          {{ e.signed_name }}{% if e.signed_at %} ({{ e.signed_at[:10] }}){% endif %}</div>
+        {% elif e.status == 'signed' %}
+        <div class="opt-accept" style="color:#999">Declined</div>
+        {% endif %}
+      {% endif %}
       <table class="li">
         <thead><tr><th>Description</th><th class="num col-qty">Qty</th><th class="col-qty">Unit</th><th class="num col-price">Price</th></tr></thead>
         <tbody>
@@ -106,6 +115,12 @@
       {% if e.notes %}<div style="margin-top:8px"><b>Notes:</b> {{ e.notes }}</div>{% endif %}
     </div>
 
+    {% if e.status == 'signed' and e.signature %}
+    <div class="scope" style="font-size:11px;color:#555;margin-bottom:6px">
+      The customer authorized this signature to be applied to all signature and acceptance
+      lines across this proposal, the sign-up / contract documents, and the permit packet.
+    </div>
+    {% endif %}
     <div class="sign">
       <div class="sigbox">
         {% if e.signature %}<img src="{{ e.signature }}" style="height:50px"><br>{% endif %}

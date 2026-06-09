@@ -144,7 +144,12 @@ def build_packet(permit_id):
               "legal": job.get("legal", ""), "existing": job.get("existing", ""),
               "area": job.get("area", ""), "slope": job.get("slope", ""),
               "mrh": job.get("mrh", ""), "exposure": job.get("exposure", ""),
-              "value": job.get("contract_value", "")}
+              "value": job.get("contract_value", ""),
+              # Reusable owner signature (captured + authorized at estimate e-sign) so the
+              # build engine can stamp it on the permit/NOC owner-signature lines.
+              "signature": job.get("signature", "") if job.get("sign_consent") else "",
+              "signed_name": job.get("signed_name", ""),
+              "signed_at": job.get("signed_at", "")}
 
     # Optional RoofGraf attachment.
     attachments = []
