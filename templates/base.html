@@ -84,7 +84,6 @@
       <a class="notif-all" href="{{ url_for('notifications.index') }}">View all →</a>
     </div>
   </div>
-  <span class="mh-lic">Lic. {{ company.license or '—' }}</span>
   <span class="mh-user">
     {{ current_user.name if current_user else (company.qualifier or 'Admin') }}
     <a href="{{ url_for('auth.account') }}" style="color:#cdd9e8" title="My account">{{ icon('user') }}</a>
@@ -251,6 +250,82 @@ document.querySelectorAll('table.grid').forEach(function(t){
   var w=document.createElement('div'); w.className='tablewrap';
   p.insertBefore(w,t); w.appendChild(t);
 });
+</script>
+
+<style>
+  .mic-wrap{position:relative}
+  .micbtn{position:absolute;top:6px;right:6px;z-index:5;width:34px;height:34px;min-height:0;
+    padding:0;border-radius:50%;border:1px solid var(--line);background:var(--panel2);
+    font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .micbtn:hover{border-color:var(--accent)}
+  .micbtn.live{background:var(--danger);border-color:var(--danger);color:#fff;
+    animation:micpulse 1.1s infinite}
+  @keyframes micpulse{0%{box-shadow:0 0 0 0 rgba(226,80,80,.5)}70%{box-shadow:0 0 0 9px rgba(226,80,80,0)}100%{box-shadow:0 0 0 0 rgba(226,80,80,0)}}
+  .micbtn[disabled]{opacity:.4;cursor:not-allowed}
+</style>
+<script>
+/* Voice dictation: adds a 🎤 button to notes textareas. Uses the browser's built-in
+   Speech Recognition (Chrome) — no server, no API key. Continuous mode auto-restarts
+   through pauses so it captures a whole spoken note or a speakerphone conversation. */
+(function(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var NOTE_RE = /(note|narrative|message|body|comment|summary|description)/i;
+  function targets(){
+    var seen = [];
+    document.querySelectorAll('textarea').forEach(function(t){
+      if(t.dataset.micDone) return;
+      var optIn = t.hasAttribute('data-mic');
+      var optOut = t.hasAttribute('data-nomic');
+      if(optOut) return;
+      if(optIn || NOTE_RE.test(t.name||'') || NOTE_RE.test(t.id||'')) seen.push(t);
+    });
+    return seen;
+  }
+  function attach(t){
+    t.dataset.micDone = '1';
+    var wrap = document.createElement('div'); wrap.className = 'mic-wrap';
+    t.parentNode.insertBefore(wrap, t); wrap.appendChild(t);
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'micbtn'; btn.textContent = '🎤';
+    btn.title = SR ? 'Click to dictate — speak or put a call on speakerphone. Click again to stop.'
+                   : 'Voice dictation needs Chrome.';
+    wrap.appendChild(btn);
+    if(!SR){ btn.disabled = true; return; }
+
+    var rec = new SR(); rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
+    var listening = false, manualStop = false;
+    function setLive(on){ listening = on; btn.classList.toggle('live', on);
+      btn.textContent = on ? '⏹' : '🎤';
+      btn.title = on ? 'Listening… click to stop.' : 'Click to dictate.'; }
+
+    rec.onresult = function(e){
+      var fin = '';
+      for(var i = e.resultIndex; i < e.results.length; i++){
+        if(e.results[i].isFinal) fin += e.results[i][0].transcript;
+      }
+      if(fin){
+        var sep = (t.value && !/\s$/.test(t.value)) ? ' ' : '';
+        t.value += sep + fin.trim();
+        t.dispatchEvent(new Event('input', {bubbles:true}));
+      }
+    };
+    rec.onerror = function(ev){
+      if(ev.error === 'not-allowed' || ev.error === 'service-not-allowed'){
+        manualStop = true; setLive(false);
+        alert('Microphone access is blocked. Allow the mic for this site in Chrome, then try again.');
+      }
+    };
+    rec.onend = function(){ if(listening && !manualStop){ try{ rec.start(); }catch(e){} } else { setLive(false); } };
+
+    btn.addEventListener('click', function(){
+      if(listening){ manualStop = true; setLive(false); try{ rec.stop(); }catch(e){} }
+      else { manualStop = false; setLive(true); t.focus(); try{ rec.start(); }catch(e){} }
+    });
+  }
+  function scan(){ targets().forEach(attach); }
+  if(document.readyState !== 'loading') scan();
+  else document.addEventListener('DOMContentLoaded', scan);
+})();
 </script>
 {% block scripts %}{% endblock %}
 </body>
