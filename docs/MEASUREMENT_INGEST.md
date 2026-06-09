@@ -134,6 +134,34 @@ console.log(res.status, await res.json());
 2. Point the measurement app's "report finished" webhook at the endpoint above, signing
    each request as shown.
 
+## Smoke test (confirm connectivity before wiring your app)
+
+Run this from a shell where `MEASURE_CRM_WEBHOOK_SECRET` is set to the shared secret.
+It signs at call time (no secret in any file) and sends a deliberately **non-matching**
+body, so a **`404 no_match`** is the expected success result — it proves the URL is
+reachable **and** your signature is correct, without needing any real lead to exist.
+
+```bash
+# Self-signing — nothing pre-baked. Requires: openssl, curl.
+SECRET="$MEASURE_CRM_WEBHOOK_SECRET"
+URL="https://crm.collaborativeconceptsfl.com/measurements/ingest"
+BODY='{"address":"__connectivity_check__no_such_address__"}'
+
+SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^.*= //')
+curl -sS -i -X POST "$URL" \
+  -H "Content-Type: application/json" -H "X-Signature: $SIG" -d "$BODY"
+```
+
+Read the result:
+- **`404 {"reason":"no_match"}`** → ✅ connectivity + signature are correct. You're ready
+  to send real pushes (swap in a `job_id`/`lead_id`/`external_ref`/`address` that matches).
+- **`401 {"reason":"bad_signature"}`** → secret mismatch, or you signed different bytes
+  than you sent (don't re-serialize after signing).
+- **HTML / connection error / CORS** → wrong URL or host unreachable.
+
+> Note: this signs the literal `BODY` bytes above. If your shell or client alters the
+> body (whitespace, encoding), sign the exact bytes you transmit — same rule as production.
+
 ## Gotchas
 - Header is **`X-Signature`** with a **bare hex** digest — **no `sha256=` prefix**.
 - Sign the **exact serialized bytes** you transmit (re-serializing differently breaks the

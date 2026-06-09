@@ -186,30 +186,45 @@ The CRM mint endpoints:
 
 ---
 
-## 9. Future: roof-measurement app (design)
+## 9. Roof-measurement app (inbound auth: design · result push: built)
 
-A measurement app is coming that auto-pulls roof reports. Two seams:
+A measurement app is coming that auto-pulls roof reports. Two seams — the login
+seam is designed (waiting on the app), the result-push seam is **already built**:
 
-### (a) Inbound auth — same SSO
+### (a) Inbound auth — same SSO *(design)*
 Add the registry entry above; implement the §3 verify. The measurement app's web
 UI embeds in the CRM exactly like SiteCam.
 
-### (b) Outbound result — measurement webhook → CRM `measurements`
+### (b) Outbound result — measurement push → CRM `measurements` ✅ BUILT & LIVE
 When a report completes, the app pushes it back into the CRM for the matching
-job/lead. Proposed contract (to implement when the app exists):
+job/lead. This endpoint is **implemented and deployed**
+(`modules/measurements.py` → `ingest()`; verified end-to-end: bad signature → 401,
+valid push stored, no-match → 404).
 
-**`POST /measurements/webhook`** (CRM, public, HMAC-verified)
+**`POST /measurements/ingest`** (CRM, public, HMAC-verified; CORS preflight OK)
 
-Headers:
-- `X-CRM-Signature: sha256=<hex>` — HMAC-SHA256 of the **raw body** under
-  `MEASURE_CRM_WEBHOOK_SECRET` (constant-time compare).
-- `X-CRM-Delivery-Id: <uuid>` — idempotency key (dedupe redeliveries).
+Header:
+- `X-Signature: <hex>` — lowercase hex `HMAC-SHA256(MEASURE_CRM_WEBHOOK_SECRET,
+  <raw request body bytes>)`, constant-time compared. **No `sha256=` prefix.**
+  The signature is over the **exact bytes sent** (for multipart, sign the raw
+  multipart body).
 
-Body (matches the CRM `measurements` table — see `modules/measurements.py`):
+Shared secret: `MEASURE_CRM_WEBHOOK_SECRET` on both sides (same convention as the
+SSO secret; dev fallback `"<tenant>-webhook-secret"`).
+
+Body — **JSON** (or `multipart/form-data` with a `file` field for the PDF). Keys
+are **flat** (not nested):
+
+| Group | Keys |
+|-------|------|
+| Match (any one) | `job_id`, `lead_id`, `external_ref` (matched as a substring of the job/lead AccuLynx `external_url`), `address` (substring), `name` (exact, case-insensitive) |
+| Measurements | `squares`, `pitch`, `stories`, `ridge_lf`, `hip_lf`, `valley_lf`, `rake_lf`, `eave_lf`, `step_flash_lf`, `facets`, `waste_pct`, `source` (defaults `"Measurement App"`), `notes` |
+| PDF (optional, any one) | `report_url` (CRM fetches it), `pdf_base64`, or a multipart `file` + `filename` |
 
 ```json
 {
-  "match": { "external_id": "AL-1042", "address": "4210 Palm Lakes Blvd, West Palm Beach, FL" },
+  "external_ref": "AL-1042",
+  "address": "4210 Palm Lakes Blvd, West Palm Beach, FL",
   "source": "RoofGraf",
   "report_url": "https://…/report.pdf",
   "squares": 38.5, "pitch": "6/12", "stories": "1",
@@ -218,13 +233,67 @@ Body (matches the CRM `measurements` table — see `modules/measurements.py`):
 }
 ```
 
-Job match: first by `match.external_id` against the job's CRM/AccuLynx id, else by
-normalized `match.address`. On match, upsert a `measurements` row (`source`,
-`squares`, `pitch`, `ridge_lf`, `hip_lf`, `valley_lf`, `rake_lf`, `eave_lf`,
-`step_flash_lf`, `facets`, `waste_pct`, `report_file`) and download `report_url`
-into the job's Measurements docs. These feed estimates (see
-`reference_measurement_workflow.md`). Verify steps: HMAC → dedupe by delivery id →
-match job → upsert. **Design only — not yet built.**
+Behavior on receipt: **match** (job_id/lead_id → external_ref → address/name) →
+**upsert** the lead's/job's `measurements` row (idempotent — re-pushes update the
+same row) → **attach** the PDF under Documents (category `Measurement`) →
+**auto-parse** the PDF to fill any measurement the app didn't send → log an
+activity. Numeric fields are sanitized (stripped to digits/decimal).
+
+Responses:
+- `200 {ok:true, matched:"lead"|"job", record, id, squares}`
+- `401 {ok:false, reason:"bad_signature"}`
+- `404 {ok:false, reason:"no_match", hint:"send lead_id/job_id, external_ref, or address/name"}`
+
+These measurements feed estimates (see `reference_measurement_workflow.md`).
+
+#### Example signer — Python
+```python
+import hmac, hashlib, json, requests
+
+SECRET = "…MEASURE_CRM_WEBHOOK_SECRET…"
+URL = "https://crm.collaborativeconceptsfl.com/measurements/ingest"
+
+body = json.dumps({
+    "external_ref": "AL-1042",
+    "address": "4210 Palm Lakes Blvd, West Palm Beach, FL",
+    "source": "RoofGraf", "squares": 38.5, "pitch": "6/12",
+    "ridge_lf": 120, "valley_lf": 64, "eave_lf": 140,
+    "report_url": "https://example.com/report.pdf",
+}, separators=(",", ":")).encode("utf-8")          # sign the EXACT bytes you send
+
+sig = hmac.new(SECRET.encode(), body, hashlib.sha256).hexdigest()
+r = requests.post(URL, data=body,
+                  headers={"Content-Type": "application/json", "X-Signature": sig})
+print(r.status_code, r.json())
+```
+
+#### Example signer — Node / JS
+```js
+import { createHmac } from 'node:crypto';
+
+const SECRET = '…MEASURE_CRM_WEBHOOK_SECRET…';
+const URL = 'https://crm.collaborativeconceptsfl.com/measurements/ingest';
+
+const body = JSON.stringify({
+  external_ref: 'AL-1042',
+  address: '4210 Palm Lakes Blvd, West Palm Beach, FL',
+  source: 'RoofGraf', squares: 38.5, pitch: '6/12',
+  ridge_lf: 120, valley_lf: 64, eave_lf: 140,
+  report_url: 'https://example.com/report.pdf',
+});                                                   // sign the EXACT string you send
+
+const sig = createHmac('sha256', SECRET).update(body).digest('hex');
+const res = await fetch(URL, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'X-Signature': sig },
+  body,
+});
+console.log(res.status, await res.json());
+```
+
+Two setup steps when the app is ready: (1) set `MEASURE_CRM_WEBHOOK_SECRET` to the
+same value on both sides; (2) point the app's "report finished" webhook at the URL
+above.
 
 ---
 
