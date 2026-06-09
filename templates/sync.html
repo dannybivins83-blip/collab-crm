@@ -144,6 +144,17 @@
   <div class="muted">Confirm field mapping with <a href="{{ url_for('sync.internal_test', which='estimate') }}">🔬 Internal API test</a>.</div>
 </div>
 
+<div class="card" style="border:2px solid var(--accent2)">
+  <h2>🧾 Pull estimate LINE ITEMS (exact AccuLynx copy)</h2>
+  <p class="muted">Goes beyond the estimate header — pulls <b>every line item</b> of each AccuLynx estimate (description, qty, unit, cost &amp; price, grouped by section) and stores them as the CRM estimate's lines. This is the <b>100% exact mirror</b> of an existing AccuLynx estimate (vs. the calibrated template used for brand-new estimates). Re-running replaces the lines in place (idempotent).</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmestlines" class="btn accent" href="#" onclick="return false">🧾 AccuLynx Estimate Lines → CRM</a></li>
+    <li>In AccuLynx, open a <b>Jobs</b> milestone list (the jobs whose estimates you want copied).</li>
+    <li><b>Click the bookmark once.</b> It scrolls the list, pulls each job's estimate line items, and posts them with a live banner. Safe to re-run — lines are replaced, not duplicated.</li>
+  </ol>
+  <div class="muted">Job must already be synced (run a Sync first). Pairs with the calibrated templates: this mirrors <i>existing</i> estimates exactly; the templates build <i>new</i> ones.</div>
+</div>
+
 <div class="card">
   <h2>💬 Pull communications (notes &amp; messages) into jobs</h2>
   <p class="muted">Pulls each job's <b>messages, notes &amp; comments</b> (body, author, date, type) into the CRM as job activities + the record narrative. <b>High volume</b> — capped at 200 newest per job per run; capped counts are reported. Deduped so re-runs don't pile up.</p>
@@ -347,6 +358,84 @@
     })();
   }
   document.getElementById('bmphotos').href='javascript:('+pullPhotosBM.toString()+')('+JSON.stringify(BASE)+')';
+})();
+</script>
+<script>
+(function(){
+  var BASE={{ request.host_url|tojson }};
+  // Estimate LINE-ITEM collector: scroll the Jobs list, and per job pull each estimate's
+  // full line items (description/qty/unit/cost/price + section) and POST them so the CRM
+  // estimate is an EXACT copy of AccuLynx's. Tries several internal endpoints/shapes.
+  function pullEstimateLinesBM(BASE){
+    (async function(){
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#1f6f43;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:460px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      async function gj(u,o){try{var r=await fetch(u,o||{headers:{'Accept':'application/json'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+      var seen={},guids=[];
+      function collect(){[].forEach.call(document.querySelectorAll('a[href*="/jobs/"]'),function(a){var m=(a.getAttribute('href')||'').match(/\/jobs\/([0-9a-f-]{30,})/);if(m&&!seen[m[1]]){seen[m[1]]=1;guids.push(m[1]);}});}
+      function scrollers(){var s=[document.scrollingElement||document.documentElement];[].forEach.call(document.querySelectorAll('div'),function(e){if(e.scrollHeight>e.clientHeight+40)s.push(e);});return s;}
+      collect();var last=-1,stable=0;
+      for(var i=0;i<100&&stable<4;i++){scrollers().forEach(function(e){try{e.scrollTop=e.scrollHeight;}catch(_){}});window.scrollTo(0,document.body.scrollHeight);await sleep(500);collect();setb('Finding jobs… '+guids.length);if(guids.length===last)stable++;else stable=0;last=guids.length;}
+      if(!guids.length){setb('No jobs found — open a Jobs milestone list first.','#c0392b');setTimeout(function(){bn.remove();},6000);return;}
+      // Pull line items for one estimate id, trying detail endpoints.
+      function arr(x){return Array.isArray(x)?x:[];}
+      function linesFrom(o){
+        if(!o)return [];
+        // direct arrays of line items under various names
+        var direct=o.LineItems||o.lineItems||o.Items||o.items||o.WorkItems||o.Lines||o.lines;
+        if(arr(direct).length) return arr(direct).map(function(li){return {section:'',li:li};});
+        // sections/worksheets each holding line items
+        var secs=o.Sections||o.sections||o.WorkSheets||o.Worksheets||o.worksheets||o.Groups;
+        var out=[];
+        arr(secs).forEach(function(s){var sn=(s.Name||s.Title||s.name||'');arr(s.LineItems||s.lineItems||s.Items||s.items||s.Lines||s.lines).forEach(function(li){out.push({section:sn,li:li});});});
+        return out;
+      }
+      function num(v){if(v==null)return 0;var n=parseFloat((''+v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;}
+      function pick(o){var k,names=Array.prototype.slice.call(arguments,1);for(var i=0;i<names.length;i++){k=names[i];if(o[k]!=null&&o[k]!=='')return o[k];}return '';}
+      async function estimateLines(e){
+        var id=e.EstimateID||e.EstimateId||e.Id||e.id;
+        var pairs=linesFrom(e);
+        if(!pairs.length&&id){
+          var det=null,eps=['/api/Estimatev3/GetEstimate/'+id,'/api/Estimatev3/GetEstimateForEdit/'+id,'/api/Estimatev3/GetEstimateDetails/'+id,'/api/Estimatev3/Get/'+id];
+          for(var i=0;i<eps.length&&!pairs.length;i++){det=await gj(eps[i]);if(det){pairs=linesFrom(det);if(!pairs.length&&det.Estimate)pairs=linesFrom(det.Estimate);}}
+        }
+        return pairs.map(function(p){var li=p.li;return {
+          description:pick(li,'Description','Name','Item','ProductName','description','name'),
+          unit:pick(li,'Unit','UnitOfMeasure','UOM','unit')||'EA',
+          quantity:num(pick(li,'Quantity','Qty','quantity','qty')),
+          cost:num(pick(li,'UnitCost','Cost','CostEach','unitCost','cost')),
+          price:num(pick(li,'UnitPrice','Price','SellPrice','PriceEach','unitPrice','price')),
+          section:p.section||pick(li,'Category','SectionName','WorkType','section')
+        };}).filter(function(x){return x.description;});
+      }
+      async function post(p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+'sync/estimate-import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
+      var tot=guids.length,ok=0,nojob=0,fail=0,lines=0,ests=0,jdone=0;
+      for(var gi=0;gi<guids.length;gi++){var guid=guids[gi];
+        try{
+          var es=await gj('/api/Estimatev3/GetEstimates/'+guid);
+          es=arr(es);
+          if(!es.length){jdone++;setb('Jobs '+jdone+'/'+tot+' · '+ests+' estimates · '+lines+' lines');continue;}
+          var payloadEsts=[];
+          for(var ei=0;ei<es.length;ei++){var e=es[ei],f=e.Financials||{};
+            var li=await estimateLines(e);
+            payloadEsts.push({id:e.EstimateID||e.EstimateId||e.Id,title:e.Title||e.Name,number:e.EstimateNumber,
+              total:(f.HasOverridePrice?f.TotalOverridePrice:f.TotalPrice),status:e.Status||e.State,date:e.CreatedDate,
+              lineItems:li});
+            ests++;lines+=li.length;
+          }
+          var d=await post({guid:guid,estimates:payloadEsts});
+          if(d&&d.ok){ok++;if(d.results&&d.results[0]&&d.results[0].reason==='no_job')nojob++;}else fail++;
+        }catch(e){fail++;}
+        jdone++;setb('Jobs '+jdone+'/'+tot+' · '+ests+' estimates · '+lines+' lines'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' fail':''));
+      }
+      setb('✓ Done · '+tot+' jobs · '+ests+' estimates · '+lines+' line items copied'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' failed':''),'#1f6f43');
+      setTimeout(function(){bn.remove();},22000);
+    })();
+  }
+  document.getElementById('bmestlines').href='javascript:('+pullEstimateLinesBM.toString()+')('+JSON.stringify(BASE)+')';
 })();
 </script>
 <script>

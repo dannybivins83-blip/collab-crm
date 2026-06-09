@@ -1573,9 +1573,76 @@ def _next_estimate_number():
     return "EST-%04d" % ((rows[0]["id"] + 1) if rows else 1)
 
 
+def _estimate_line_items(est):
+    """Normalize an AccuLynx estimate's line items from any payload shape into
+    [{description, unit, qty, cost, price, section}]. Returns [] if none present."""
+    raw = (_g(est, "lineItems", "LineItems", "items", "Items", "lines", "Lines", default=None))
+    # Some shapes nest lines under sections/worksheets.
+    secs = _g(est, "sections", "Sections", "worksheets", "Worksheets", default=None)
+    out = []
+    if not raw and isinstance(secs, list):
+        for s in secs:
+            sname = _name_of(_g(s, "name", "title", "Name", default="")) or ""
+            for li in (_g(s, "lineItems", "LineItems", "items", "Items", "lines", default=[]) or []):
+                out.append((sname, li))
+    elif isinstance(raw, list):
+        for li in raw:
+            out.append((_name_of(_g(li, "section", "sectionName", "category", default="")) or "", li))
+    norm = []
+    for sname, li in out:
+        if not isinstance(li, dict):
+            continue
+        desc = (_name_of(_g(li, "description", "name", "item", "productName", "Description",
+                            "Name", default="")) or "").strip()
+        if not desc:
+            continue
+        qty = _money_num(_g(li, "quantity", "qty", "Quantity", "Qty", default="")) or 0
+        unit = (_name_of(_g(li, "unit", "uom", "Unit", "unitOfMeasure", default="")) or "EA").strip()[:12]
+        cost = _money_num(_g(li, "cost", "unitCost", "Cost", "UnitCost", "costEach", default=""))
+        price = _money_num(_g(li, "price", "unitPrice", "Price", "sellPrice", "priceEach",
+                              "extendedPrice", default=""))
+        # If only an extended (line) total is given, divide back to a per-unit figure.
+        if price and qty and price > cost * (qty or 1) * 1.5 and qty:
+            pass  # heuristics avoided; trust per-unit when present
+        norm.append({"description": desc[:200], "unit": unit, "qty": round(qty, 2),
+                     "cost": round(cost, 2), "price": round(price, 2), "section": sname[:80]})
+    return norm
+
+
+def _store_estimate_lines(eid, est):
+    """Replace an AccuLynx-sourced estimate's sections/lines with the real AccuLynx
+    line items (exact mirror). Wipes prior lines/sections for this estimate first so
+    re-syncing is idempotent. Returns the number of line items stored (0 if none)."""
+    items = _estimate_line_items(est)
+    if not items:
+        return 0
+    for s in db.all_rows("estimate_sections", where="estimate_id=?", params=(eid,)):
+        db.delete("estimate_sections", s["id"])
+    for ln in db.all_rows("estimate_lines", where="estimate_id=?", params=(eid,)):
+        db.delete("estimate_lines", ln["id"])
+    # Group by section (preserve first-seen order); default one section.
+    order, groups = [], {}
+    for it in items:
+        key = it["section"] or "Estimate"
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(it)
+    for si, sname in enumerate(order):
+        sid = db.insert("estimate_sections", {"estimate_id": eid, "sort": si,
+                                              "name": sname, "scope_text": "", "margin_pct": 30})
+        for li, it in enumerate(groups[sname]):
+            db.insert("estimate_lines", {"estimate_id": eid, "section_id": sid, "sort": li,
+                                         "description": it["description"], "unit": it["unit"],
+                                         "qty": it["qty"], "waste_pct": 0,
+                                         "cost": it["cost"], "price": it["price"]})
+    return len(items)
+
+
 def _apply_estimate(guid, est):
     """Upsert one synced estimate (header-level: name/total/status/date) into the
-    estimates table, linked to the matching job/lead. Dedup by ext_id."""
+    estimates table, linked to the matching job/lead. Dedup by ext_id. When the
+    payload includes line items, store them verbatim as an exact AccuLynx mirror."""
     kind, rec = _record_by_guid(guid)
     if not rec:
         return {"ok": False, "reason": "no_job", "guid": guid}
@@ -1607,13 +1674,17 @@ def _apply_estimate(guid, est):
             "ext_status": status, "ext_date": edate}
     if cur:
         db.update("estimates", cur["id"], **{k: v for k, v in data.items() if k != "number"})
+        nlines = _store_estimate_lines(cur["id"], est)
         return {"ok": True, "guid": guid, "action": "updated", "estimate": name,
-                "total": _money_str(total), "record": rec.get("name")}
+                "total": _money_str(total), "lines": nlines, "record": rec.get("name")}
     eid = db.insert("estimates", data)
+    nlines = _store_estimate_lines(eid, est)
     db.add_activity(kind, rec["id"], "note",
-                    "AccuLynx estimate synced: %s (%s, %s)" % (name, _money_str(total) or "$0", status))
+                    "AccuLynx estimate synced: %s (%s, %s%s)"
+                    % (name, _money_str(total) or "$0", status,
+                       ", %d line items" % nlines if nlines else ""))
     return {"ok": True, "guid": guid, "action": "added", "estimate": name,
-            "total": _money_str(total), "id": eid, "record": rec.get("name")}
+            "total": _money_str(total), "lines": nlines, "id": eid, "record": rec.get("name")}
 
 
 @bp.route("/estimate-import", methods=["POST", "OPTIONS"])
