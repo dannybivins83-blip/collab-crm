@@ -1450,6 +1450,8 @@ def _apply_billing(guid, payload):
 
     balance = _money_num(_g(payload, "balance", "balanceDue", "balance_due",
                             "arBalance", "amountDue", default=""))
+    collected_in = _money_num(_g(payload, "collected", "paymentsReceived", "PaymentsReceived",
+                                 "amountCollected", default=""))
 
     # Billing only attaches to JOBS for the invoices/payments tables (job_id FK).
     job_id = rec["id"] if kind == "job" else None
@@ -1515,9 +1517,12 @@ def _apply_billing(guid, payload):
 
     # Store AccuLynx's OWN Balance Due + Collected on the job so the CRM shows the exact
     # same numbers (Collected = JobValue - BalanceDue) — never recomputed from the draws.
-    if job_id and balance is not None and balance != "":
+    if job_id and (balance is not None and balance != ""):
         upd = {"balance": _m2(balance)}
-        if val:
+        # Prefer AccuLynx's own PaymentsReceived (Collected); else derive value - balance.
+        if collected_in:
+            upd["collected"] = _m2(collected_in)
+        elif val:
             coll = val - balance
             if coll >= 0:
                 upd["collected"] = _m2(coll)
