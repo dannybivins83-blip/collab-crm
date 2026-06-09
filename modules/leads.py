@@ -135,6 +135,31 @@ def new():
                 est_msg = " · estimate %s drafted" % (e or {}).get("number", "")
             except Exception:
                 pass
+        # Populate the Communications tab with the intake details (verified facts only),
+        # so the timeline starts with a record of what came in at lead entry.
+        bits = []
+        if data.get("phone"):
+            bits.append("Phone: %s" % data["phone"])
+        if data.get("email"):
+            bits.append("Email: %s" % data["email"])
+        if data.get("address"):
+            bits.append("Property: %s" % data["address"])
+        if data.get("work_type"):
+            bits.append("Work type: %s" % data["work_type"])
+        if resolved_ahj:
+            bits.append("AHJ: %s%s" % (resolved_ahj, (" · " + system) if system else ""))
+        if data.get("source"):
+            bits.append("Source: %s" % data["source"])
+        if data.get("rep"):
+            bits.append("Rep: %s" % data["rep"])
+        summary = "New lead intake — %s%s.\n%s" % (
+            data.get("name") or "lead",
+            (" (" + data["company"] + ")") if data.get("company") else "",
+            " · ".join(bits))
+        for extra in (data.get("notes"), data.get("narrative")):
+            if extra and extra.strip():
+                summary += "\nNotes: %s" % extra.strip()
+        db.add_activity("lead", lid, "note", summary)
         flash("Lead created. AHJ: %s%s%s" % (
             resolved_ahj or "—", (" · " + system) if system else "", est_msg), "ok")
         return redirect(url_for("leads.detail", lead_id=lid))
