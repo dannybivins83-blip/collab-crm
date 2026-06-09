@@ -57,155 +57,57 @@
   </div>
 </div>
 
-<div class="card" style="border:2px solid var(--accent)">
-  <h2>🧭 Records &amp; Milestones → CRM — no API key needed</h2>
-  <p class="muted">Pulls leads/jobs straight from the AccuLynx page you're logged into (uses your browser session, not the API). <b>Now captures the EXACT milestone</b> of whatever list you open — so the CRM stage matches AccuLynx 1:1 (Documentation Needed, Permit Applied For, Tear Off Started, etc.), not just the top-level bucket.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag this button to your <b>bookmarks bar</b> →&nbsp;<a id="bm" class="btn accent" href="#" onclick="return false">📥 AccuLynx Records → CRM</a></li>
-    <li>In AccuLynx, click a <b>Milestone Pipeline</b> filter on the left (e.g. <b>Approved</b>, <b>Permit Applied For</b>, <b>Invoiced</b>) so the URL shows that milestone.</li>
-    <li><b>Click the bookmark once.</b> It auto-scrolls the whole list, shows a live "Collecting…" counter, and imports everyone at that exact milestone. Run it once per milestone list to get every stage right — duplicates are skipped/updated.</li>
-  </ol>
-  <div class="muted">Tip: to fix mismatched stages, walk each granular milestone list once. If your browser blocks the cross-site request the first time, allow it — it's just posting to your own CRM at <code>{{ request.host_url }}</code>.</div>
-</div>
-
-<div class="card" style="border:2px solid var(--accent)">
-  <h2>⭐ Sync Everything → CRM (one click)</h2>
-  <p class="muted">The closest thing to a "do it all" button. In <b>one click</b> on a Jobs list, it pulls each job's <b>billing &amp; payments</b>, <b>estimates</b>, and <b>communications</b> from your logged-in AccuLynx session into the matching CRM job. (Permit <b>documents</b> stay on their own button below — they're large file transfers, so they run best separately.)</p>
-  <p class="muted" style="margin-top:-4px"><b>Why this is a bookmark, not the 🔄 Sync button:</b> the Sync button runs on the server via AccuLynx's public API, which only returns leads/jobs/stages (it 404s on money, estimates &amp; messages). That data lives behind your browser login, so it can only be pulled by a bookmark running inside an AccuLynx tab.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmall" class="btn accent" href="#" onclick="return false">⭐ AccuLynx Sync All → CRM</a></li>
-    <li>Run a regular <b>🔄 Sync now</b> first so the jobs exist, then open a <b>Jobs</b> milestone list (Approved / Completed / Invoiced hold the money).</li>
-    <li><b>Click the bookmark once.</b> Banner shows "All X/Y · N valued · E est · M msgs". Safe to re-run — everything dedups.</li>
-  </ol>
-</div>
-
 <div class="card">
-  <h2>📎 Pull permit documents into jobs</h2>
-  <p class="muted">Attaches each job's <b>permit-related</b> files (Permit, NOC, HOA Approval, Certificate of Completion, inspection) from AccuLynx to the matching CRM job. Files come from your logged-in AccuLynx session (the API can't serve documents). Already-attached files are skipped; large scans upload in chunks.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmdocs" class="btn accent" href="#" onclick="return false">📎 AccuLynx Permits → CRM</a></li>
-    <li>In AccuLynx, open a <b>Jobs</b> milestone list — <b>Completed</b> first, then <b>Invoiced</b> (sort by date / scroll to the range you want).</li>
-    <li><b>Click the bookmark once.</b> It scrolls to load the list, then pulls every job's permit docs with a live progress banner. Safe to re-run — it only adds what's missing.</li>
-  </ol>
-  <div class="muted">Tip: run it per milestone list. The job must already be synced into the CRM (run a sync first) or it'll be counted as "not in CRM".</div>
-</div>
+  <h2>🔌 Sync Tools — AccuLynx → CRM</h2>
+  <p class="muted">Each tool is a <b>browser bookmark</b>. Easiest: use <b>📥 Download all</b> above to install them in one folder — or drag any tool below to your bookmarks bar. Then, on a logged-in <b>my.acculynx.com</b> page, click the tool; a live banner shows progress. <b>↺</b> resets a tool's resumable cursor.</p>
+  <table class="grid synctools">
+    <tr><th style="width:42%">Tool <span class="muted" style="font-weight:400">(drag to bookmarks bar)</span></th><th>What it pulls into the CRM</th><th></th></tr>
 
-<div class="card" style="border:2px solid var(--accent)">
-  <h2>📐 Pull roof reports into measurements — 20 at a time</h2>
-  <p class="muted">Pulls each job's <b>RoofGraf / roof-report PDF</b> from AccuLynx job documents into the matching CRM job <i>or lead</i>, attaches it under <b>Measurements</b>, and <b>auto-parses</b> it — squares, pitch, ridge/hip/valley/eave/rake — so it feeds the estimate. The server walks your active pipeline (Assigned → Prospect → Approved → Completed → Invoiced → last 500 Closed) with a <b>resumable cursor</b>, handing the collector <b>20 jobs per click</b>; click again to continue where it left off. Jobs that already have a roof report are skipped (idempotent).</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmroof" class="btn accent" href="#" onclick="return false">📐 AccuLynx Roof Reports → CRM</a></li>
-    <li>Make sure an <b>API key</b> is saved above (the server uses it to enumerate the next 20 jobs) and you've run a <b>🔄 Sync</b> so the jobs/leads exist in the CRM.</li>
-    <li>In any logged-in <b>my.acculynx.com</b> tab, <b>click the bookmark</b>. It asks the CRM for the next 20 jobs, pulls each one's roof report, parses it, and shows a live banner. <b>Click it again</b> to walk the next 20 — the banner says when a full pass is complete.</li>
-  </ol>
-  <div class="muted">Roof reports only — it ignores permits/NOC/photos. Re-running is safe (already-parsed jobs are skipped). To restart the walk from the top:
-    <form method="post" action="{{ url_for('sync.roofreport_reset') }}" style="display:inline">
-      <button class="btn ghost sm" type="submit" style="margin-left:6px">↺ Reset cursor</button>
-    </form>
-  </div>
-</div>
+    <tr><td colspan="3" class="grp">Core</td></tr>
+    <tr><td><a id="bm" class="btn accent sm" href="#" onclick="return false">📥 AccuLynx Records → CRM</a></td>
+        <td>Leads &amp; jobs + their <b>exact milestone</b> — no API key. Run once per milestone list.</td><td></td></tr>
+    <tr><td><a id="bmall" class="btn accent sm" href="#" onclick="return false">⭐ AccuLynx Sync All → CRM</a></td>
+        <td>One click: <b>billing + estimates + communications</b> for the open Jobs list.</td><td></td></tr>
 
-<div class="card" style="border:2px solid var(--accent)">
-  <h2>📂 Pull ALL job documents into the CRM — 20 jobs at a time</h2>
-  <p class="muted">Copies <b>every file in every folder</b> of each AccuLynx job — Email Documents, Plans/Drawings, Proposals, Roof Report, Permits, NOC, contracts, everything — into the matching CRM job, keeping the original <b>folder name</b>. The server walks your active pipeline (Assigned → Prospect → Approved → Completed → Invoiced → last 500 Closed) with its <b>own resumable cursor</b>, handing the collector <b>20 jobs per click</b>. Files you already pulled are skipped (deduped by name), so re-running is always safe. This is the full document migration so you can abandon AccuLynx.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmalldocs" class="btn accent" href="#" onclick="return false">📂 AccuLynx Documents → CRM</a></li>
-    <li>Make sure an <b>API key</b> is saved above and you've run a <b>🔄 Sync</b> so the jobs exist in the CRM.</li>
-    <li>In any logged-in <b>my.acculynx.com</b> tab, <b>click the bookmark</b>. It pulls all documents for the next 20 jobs and shows a live banner. <b>Click again</b> to walk the next 20 — the banner says when a full pass is complete.</li>
-  </ol>
-  <div class="muted">Pulls every folder (use the Roof-Reports tool above if you only want measurements). To restart the walk from the top:
-    <form method="post" action="{{ url_for('sync.doc_reset') }}" style="display:inline">
-      <button class="btn ghost sm" type="submit" style="margin-left:6px">↺ Reset cursor</button>
-    </form>
-  </div>
-</div>
+    <tr><td colspan="3" class="grp">Financials</td></tr>
+    <tr><td><a id="bmbillwalk" class="btn accent sm" href="#" onclick="return false">💳 AccuLynx Billing (all buckets) → CRM</a></td>
+        <td>Value, invoices, <b>payments &amp; balance</b> — walks <b>every bucket</b> incl. full Closed, 25/click. <em>Best for full payment history.</em></td>
+        <td><form method="post" action="{{ url_for('sync.bill_reset') }}"><button class="btn ghost sm" title="Reset cursor">↺</button></form></td></tr>
+    <tr><td><a id="bmbill" class="btn accent sm" href="#" onclick="return false">💵 AccuLynx Billing → CRM</a></td>
+        <td>Same, for the <b>currently open list</b> (scroll-based).</td><td></td></tr>
+    <tr><td><a id="bmestws" class="btn accent sm" href="#" onclick="return false">📊 AccuLynx Est+WS → CRM (whole list)</a></td>
+        <td>Each estimate's <b>line items + a cost/profit worksheet</b> for the open list.</td><td></td></tr>
+    <tr><td><a id="bmestws50" class="btn accent sm" href="#" onclick="return false">📊 AccuLynx Est+WS → CRM (first 50)</a></td>
+        <td>Same, capped to the <b>50 most recent</b> (use on Invoiced, sorted newest).</td><td></td></tr>
+    <tr><td><a id="bmestlines" class="btn accent sm" href="#" onclick="return false">🧾 AccuLynx Estimate Lines → CRM</a></td>
+        <td>Exact estimate <b>line items</b> only (no worksheet).</td><td></td></tr>
+    <tr><td><a id="bmest" class="btn accent sm" href="#" onclick="return false">📝 AccuLynx Estimates → CRM</a></td>
+        <td>Estimate <b>headers</b> — name, total, status, date.</td><td></td></tr>
 
-<div class="card" style="border:2px solid var(--accent)">
-  <h2>💳 Pull ALL billing &amp; payment history — every bucket, 25 jobs at a time</h2>
-  <p class="muted">Pulls each job's <b>contract value, invoices, payments &amp; balance</b> (with payment dates/methods/check #s) into the CRM. Unlike the scroll button, this <b>walks every bucket with its own resumable cursor</b> — Assigned → Prospect → Approved → Completed → Invoiced → <b>the FULL Closed history</b> (uncapped) — so you capture payment records on all ~1,200 jobs without opening each list. Re-running updates in place (deduped); never duplicates.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmbillwalk" class="btn accent" href="#" onclick="return false">💳 AccuLynx Billing (all buckets) → CRM</a></li>
-    <li>Make sure an <b>API key</b> is saved above and you've run a <b>🔄 Sync</b> so the jobs exist in the CRM.</li>
-    <li>In any logged-in <b>my.acculynx.com</b> tab, <b>click the bookmark</b> — it pulls billing for the next 25 jobs. <b>Click again</b> to continue; the banner says when a full pass (all buckets) is complete. ~50 clicks covers everything, resumable.</li>
-  </ol>
-  <div class="muted">Covers the whole pipeline incl. all Closed/Invoiced (where payments live). To restart the walk:
-    <form method="post" action="{{ url_for('sync.bill_reset') }}" style="display:inline">
-      <button class="btn ghost sm" type="submit" style="margin-left:6px">↺ Reset cursor</button>
-    </form>
-  </div>
-</div>
+    <tr><td colspan="3" class="grp">Files &amp; media</td></tr>
+    <tr><td><a id="bmalldocs" class="btn accent sm" href="#" onclick="return false">📂 AccuLynx Documents → CRM</a></td>
+        <td><b>Every file in every folder</b> per job, 20/click, resumable.</td>
+        <td><form method="post" action="{{ url_for('sync.doc_reset') }}"><button class="btn ghost sm" title="Reset cursor">↺</button></form></td></tr>
+    <tr><td><a id="bmroof" class="btn accent sm" href="#" onclick="return false">📐 AccuLynx Roof Reports → CRM</a></td>
+        <td>RoofGraf PDFs → <b>Measurements</b>, auto-parsed (squares/pitch). 20/click.</td>
+        <td><form method="post" action="{{ url_for('sync.roofreport_reset') }}"><button class="btn ghost sm" title="Reset cursor">↺</button></form></td></tr>
+    <tr><td><a id="bmphotos" class="btn accent sm" href="#" onclick="return false">📸 AccuLynx Photos → CRM</a></td>
+        <td>Site photos → job <b>photo gallery</b>. 20/click.</td>
+        <td><form method="post" action="{{ url_for('sync.photo_reset') }}"><button class="btn ghost sm" title="Reset cursor">↺</button></form></td></tr>
+    <tr><td><a id="bmdocs" class="btn accent sm" href="#" onclick="return false">📎 AccuLynx Permits → CRM</a></td>
+        <td>Permit / NOC / inspection docs for the open list.</td><td></td></tr>
 
-<div class="card" style="border:2px solid var(--accent)">
-  <h2>📸 Pull job photos into the CRM gallery — 20 jobs at a time</h2>
-  <p class="muted">Copies each AccuLynx job's <b>site photos</b> into the matching CRM job's photo gallery (Site Photos). The server walks your active pipeline with its <b>own resumable cursor</b>, handing the collector <b>20 jobs per click</b>. Photos you already pulled are skipped (deduped by name). This is the last AccuLynx data type — once it's pulled you can fully abandon AccuLynx.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmphotos" class="btn accent" href="#" onclick="return false">📸 AccuLynx Photos → CRM</a></li>
-    <li>Make sure an <b>API key</b> is saved above and you've run a <b>🔄 Sync</b> so the jobs exist in the CRM.</li>
-    <li>In any logged-in <b>my.acculynx.com</b> tab, <b>click the bookmark</b>. It pulls photos for the next 20 jobs with a live banner. <b>Click again</b> for the next 20.</li>
-  </ol>
-  <div class="muted">Photos land under <b>Site Photos</b> on each job. To restart the walk from the top:
-    <form method="post" action="{{ url_for('sync.photo_reset') }}" style="display:inline">
-      <button class="btn ghost sm" type="submit" style="margin-left:6px">↺ Reset cursor</button>
-    </form>
-  </div>
+    <tr><td colspan="3" class="grp">Communications</td></tr>
+    <tr><td><a id="bmcomm" class="btn accent sm" href="#" onclick="return false">💬 AccuLynx Comms → CRM</a></td>
+        <td>Notes &amp; messages → job activity (newest 200 per run).</td><td></td></tr>
+  </table>
 </div>
-
-<div class="card">
-  <h2>💵 Pull billing &amp; payments into jobs</h2>
-  <p class="muted">Pulls each job's <b>job/contract value, invoices, payments &amp; balance</b> from your logged-in AccuLynx session into the matching CRM job. <b>This is what fixes the dashboard L/P/A/C/I dollar totals</b> — the public jobs API has no money field, so values only arrive via this bridge. Re-running updates the same records (deduped by AccuLynx id); never duplicates.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmbill" class="btn accent" href="#" onclick="return false">💵 AccuLynx Billing → CRM</a></li>
-    <li>In AccuLynx, open a <b>Jobs</b> milestone list (<b>Approved</b> / <b>Completed</b> / <b>Invoiced</b> hold the money).</li>
-    <li><b>Click the bookmark once.</b> It scrolls the list, fetches each job's financials, and posts them with a live banner. Safe to re-run.</li>
-  </ol>
-  <div class="muted">Job must already be synced (run a Sync first). Confirm field mapping any time with <a href="{{ url_for('sync.internal_test', which='billing') }}">🔬 Internal API test</a>.</div>
-</div>
-
-<div class="card">
-  <h2>📝 Pull estimates into jobs</h2>
-  <p class="muted">Pulls each job's <b>estimates</b> (name, total $, status, date) into the CRM's Estimates list, linked to the job/lead. Deduped by AccuLynx estimate id, so re-runs update in place.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmest" class="btn accent" href="#" onclick="return false">📝 AccuLynx Estimates → CRM</a></li>
-    <li>In AccuLynx, open a <b>Jobs</b> milestone list (any).</li>
-    <li><b>Click the bookmark once.</b> It scrolls, fetches each job's estimates, and posts them. Safe to re-run.</li>
-  </ol>
-  <div class="muted">Confirm field mapping with <a href="{{ url_for('sync.internal_test', which='estimate') }}">🔬 Internal API test</a>.</div>
-</div>
-
-<div class="card" style="border:2px solid var(--accent2)">
-  <h2>🧾 Pull estimate LINE ITEMS (exact AccuLynx copy)</h2>
-  <p class="muted">Goes beyond the estimate header — pulls <b>every line item</b> of each AccuLynx estimate (description, qty, unit, cost &amp; price, grouped by section) and stores them as the CRM estimate's lines. This is the <b>100% exact mirror</b> of an existing AccuLynx estimate (vs. the calibrated template used for brand-new estimates). Re-running replaces the lines in place (idempotent).</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmestlines" class="btn accent" href="#" onclick="return false">🧾 AccuLynx Estimate Lines → CRM</a></li>
-    <li>In AccuLynx, open a <b>Jobs</b> milestone list (the jobs whose estimates you want copied).</li>
-    <li><b>Click the bookmark once.</b> It scrolls the list, pulls each job's estimate line items, and posts them with a live banner. Safe to re-run — lines are replaced, not duplicated.</li>
-  </ol>
-  <div class="muted">Job must already be synced (run a Sync first). Pairs with the calibrated templates: this mirrors <i>existing</i> estimates exactly; the templates build <i>new</i> ones.</div>
-</div>
-
-<div class="card" style="border:2px solid var(--accent2)">
-  <h2>📊 Pull Estimates + Worksheets together (targeted migration)</h2>
-  <p class="muted">One pull per job that feeds <b>both</b> the CRM estimate (sell-side line items) <b>and</b> the financial Worksheet / Profit Analysis (cost-side line items + contract value), from the same AccuLynx estimate. Built for your migration plan: <b>all Approved, all Completed, and the 50 most recent Invoiced</b>.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag <u>both</u> to your bookmarks bar →&nbsp;
-      <a id="bmestws" class="btn accent" href="#" onclick="return false">📊 AccuLynx Est+WS → CRM (whole list)</a>&nbsp;
-      <a id="bmestws50" class="btn accent" href="#" onclick="return false">📊 …first 50 only</a></li>
-    <li><b>Approved:</b> open AccuLynx → Milestone <b>Approved</b> list → click <b>“whole list”</b>. Then do the same for <b>Completed</b>.</li>
-    <li><b>Invoiced:</b> open the <b>Invoiced</b> list, sort it <b>newest first</b>, then click <b>“first 50 only”</b> — it stops after the 50 most recent.</li>
-  </ol>
-  <div class="muted">Idempotent — re-running replaces each job's estimate lines + worksheet, never duplicates. Jobs must already be synced into the CRM.</div>
-</div>
-
-<div class="card">
-  <h2>💬 Pull communications (notes &amp; messages) into jobs</h2>
-  <p class="muted">Pulls each job's <b>messages, notes &amp; comments</b> (body, author, date, type) into the CRM as job activities + the record narrative. <b>High volume</b> — capped at 200 newest per job per run; capped counts are reported. Deduped so re-runs don't pile up.</p>
-  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
-    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmcomm" class="btn accent" href="#" onclick="return false">💬 AccuLynx Comms → CRM</a></li>
-    <li>In AccuLynx, open a <b>Jobs</b> milestone list (start with a small one — this is the heaviest pull).</li>
-    <li><b>Click the bookmark once.</b> It scrolls, fetches each job's thread, and posts it with a live banner. One slow job won't stall the rest.</li>
-  </ol>
-  <div class="muted">Confirm field mapping with <a href="{{ url_for('sync.internal_test', which='comm') }}">🔬 Internal API test</a>.</div>
-</div>
+<style>
+  .synctools td{vertical-align:middle}
+  .synctools td a.btn.sm{white-space:nowrap;width:100%;justify-content:flex-start}
+  .synctools td form{display:inline;margin:0}
+  .synctools .grp{background:var(--panel2);font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);padding:6px 12px}
+</style>
 <script>
 (function(){
   var BASE={{ request.host_url|tojson }};
