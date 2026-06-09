@@ -309,6 +309,16 @@
     </div>
   </div>
 
+  <!-- DESIGN STUDIO CTA -->
+  <a class="card cta-card" href="{{ url_for('portal.design', token=token) }}" style="display:flex;gap:13px;align-items:center;text-decoration:none;color:inherit">
+    <div style="font-size:30px">🎨</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:800">Design Your Roof &amp; Pick Your Colors</div>
+      <div class="muted" style="font-size:13px">Mock up your roof, compare colors &amp; options, request samples →</div>
+    </div>
+    <div style="font-size:20px;color:var(--accent)">›</div>
+  </a>
+
   <!-- MILESTONE CELEBRATION (confetti once per new step) -->
   {% if celebrate %}
   <div class="celebrate">

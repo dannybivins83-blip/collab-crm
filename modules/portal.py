@@ -139,6 +139,49 @@ VALUE_STEPS = [
     (5, "Delivered your warranty documents"),
     (5, "Made sure you're 100% happy and asked how we did"),
 ]
+# Roof "Design Studio" — curated color palettes + engagement options per system, so a
+# lead can mock up their roof (system + color + choices) and request samples online.
+ROOF_COLORS = {
+    "shingle": [
+        {"name": "Charcoal", "hex": "#36393d"}, {"name": "Weathered Wood", "hex": "#6c5b46"},
+        {"name": "Pewter Gray", "hex": "#7e828a"}, {"name": "Barkwood", "hex": "#5b4a3a"},
+        {"name": "Hickory", "hex": "#8a6e4b"}, {"name": "Slate", "hex": "#495663"},
+        {"name": "Shakewood", "hex": "#9c7d57"}, {"name": "Hunter Green", "hex": "#2e4031"},
+        {"name": "Driftwood", "hex": "#8b8175"}, {"name": "Patriot Red", "hex": "#6e2e2b"},
+    ],
+    "tile": [
+        {"name": "Terracotta", "hex": "#b14b2c"}, {"name": "Sandcastle", "hex": "#c8a979"},
+        {"name": "Charcoal Blend", "hex": "#41434a"}, {"name": "Espresso", "hex": "#4b3a2f"},
+        {"name": "Slate Blend", "hex": "#5a6470"}, {"name": "Sierra Madre", "hex": "#8a5a3c"},
+        {"name": "Capistrano", "hex": "#a9603c"}, {"name": "Sahara", "hex": "#c79a5e"},
+    ],
+    "metal": [
+        {"name": "Galvalume", "hex": "#b8bcc0"}, {"name": "Charcoal", "hex": "#3a3d42"},
+        {"name": "Slate Gray", "hex": "#5d666f"}, {"name": "Forest Green", "hex": "#2c4733"},
+        {"name": "Regal Blue", "hex": "#28465f"}, {"name": "Copper Penny", "hex": "#a9622f"},
+        {"name": "Bone White", "hex": "#ece7da"}, {"name": "Matte Black", "hex": "#232427"},
+        {"name": "Burgundy", "hex": "#5e2730"},
+    ],
+    "flat": [
+        {"name": "Energy White", "hex": "#f0f1ee"}, {"name": "Light Gray", "hex": "#c9cdcf"},
+        {"name": "Tan", "hex": "#c9b79a"},
+    ],
+}
+ROOF_OPTIONS = {
+    "common": [
+        {"name": "Seamless gutters & downspouts", "ic": "🌧️"},
+        {"name": "Hurricane-rated skylights", "ic": "☀️"},
+        {"name": "Ridge vent / attic ventilation upgrade", "ic": "🌬️"},
+        {"name": "Premium peel-&-stick underlayment", "ic": "🛡️"},
+        {"name": "Extended workmanship warranty", "ic": "📜"},
+    ],
+    "tile": [{"name": "Premium / Designer tile profile", "ic": "✨"},
+             {"name": "Color-coat (slurry) finish", "ic": "🎨"},
+             {"name": "Copper valley & drip (coastal)", "ic": "🟫"}],
+    "shingle": [{"name": "Designer / architectural upgrade", "ic": "✨"}],
+    "metal": [{"name": "Standing-seam clip & coating upgrade", "ic": "✨"}],
+}
+
 _STAGE_TO_PHASE = {
     "approved": 0, "finance_ntp": 0, "documentation": 0,
     "permit_applied": 1, "permit_approved": 1,
@@ -359,6 +402,63 @@ def home(token):
                            checklist=checklist, contract=contract,
                            tutorials=_tutorials(company), product_docs=product_docs, sysk=sysk,
                            photo_app_url=company.get("photo_app_url"))
+
+
+def _record_by_any_token(token):
+    """Resolve a portal token to (kind, record) for a job or a lead."""
+    j = _job_by_token(token)
+    if j:
+        return ("job", j)
+    l = _lead_by_token(token)
+    if l:
+        return ("lead", l)
+    return (None, None)
+
+
+@bp.route("/<token>/design")
+def design(token):
+    """Roof Design Studio — the homeowner mocks up their roof: system + color + options,
+    with a live recoloring preview, then requests samples. Works for a lead or a job."""
+    kind, rec = _record_by_any_token(token)
+    if not rec:
+        abort(404)
+    from modules import ahj as ahj_mod
+    sysk = (rec.get("system") or ahj_mod.work_type_to_system(rec.get("work_type", "")) or "shingle").lower()
+    if sysk not in ROOF_COLORS:
+        sysk = "shingle"
+    return render_template("design_studio.html", token=token, rec=rec, kind=kind,
+                           company=db.get_company(), colors=ROOF_COLORS, options=ROOF_OPTIONS,
+                           start_system=sysk)
+
+
+@bp.route("/<token>/design/request", methods=["POST"])
+def design_request(token):
+    """Log the homeowner's roof selections + (optional) sample request to the record so
+    the rep sees it, and confirm back to the customer."""
+    kind, rec = _record_by_any_token(token)
+    if not rec:
+        abort(404)
+    system = (request.form.get("system") or "").strip()[:40]
+    color = (request.form.get("color") or "").strip()[:60]
+    opts = (request.form.get("options") or "").strip()[:300]
+    wants = request.form.get("samples")
+    parts = ["System: %s" % system if system else "", "Color: %s" % color if color else "",
+             "Options: %s" % opts if opts else ""]
+    summary = " · ".join(p for p in parts if p)
+    note = "🎨 Roof design selections from the portal — %s%s" % (
+        summary or "(started a design)", "  ·  ✉️ SAMPLES REQUESTED" if wants else "")
+    db.add_activity(kind, rec["id"], "note", note)
+    # Stash the latest selection on the record so the rep / presentation can reuse it.
+    try:
+        db._ensure_column("leads" if kind == "lead" else "jobs", "design_selection", "TEXT")
+        db.update("leads" if kind == "lead" else "jobs", rec["id"],
+                  design_selection=db.dump_json({"system": system, "color": color,
+                                                 "options": opts, "samples": bool(wants)}))
+    except Exception:
+        pass
+    flash("Your selections are saved!%s Your project contact will follow up." %
+          (" We'll bring your samples." if wants else ""), "ok")
+    return redirect(url_for("portal.design", token=token))
 
 
 @bp.route("/<token>/upload-doc", methods=["POST"])

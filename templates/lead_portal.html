@@ -32,6 +32,12 @@
       <p class="muted">Thanks for reaching out to {{ company.name or 'us' }}. We've received your request and your project is in our system. This is your private project page — bookmark it; we'll keep it updated as things move forward.</p>
     </div>
 
+    <div class="card" style="background:linear-gradient(125deg,#fff7e6,#fff);border-color:#ffe2a8">
+      <h2>🎨 Design Your Roof — while you wait</h2>
+      <p class="muted">Have some fun: mock up your new roof in different colors and styles, add your options, and request free samples. It'll be ready for your inspection visit.</p>
+      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.design', token=token) }}">🎨 Open the Design Studio →</a>
+    </div>
+
     <div class="card">
       <h2>Your request</h2>
       {% if l.address %}<div class="row"><span class="k">Property</span><span class="v">{{ l.address }}</span></div>{% endif %}
