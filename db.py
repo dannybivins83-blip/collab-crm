@@ -310,7 +310,7 @@ def init_db():
     for _t in ("leads", "jobs", "contacts"):
         _ensure_column(_t, "department", "TEXT")
     # Permit info carried on the lead from entry (AHJ auto-resolved from address).
-    for _c in ("ahj", "county", "system"):
+    for _c in ("ahj", "county", "system", "city"):
         _ensure_column("leads", _c, "TEXT")
     # Backfill: any pre-existing record with no department belongs to REROOF.
     for _t in ("leads", "jobs", "contacts"):

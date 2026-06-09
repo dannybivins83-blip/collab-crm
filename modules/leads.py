@@ -21,9 +21,9 @@ for _col, _decl in [
 ]:
     db._ensure_column("leads", _col, _decl)
 
-EDITABLE = ["rid", "name", "company", "cross_ref", "phone", "email", "address",
+EDITABLE = ["rid", "name", "company", "cross_ref", "phone", "email", "address", "city",
             "work_type", "rep", "source", "estimate", "narrative", "todo", "notes",
-            "next_follow", "external_url", "contact_id",
+            "ahj", "next_follow", "external_url", "contact_id",
             "priority", "phone_type", "phone_ext", "phone2", "phone2_type", "email_type",
             "mail_street", "mail_city", "mail_state", "mail_zip"]
 
@@ -115,12 +115,26 @@ def new():
         # Auto-resolve the permit office (AHJ) from the address + the roof system
         # from the work type, so it's ready to drive the permit when this lead sells.
         from modules import ahj as ahj_mod
-        resolved_ahj = ahj_mod.resolve_ahj(data.get("address", ""), "", db.get_company().get("default_county", ""))
+        resolved_ahj = ahj_mod.resolve_ahj(data.get("address", ""), data.get("city", ""), db.get_company().get("default_county", ""))
         system = ahj_mod.work_type_to_system(data.get("work_type", ""))
         db.update("leads", lid, ahj=resolved_ahj, county=db.get_company().get("default_county", ""), system=system)
         if resolved_ahj:
             db.add_activity("lead", lid, "automation",
                             "AHJ auto-set to %s%s" % (resolved_ahj, (" · system: " + system) if system else ""))
+        # Auto-compose the lead name to the shop convention: Client (AHJ) (System) (Rep) L.
+        # (The R-job number is assigned later, when the lead is won and becomes a job.)
+        client_name = (data.get("name") or "").strip()
+        try:
+            from modules import acculynx_sync as _S
+            composed = _S.compose_job_name(client_name, ahj=resolved_ahj,
+                                           work_type=data.get("work_type") or "", system=system,
+                                           rep=data.get("rep") or "", is_lead=True)
+            if composed and composed.strip() != client_name:
+                db.update("leads", lid, name=composed)
+                db.add_activity("lead", lid, "automation", "Lead name auto-composed: %s" % composed)
+                data["name"] = composed
+        except Exception:
+            pass
         # Auto-build a starter estimate from the matching system template (base
         # scope + every system upgrade at qty 0) the moment a work type is set.
         est_msg = ""
@@ -153,7 +167,7 @@ def new():
         if data.get("rep"):
             bits.append("Rep: %s" % data["rep"])
         summary = "New lead intake — %s%s.\n%s" % (
-            data.get("name") or "lead",
+            client_name or "lead",
             (" (" + data["company"] + ")") if data.get("company") else "",
             " · ".join(bits))
         for extra in (data.get("notes"), data.get("narrative")):
@@ -221,6 +235,11 @@ def edit(lead_id):
         data["sms_opt"] = 1 if request.form.get("sms_opt") else 0
         data["priority"] = data.get("priority") or "Normal"
         data["rank"] = _rank_val(request.form.get("rank"))
+        # If AHJ was left blank, re-resolve it from the (possibly newly-added) city/address.
+        if not data.get("ahj") and (data.get("address") or data.get("city")):
+            from modules import ahj as ahj_mod
+            data["ahj"] = ahj_mod.resolve_ahj(data.get("address", ""), data.get("city", ""),
+                                              db.get_company().get("default_county", ""))
         db.update("leads", lead_id, **data)
         flash("Lead updated.", "ok")
         return redirect(url_for("leads.detail", lead_id=lead_id))

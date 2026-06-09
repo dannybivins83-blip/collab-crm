@@ -329,7 +329,9 @@ def _money_val(job):
 _SYS_MAT = {"5V": "5V Metal", "T": "Tile", "S": "Shingle", "M": "Metal"}
 _AHJ_MAP = {"PBC": "Palm Beach County", "BB": "Boynton Beach", "LWB": "Lake Worth Beach",
             "RPB": "Royal Palm Beach", "PBG": "Palm Beach Gardens", "WELL": "Wellington",
-            "WPB": "West Palm Beach"}
+            "WPB": "West Palm Beach", "LAN": "Lantana", "GA": "Greenacres",
+            "DEL": "Delray Beach", "BOCA": "Boca Raton", "JUP": "Jupiter",
+            "LW": "Lake Worth", "MAN": "Manalapan", "HYP": "Hypoluxo", "ATL": "Atlantis"}
 _REP_MAP = {"SCOTT": "Scott", "DB": "Danny Bivins", "FF": "Francis Ferrer",
             "FERRER": "Francis Ferrer", "JHC": "Johnny Cagle", "JAC": "Jacin Carreiro", "MK": "MK"}
 # Florida service-area cities -> matched as the AHJ when a name spells the jurisdiction
@@ -421,6 +423,8 @@ def _ahj_code(ahj=""):
     a = (ahj or "").strip()
     if not a:
         return ""
+    # Strip municipal prefixes so "Town of Lantana" -> "Lantana" matches the map.
+    a = re.sub(r"^(town|city|village)\s+of\s+", "", a, flags=re.I).strip()
     if a in _AHJ_CODE:
         return _AHJ_CODE[a]
     # Unknown jurisdiction: initials of each word (Delray Beach -> DB-ish); cap at 4 chars.
