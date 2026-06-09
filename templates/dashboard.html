@@ -54,6 +54,7 @@
     <div class="card">
       <div class="panel-head"><span>Overdue Follow-Ups</span><span class="badge">{{ overdue|length }}</span></div>
       {% if not overdue %}<div class="muted">All clear — nothing past its follow-up window.</div>{% endif %}
+      <div class="feed-scroll">
       {% for kind, r, sd, fs in overdue[:12] %}
         <div class="check" style="justify-content:space-between;gap:8px">
           <div style="min-width:0">
@@ -67,12 +68,14 @@
           </div>
         </div>
       {% endfor %}
+      </div>
     </div>
 
     <div class="card">
       <div class="panel-head"><span>Outstanding Invoices</span><span class="muted">{{ money(outstanding_total) }} due</span></div>
       {% if not qbo_connected %}<div class="muted" style="margin-bottom:8px">Connect <a href="{{ url_for('quickbooks.settings') }}">QuickBooks</a> to send payment links.</div>{% endif %}
       {% if not outstanding %}<div class="muted">No outstanding invoices.</div>{% endif %}
+      <div class="feed-scroll">
       {% for inv in outstanding[:10] %}
       <div class="check" style="justify-content:space-between;gap:8px">
         <div>
@@ -100,6 +103,7 @@
         </div>
       </div>
       {% endfor %}
+      </div>
     </div>
 
     <div class="kpis">
@@ -120,7 +124,7 @@
 
     <div class="card">
       <div class="panel-head"><span>Activity Feed</span></div>
-      <ul class="timeline" style="max-height:880px;overflow-y:auto;padding-right:6px">
+      <ul class="timeline feed-scroll" style="padding-right:6px">
         {% for a in feed %}
         {% if a.entity_type=='job' %}{% set href = url_for('jobs.detail', job_id=a.entity_id) %}
         {% elif a.entity_type=='lead' %}{% set href = url_for('leads.detail', lead_id=a.entity_id) %}
@@ -171,6 +175,8 @@
 .dash-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important}
 .dash-cols>div{min-width:0}
 @media(max-width:900px){.dash-cols{grid-template-columns:1fr !important}}
+/* Feeds (Overdue Follow-Ups, Outstanding Invoices, Activity Feed): show ~6 rows then scroll. */
+.feed-scroll{max-height:330px;overflow-y:auto;padding-right:6px}
 #gmailCard .gm-list{max-height:420px;overflow:auto;margin:-4px -6px 0}
 .gm-row{display:block;padding:9px 8px;border-bottom:1px solid var(--line,#eef1f6);cursor:pointer;border-radius:6px}
 .gm-row:hover{background:var(--panel2,#f6f8fb)}
