@@ -16,6 +16,17 @@ def index():
     return render_template("templates.html", templates=rows)
 
 
+@bp.route("/refresh-builtins", methods=["POST"])
+def refresh_builtins():
+    """Re-sync the built-in estimate templates from constants.py (AccuLynx-mirror
+    line items, costs + quantity formulas). Only touches is_builtin=1 rows; custom
+    templates are never modified. Run after the code templates change."""
+    updated, inserted = db.sync_builtin_templates()
+    flash("Built-in templates refreshed from the latest spec: %d updated, %d added."
+          % (updated, inserted), "ok")
+    return redirect(url_for("templates.index"))
+
+
 @bp.route("/new", methods=["POST"])
 def new():
     tid = db.insert("templates", {"tkey": "custom_%d" % (db.all_rows("templates", order="id DESC")[0]["id"] + 1 if db.all_rows("templates") else 1),

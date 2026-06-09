@@ -272,22 +272,42 @@ ESTIMATE_TEMPLATES = {
     "tile": {
         "name": "Tile Estimating Template",
         "work_types": ["Roofing - Tile"],
-        # Costs from real SeaBreeze worksheets (Richard Reis T28 etc.): tile $131/SQ,
-        # tear-off labor $110/SQ, install labor $165/SQ, loading $43/SQ, mortar-set
-        # (Tile Tite + oxide), 2 dumpsters @ $250.
+        # MIRRORS SeaBreeze's real AccuLynx "Tile Roof Replacement" estimate line-for-line
+        # (verified vs the Lidik T31 job): same SKUs, same per-unit costs, and a per-line
+        # quantity formula keyed to the roof measurement so the totals reproduce AccuLynx.
+        #   q drivers: {"sq":c}=c x waste-squares · {"deck":c}=c x deck-squares ·
+        #   {"lf":<ridgehip|rake|valley|ridgehipvalley|driprake>,"c":c} · {"fixed":n}
         "lines": [
-            {"desc": "Tear off existing tile to deck (labor)", "unit": "SQ", "qty": 0, "price": 110.0},
-            {"desc": "Re-nail / re-deck fasteners to current code", "unit": "SQ", "qty": 0, "price": 22.0},
-            {"desc": "2-ply self-adhered underlayment (Polystick TU Plus)", "unit": "SQ", "qty": 0, "price": 80.0},
-            {"desc": "Concrete tile — material (Westlake Royal Saxony 900)", "unit": "SQ", "qty": 0, "price": 131.0},
-            {"desc": "Mortar set (Tile Tite + oxide) — material", "unit": "SQ", "qty": 0, "price": 18.0},
-            {"desc": "Tile install labor", "unit": "SQ", "qty": 0, "price": 165.0},
-            {"desc": "Tile loading / handling", "unit": "SQ", "qty": 0, "price": 43.0},
-            {"desc": "Hip & ridge tile, mortar / weather-block", "unit": "LF", "qty": 0, "price": 8.0},
-            {"desc": "Valley metal (26-ga galvanized)", "unit": "LF", "qty": 0, "price": 9.0},
-            {"desc": "Lead pipe flashings", "unit": "EA", "qty": 4, "price": 65.0},
-            {"desc": "Permit + inspections + tile uplift test", "unit": "LS", "qty": 1, "price": 950.0},
-            {"desc": "Dumpster + disposal (tear-off + install)", "unit": "LS", "qty": 1, "price": 500.0},
+            {"desc": "8d Nails", "unit": "BX", "price": 69.66, "q": {"sq": 0.0334}},
+            {"desc": "1.25\" NON-DADE Nails", "unit": "BX", "price": 26.81, "q": {"sq": 0.018}},
+            {"desc": "Tin Tags - 50lb Box", "unit": "BX", "price": 58.74, "q": {"sq": 0.018}},
+            {"desc": "Polyglass TU+ (field)", "unit": "RL", "price": 115.30, "q": {"sq": 0.5}},
+            {"desc": "Polyglass TU+ (hip/ridge/valley)", "unit": "RL", "price": 115.30, "q": {"lf": "ridgehipvalley", "c": 0.0087}},
+            {"desc": "16\" Galvanized Valley Metal", "unit": "RL", "price": 69.00, "q": {"lf": "valley", "c": 0.03}},
+            {"desc": "3\" x 3\" Galvanized Drip - White/Brown", "unit": "EA", "price": 10.70, "q": {"lf": "driprake", "c": 0.1}},
+            {"desc": "Polystick IR-Xe (valley/eave underlayment)", "unit": "RL", "price": 58.42, "q": {"sq": 0.0305}},
+            {"desc": "Spray Primer", "unit": "EA", "price": 18.53, "q": {"sq": 0.0601}},
+            {"desc": "Lead Stack 2\"", "unit": "EA", "price": 12.04, "q": {"fixed": 2}},
+            {"desc": "Lead Stack 3\"", "unit": "EA", "price": 17.12, "q": {"fixed": 1}},
+            {"desc": "Gooseneck - 10\" HIGH", "unit": "EA", "price": 42.49, "q": {"fixed": 2}},
+            {"desc": "4\" Membrane", "unit": "EA", "price": 11.34, "q": {"sq": 0.0601}},
+            {"desc": "Roof Cement 5 GAL", "unit": "EA", "price": 44.41, "q": {"sq": 0.0601}},
+            {"desc": "Hip & Ridge Support", "unit": "EA", "price": 15.00, "q": {"sq": 0.497}},
+            {"desc": "Labor - Tile Tear Off", "unit": "SQ", "price": 110.00, "q": {"deck": 1.0}},
+            {"desc": "Standard Tile (Westlake Royal Saxony 900)", "unit": "SQ", "price": 133.46, "q": {"sq": 1.0}},
+            {"desc": "Hip & Ridge Tile", "unit": "EA", "price": 4.05, "q": {"lf": "ridgehip", "c": 1.0}},
+            {"desc": "Rake Tiles", "unit": "EA", "price": 4.05, "q": {"lf": "rake", "c": 1.0}},
+            {"desc": "Pallets", "unit": "EA", "price": 8.55, "q": {"sq": 0.3}},
+            {"desc": "Eave Closure", "unit": "EA", "price": 26.75, "q": {"sq": 0.6316}},
+            {"desc": "Oxide", "unit": "EA", "price": 31.57, "q": {"sq": 0.2}},
+            {"desc": "Tile loading (Standard tile and load)", "unit": "SQ", "price": 43.00, "q": {"sq": 1.0}},
+            {"desc": "Tile Tite 40lb - Gray", "unit": "EA", "price": 17.55, "q": {"sq": 0.582}},
+            {"desc": "Dumps - Tile Tear Off", "unit": "EA", "price": 250.00, "q": {"sq": 0.0601}},
+            {"desc": "Dumps - Tile Install", "unit": "EA", "price": 250.00, "q": {"sq": 0.0151}},
+            {"desc": "Engineering - Tile Uplift Test", "unit": "EA", "price": 175.00, "q": {"deck": 0.01}},
+            {"desc": "Permit Fees - Tile", "unit": "SQ", "price": 22.00, "q": {"deck": 1.0}},
+            {"desc": "Permit Courier Fee", "unit": "EA", "price": 200.00, "q": {"deck": 0.01}},
+            {"desc": "Labor - Tile Install", "unit": "SQ", "price": 165.00, "q": {"deck": 1.0}},
         ],
     },
     "metal_galvalume": {

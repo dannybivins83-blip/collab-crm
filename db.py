@@ -414,6 +414,7 @@ def _migrate_columns():
         ("estimate_lines", "section_id INTEGER"),
         ("estimate_lines", "waste_pct REAL DEFAULT 0"),
         ("estimate_lines", "cost REAL DEFAULT 0"),
+        ("estimate_lines", "qrule TEXT"),  # JSON measurement->qty formula (AccuLynx mirror)
         ("company_settings", "color_masthead TEXT DEFAULT '#24476C'"),
         # Appointments shipped originally with `start`/`end` columns; the app now
         # reads `start_at`/`end_at`. Add the new columns on legacy DBs and backfill.
@@ -701,8 +702,8 @@ def _seed_templates():
         return
     import constants
     for key, tpl in constants.ESTIMATE_TEMPLATES.items():
-        lines = [{"description": l["desc"], "unit": l["unit"], "qty": l["qty"], "cost": l["price"]}
-                 for l in tpl["lines"]]
+        lines = [{"description": l["desc"], "unit": l["unit"], "qty": l.get("qty", 0),
+                  "cost": l["price"], "q": l.get("q")} for l in tpl["lines"]]
         insert("templates", {
             "tkey": key, "name": tpl["name"],
             "work_type": (tpl["work_types"][0] if tpl.get("work_types") else ""),
@@ -728,8 +729,8 @@ def sync_builtin_templates():
     existing = {r["tkey"]: r for r in all_rows("templates") if r.get("is_builtin")}
     updated = inserted = 0
     for key, tpl in constants.ESTIMATE_TEMPLATES.items():
-        lines = [{"description": l["desc"], "unit": l["unit"], "qty": l["qty"], "cost": l["price"]}
-                 for l in tpl["lines"]]
+        lines = [{"description": l["desc"], "unit": l["unit"], "qty": l.get("qty", 0),
+                  "cost": l["price"], "q": l.get("q")} for l in tpl["lines"]]
         payload = {
             "name": tpl["name"],
             "work_type": (tpl["work_types"][0] if tpl.get("work_types") else ""),

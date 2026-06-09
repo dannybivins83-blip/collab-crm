@@ -92,8 +92,8 @@ def _resolve_template(template_id, work_type):
                 db.load_json(row.get("lines"), []))
     key = constants.template_for_work_type(work_type)
     tpl = constants.ESTIMATE_TEMPLATES.get(key, constants.ESTIMATE_TEMPLATES["blank"])
-    lines = [{"description": l["desc"], "unit": l["unit"], "qty": l["qty"], "cost": l["price"]}
-             for l in tpl["lines"]]
+    lines = [{"description": l["desc"], "unit": l["unit"], "qty": l.get("qty", 0),
+              "cost": l["price"], "q": l.get("q")} for l in tpl["lines"]]
     return (tpl["name"], work_type, constants.scope_for_template(key), lines)
 
 
@@ -121,7 +121,8 @@ def new():
             db.insert("estimate_lines", {
                 "estimate_id": eid, "section_id": sid, "sort": i,
                 "description": line.get("description", ""), "unit": line.get("unit", "EA"),
-                "qty": line.get("qty", 0), "waste_pct": 0, "cost": line.get("cost", 0)})
+                "qty": line.get("qty", 0), "waste_pct": 0, "cost": line.get("cost", 0),
+                "qrule": db.dump_json(line["q"]) if line.get("q") else ""})
         flash("Estimate created from %s." % name, "ok")
         return redirect(url_for("estimates.detail", est_id=eid))
     pre = {}
@@ -151,13 +152,40 @@ def _apply_measurement(est_id, m):
             return 0.0
     sq = num("squares")
     sqW = sq * (1 + num("waste_pct") / 100.0)
-    ridge = num("ridge_lf") + num("hip_lf")
+    ridgehip = num("ridge_lf") + num("hip_lf")
+    ridge = ridgehip  # alias used by the keyword fallback below
     valley = num("valley_lf")
-    drip = num("eave_lf") + num("rake_lf")
+    rake = num("rake_lf")
+    eave = num("eave_lf")
+    drip = eave + rake
+    # Drivers for the per-line AccuLynx-mirror formulas (qrule).
+    DRV = {"sq": sqW, "deck": sq, "ridgehip": ridgehip, "rake": rake, "valley": valley,
+           "eave": eave, "driprake": drip, "ridgehipvalley": ridgehip + valley}
+
+    def eval_qrule(rule):
+        """Return the computed qty for a stored qrule dict, or None if it can't."""
+        if not isinstance(rule, dict):
+            return None
+        if "fixed" in rule:
+            return float(rule["fixed"])
+        if "lf" in rule:
+            return DRV.get(rule["lf"], 0) * float(rule.get("c", 1.0))
+        for k in ("sq", "deck"):
+            if k in rule:
+                return DRV[k] * float(rule[k])
+        return None
+
     for ln in db.all_rows("estimate_lines", "estimate_id=?", (est_id,)):
         d = (ln.get("description") or "").lower()
         if d.startswith("upgrade") or d.startswith("add-on"):
             continue  # optional upgrades stay at qty 0 until the rep turns them on
+        # AccuLynx-mirror lines carry an explicit formula — use it verbatim.
+        rule = db.load_json(ln.get("qrule"), None) if ln.get("qrule") else None
+        if rule is not None:
+            qv = eval_qrule(rule)
+            if qv is not None:
+                db.update("estimate_lines", ln["id"], qty=round(qv, 2))
+            continue
         u = (ln.get("unit") or "").upper()
         if u == "LS":
             # lump-sum lines (permit, dumpster) are always qty 1 — never square-driven
@@ -209,7 +237,8 @@ def build_estimate(lead_id=None, job_id=None, template_id=None, work_type="", ap
         db.insert("estimate_lines", {"estimate_id": eid, "section_id": sid, "sort": i,
                                      "description": line.get("description", ""),
                                      "unit": line.get("unit", "EA"), "qty": line.get("qty", 0),
-                                     "waste_pct": 0, "cost": line.get("cost", 0)})
+                                     "waste_pct": 0, "cost": line.get("cost", 0),
+                                     "qrule": db.dump_json(line["q"]) if line.get("q") else ""})
     # Upgrades & Options — the system's premium add-ons, all at qty 0. Fall back to the
     # template's own work type (wt) / key so tile/metal/flat estimates never get the
     # generic shingle upgrades just because the lead's work_type was blank.

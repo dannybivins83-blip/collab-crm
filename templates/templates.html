@@ -5,6 +5,10 @@
   <h1>🧩 Estimate Templates</h1>
   <span class="sub">Edit the line items + scope that load into new estimates</span>
   <div class="grow"></div>
+  <form method="post" action="{{ url_for('templates.refresh_builtins') }}" style="display:inline"
+        onsubmit="return confirm('Refresh all built-in templates from the latest AccuLynx-mirror spec? Custom templates are not touched.')">
+    <button class="btn" type="submit" title="Re-sync built-in templates (line items, costs, quantity formulas) from the latest spec">↻ Refresh built-ins</button>
+  </form>
   <form method="post" action="{{ url_for('templates.new') }}" style="display:flex;gap:8px">
     <input name="name" placeholder="New template name" required style="width:200px">
     <button class="primary" type="submit">+ New Template</button>
