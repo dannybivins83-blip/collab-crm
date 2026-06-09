@@ -41,6 +41,7 @@ def _ensure_schema():
                 "acculynx_rr_cursor INTEGER DEFAULT 0", "acculynx_rr_group INTEGER DEFAULT 0",
                 "acculynx_doc_cursor INTEGER DEFAULT 0", "acculynx_doc_group INTEGER DEFAULT 0",
                 "acculynx_photo_cursor INTEGER DEFAULT 0", "acculynx_photo_group INTEGER DEFAULT 0",
+                "acculynx_bill_cursor INTEGER DEFAULT 0", "acculynx_bill_group INTEGER DEFAULT 0",
                 "debug_probe TEXT", "debug_probe_at TEXT"):
         try:
             db.execute("ALTER TABLE company_settings ADD COLUMN %s" % col)
@@ -2156,10 +2157,14 @@ def _rr_next_batch(base, key, n):
     return _pipeline_next_batch(base, key, n, "acculynx_rr_group", "acculynx_rr_cursor")
 
 
-def _pipeline_next_batch(base, key, n, gkey, ckey):
+def _pipeline_next_batch(base, key, n, gkey, ckey, caps=None):
     """Walk the active AccuLynx pipeline (GUIDs only) and return the next `n` jobs
     after the saved cursor (gkey/ckey), advancing it. Each item: {guid, name}.
-    Resumable across clicks; wraps the cursor to 0 when the pipeline is exhausted."""
+    Resumable across clicks; wraps the cursor to 0 when the pipeline is exhausted.
+    `caps` overrides the per-group cap dict (pass {} to walk EVERY group in full —
+    e.g. billing/payments needs all closed + invoiced, not just the recent 500)."""
+    if caps is None:
+        caps = _RR_GROUP_CAP
     company = db.get_company()
     g = int(company.get(gkey) or 0)
     start = int(company.get(ckey) or 0)
@@ -2167,7 +2172,7 @@ def _pipeline_next_batch(base, key, n, gkey, ckey):
     PAGE = 25
     while len(out) < n and g < len(_RR_GROUPS):
         grp = _RR_GROUPS[g]
-        cap = _RR_GROUP_CAP.get(grp)               # None = walk the whole group
+        cap = caps.get(grp)                        # None = walk the whole group
         if cap is not None and start >= cap:       # capped group fully walked
             g += 1
             start = 0
@@ -2405,6 +2410,43 @@ def photo_batch():
         else:
             it["have"] = 0
     return _cors({"ok": True, "batch": batch, "count": len(batch), "group": group, "done": done})
+
+
+@bp.route("/bill-batch")
+def bill_batch():
+    """CORS-open: next batch of job GUIDs to pull BILLING/PAYMENTS for, walking ALL
+    buckets UNCAPPED (its own cursor) — including the full Closed + Invoiced history,
+    where payment records live. Annotates in_crm. `?reset=1` restarts the walk."""
+    company = db.get_company()
+    key = (company.get("acculynx_api_key") or "").strip()
+    base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
+    if not key:
+        return _cors({"ok": False, "reason": "no_api_key",
+                      "error": "Set an AccuLynx API key on the Sync page first."}, 400)
+    if request.args.get("reset"):
+        db.save_company({"acculynx_bill_group": 0, "acculynx_bill_cursor": 0})
+    try:
+        n = max(1, min(50, int(request.args.get("n") or 25)))
+    except Exception:
+        n = 25
+    try:
+        batch, group, done = _pipeline_next_batch(base, key, n,
+                                                  "acculynx_bill_group", "acculynx_bill_cursor",
+                                                  caps={})  # walk every bucket in full
+    except Exception as e:
+        return _cors({"ok": False, "reason": "api_failed", "error": "%s: %s" % (type(e).__name__, e)})
+    for it in batch:
+        kind, rec, how = _roofreport_record(it["guid"], it.get("name"))
+        it["in_crm"] = bool(rec)
+    return _cors({"ok": True, "batch": batch, "count": len(batch), "group": group, "done": done})
+
+
+@bp.route("/bill-reset", methods=["POST"])
+def bill_reset():
+    """Reset the billing/payments sync cursor to the top of the pipeline."""
+    db.save_company({"acculynx_bill_group": 0, "acculynx_bill_cursor": 0})
+    flash("Billing sync cursor reset — the next batch starts at the top of the pipeline.", "ok")
+    return redirect(url_for("sync.index"))
 
 
 @bp.route("/debug-probe", methods=["POST", "OPTIONS"])

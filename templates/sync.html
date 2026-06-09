@@ -121,6 +121,21 @@
 </div>
 
 <div class="card" style="border:2px solid var(--accent)">
+  <h2>💳 Pull ALL billing &amp; payment history — every bucket, 25 jobs at a time</h2>
+  <p class="muted">Pulls each job's <b>contract value, invoices, payments &amp; balance</b> (with payment dates/methods/check #s) into the CRM. Unlike the scroll button, this <b>walks every bucket with its own resumable cursor</b> — Assigned → Prospect → Approved → Completed → Invoiced → <b>the FULL Closed history</b> (uncapped) — so you capture payment records on all ~1,200 jobs without opening each list. Re-running updates in place (deduped); never duplicates.</p>
+  <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
+    <li><b>One-time setup:</b> drag to your <b>bookmarks bar</b> →&nbsp;<a id="bmbillwalk" class="btn accent" href="#" onclick="return false">💳 AccuLynx Billing (all buckets) → CRM</a></li>
+    <li>Make sure an <b>API key</b> is saved above and you've run a <b>🔄 Sync</b> so the jobs exist in the CRM.</li>
+    <li>In any logged-in <b>my.acculynx.com</b> tab, <b>click the bookmark</b> — it pulls billing for the next 25 jobs. <b>Click again</b> to continue; the banner says when a full pass (all buckets) is complete. ~50 clicks covers everything, resumable.</li>
+  </ol>
+  <div class="muted">Covers the whole pipeline incl. all Closed/Invoiced (where payments live). To restart the walk:
+    <form method="post" action="{{ url_for('sync.bill_reset') }}" style="display:inline">
+      <button class="btn ghost sm" type="submit" style="margin-left:6px">↺ Reset cursor</button>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="border:2px solid var(--accent)">
   <h2>📸 Pull job photos into the CRM gallery — 20 jobs at a time</h2>
   <p class="muted">Copies each AccuLynx job's <b>site photos</b> into the matching CRM job's photo gallery (Site Photos). The server walks your active pipeline with its <b>own resumable cursor</b>, handing the collector <b>20 jobs per click</b>. Photos you already pulled are skipped (deduped by name). This is the last AccuLynx data type — once it's pulled you can fully abandon AccuLynx.</p>
   <ol style="font-size:13px;line-height:1.8;margin:0 0 12px 18px">
@@ -384,6 +399,53 @@
     })();
   }
   document.getElementById('bmphotos').href='javascript:('+pullPhotosBM.toString()+')('+JSON.stringify(BASE)+')';
+})();
+</script>
+<script>
+(function(){
+  var BASE={{ request.host_url|tojson }};
+  // Billing/payments collector: ask the CRM for the next batch of job GUIDs (own cursor,
+  // ALL buckets uncapped), then per job pull financial-progress + invoices (+ linked
+  // payments) from AccuLynx and POST to billing-import. Resumable; click again to continue.
+  function pullBillingWalkBM(BASE){
+    (async function(){
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:460px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      async function gj(u,o){try{var r=await fetch(u,o||{headers:{'Accept':'application/json'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+      function arr(x){return Array.isArray(x)?x:(x&&x.items)||[];}
+      async function post(p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+'sync/billing-import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
+      setb('Asking CRM for the next 25 jobs…');
+      var resp=await gj(BASE+'sync/bill-batch?n=25');
+      if(!resp){setb('Could not reach the CRM at '+BASE+' — is it open?','#c0392b');setTimeout(function(){bn.remove();},8000);return;}
+      if(!resp.ok){setb('Batch failed: '+(resp.error||resp.reason||'unknown')+(resp.reason==='no_api_key'?' (save an API key on the Sync page)':''),'#c0392b');setTimeout(function(){bn.remove();},9000);return;}
+      var batch=resp.batch||[];
+      if(!batch.length){setb('✓ Billing pass complete — all buckets walked. (Reset the cursor to run again.)','#2e7d32');setTimeout(function(){bn.remove();},12000);return;}
+      var tot=batch.length,ok=0,inv=0,pay=0,vals=0,nojob=0,fail=0,jdone=0;
+      for(var gi=0;gi<batch.length;gi++){var it=batch[gi],g=it.guid;
+        if(!it.in_crm){nojob++;jdone++;setb('Jobs '+jdone+'/'+tot+' · '+ok+' billed · '+nojob+' not in CRM');continue;}
+        try{
+          var fp=await gj('/api/jobs/'+g+'/financial-progress');
+          var iv=await gj('/api/jobs/'+g+'/invoices');
+          var invs=arr(iv&&iv.Invoices?iv.Invoices:iv),pays=[];
+          invs.forEach(function(x){(x.LinkedPayments||[]).forEach(function(p){pays.push({id:p.JobPaymentId,amount:p.Amount,date:p.PaymentDate,method:p.Method,reference:p.CheckNumber});});});
+          if((fp&&fp.JobValue!=null)||invs.length){
+            var d=await post({guid:g,value:(fp&&fp.JobValue),balance:(fp&&fp.BalanceDue),
+              invoices:invs.map(function(x){return {id:x.InvoiceId,number:x.InvoiceNumber,amount:x.Total,date:x.InvoiceDate,status:(x.IsPaid?'paid':(x.CurrentInvoiceState||'unpaid'))};}),
+              payments:pays});
+            if(d&&d.ok){ok++;inv+=invs.length;pay+=pays.length;if(d.summary){vals+=d.summary.value_set||0;if(d.summary.no_job)nojob++;}}else fail++;
+          }
+        }catch(e){fail++;}
+        jdone++;setb('Jobs '+jdone+'/'+tot+' · '+ok+' billed · '+inv+' inv · '+pay+' pmts'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' fail':''));
+      }
+      var more=resp.done?' — ✓ full pass complete (all buckets)':' — click again for the next 25';
+      setb('✓ '+tot+' jobs · '+ok+' billed · '+inv+' invoices · '+pay+' payments'+(nojob?' · '+nojob+' not in CRM':'')+(fail?' · '+fail+' failed':'')+more,'#2e7d32');
+      setTimeout(function(){bn.remove();},22000);
+    })();
+  }
+  document.getElementById('bmbillwalk').href='javascript:('+pullBillingWalkBM.toString()+')('+JSON.stringify(BASE)+')';
 })();
 </script>
 <script>
@@ -663,6 +725,7 @@ function downloadBookmarkFolder(){
     ['bm','📥 AccuLynx Records → CRM'],
     ['bmall','⭐ AccuLynx Sync All → CRM'],
     ['bmbill','💵 AccuLynx Billing → CRM'],
+    ['bmbillwalk','💳 AccuLynx Billing (all buckets) → CRM'],
     ['bmest','📝 AccuLynx Estimates → CRM'],
     ['bmestlines','🧾 AccuLynx Estimate Lines → CRM'],
     ['bmestws','📊 AccuLynx Est+WS → CRM (whole list)'],
