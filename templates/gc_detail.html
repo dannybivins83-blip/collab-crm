@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% set gname = (c.first_name ~ ' ' ~ c.last_name).strip() or c.company %}
+{% block title %}{{ gname }} — General Contractor{% endblock %}
+{% block body %}
+<div class="page-head">
+  <a href="{{ url_for('contacts.gcs') }}" class="muted">← General Contractors</a>
+  <h1 style="margin-left:8px">🏗️ {{ gname }} <span class="badge" style="background:#0f9e82;color:#fff">GC</span>{% if c.company %} <span class="muted">· {{ c.company }}</span>{% endif %}</h1>
+  <div class="grow"></div>
+  <a class="btn primary" href="{{ url_for('jobs.new', gc=c.id) }}">+ New job under this GC</a>
+  <a class="btn" href="{{ url_for('contacts.edit', contact_id=c.id) }}">Edit</a>
+</div>
+
+<div class="detail">
+  <div>
+    <div class="card">
+      <div class="row">
+        {% if c.phone %}<div><a href="tel:{{ c.phone }}">{{ icon('phone') }} {{ c.phone }}</a></div>{% endif %}
+        {% if c.email %}<div><a href="mailto:{{ c.email }}">✉️ {{ c.email }}</a></div>{% endif %}
+        {% if c.address %}<div>📍 {{ c.address }}{{ ', ' ~ c.city if c.city }} {{ c.state }} {{ c.zip }}</div>{% endif %}
+      </div>
+      <div style="margin-top:10px">{% for t in tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>
+      {% if c.notes %}<p style="margin-top:10px">{{ c.notes }}</p>{% endif %}
+    </div>
+
+    <div class="card">
+      <h2 style="display:flex;align-items:center;gap:10px">🔨 Jobs <span class="muted" style="font-weight:400">{{ gc_totals.count }} consolidated</span></h2>
+      <table class="grid">
+        <tr><th>Ref #</th><th>Job</th><th>Property</th><th>Stage</th><th style="text-align:right">Value</th><th style="text-align:right">Profit</th></tr>
+        {% for j in gc_jobs %}
+        <tr onclick="location.href='{{ url_for('jobs.detail', job_id=j.id) }}'" style="cursor:pointer">
+          <td><b>{{ j.rid or '—' }}</b></td>
+          <td>{{ j.name }}</td>
+          <td>{{ j.address or '' }}{{ ', ' ~ j.city if j.city }}</td>
+          <td><span class="badge">{{ j._stage.name }}</span></td>
+          <td style="text-align:right">{{ money(j._value) }}</td>
+          <td style="text-align:right">{{ money(j._profit) }}{% if not j._has_ws %}<span class="muted" title="No worksheet yet — profit = full contract value">*</span>{% endif %}</td>
+        </tr>
+        {% else %}<tr><td colspan="6" class="empty">No jobs linked to this GC yet.</td></tr>{% endfor %}
+        {% if gc_jobs %}
+        <tr style="font-weight:700;border-top:2px solid var(--line)">
+          <td colspan="4">Totals — {{ gc_totals.count }} job(s)</td>
+          <td style="text-align:right">{{ money(gc_totals.value) }}</td>
+          <td style="text-align:right">{{ money(gc_totals.profit) }}</td>
+        </tr>{% endif %}
+      </table>
+      <p class="muted" style="margin-top:6px;font-size:.85em">* profit shown as full contract value where no cost worksheet exists yet.</p>
+    </div>
+
+    {% if leads %}
+    <div class="card">
+      <h2>🎯 Leads</h2>
+      {% for l in leads %}<div><a href="{{ url_for('leads.detail', lead_id=l.id) }}">{{ l.name }}</a> <span class="badge">{{ constants.lead_stage(l.stage).name }}</span> {{ l.estimate or '' }}</div>{% endfor %}
+    </div>{% endif %}
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>🧬 Consolidate duplicates</h2>
+      {% if dupes %}
+      <p class="muted">These contacts look like the same GC (matching name, phone, or email). Select the ones to fold into this record — their jobs &amp; history move here, the duplicate shells are removed. You'll see a preview before anything changes.</p>
+      <form method="post" action="{{ url_for('contacts.merge', contact_id=c.id) }}">
+        <input type="hidden" name="preview" value="1">
+        <table class="grid" style="margin-top:8px">
+          <tr><th></th><th>Name</th><th>Phone</th><th>Jobs</th><th>Leads</th></tr>
+          {% for d in dupes %}
+          <tr>
+            <td><input type="checkbox" name="dupe_ids" value="{{ d.id }}" checked></td>
+            <td><a href="{{ url_for('contacts.detail', contact_id=d.id) }}">{{ d.first_name }} {{ d.last_name }}</a></td>
+            <td>{{ d.phone or '' }}</td>
+            <td>{{ d._jobs|length }}</td>
+            <td>{{ d._leads|length }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        <button class="primary" type="submit" style="margin-top:10px">Preview merge →</button>
+      </form>
+      {% else %}
+      <p class="muted">No likely duplicates found for this GC.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Log activity</h2>
+      <form method="post" action="{{ url_for('contacts.note', contact_id=c.id) }}">
+        <select name="kind"><option value="note">Note</option><option value="call">Call</option><option value="email">Email</option><option value="sms">SMS</option></select>
+        <textarea name="text" placeholder="What happened…" required style="margin-top:8px"></textarea>
+        <button class="primary" style="margin-top:8px" type="submit">Add</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Activity timeline</h2>
+      <ul class="timeline">
+        {% for a in activity %}<li><div class="k">{{ a.kind }}</div><div class="t">{{ a.text }}</div><div class="d">{{ a.created }}</div></li>{% else %}<li class="muted">No activity yet.</li>{% endfor %}
+      </ul>
+    </div>
+    <form method="post" action="{{ url_for('contacts.make_gc', contact_id=c.id) }}">
+      <input type="hidden" name="is_gc" value="0">
+      <button class="btn ghost" style="width:100%" type="submit">Remove GC flag</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -25,6 +25,10 @@
     </div>
     <div class="field"><label>Tags (comma-separated)</label><input name="tags" value="{{ contact.tags or '' }}"></div>
   </div>
+  <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+    <input type="checkbox" id="is_gc" name="is_gc" value="1" style="width:auto" {{ 'checked' if contact.is_gc }}>
+    <label for="is_gc" style="margin:0">🏗️ This is a General Contractor (consolidate all their jobs under one GC record)</label>
+  </div>
   <div class="field"><label>Notes</label><textarea name="notes">{{ contact.notes or '' }}</textarea></div>
   <div style="display:flex;gap:10px">
     <button class="primary" type="submit">Save</button>

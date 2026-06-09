@@ -6,6 +6,10 @@
   <a href="{{ url_for('contacts.index') }}" class="muted">← Contacts</a>
   <h1 style="margin-left:8px">{{ c.first_name }} {{ c.last_name }}{% if c.company %} <span class="muted">· {{ c.company }}</span>{% endif %}</h1>
   <div class="grow"></div>
+  <form method="post" action="{{ url_for('contacts.make_gc', contact_id=c.id) }}" style="display:inline">
+    <input type="hidden" name="is_gc" value="1">
+    <button class="btn" type="submit" title="Consolidate this repeat contact's jobs under one GC record">🏗️ Mark as General Contractor</button>
+  </form>
   <a class="btn" href="{{ url_for('contacts.edit', contact_id=c.id) }}">Edit</a>
 </div>
 <div class="detail">

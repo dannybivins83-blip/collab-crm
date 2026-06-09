@@ -2,6 +2,11 @@
 {% block title %}{{ 'New' if mode=='new' else 'Edit' }} Job{% endblock %}
 {% block body %}
 <div class="page-head"><h1>{{ 'New Job' if mode=='new' else 'Edit Job' }}</h1></div>
+{% if gc_id and job.name %}
+<div class="card" style="max-width:820px;border-left:4px solid #0f9e82;background:#0f9e8211">
+  🏗️ New job under GC <b>{{ job.name }}</b> — their contact info is pre-filled. Just add the property address + work type below.
+</div>
+{% endif %}
 <form method="post" class="card" style="max-width:820px">
   <div class="row">
     <div class="field"><label>Job name</label><input name="name" value="{{ job.name or '' }}" required></div>
@@ -50,6 +55,8 @@
   </div>
   <div class="field"><label>Customer payment link (Stripe/Square/QuickBooks/PayPal — powers the portal "Pay" button)</label>
     <input name="pay_url" value="{{ job.pay_url or '' }}" placeholder="https://…"></div>
+  <div class="field"><label>SiteCam project link (this job's photo gallery — powers the portal "View your project photos" button)</label>
+    <input name="sitecam_url" value="{{ job.sitecam_url or '' }}" placeholder="https://sitecam-web.onrender.com/project/…  (paste this job's shareable SiteCam link)"></div>
   <div class="field"><label>Notes</label><textarea name="narrative">{{ job.narrative or '' }}</textarea></div>
   <div style="display:flex;gap:10px">
     <button class="primary" type="submit">Save</button>
