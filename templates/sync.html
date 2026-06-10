@@ -332,14 +332,13 @@
           var fp=await gj('/api/jobs/'+g+'/financial-progress'); await sleep(250);
           var iv=await gj('/api/jobs/'+g+'/invoices');
           var invs=arr(iv&&iv.Invoices?iv.Invoices:iv);
-          // Invoice amount is nested in InvoiceWorksheetSections[].InvoiceItems[].Price;
-          // paid status is PaymentReceivedDate (null = unpaid). Build a payment per paid invoice.
-          function iAmt(x){var s=0;(x.InvoiceWorksheetSections||[]).forEach(function(sc){(sc.InvoiceItems||[]).forEach(function(t){s+=(+t.Price||0);});});return s||(+x.Total||0);}
+          // Invoice amount = x.Total; paid status = x.IsPaid; real payments = x.LinkedPayments[].
+          function iAmt(x){return (+x.Total||0)||(function(){var s=0;(x.InvoiceWorksheetSections||[]).forEach(function(sc){(sc.InvoiceItems||[]).forEach(function(t){s+=(+t.Price||0);});});return s;})();}
           var pays=[];
-          invs.forEach(function(x){if(x.PaymentReceivedDate)pays.push({id:(x.InvoiceId||'')+'-pay',amount:iAmt(x),date:(x.PaymentReceivedDate||'').slice(0,10),method:'Payment',reference:x.InvoiceNumber});});
+          invs.forEach(function(x){(x.LinkedPayments||[]).forEach(function(p){pays.push({id:p.JobPaymentId,amount:(+p.Amount||0),date:(p.PaymentDate||'').slice(0,10),method:p.Method||'',reference:p.CheckNumber||''});});});
           if((fp&&fp.JobValue!=null)||invs.length){
             var d=await post({guid:g,value:(fp&&fp.JobValue),balance:(fp&&fp.BalanceDue),collected:(fp&&fp.PaymentsReceived),
-              invoices:invs.map(function(x){return {id:x.InvoiceId,number:x.InvoiceNumber,amount:iAmt(x),date:(x.InvoiceDate||'').slice(0,10),status:(x.PaymentReceivedDate?'paid':'unpaid')};}),
+              invoices:invs.map(function(x){return {id:x.InvoiceId,number:x.InvoiceNumber,amount:iAmt(x),date:(x.InvoiceDate||'').slice(0,10),status:(x.IsPaid?'paid':'unpaid')};}),
               payments:pays});
             if(d&&d.ok){ok++;inv+=invs.length;pay+=pays.length;if(d.summary){vals+=d.summary.value_set||0;if(d.summary.no_job)nojob++;}}else fail++;
           }
@@ -540,12 +539,12 @@
           try{fp=await gj('/api/jobs/'+g+'/financial-progress');}catch(e){}
           try{iv=await gj('/api/jobs/'+g+'/invoices');}catch(e){}
           var invs=(iv&&iv.Invoices)||[];
-          function iAmt(x){var s=0;(x.InvoiceWorksheetSections||[]).forEach(function(sc){(sc.InvoiceItems||[]).forEach(function(t){s+=(+t.Price||0);});});return s||(+x.Total||0);}
+          function iAmt(x){return (+x.Total||0)||(function(){var s=0;(x.InvoiceWorksheetSections||[]).forEach(function(sc){(sc.InvoiceItems||[]).forEach(function(t){s+=(+t.Price||0);});});return s;})();}
           var pays=[];
-          invs.forEach(function(x){if(x.PaymentReceivedDate)pays.push({id:(x.InvoiceId||'')+'-pay',amount:iAmt(x),date:(x.PaymentReceivedDate||'').slice(0,10),method:'Payment',reference:x.InvoiceNumber});});
+          invs.forEach(function(x){(x.LinkedPayments||[]).forEach(function(p){pays.push({id:p.JobPaymentId,amount:(+p.Amount||0),date:(p.PaymentDate||'').slice(0,10),method:p.Method||'',reference:p.CheckNumber||''});});});
           if((!fp||fp.JobValue==null)&&!invs.length)return null;
           return {guid:g,value:(fp?fp.JobValue:''),balance:(fp?fp.BalanceDue:''),collected:(fp?fp.PaymentsReceived:''),
-                  invoices:invs.map(function(x){return {id:x.InvoiceId,number:x.InvoiceNumber,amount:iAmt(x),date:(x.InvoiceDate||'').slice(0,10),status:(x.PaymentReceivedDate?'paid':'unpaid')};}),
+                  invoices:invs.map(function(x){return {id:x.InvoiceId,number:x.InvoiceNumber,amount:iAmt(x),date:(x.InvoiceDate||'').slice(0,10),status:(x.IsPaid?'paid':'unpaid')};}),
                   payments:pays};
         }
         if(KIND==='estimate'){
@@ -608,10 +607,10 @@
           var fp=await gj('/api/jobs/'+g+'/financial-progress');
           var iv=await gj('/api/jobs/'+g+'/invoices');
           var invs=(iv&&iv.Invoices)||[];
-          function iAmt(x){var s=0;(x.InvoiceWorksheetSections||[]).forEach(function(sc){(sc.InvoiceItems||[]).forEach(function(t){s+=(+t.Price||0);});});return s||(+x.Total||0);}
+          function iAmt(x){return (+x.Total||0)||(function(){var s=0;(x.InvoiceWorksheetSections||[]).forEach(function(sc){(sc.InvoiceItems||[]).forEach(function(t){s+=(+t.Price||0);});});return s;})();}
           var pays=[];
-          invs.forEach(function(x){if(x.PaymentReceivedDate)pays.push({id:(x.InvoiceId||'')+'-pay',amount:iAmt(x),date:(x.PaymentReceivedDate||'').slice(0,10),method:'Payment',reference:x.InvoiceNumber});});
-          if((fp&&fp.JobValue!=null)||invs.length){var bd=await post('sync/billing-import',{guid:g,value:(fp&&fp.JobValue),balance:(fp&&fp.BalanceDue),collected:(fp&&fp.PaymentsReceived),invoices:invs.map(function(x){return {id:x.InvoiceId,number:x.InvoiceNumber,amount:iAmt(x),date:(x.InvoiceDate||'').slice(0,10),status:(x.PaymentReceivedDate?'paid':'unpaid')};}),payments:pays});if(bd&&bd.summary){vals+=bd.summary.value_set||0;if(bd.summary.no_job)nojob++;}}
+          invs.forEach(function(x){(x.LinkedPayments||[]).forEach(function(p){pays.push({id:p.JobPaymentId,amount:(+p.Amount||0),date:(p.PaymentDate||'').slice(0,10),method:p.Method||'',reference:p.CheckNumber||''});});});
+          if((fp&&fp.JobValue!=null)||invs.length){var bd=await post('sync/billing-import',{guid:g,value:(fp&&fp.JobValue),balance:(fp&&fp.BalanceDue),collected:(fp&&fp.PaymentsReceived),invoices:invs.map(function(x){return {id:x.InvoiceId,number:x.InvoiceNumber,amount:iAmt(x),date:(x.InvoiceDate||'').slice(0,10),status:(x.IsPaid?'paid':'unpaid')};}),payments:pays});if(bd&&bd.summary){vals+=bd.summary.value_set||0;if(bd.summary.no_job)nojob++;}}
           var es=await gj('/api/Estimatev3/GetEstimates/'+g);
           if(es&&es.length){var ed=await post('sync/estimate-import',{guid:g,estimates:es.map(function(e){var f=e.Financials||{};return {id:e.EstimateID,title:e.Title,number:e.EstimateNumber,total:(f.HasOverridePrice?f.TotalOverridePrice:f.TotalPrice),date:e.CreatedDate};})});if(ed&&ed.summary){ests+=(ed.summary.added||0)+(ed.summary.updated||0);}}
           var cmsgs=[],start=0;

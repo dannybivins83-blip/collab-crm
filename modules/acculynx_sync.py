@@ -1488,11 +1488,21 @@ def _apply_billing(guid, payload):
                     by_num[num.lower()] = {"id": iid, "number": num}
                 out["invoices_added"] += 1
 
-        # --- payments (own table, dedup by ext_id; else by amount+date) ------
+        # --- payments (own table) -------------------------------------------
+        # When the payload carries a payments list, REPLACE this job's AccuLynx-sourced
+        # payments (clears stale synthesized rows from earlier syncs; keeps any manual
+        # payments) so re-syncing is idempotent and reflects AccuLynx's real records.
         ex_pay = db.all_rows("payments", where="job_id=?", params=(job_id,))
+        pays = _g(payload, "payments", "Payments", default=None)
+        if isinstance(pays, list):
+            for p in ex_pay:
+                if (p.get("source") or "") == "AccuLynx":
+                    db.delete("payments", p["id"])
+            ex_pay = [p for p in ex_pay if (p.get("source") or "") != "AccuLynx"]
+        else:
+            pays = []
         pe_ext = {(p.get("ext_id") or ""): p for p in ex_pay if p.get("ext_id")}
         pe_ad = {((p.get("paid_date") or "") + "|" + str(p.get("amount") or 0)): p for p in ex_pay}
-        pays = _g(payload, "payments", "Payments", default=[]) or []
         for pay in (pays if isinstance(pays, list) else []):
             if not isinstance(pay, dict):
                 continue
