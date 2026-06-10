@@ -93,7 +93,8 @@ def gallery_link():
     Auth: shared secret in `x-sitecam-secret` (or Authorization: Bearer)."""
     sent = (request.headers.get("x-sitecam-secret")
             or request.headers.get("authorization", "").replace("Bearer ", "")).strip()
-    if not sent or not hmac.compare_digest(sent, _sync_secret()):
+    secret = _sync_secret()
+    if not sent or not secret or not hmac.compare_digest(sent, secret):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     data = request.get_json(silent=True) or {}
     gurl = (data.get("url") or "").strip()

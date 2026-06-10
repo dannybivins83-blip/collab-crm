@@ -48,9 +48,16 @@ services:
       - key: GOOGLE_OAUTH_CLIENT_SECRET
         sync: false
       # Integration shared secrets (measurement-app ingest + SSO bus):
+      # NOTE: these now FAIL CLOSED in prod when unset (audit #2) — Render auto-sets
+      # RENDER=true so config.IS_PROD is true here; set real values or signed ingest +
+      # SSO refuse. (Render needs no CRM_ENV; Vercel does — see the runbook.)
       - key: MEASURE_CRM_WEBHOOK_SECRET
         sync: false
       - key: SEABREEZE_CRM_WEBHOOK_SECRET
+        sync: false
+      - key: CRM_SYNC_SECRET        # gates the AccuLynx->CRM bookmarklet bridge (audit #1)
+        sync: false
+      - key: CRON_SECRET            # protects /sync/cron (unattended sync trigger)
         sync: false
     disk:
       name: crm-data

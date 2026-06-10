@@ -230,6 +230,12 @@ def _ingest_secret():
     val = os.environ.get("MEASURE_CRM_WEBHOOK_SECRET", "").strip()
     if val:
         return val
+    # Fail CLOSED in production: an unset secret must NOT derive the publicly-documented
+    # `<tenant>-webhook-secret` fallback — that makes every signature forgeable (audit #2).
+    # Returning "" makes _verify_sig reject all requests until the real secret is set.
+    import config
+    if config.IS_PROD:
+        return ""
     try:
         from modules import sso
         return "%s-webhook-secret" % sso._tenant_key()   # dev fallback (matches SSO)
@@ -240,10 +246,13 @@ def _ingest_secret():
 def _verify_sig(raw):
     import hmac
     import hashlib
+    secret = _ingest_secret()
+    if not secret:
+        return False   # no secret configured (prod, unset) -> reject all; fail closed
     sig = (request.headers.get("X-Signature") or "").strip().lower()
     if not sig:
         return False
-    expect = hmac.new(_ingest_secret().encode("utf-8"), raw or b"", hashlib.sha256).hexdigest()
+    expect = hmac.new(secret.encode("utf-8"), raw or b"", hashlib.sha256).hexdigest()
     try:
         return hmac.compare_digest(sig, expect)
     except Exception:

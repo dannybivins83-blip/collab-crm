@@ -141,6 +141,43 @@ so the PAT is *not* in the repo. Revoke it on GitHub:
 
 ---
 
+## §6 — Audit #1 / #2 code landed: new env + deploy notes
+
+The security fix (commit lands on `agent/gc-consolidation`) gates the AccuLynx→CRM
+bookmarklet bridge and makes the signed seams **fail closed in prod**. That adds env +
+a re-install step, and the deploy is fail-closed — sequence it:
+
+**New / required env (set BEFORE or WITH the deploy, else these 401):**
+1. **`CRM_SYNC_SECRET`** — generate one (`python -c "import secrets;print(secrets.token_hex(32))"`),
+   set on **Render** and **Vercel**. Gates `/sync/*` + `/leads/import`. Unset in prod ⇒ the
+   whole bookmarklet bridge returns 401 (fail closed).
+2. **`CRM_ENV=production` on Vercel** (Render needs nothing — it auto-sets `RENDER=true`).
+   Without it, Vercel can't tell itself apart from the local `.env` (which is `vercel env
+   pull`-ed and carries `VERCEL=1`/`VERCEL_ENV`), so it would NOT fail closed. Set via
+   `vercel env add CRM_ENV production` → `vercel --prod`.
+3. **`CRON_SECRET`** (both hosts) — `/sync/cron` is otherwise an open sync trigger. Vercel
+   Cron sends it automatically once set; an external scheduler must use `?key=$CRON_SECRET`.
+4. `MEASURE_CRM_WEBHOOK_SECRET` (§2) is now **mandatory in prod** — unset ⇒ `/api/takeoff`
+   + `/measurements/ingest` reject ALL requests (was: forgeable fallback). `SEABREEZE_*` is
+   already set, so SSO keeps working; if it were ever unset, SSO mint now 503s instead of
+   using the guessable fallback.
+
+**Re-install the bookmarklets:** open the **Sync** page (logged in) and re-download the
+"all bookmarks" folder — the new bookmarklets carry `?k=$CRM_SYNC_SECRET`. Old (un-keyed)
+bookmarks will 401 after deploy.
+
+**Verify after deploy + secrets set:**
+```
+# bridge rejects anonymous, accepts the key:
+curl -s -o NUL -w "%{http_code}\n" -X POST https://collab-crm-bwsl.onrender.com/sync/catalog-import      # 401
+curl -s -o NUL -w "%{http_code}\n" "https://collab-crm-bwsl.onrender.com/sync/job-guids?k=$CRM_SYNC_SECRET"  # 200
+# forged measurement signature rejected:
+curl -s -o NUL -w "%{http_code}\n" -X POST https://collab-crm-bwsl.onrender.com/api/takeoff -H "X-Signature: deadbeef" -d "{}"  # 401
+```
+Then click a sync bookmarklet on a my.acculynx.com tab — the banner should still import.
+
+---
+
 ## Done-when
 - [ ] §3 SiteCam SSO round-trips with the new SEABREEZE secret (both hosts + SiteCam)
 - [ ] §4 Roof Reports reaches the engine with the new key; query-string leak patched

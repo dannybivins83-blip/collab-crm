@@ -23,6 +23,63 @@ bp = Blueprint("sync", __name__, url_prefix="/sync")
 
 DEFAULT_BASE = "https://api.acculynx.com/api/v2"
 
+
+# ---------------------------------------------------------------------------
+# Auth for the AccuLynx -> CRM bookmarklet bridge (audit #1).
+# These /sync/* importers are login-EXEMPT (the bookmarklet runs cross-origin on
+# my.acculynx.com with no CRM session cookie), so before this gate they accepted
+# ANONYMOUS writes — anyone could create/overwrite/wipe CRM data. We keep them
+# login-exempt but require a shared secret (CRM_SYNC_SECRET): injected into the
+# login-gated Sync page and sent by each bookmarklet as `?k=` (a query param, so the
+# multipart uploaders need no CORS-preflight change). Separate trust domain from the
+# measurement HMAC + SSO secrets, so a leaked bookmarklet can't forge those.
+# ---------------------------------------------------------------------------
+def _sync_secret():
+    return os.environ.get("CRM_SYNC_SECRET", "").strip()
+
+
+def sync_authed():
+    """True if the request carries the correct sync key (header X-Sync-Key or ?k=).
+    Fails CLOSED in prod when CRM_SYNC_SECRET is unset; in local dev with no secret
+    set it allows, so `python app.py` testing isn't blocked."""
+    want = _sync_secret()
+    if not want:
+        return not config.IS_PROD          # dev: allow; prod: refuse (fail closed)
+    got = (request.headers.get("X-Sync-Key") or request.args.get("k") or "").strip()
+    if not got:
+        return False
+    import hmac
+    try:
+        return hmac.compare_digest(got, want)
+    except Exception:
+        return False
+
+
+# The anonymous-exposed bridge endpoints that REQUIRE the sync key: the importers
+# (writes) AND the manifest/batch/guid readers (which leak CRM data). The login-gated
+# UI endpoints (index/log/save/run/dedupe/catalog/test) are NOT here — they keep the
+# normal session login. `cron` is excluded: it has its own CRON_SECRET auth.
+_KEY_REQUIRED = frozenset({
+    "sync.browser_import", "sync.doc_import", "sync.doc_manifest", "sync.doc_batch",
+    "sync.worksheet_import", "sync.catalog_import", "sync.billing_import",
+    "sync.billing_manifest", "sync.bill_batch", "sync.estimate_import",
+    "sync.comm_import", "sync.roofreport_import", "sync.roofreport_manifest",
+    "sync.roofreport_batch", "sync.photo_import", "sync.photo_batch", "sync.job_guids",
+})
+
+
+@bp.before_request
+def _sync_guard():
+    if request.method == "OPTIONS":
+        return  # CORS preflight — no body, no auth; the per-route OPTIONS handler replies
+    if request.endpoint in _KEY_REQUIRED and not sync_authed():
+        r = jsonify({"ok": False, "error": "unauthorized", "reason": "bad_sync_key"})
+        r.status_code = 401
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Sync-Key"
+        return r
+
+
 # SSL context with a real CA bundle (certifi) — Windows Python's urllib otherwise
 # can't verify the AccuLynx cert ("CERTIFICATE_VERIFY_FAILED"). Falls back to the
 # system default if certifi isn't present.
@@ -720,7 +777,10 @@ def _ensure_contact(name, rec):
 
 @bp.route("/")
 def index():
-    return render_template("sync.html", company=db.get_company(), default_base=DEFAULT_BASE)
+    # sync_key is injected into the bookmarklets on this login-gated page so they can
+    # authenticate to the /sync/* bridge (audit #1). Never exposed to anonymous visitors.
+    return render_template("sync.html", company=db.get_company(), default_base=DEFAULT_BASE,
+                           sync_key=_sync_secret())
 
 
 @bp.route("/log")
@@ -2477,21 +2537,9 @@ def bill_reset():
     return redirect(url_for("sync.index"))
 
 
-@bp.route("/debug-probe", methods=["POST", "OPTIONS"])
-def debug_probe():
-    """CORS-open temporary diagnostic: stores a posted JSON blob (e.g. AccuLynx endpoint
-    probe results) so the dev can read which internal API paths return data, without the
-    user copying console output. Truncated; overwritten each call. Remove after use."""
-    from flask import make_response
-    if request.method == "OPTIONS":
-        r = make_response("", 204)
-        r.headers["Access-Control-Allow-Origin"] = "*"
-        r.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        return r
-    body = (request.get_data(as_text=True) or "")[:60000]
-    db.save_company({"debug_probe": body, "debug_probe_at": db.now()})
-    return _cors({"ok": True, "stored": len(body)})
+# (removed) /debug-probe — a CORS-open diagnostic that stored arbitrary posted blobs in
+# the company row. Deleted per audit #1 (its own docstring said "remove after use"); it
+# was an unauthenticated write sink. Restore from git history if a probe is needed again.
 
 
 @bp.route("/photo-reset", methods=["POST"])

@@ -590,10 +590,17 @@ def import_leads():
     """Bulk-import scraped AccuLynx prospects (JSON list). CORS-open so it can be
     POSTed from the AccuLynx tab. Dedupes by name; creates a contact + lead each."""
     import json
-    from flask import make_response
+    from flask import make_response, jsonify
     if request.method == "OPTIONS":
         r = make_response("", 204)
     else:
+        # Audit #1: same shared-secret gate as the /sync/* bridge — this endpoint is also
+        # login-exempt + CORS-open. Sent as ?k= by the bookmarklet; fails closed in prod.
+        from modules.acculynx_sync import sync_authed
+        if not sync_authed():
+            r = make_response(jsonify({"ok": False, "error": "unauthorized"}), 401)
+            r.headers["Access-Control-Allow-Origin"] = "*"
+            return r
         records = request.get_json(force=True, silent=True)
         if records is None:
             try:

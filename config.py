@@ -41,5 +41,17 @@ MEAS_DIR = os.path.join(UPLOAD_DIR, "measurements")
 SECRET_KEY = os.environ.get("CRM_SECRET", "white-label-crm-dev-secret")
 PORT = int(os.environ.get("CRM_PORT", "5050"))
 
+# True on a production host. Integration secrets fail CLOSED in prod (reject) rather than
+# deriving a guessable dev fallback (audit #1/#2). Detection deliberately does NOT use the
+# VERCEL* vars: this repo's local tree is `vercel env pull`-ed, so .env carries VERCEL=1 /
+# VERCEL_ENV=production and they cannot distinguish local from the real host. Render injects
+# RENDER=true (clean — and Render is the canonical host); Vercel is marked prod via an
+# explicit CRM_ENV=production in its dashboard. Local dev (neither set) keeps the fallbacks.
+# See measurements._ingest_secret, sso._secret, acculynx_sync.sync_authed.
+IS_PROD = bool(
+    os.environ.get("RENDER")                                  # Render: auto-injected
+    or os.environ.get("CRM_ENV", "").strip().lower() in ("prod", "production")
+)
+
 for _d in (DATA_DIR, UPLOAD_DIR, PHOTO_DIR, DOC_DIR, LOGO_DIR, ESTIMATE_PDF_DIR, PERMIT_DIR, MEAS_DIR):
     os.makedirs(_d, exist_ok=True)

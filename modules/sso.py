@@ -116,6 +116,12 @@ def _secret(app):
     val = os.environ.get(app["secret_env"], "").strip()
     if val:
         return val, False
+    # Fail CLOSED in production: never mint/verify with the guessable `<tenant>-webhook-secret`
+    # fallback (audit #2). Callers treat "" as "not configured" and refuse. Local dev keeps
+    # the documented default so SSO works with no config.
+    import config
+    if config.IS_PROD:
+        return "", True
     return "%s-webhook-secret" % _tenant_key(), True   # dev fallback
 
 
@@ -128,6 +134,9 @@ def mint_assertion(app, user):
 
     Returns ``(assertion, claims)``. ``user`` is a CRM users-table row dict."""
     secret, is_dev = _secret(app)
+    if not secret:
+        # Prod with the secret unset — refuse rather than sign with an empty/guessable key.
+        raise RuntimeError("SSO secret for '%s' is not configured" % app.get("id"))
     now = int(time.time())
     claims = {
         "v": ASSERTION_VERSION,
@@ -180,7 +189,11 @@ def token(app_id):
     user = db.get("users", uid)
     if not user:
         abort(401)
-    assertion, claims, is_dev = mint_assertion(app, user)
+    try:
+        assertion, claims, is_dev = mint_assertion(app, user)
+    except RuntimeError:
+        return jsonify({"ok": False, "error": "sso_unconfigured",
+                        "detail": "Set %s on this host to enable SSO." % app.get("secret_env")}), 503
     resp = {
         "app": app["id"],
         "origin": app_origin(app),
