@@ -62,13 +62,14 @@ from modules.sso import bp as sso_bp
 from modules.search import bp as search_bp
 from modules.leads_dedupe import bp as leads_dedupe_bp
 from modules.pipeline import bp as pipeline_bp
+from modules.roof_reports import bp as roof_reports_bp
 
 for _bp in (dashboard_bp, settings_bp, contacts_bp, leads_bp, jobs_bp, estimates_bp,
             permits_bp, files_bp, tasks_bp, calendar_bp, invoices_bp, materials_bp,
             reports_bp, comms_bp, templates_bp, measurements_bp, sync_bp, quickbooks_bp,
             worksheet_bp, customize_bp, orders_bp, library_bp, commissions_bp, customfields_bp,
             portal_bp, tools_bp, signups_bp, gmail_bp, sitecam_bp, sso_bp, search_bp,
-            leads_dedupe_bp, pipeline_bp):
+            leads_dedupe_bp, pipeline_bp, roof_reports_bp):
     app.register_blueprint(_bp)
 
 # Real per-user login (registers its own blueprint + before-request guard).
