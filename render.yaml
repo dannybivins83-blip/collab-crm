@@ -35,11 +35,23 @@ services:
         value: "1"
       - key: PYTHONUNBUFFERED
         value: "1"
-      # Keep these ONLY if you want Google login + the in-CRM Gmail widget:
-      # - key: GOOGLE_OAUTH_CLIENT_ID
-      #   sync: false
-      # - key: GOOGLE_OAUTH_CLIENT_SECRET
-      #   sync: false
+      # Google Drive — set these so EXISTING uploaded files (currently mirrored to Drive)
+      # keep serving after cutover. New files write to /data/uploads on the disk. Once you
+      # backfill Drive -> /data/uploads you can drop these and be fully Drive-free.
+      - key: GDRIVE_SA_JSON       # paste the service-account key JSON (raw or base64)
+        sync: false
+      - key: GDRIVE_FOLDER_ID
+        sync: false
+      # Google login + the in-CRM Gmail widget (keep if you use them):
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      # Integration shared secrets (measurement-app ingest + SSO bus):
+      - key: MEASURE_CRM_WEBHOOK_SECRET
+        sync: false
+      - key: SEABREEZE_CRM_WEBHOOK_SECRET
+        sync: false
     disk:
       name: crm-data
       mountPath: /data
