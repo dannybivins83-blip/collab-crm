@@ -388,6 +388,92 @@ def one_photo_per_system():
     return out
 
 
+# Brand/product keywords used to match a Document-Library data sheet to a roof system.
+_SYS_KW = {
+    "shingle": ("shingle", "gaf", "timberline", "owens", "trudefinition", "duration", "landmark", "hdz"),
+    "tile": ("tile", "westlake", "eagle", "saxony", "barcelona", "villa", "crown", "tu_plus", "tu-plus"),
+    "metal": ("metal", "dynamic", "galvalume", "standing", "seam", "englert", "dmc", "dm-", "dm_", "ss_metal"),
+    "flat": ("flat", "tpo", "modbit", "mod_bit", "mod-bit", "polyglass_sa", "hot-mop", "hotmop", "bur"),
+}
+
+
+def _doc_systems(name):
+    n = (name or "").lower()
+    return {s for s, kws in _SYS_KW.items() if any(k in n for k in kws)}
+
+
+def product_docs_for(sysk):
+    """Real company product data sheets / color charts / warranties relevant to a system
+    (system-specific first, then generic). Pulled from the Document Library."""
+    cats = ("Product & Color Charts", "Warranties")
+    docs = [d for d in db.all_rows("library_docs")
+            if d.get("category") in cats and ((sysk in _doc_systems(d.get("original_name")))
+                                              or not _doc_systems(d.get("original_name")))]
+    docs.sort(key=lambda d: 0 if _doc_systems(d.get("original_name")) else 1)
+    return docs[:16]
+
+
+def latest_system_job_photos(sysk, cap=18):
+    """The newest job of this system that has SiteCam/field photos — returns its photos
+    (newest first) + sitecam_url, so Roof School can show a real, recently-documented job
+    of the homeowner's exact system (re-nailing, decking, dry-in, install)."""
+    from modules import ahj as ahj_mod
+    for j in sorted(db.all_rows("jobs"), key=lambda x: x.get("id", 0), reverse=True):
+        s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
+        if s != (sysk or "").lower():
+            continue
+        ph = db.all_rows("photos", "job_id=?", (j["id"],), "id DESC")
+        if ph:
+            return {"sitecam_url": j.get("sitecam_url"), "photos": ph[:cap]}
+    return None
+
+
+# Deep component education — each roofing feature: what it is, the TYPES, the BRANDS we
+# install, and why it matters. doc_kw links it to a real data sheet in the library.
+FEATURES = [
+    {"key": "swb", "ic": "🛡️", "name": "Underlayment / Secondary Water Barrier (SWB)",
+     "what": "The self-adhered, peel-&-stick membrane bonded to your wood deck — the layer that actually keeps water out of your home. Required by Florida code on every re-roof.",
+     "types": ["Synthetic felt — basic, mechanically fastened (budget tier)",
+               "2-ply self-adhered (peel & stick) — what we install on most homes",
+               "Tile-grade high-bond self-adhered — for foam-set tile"],
+     "brands": ["Polyglass Polystick TU Plus", "Polyglass Polystick MTS / IR-Xe", "GAF FeltBuster / Deck-Armor"],
+     "why": "Even if shingles or tiles blow off in a hurricane, the SWB keeps your home dry. It's the most important waterproofing layer — and the #1 place cheap roofs cut corners.",
+     "doc_kw": ["polyglass", "polystick", "underlay", "tu plus", "tu_plus", "felt", "ir-xe", "mts"]},
+    {"key": "ridge", "ic": "🌬️", "name": "Ridge Vents & Attic Ventilation",
+     "what": "Vents at the peak of your roof that let superheated attic air escape while cooler air is pulled in at the eaves.",
+     "types": ["Shingle-over ridge vent — hidden, runs the whole ridge",
+               "Off-ridge / box vents", "Tile ridge vents (for tile roofs)", "Solar-powered attic fans"],
+     "brands": ["GAF Cobra ridge vent", "O'Hagin (tile vents)", "Lomanco", "Solar attic fans"],
+     "why": "Good ventilation drops attic temps 20–40°F — lower AC bills, no trapped moisture or mold, and a roof that lasts years longer. An unvented attic literally cooks your roof from underneath.",
+     "doc_kw": ["vent", "cobra", "ridge", "ventilation", "ohagin", "o'hagin", "lomanco"]},
+    {"key": "deck", "ic": "🪵", "name": "Decking & Re-Nailing",
+     "what": "The plywood base your whole roof is built on. On a re-roof we re-nail the entire deck to current Florida wind code and replace any rotten wood.",
+     "types": ["Re-nail existing deck to FBC (8d ring-shank pattern)", "Replace rotten/soft plywood sheets",
+               "New 5/8\" CDX where required"],
+     "brands": ["8d ring-shank nails (code pattern)", "CDX structural plywood"],
+     "why": "This is where most of your wind-uplift strength comes from — before a single shingle or tile goes on. We document the bare deck and the re-nail in SiteCam so you can see it was done right.",
+     "doc_kw": ["deck", "nail", "plywood", "cdx"]},
+    {"key": "valley", "ic": "💧", "name": "Valley Metal",
+     "what": "The metal-lined V-channels where two roof slopes meet — they carry the most water on your whole roof.",
+     "types": ["Open W-valley metal", "Closed-cut valley", "Coastal: copper valley"],
+     "brands": ["26-ga galvanized valley metal", "16\" galvanized", "Copper (salt-air homes)"],
+     "why": "Valleys move more water than anywhere else — done cheap, they're the first place a roof leaks. We use heavy-gauge (or copper near saltwater) and seal them to the SWB.",
+     "doc_kw": ["valley", "galvanized", "copper"]},
+    {"key": "flashing", "ic": "⚙️", "name": "Flashing & Penetrations",
+     "what": "The metal that seals every joint and penetration — pipes, vents, skylights, walls, chimneys — against leaks.",
+     "types": ["Lead pipe boots / stacks", "Goosenecks (exhaust)", "Step & counter flashing (walls)", "Skylight flashing kits"],
+     "brands": ["Lead stack flashings", "Galvanized step flashing", "Manufacturer skylight kits"],
+     "why": "Most roof leaks start at a penetration, not the field. We replace every boot and flashing on a re-roof — old ones are usually the weak point.",
+     "doc_kw": ["flash", "lead", "boot", "skylight", "gooseneck"]},
+    {"key": "drip", "ic": "📐", "name": "Drip Edge & Trim",
+     "what": "Metal edging along the eaves and rakes that guides water into your gutters and protects the fascia board.",
+     "types": ["3\"x3\" galvanized drip edge", "Aluminum drip (color-matched)", "Eave & rake trim"],
+     "brands": ["3\"x3\" galvanized — white/brown", "Color-matched aluminum"],
+     "why": "Without proper drip edge, water wicks back under the roof and rots your fascia and soffit. It's a small part that protects the whole edge of your home.",
+     "doc_kw": ["drip", "edge", "fascia", "trim"]},
+]
+
+
 _STAGE_TO_PHASE = {
     "approved": 0, "finance_ntp": 0, "documentation": 0,
     "permit_applied": 1, "permit_approved": 1,
@@ -771,10 +857,18 @@ def learn(token):
     sysk = (rec.get("system") or ahj_mod.work_type_to_system(rec.get("work_type", "")) or "shingle").lower()
     my_system = next((s for s in ROOF_EDU if s["key"] == sysk), ROOF_EDU[0])
     gallery = similar_job_photos(sysk, rec["id"] if kind == "job" else -1)
+    # Annotate features with a matching product data sheet (if one exists in the library).
+    pdocs = product_docs_for(sysk)
+    feats = []
+    for f in FEATURES:
+        doc = next((d for d in pdocs if any(k in (d.get("original_name") or "").lower()
+                                            for k in f.get("doc_kw", []))), None)
+        feats.append(dict(f, doc=doc))
     return render_template("learn.html", token=token, company=db.get_company(),
                            systems=ROOF_EDU, glossary=GLOSSARY, quiz=ROOF_QUIZ,
                            process=PROCESS_STEPS, gallery=gallery, my_system=my_system, sysk=sysk,
-                           system_photos=one_photo_per_system())
+                           system_photos=one_photo_per_system(), features=feats,
+                           product_docs=pdocs, sitecam_job=latest_system_job_photos(sysk))
 
 
 @bp.route("/<token>/seminar", methods=["GET", "POST"])

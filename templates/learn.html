@@ -70,6 +70,23 @@
   .glabel{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);margin:14px 0 7px}
   .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:7px}
   .ggrid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px;border:1px solid var(--line);background:#dde6ef}
+  .ggrid a{position:relative;display:block}
+  .gcap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(8,16,30,.82));
+    color:#fff;font-size:10px;font-weight:600;padding:10px 6px 5px;border-radius:0 0 9px 9px;line-height:1.2}
+  /* deep component features */
+  .feat{border:1px solid var(--line);border-radius:11px;margin-bottom:9px;overflow:hidden}
+  .feat summary{padding:13px 14px;font-weight:800;font-size:14px;cursor:pointer;list-style:none;display:flex;justify-content:space-between}
+  .feat summary::-webkit-details-marker{display:none} .feat summary:after{content:"＋";color:var(--mut);font-weight:700}
+  .feat[open] summary:after{content:"－"}
+  .fbody{padding:0 14px 14px} .fwhat{font-size:13px;color:var(--ink);line-height:1.5;margin-bottom:6px}
+  .fwhy{background:#fff8e6;border:1px solid #ffe2a8;border-radius:9px;padding:9px 10px;font-size:12.5px;line-height:1.45;margin:8px 0}
+  .brands{display:flex;flex-wrap:wrap;gap:6px;margin:3px 0 4px}
+  .brand{background:var(--brand);color:#fff;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px}
+  .datasheet{display:inline-block;margin-top:6px;background:#eef4fb;color:var(--brand);font-weight:700;font-size:12.5px;
+    text-decoration:none;padding:9px 12px;border-radius:9px}
+  .docrow{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    margin-bottom:7px;text-decoration:none;color:var(--ink);font-weight:600;font-size:13.5px}
+  .docrow:hover{border-color:var(--brand)}
 </style>
 </head>
 <body>
@@ -108,6 +125,57 @@
       <div style="font-size:13px;color:var(--mut);margin-top:12px">📷 Photos from similar projects will appear here as our crews document them in the field.</div>
       {% endif %}
     </div>
+
+    {% if sitecam_job and sitecam_job.photos %}
+    <!-- DOCUMENTED IN SITECAM — a real recent job of the homeowner's system -->
+    <div class="card">
+      <div class="h">🎥 We document every step{% if my_system %} — a real {{ my_system.name }} job{% endif %}</div>
+      <p style="margin:0 0 12px;font-size:13.5px;color:var(--mut)">We photo-document your entire project in <b>SiteCam</b> — the bare deck, the <b>re-nailing</b>, the <b>dry-in</b>, the install, the cleanup — so nothing is ever hidden from you. Here's a recent {{ my_system.name if my_system else '' }} job we documented:</p>
+      <div class="ggrid">
+        {% for ph in sitecam_job.photos %}
+        <a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank">
+          <img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" loading="lazy" alt="{{ ph.caption or 'job photo' }}">
+          {% if ph.caption %}<div class="gcap">{{ ph.caption }}</div>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+      {% if sitecam_job.sitecam_url %}<a class="datasheet" style="margin-top:11px;display:block;text-align:center" href="{{ sitecam_job.sitecam_url }}" target="_blank" rel="noopener">⛶ See the full SiteCam album from this job →</a>{% endif %}
+      <div style="font-size:11.5px;color:var(--mut);margin-top:8px">A real project we completed — customer details kept private. <b>Your</b> job will be documented the same way.</div>
+    </div>
+    {% endif %}
+
+    <!-- DEEP COMPONENT EDUCATION -->
+    {% if features %}
+    <div class="card">
+      <div class="h">🔧 Every part of your roof — explained</div>
+      <p style="margin:0 0 12px;font-size:13.5px;color:var(--mut)">Tap any part to learn the types, the exact brands we install, and why it matters — with the manufacturer's data sheet.</p>
+      {% for f in features %}
+      <details class="feat">
+        <summary>{{ f.ic }} {{ f.name }}</summary>
+        <div class="fbody">
+          <div class="fwhat">{{ f.what }}</div>
+          <div class="lh">Types / options</div>
+          <ul>{% for t in f.types %}<li>{{ t }}</li>{% endfor %}</ul>
+          <div class="lh">Brands we install</div>
+          <div class="brands">{% for b in f.brands %}<span class="brand">{{ b }}</span>{% endfor %}</div>
+          <div class="fwhy">💡 {{ f.why }}</div>
+          {% if f.doc %}<a class="datasheet" href="{{ url_for('uploads', subpath='library/' ~ f.doc.filename) }}" target="_blank" rel="noopener">📄 See the {{ f.doc.original_name.rsplit('.',1)[0].replace('_',' ').replace('-',' ')|title }} data sheet →</a>{% endif %}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- PRODUCT DATA SHEETS (real company library docs for this system) -->
+    {% if product_docs %}
+    <div class="card">
+      <div class="h">📄 Product data sheets &amp; color charts{% if my_system %} — your {{ my_system.name }} system{% endif %}</div>
+      <p style="margin:0 0 12px;font-size:13.5px;color:var(--mut)">The exact products we'll install on your home — straight from the manufacturer.</p>
+      {% for d in product_docs %}
+      <a class="docrow" href="{{ url_for('uploads', subpath='library/' ~ d.filename) }}" target="_blank" rel="noopener">📄 {{ d.original_name.rsplit('.',1)[0].replace('_',' ').replace('-',' ')|title }}<span style="margin-left:auto;color:var(--brand)">›</span></a>
+      {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="card">
       <div class="h">The 4 roof systems — tap a card to flip it</div>
