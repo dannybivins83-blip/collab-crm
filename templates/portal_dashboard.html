@@ -251,6 +251,39 @@
   .upd-dot{width:11px;height:11px;border-radius:50%;background:var(--green);flex:none;margin-top:5px;
     box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 18%,#fff)}
   @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.12}}
+
+  /* ============================================================
+     CLEAN FLAT THEME — no gradients, simple palette (navy / blue /
+     green / ink / gray on white). Override block wins by order.
+     ============================================================ */
+  body{background:var(--bg) !important}
+  .top, .hero-band{background:var(--brand) !important; box-shadow:none !important}
+  .hero-band:after{display:none !important}
+  .btn{background:var(--accent) !important; box-shadow:none !important}
+  .btn:hover{filter:brightness(.95)}
+  .btn.green{background:var(--green) !important; color:#16240a !important}
+  .btn.ghost{background:#fff !important; color:var(--accent) !important; border:1.5px solid var(--line) !important}
+  .card{box-shadow:0 1px 2px rgba(16,34,64,.06) !important; border-radius:14px}
+  .step.done .dot{background:var(--green) !important; box-shadow:none !important}
+  .step.done:before, .step.cur:before{background:var(--green) !important}
+  .step.cur .dot{box-shadow:0 0 0 3px var(--green-tint) !important}
+  .pill{background:#eef1f6; color:var(--mut)}
+  .pill.green{background:var(--green-tint); color:var(--green-deep)}
+  .stat.bal, .step-row.done .ic, .draw.paid{background:var(--green-tint) !important}
+  .livebar{background:var(--green-tint) !important; border:1px solid #cdeccf !important; box-shadow:none !important}
+  .cta-card{box-shadow:0 1px 2px rgba(16,34,64,.06) !important}
+  /* Next-steps list */
+  .nextstep{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink)}
+  .nextstep:last-child{border-bottom:0}
+  .ns-n{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:13px;
+    display:flex;align-items:center;justify-content:center;flex:none}
+  .ns-t{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+  .ns-t .muted{font-size:12px}
+  .ns-a{color:var(--accent);font-size:20px;font-weight:700}
+  .nextstep:hover{background:#f6f9fc;border-radius:8px}
+  /* inline checklist links */
+  .vlink{display:inline-block;margin:5px 10px 0 0;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none}
+  .vlink:hover{text-decoration:underline}
 </style>
 </head>
 <body{% if (signup_packet) or (pay_url and j._balance > 0) %} class="has-cta"{% endif %}>
@@ -323,27 +356,23 @@
     </div>
   </div>
 
-  <!-- DESIGN STUDIO CTA -->
-  <a class="card cta-card" href="{{ url_for('portal.design', token=token) }}" style="display:flex;gap:13px;align-items:center;text-decoration:none;color:inherit">
-    <div style="font-size:30px">🎨</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-weight:800">Design Your Roof &amp; Pick Your Colors</div>
-      <div class="muted" style="font-size:13px">Mock up your roof, compare colors &amp; options, request samples →</div>
-    </div>
-    <div style="font-size:20px;color:var(--accent)">›</div>
-  </a>
-
-  <!-- LEARN + HOA SEMINAR -->
-  <div style="display:flex;gap:12px;flex-wrap:wrap">
-    <a class="card cta-card" href="{{ url_for('portal.learn', token=token) }}" style="flex:1;min-width:200px;display:flex;gap:11px;align-items:center;text-decoration:none;color:inherit">
-      <div style="font-size:26px">🎓</div>
-      <div style="flex:1;min-width:0"><div style="font-weight:800">Roof School</div>
-        <div class="muted" style="font-size:12.5px">Learn the systems + test your Roof IQ →</div></div>
+  <!-- NEXT STEPS (guided, off the welcome banner) -->
+  <div class="card">
+    <div class="h">Your next steps</div>
+    <a class="nextstep" href="{{ url_for('portal.learn', token=token) }}">
+      <span class="ns-n">1</span>
+      <span class="ns-t"><b>Learn about your roof</b><span class="muted">Roof School — systems, materials &amp; your Roof IQ</span></span>
+      <span class="ns-a">→</span>
     </a>
-    <a class="card cta-card" href="{{ url_for('portal.seminar', token=token) }}" style="flex:1;min-width:200px;display:flex;gap:11px;align-items:center;text-decoration:none;color:inherit">
-      <div style="font-size:26px">🍽️</div>
-      <div style="flex:1;min-width:0"><div style="font-weight:800">HOA Lunch &amp; Learn</div>
-        <div class="muted" style="font-size:12.5px">We bring food + answers for your board →</div></div>
+    <a class="nextstep" href="{{ url_for('portal.seminar', token=token) }}">
+      <span class="ns-n">2</span>
+      <span class="ns-t"><b>Host an HOA Lunch &amp; Learn</b><span class="muted">We bring lunch + answers for your board or community</span></span>
+      <span class="ns-a">→</span>
+    </a>
+    <a class="nextstep" href="#refGame">
+      <span class="ns-n">3</span>
+      <span class="ns-t"><b>Refer &amp; win</b><span class="muted">Share your link, level up, earn rewards</span></span>
+      <span class="ns-a">→</span>
     </a>
   </div>
 
@@ -423,7 +452,11 @@
     {% for v in value_steps %}
     <div class="vrow {{ 'done' if v.done else ('cur' if v.current else 'todo') }}{{ ' vhide' if loop.index > 8 }}">
       <span class="vck">{{ '✓' if v.done else ('●' if v.current else '○') }}</span>
-      <span class="vtx">{{ v.text }}{% if v.current %} <span class="pill green">happening now</span>{% endif %}</span>
+      <span class="vtx">{{ v.text }}{% if v.current %} <span class="pill green">happening now</span>{% endif %}
+        {% if 'color' in v.text|lower and 'selection' in v.text|lower %}
+        <a class="vlink" href="{{ url_for('portal.design', token=token) }}">🎨 Design your roof &amp; pick your colors →</a>
+        <a class="vlink" href="#estimate">📄 Your roof-covering selection docs →</a>
+        {% endif %}</span>
     </div>
     {% endfor %}
     {% if value_steps|length > 8 %}
