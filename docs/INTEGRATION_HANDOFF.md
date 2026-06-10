@@ -2,9 +2,10 @@
 
 **To:** boss dev agent (integrator, `agent/gc-consolidation`)
 **From:** SSO/feature session
-**As of:** `d12db85` · 2026-06-10 — *living doc; re-ground this header (commit +
+**As of:** `c612877` · 2026-06-10 — *living doc; re-ground this header (commit +
 counts) whenever you revisit, and treat the operator steps below as point-in-time.*
-**Branch:** CRM `agent/gc-consolidation` (~79 ahead of `main`); SiteCam `main`.
+**Branch:** CRM `agent/gc-consolidation` — **now merged level with `main`** (0 ahead);
+SiteCam `main`. The remaining work is go-live ops (secrets/deploy/verify), not code.
 **Scope:** finish wiring SiteCam, the roof-measurement engine, and the permit
 builder. Status is grounded against the code, not narration.
 
@@ -115,17 +116,38 @@ roof geometry from the job's measurement.
 
 ---
 
+## 4. QXO (Beacon) Materials API
+
+**What it will do:** live QXO pricing into estimates, a job BOM → a QXO material
+order, delivery tracking (with photos) on the board, invoice reconciliation.
+
+### Done (committed)
+- ✅ **Dark scaffold** — `modules/qxo.py` (env-gated client, `qxo_products` SKU-map
+  table, `/qxo/status`), now **registered** in `app.py`. Fully inert until
+  `QXO_API_*` env vars are set: every call short-circuits to `qxo_not_configured`
+  and nothing touches the network.
+
+### Remaining — blocked on partner access ⛔ / 🔎
+1. **Decision:** native build (this scaffold) vs. ride Roofr/AccuLynx's existing
+   QXO link. Native chosen → continue.
+2. **Apply for QXO API access** at <https://go.qxo.com/qxoapi> (needs the QXO/Beacon
+   account). Approval yields the real **spec + credentials** — the endpoint paths,
+   auth scheme, and payloads in `qxo.py` are `TODO(spec)` placeholders, **not
+   verified**.
+3. With the spec: fill the `# TODO(spec)` paths/auth, set `QXO_API_BASE` +
+   `QXO_API_KEY` (or `QXO_CLIENT_ID`/`SECRET`), build the SKU map, then wire
+   Pricing→estimates, Order→BOM, Delivery→board. Nothing ships live until then.
+
+---
+
 ## Cross-cutting (integrator owns)
 
-- **Merge to `main`:** `gc-consolidation` is ~79 ahead and carries GC/portal/sitecam
-  work **and** SSO/measurement/permit features intermixed. Two SSO branches exist
-  (`agent/unified-sso`, `feat/unified-sso`) — dedupe against this branch. Decide
-  merge order so the agent branches don't collide.
-- **Uncommitted on `gc-consolidation`:** `modules/sitecam.py` (changes atop the
-  SSO-bus commit), plus untracked `WIP_NOTICE.md`, `billing_console.txt`,
-  `scripts/import_closed.py`, `scripts/import_contacts.py`. Commit or gitignore
-  before any clean redeploy (a checkout would lose the uncommitted edits). Delete
-  `WIP_NOTICE.md` once `sitecam.py` lands — it's transient, not a status board.
+- **Merge to `main`:** ✅ done — `gc-consolidation` is level with `main` (0 ahead).
+  `WIP_NOTICE.md` and `ROOF_ENGINE_HANDOFF.md` have been pruned. (Still tracked and
+  worth a glance for the next prune: `docs/HOMEOWNER_PORTAL_HANDOFF.md` — keep only
+  if it has unique content beyond the portal code.)
+- **Working tree:** clean except the parallel agent's in-flight files. Confirm prod
+  is deployed from the merged tree.
 - **Deploy:** one owner per deploy, on explicit go. Any CRM deploy ships the whole
   `gc-consolidation` tree; any SiteCam push to `main` triggers Render.
 
