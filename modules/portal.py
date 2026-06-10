@@ -250,24 +250,49 @@ def referral_ctx(kind, rec):
 # Roof Education game content + HOA seminar request.
 ROOF_EDU = [
     {"key": "shingle", "name": "Asphalt Shingle", "ic": "🏠", "life": "15–30 yrs", "cost": "$", "hex": "#6c5b46",
+     "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Asphalt_shingles.jpg/640px-Asphalt_shingles.jpg",
      "blurb": "America's most popular roof — affordable, tons of colors, quick to install.",
-     "pros": ["Lowest upfront cost", "Huge color range", "Fast install & repair"],
-     "cons": ["Shorter lifespan", "Less wind-rated than tile or metal"]},
+     "detail": "Architectural (dimensional) shingles are layered fiberglass mats coated in asphalt and mineral granules. Modern Florida shingles like GAF Timberline HDZ carry high wind ratings (130+ mph with proper nailing) and come in dozens of colors. Great value for steep-slope homes.",
+     "layers": ["Architectural shingles (the visible roof)", "Secondary Water Barrier — self-adhered underlayment (SWB)", "Re-nailed plywood deck to FL code"],
+     "swb": "Your SWB (Secondary Water Barrier) is a self-adhered, peel-&-stick underlayment bonded directly to the deck. It's required by Florida code: even if wind tears shingles off in a storm, the SWB keeps water out of your home. It's the layer that actually waterproofs your roof.",
+     "includes": ["6-nail high-wind nailing pattern", "Ridge-vent attic ventilation", "New pipe boots, drip edge & valley metal", "Manufacturer + workmanship warranty"],
+     "fl": "Florida code requires the SWB + a re-nailed deck on every re-roof — that's where most of your wind protection comes from, under the shingles.",
+     "pros": ["Lowest upfront cost", "Huge color range", "Fast install & repair", "130+ mph rated when nailed right"],
+     "cons": ["Shorter lifespan (15–30 yrs)", "Granule loss in harsh sun over time"]},
     {"key": "tile", "name": "Concrete / Clay Tile", "ic": "🧱", "life": "50+ yrs", "cost": "$$$", "hex": "#b14b2c",
+     "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Roof_tiles_-_Barcelona.jpg/640px-Roof_tiles_-_Barcelona.jpg",
      "blurb": "The classic Florida & HOA look — beautiful, durable, fire & wind resistant.",
-     "pros": ["50+ year lifespan", "Hurricane & fire resistant", "Timeless curb appeal", "HOA-favored"],
+     "detail": "Concrete or clay tiles set in foam adhesive or mortar. The tiles themselves shrug off sun, salt air, and 150+ mph wind for 50+ years — but the real waterproofing is the membrane underneath. The look most Florida HOAs require, and it boosts resale value.",
+     "layers": ["Concrete/clay tile (the visible roof)", "Secondary Water Barrier — Polyglass / self-adhered (SWB)", "Battens / foam-set system", "Re-nailed deck to FL code"],
+     "swb": "With tile, the SWB matters even more: tile sheds most water, but the self-adhered Secondary Water Barrier beneath is what truly keeps your home dry. We use a premium 2-ply self-adhered system (e.g., Polyglass TU) so your roof is watertight for decades.",
+     "includes": ["Tile uplift test & engineering (per code)", "Copper or galvanized valley metal", "Hip & ridge set + pointed/weather-blocked", "50-yr tile + workmanship warranty"],
+     "fl": "Tile is the gold standard for FL HOAs and coastal homes — fire-rated, hurricane-rated, and it pairs with the strongest SWB systems we install.",
+     "pros": ["50+ year lifespan", "Hurricane & fire resistant", "Timeless curb appeal", "HOA-favored, adds resale value"],
      "cons": ["Higher upfront cost", "Heavy — needs proper structure"]},
     {"key": "metal", "name": "Standing-Seam Metal", "ic": "⬜", "life": "40–70 yrs", "cost": "$$$", "hex": "#5d666f",
+     "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Standing_seam_metal_roof.jpg/640px-Standing_seam_metal_roof.jpg",
      "blurb": "Modern, energy-efficient, hurricane-built — reflects heat & sheds water fast.",
-     "pros": ["40–70 year lifespan", "Energy efficient (cooler home)", "Hurricane-rated", "Low maintenance"],
-     "cons": ["Higher upfront cost", "Fewer crews install it well"]},
-    {"key": "flat", "name": "Flat / Low-Slope (TPO)", "ic": "🟦", "life": "20–30 yrs", "cost": "$$", "hex": "#aeb4b8",
+     "detail": "Interlocking vertical metal panels with hidden fasteners (the 'standing seam'). No exposed screws to leak. Reflective coatings bounce the Florida sun so your attic and AC bills drop. Lasts 40–70 years — often the last roof you'll buy.",
+     "layers": ["Standing-seam metal panels (hidden clips)", "Secondary Water Barrier — high-temp self-adhered (SWB)", "Re-nailed deck to FL code"],
+     "swb": "Under metal we use a high-temperature Secondary Water Barrier rated for the heat metal builds up. It's the self-adhered waterproof layer on the deck — your backup if any water ever gets past a seam.",
+     "includes": ["Concealed-clip standing seam (no exposed screws)", "Reflective 'cool roof' coating", "Custom flashing & trim", "30–50 yr finish + workmanship warranty"],
+     "fl": "Metal is a top pick for coastal & energy-conscious FL homes — hurricane-rated, salt-tolerant with the right coating, and the coolest-running roof we offer.",
+     "pros": ["40–70 year lifespan", "Energy efficient (cooler home)", "Hurricane-rated, no exposed fasteners", "Very low maintenance"],
+     "cons": ["Higher upfront cost", "Fewer crews install it well — workmanship matters"]},
+    {"key": "flat", "name": "Flat / Low-Slope (TPO)", "ic": "🟦", "life": "20–30 yrs", "cost": "$$", "hex": "#8a9097",
+     "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Flat_roof_with_membrane.jpg/640px-Flat_roof_with_membrane.jpg",
      "blurb": "For lanais, additions & low-slope sections — a seamless waterproof membrane.",
+     "detail": "A single-ply TPO (or modified-bitumen) membrane heat-welded into one continuous, seamless waterproof surface. Used on flat or low-slope areas — lanais, additions, porches — where tile/shingle can't shed water. White TPO reflects heat to keep those rooms cooler.",
+     "layers": ["Heat-welded TPO membrane (seamless)", "Insulation / cover board", "Self-adhered base (SWB)", "Re-secured deck"],
+     "swb": "On a flat roof the membrane IS the waterproofing — but it's installed over a self-adhered base layer (the Secondary Water Barrier), and every seam is heat-welded into one continuous sheet so there are no gaps for water.",
+     "includes": ["Heat-welded seams (no glue joints)", "Tapered insulation for drainage", "Reflective white 'cool roof' surface", "Manufacturer + workmanship warranty"],
+     "fl": "Essential for FL low-slope sections — a reflective TPO membrane handles ponding rain and afternoon storms that would defeat a sloped system.",
      "pros": ["Built for low-slope areas", "Reflective / energy saving", "Seamless & watertight"],
      "cons": ["Not for steep roofs", "Needs periodic inspection"]},
 ]
 GLOSSARY = [
-    {"t": "Underlayment", "d": "The waterproof layer under your tiles/shingles — your roof's real raincoat."},
+    {"t": "Secondary Water Barrier (SWB)", "d": "A self-adhered, peel-&-stick membrane bonded to your deck UNDER the tile/shingle/metal. It's the layer that actually waterproofs your home — required by Florida code. Even if the surface is damaged in a storm, the SWB keeps water out."},
+    {"t": "Underlayment", "d": "Another name for the waterproof layer under your roofing — on FL re-roofs this is the self-adhered Secondary Water Barrier (SWB)."},
     {"t": "Ridge", "d": "The peak where two roof slopes meet at the very top."},
     {"t": "Valley", "d": "The V-shaped channel where two slopes meet — where water runs off."},
     {"t": "Eave", "d": "The lower roof edge that overhangs the wall (where gutters mount)."},
@@ -347,6 +372,20 @@ def similar_job_photos(system, exclude_id, cap=24):
         if n >= cap:
             break
     return {k: v for k, v in groups.items() if v}
+
+
+def one_photo_per_system():
+    """A single representative REAL field photo filename per roof system (for the Roof
+    School cards). Empty for systems with no synced photos yet (template falls back)."""
+    from modules import ahj as ahj_mod
+    out = {}
+    for j in db.all_rows("jobs"):
+        s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
+        if s and s not in out:
+            ph = db.all_rows("photos", "job_id=?", (j["id"],), "id DESC")
+            if ph:
+                out[s] = ph[0].get("filename")
+    return out
 
 
 _STAGE_TO_PHASE = {
@@ -734,7 +773,8 @@ def learn(token):
     gallery = similar_job_photos(sysk, rec["id"] if kind == "job" else -1)
     return render_template("learn.html", token=token, company=db.get_company(),
                            systems=ROOF_EDU, glossary=GLOSSARY, quiz=ROOF_QUIZ,
-                           process=PROCESS_STEPS, gallery=gallery, my_system=my_system, sysk=sysk)
+                           process=PROCESS_STEPS, gallery=gallery, my_system=my_system, sysk=sysk,
+                           system_photos=one_photo_per_system())
 
 
 @bp.route("/<token>/seminar", methods=["GET", "POST"])
