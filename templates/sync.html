@@ -316,7 +316,7 @@
       document.body.appendChild(bn);
       var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
       var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
-      async function gj(u,o){try{var r=await fetch(u,o||{headers:{'Accept':'application/json'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+      async function gj(u,o){for(var k=0;k<3;k++){try{var r=await fetch(u,o||{headers:{'Accept':'application/json'}});if(r.ok)return await r.json();if(r.status===403||r.status===429){await sleep(800*(k+1));continue;}return null;}catch(e){return null;}}return null;}
       function arr(x){return Array.isArray(x)?x:(x&&x.items)||[];}
       async function post(p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+'sync/billing-import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
       setb('Asking CRM for the next 25 jobs…');
@@ -326,10 +326,10 @@
       var batch=resp.batch||[];
       if(!batch.length){setb('✓ Billing pass complete — all buckets walked. (Reset the cursor to run again.)','#2e7d32');setTimeout(function(){bn.remove();},12000);return;}
       var tot=batch.length,ok=0,inv=0,pay=0,vals=0,nojob=0,fail=0,jdone=0;
-      for(var gi=0;gi<batch.length;gi++){var it=batch[gi],g=it.guid;
+      for(var gi=0;gi<batch.length;gi++){var it=batch[gi],g=it.guid; if(gi)await sleep(450);
         if(!it.in_crm){nojob++;jdone++;setb('Jobs '+jdone+'/'+tot+' · '+ok+' billed · '+nojob+' not in CRM');continue;}
         try{
-          var fp=await gj('/api/jobs/'+g+'/financial-progress');
+          var fp=await gj('/api/jobs/'+g+'/financial-progress'); await sleep(250);
           var iv=await gj('/api/jobs/'+g+'/invoices');
           var invs=arr(iv&&iv.Invoices?iv.Invoices:iv);
           // Invoice amount is nested in InvoiceWorksheetSections[].InvoiceItems[].Price;
