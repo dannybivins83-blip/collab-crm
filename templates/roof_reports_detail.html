@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Roof Report{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>🏠 {{ rr.address }}</h1>
+  <div class="grow"></div>
+  <a class="btn" href="{{ url_for('roof_reports.index') }}">← All reports</a>
+</div>
+<div style="max-width:680px;border:1px solid #e3e6ea;border-radius:10px;padding:16px;background:#fff">
+  <p class="sub" id="msg">Measuring the roof… this can take ~30–60s.</p>
+  <div id="stats" style="display:none"></div>
+</div>
+<script>
+const STORED = {{ rr.result | tojson }};
+const INIT_STATUS = {{ rr.status | tojson }};
+const STATUS_URL = "{{ url_for('roof_reports.status', report_id=rr.id) }}";
+const PDF_URL = "{{ url_for('roof_reports.pdf', report_id=rr.id) }}";
+const TAKEOFF = {{ takeoff_url | tojson }};
+
+function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function render(m){
+  const t = m.totals || {};
+  const conf = m.building_confidence || "";
+  const cc = {high:"#0f9e82", medium:"#d98200", low:"#d93a36"}[conf] || "#888";
+  const edges = Object.entries(m.edges || {})
+    .filter(([k,v]) => v.count)
+    .map(([k,v]) => `<b style="text-transform:capitalize">${esc(k)}</b> ${v.length_ft} ft`)
+    .join(" &nbsp;·&nbsp; ");
+  document.getElementById("msg").style.display = "none";
+  const s = document.getElementById("stats");
+  s.style.display = "block";
+  s.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <span class="tag" style="background:#0f9e82;color:#fff">${esc((m.edge_quality||"measured").toUpperCase())}</span>
+      ${conf ? `<span class="tag" style="background:${cc};color:#fff">BUILDING: ${esc(conf.toUpperCase())}</span>` : ""}
+    </div>
+    ${conf==="low" ? `<div style="color:#d93a36;font-size:13px;margin-bottom:10px">⚠ Verify the footprint before bidding — building selection is low confidence.</div>` :
+      conf==="medium" ? `<div style="color:#d98200;font-size:13px;margin-bottom:10px">⚠ Verify this is the correct building.</div>` : ""}
+    <table class="grid">
+      <tr><td>Squares</td><td><b>${t.squares ?? "—"}</b></td></tr>
+      <tr><td>Roof area</td><td>${Math.round(t.roof_area_sqft || 0)} ft²</td></tr>
+      <tr><td>Predominant pitch</td><td>${esc(t.predominant_pitch ?? "—")}</td></tr>
+      <tr><td>Facets</td><td>${t.facet_count ?? "—"}</td></tr>
+      ${m.parcel && m.parcel.living_sqft ? `<tr><td>Appraiser parcel</td><td>${m.parcel.living_sqft} sqft living${m.parcel.clipped ? " · clipped to lot" : ""}</td></tr>` : ""}
+      ${edges ? `<tr><td>Lines</td><td>${edges}</td></tr>` : ""}
+    </table>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn primary" href="${PDF_URL}" target="_blank">Open PDF ↗</a>
+      <a class="btn" href="${TAKEOFF}" target="_blank">📐 Trace from plans</a>
+    </div>`;
+}
+
+function poll(){
+  fetch(STATUS_URL).then(r => r.json()).then(j => {
+    if (j.status === "done") render(j.measurement || {});
+    else if (j.status === "failed") document.getElementById("msg").textContent = "Report failed: " + (j.error || "");
+    else { document.getElementById("msg").textContent = (j.status || "processing") + "…"; setTimeout(poll, 2500); }
+  }).catch(() => setTimeout(poll, 3000));
+}
+
+if (INIT_STATUS === "done" && STORED && STORED.totals) render(STORED);
+else if (INIT_STATUS === "failed") document.getElementById("msg").textContent = "Report failed.";
+else poll();
+</script>
+{% endblock %}

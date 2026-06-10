@@ -259,10 +259,14 @@
   body{background:var(--bg) !important}
   .top, .hero-band{background:var(--brand) !important; box-shadow:none !important}
   .hero-band:after{display:none !important}
-  .btn{background:var(--accent) !important; box-shadow:none !important}
-  .btn:hover{filter:brightness(.95)}
-  .btn.green{background:var(--green) !important; color:#16240a !important}
-  .btn.ghost{background:#fff !important; color:var(--accent) !important; border:1.5px solid var(--line) !important}
+  /* Buttons: light, thick-outline style (less visual weight than solid fills) */
+  .btn{background:var(--accent-tint) !important; color:var(--accent) !important;
+    border:2px solid var(--accent) !important; box-shadow:none !important; font-weight:700 !important}
+  .btn:hover{background:#fff !important; filter:none}
+  .btn.green{background:var(--green-tint) !important; color:var(--green-deep) !important;
+    border:2px solid var(--green) !important}
+  .btn.ghost{background:#fff !important; color:var(--accent) !important; border:2px solid var(--line) !important}
+  .btn.sm{border-width:1.5px !important}
   .card{box-shadow:0 1px 2px rgba(16,34,64,.06) !important; border-radius:14px}
   .step.done .dot{background:var(--green) !important; box-shadow:none !important}
   .step.done:before, .step.cur:before{background:var(--green) !important}
