@@ -291,7 +291,8 @@ table.grid tr:hover td{background:var(--panel2)}
 .jh-bal{font-size:12px;color:var(--danger);font-weight:700}
 .jh-ring{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   font-weight:800;font-size:13px;flex:none;
-  background:conic-gradient(var(--accent2) calc(var(--p)*1%), #e3e9f2 0)}
+  /* Mimic AccuLynx: green arc = % collected, red arc = balance due */
+  background:conic-gradient(var(--ok,#2e9e5b) calc(var(--p)*1%), var(--danger,#e25050) 0)}
 .jh-ring::before{content:'';position:absolute;width:40px;height:40px;border-radius:50%;background:var(--panel)}
 .jh-ring{position:relative}.jh-ring{color:var(--txt)}
 .jh-ring span,.jh-ring{z-index:1}
