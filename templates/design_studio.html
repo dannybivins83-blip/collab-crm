@@ -61,10 +61,13 @@
   <div class="wrap">
     {% with msgs = get_flashed_messages(with_categories=true) %}{% for cat,m in msgs %}<div class="flash">✓ {{ m }}</div>{% endfor %}{% endwith %}
 
-    <!-- LIVE PREVIEW -->
+    <!-- LIVE PREVIEW + REAL-PHOTO MOCKUP -->
     <div class="card">
-      <div class="preview">
-        <svg viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
+      <div style="background:linear-gradient(120deg,#fff7e6,#fff);border:1px solid #ffe2a8;border-radius:11px;padding:11px 13px;margin-bottom:12px;font-size:13.5px">
+        <b>📸 See it on YOUR house!</b> Take a photo of the front of your home (straight-on from the street), upload it, then <b>brush your chosen color right onto your roof.</b>
+      </div>
+      <div class="preview" id="previewBox" style="position:relative">
+        <svg id="svgHouse" viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
           <rect x="70" y="150" width="260" height="95" fill="#efe7da" stroke="#d8ccba"/>
           <polygon id="roofShape" points="50,150 200,55 350,150" fill="#36393d"/>
           <polygon points="50,150 200,55 350,150" fill="url(#tex)" opacity=".18"/>
@@ -74,7 +77,18 @@
           <rect x="240" y="178" width="55" height="48" fill="#bfe0f5" stroke="#cdbfa9" stroke-width="3"/>
           <rect x="172" y="118" width="22" height="40" fill="#8a8f96"/>
         </svg>
-        <div class="selname">Your roof in <b id="selName">Charcoal</b></div>
+        <canvas id="roofCanvas" style="display:none;width:100%;border-radius:10px;touch-action:none"></canvas>
+        <div class="selname" id="selWrap">Your roof in <b id="selName">Charcoal</b></div>
+      </div>
+      <div style="margin-top:12px">
+        <label class="btn green" style="display:flex;cursor:pointer"><input type="file" id="housePhoto" accept="image/*" capture="environment" style="display:none">📸 Upload a photo of your house</label>
+        <div id="brushTools" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <span style="font-size:12px;color:var(--mut);font-weight:700">Brush</span>
+          <input type="range" id="brushSize" min="12" max="100" value="50" style="flex:1;min-width:110px">
+          <button type="button" class="btn ghost" onclick="resetMock()">↺ Reset</button>
+          <button type="button" class="btn green" onclick="saveMock(this)">💾 Save my mockup</button>
+        </div>
+        <div id="brushHint" style="display:none;font-size:12.5px;color:var(--mut);margin-top:8px">👆 Pick a color below, then <b>drag over your roof</b> to paint it that color. Use Reset to start over.</div>
       </div>
     </div>
 
@@ -169,7 +183,38 @@
   }
   function pickColor(el){document.querySelectorAll('.sw').forEach(function(s){s.classList.remove('on');});
     el.classList.add('on');var hex=el.dataset.hex,nm=el.dataset.name;
-    roof.setAttribute('fill',hex);selName.textContent=nm;fColor.value=nm;sync();}
+    roof.setAttribute('fill',hex);brushColor=hex;selName.textContent=nm;fColor.value=nm;sync();}
+
+  /* ---- real-photo roof mockup ---- */
+  var canvas=document.getElementById('roofCanvas'),ctx=canvas.getContext('2d'),
+      svgHouse=document.getElementById('svgHouse'),selWrap=document.getElementById('selWrap'),
+      origImg=null,brushColor='#36393d',painting=false;
+  document.getElementById('housePhoto').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;var rd=new FileReader();
+    rd.onload=function(){var im=new Image();im.onload=function(){
+      var sc=Math.min(1,1000/im.width);canvas.width=Math.round(im.width*sc);canvas.height=Math.round(im.height*sc);
+      ctx.drawImage(im,0,0,canvas.width,canvas.height);
+      origImg=ctx.getImageData(0,0,canvas.width,canvas.height);
+      svgHouse.style.display='none';canvas.style.display='block';
+      document.getElementById('brushTools').style.display='flex';
+      document.getElementById('brushHint').style.display='block';
+      selWrap.innerHTML='Now <b>drag over your roof</b> to paint it '+(fColor.value||'your color')+' 🎨';
+    };im.src=rd.result;};rd.readAsDataURL(f);});
+  function cpos(ev){var r=canvas.getBoundingClientRect();
+    var cx=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left,cy=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
+    return {x:cx*canvas.width/r.width,y:cy*canvas.height/r.height};}
+  function paintAt(p){var sz=+document.getElementById('brushSize').value;
+    ctx.globalCompositeOperation='color';ctx.fillStyle=brushColor;
+    ctx.beginPath();ctx.arc(p.x,p.y,sz,0,6.29);ctx.fill();ctx.globalCompositeOperation='source-over';}
+  canvas.addEventListener('pointerdown',function(e){painting=true;paintAt(cpos(e));});
+  canvas.addEventListener('pointermove',function(e){if(painting){e.preventDefault();paintAt(cpos(e));}});
+  window.addEventListener('pointerup',function(){painting=false;});
+  function resetMock(){if(origImg)ctx.putImageData(origImg,0,0);}
+  function saveMock(b){var lbl=b.textContent;b.textContent='Saving…';b.disabled=true;
+    canvas.toBlob(function(blob){var fd=new FormData();fd.append('photo',blob,'roof_mockup.png');
+      fetch('{{ url_for("portal.design_photo", token=token) }}',{method:'POST',body:fd})
+        .then(function(){b.textContent='✓ Saved!';setTimeout(function(){b.textContent=lbl;b.disabled=false;},1800);})
+        .catch(function(){b.textContent=lbl;b.disabled=false;alert('Could not save — try again.');});},'image/png');}
   function toggleOpt(el){var n=el.dataset.name;if(opts[n]){delete opts[n];el.classList.remove('on');}
     else{opts[n]=1;el.classList.add('on');}fOptions.value=Object.keys(opts).join(', ');sync();}
   function sync(){var parts=[];if(fColor.value)parts.push(curSys+' · '+fColor.value);
