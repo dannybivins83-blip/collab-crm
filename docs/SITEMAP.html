@@ -1,0 +1,276 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SeaBreeze CRM — Sitemaps</title>
+<style>
+  :root{
+    --color-text-primary:#2C2C2A; --color-text-secondary:#5F5E5A;
+    --color-background-primary:#fff; --color-border-secondary:#D3D1C7;
+    --color-border-tertiary:#B4B2A9;
+    --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  body{font-family:var(--font-sans);color:var(--color-text-primary);background:#faf9f6;margin:0;padding:32px}
+  .wrap{max-width:1220px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 4px}
+  .meta{color:var(--color-text-secondary);font-size:13px;margin:0 0 24px}
+  section{background:#fff;border:1px solid var(--color-border-secondary);border-radius:12px;padding:16px;margin:0 0 24px;overflow:auto}
+  section h2{font-size:15px;margin:0 0 8px;color:var(--color-text-secondary);letter-spacing:.04em}
+  svg{width:100%;height:auto}
+  @media print{body{background:#fff;padding:0}section{break-inside:avoid;border:none}}
+</style>
+<div class="wrap">
+<h1>SeaBreeze CRM — Sitemaps</h1>
+<p class="meta">White-label AccuLynx replacement · Flask · 40 blueprints · generated from the live codebase. Open in any browser; print to PDF for a shareable copy.</p>
+
+<!-- ====================== 1. FULL SYSTEM ====================== -->
+<section>
+<h2>1 · Full system sitemap — app · API · integrations</h2>
+<svg viewBox="0 0 1180 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t1 d1" font-family="var(--font-sans)">
+<title id="t1">SeaBreeze white-label CRM — full sitemap</title>
+<desc id="d1">Staff web app modules grouped by function, the machine API/ingest layer, and integrated apps and external services.</desc>
+<style>
+  .h1{font-size:21px;font-weight:700;fill:var(--color-text-primary)}
+  .sub{font-size:12px;fill:var(--color-text-secondary)}
+  .band{font-size:12px;font-weight:700;letter-spacing:.08em;fill:var(--color-text-secondary)}
+  .hd{font-size:12.5px;font-weight:700;fill:#fff}
+  .lbl{font-size:11.5px;fill:var(--color-text-primary)}
+  .rt{font-size:8.5px;fill:var(--color-text-secondary);font-family:var(--font-mono)}
+  .card{fill:var(--color-background-primary);stroke:var(--color-border-secondary)}
+  .api{fill:#EEEDFE;stroke:#AFA9EC}
+  .live{fill:#E1F5EE;stroke:#9FE1CB}
+  .legacy{fill:var(--color-background-primary);stroke:#B4B2A9;stroke-dasharray:4 3}
+</style>
+<text class="band" x="30" y="28">▸ STAFF WEB APP  (browser, login + Google SSO)</text>
+<rect class="card" x="30"  y="40" width="210" height="26" rx="5" fill="#6f66d8" stroke="#534AB7"/><text class="hd" x="135" y="57" text-anchor="middle">SALES &amp; PIPELINE</text>
+<rect class="card" x="260" y="40" width="210" height="26" rx="5" fill="#6f66d8" stroke="#534AB7"/><text class="hd" x="365" y="57" text-anchor="middle">PRODUCTION</text>
+<rect class="card" x="490" y="40" width="210" height="26" rx="5" fill="#6f66d8" stroke="#534AB7"/><text class="hd" x="595" y="57" text-anchor="middle">FINANCIALS</text>
+<rect class="card" x="720" y="40" width="210" height="26" rx="5" fill="#6f66d8" stroke="#534AB7"/><text class="hd" x="825" y="57" text-anchor="middle">RECORDS &amp; ADMIN</text>
+<rect class="card" x="950" y="40" width="210" height="26" rx="5" fill="#6f66d8" stroke="#534AB7"/><text class="hd" x="1055" y="57" text-anchor="middle">COMMS</text>
+<g><rect class="card" x="30" y="76" width="210" height="24" rx="4"/><text class="lbl" x="40" y="92">Dashboard</text><text class="rt" x="230" y="92" text-anchor="end">/</text></g>
+<g><rect class="card" x="30" y="106" width="210" height="24" rx="4"/><text class="lbl" x="40" y="122">Leads + intake + dedupe</text><text class="rt" x="230" y="122" text-anchor="end">/leads</text></g>
+<g><rect class="card" x="30" y="136" width="210" height="24" rx="4"/><text class="lbl" x="40" y="152">Pipeline board</text><text class="rt" x="230" y="152" text-anchor="end">/pipeline</text></g>
+<g><rect class="card" x="30" y="166" width="210" height="24" rx="4"/><text class="lbl" x="40" y="182">Estimates + e-sign</text><text class="rt" x="230" y="182" text-anchor="end">/estimates</text></g>
+<g><rect class="card" x="30" y="196" width="210" height="24" rx="4"/><text class="lbl" x="40" y="212">Roof Reports</text><text class="rt" x="230" y="212" text-anchor="end">/roof-reports</text></g>
+<g><rect class="card" x="30" y="226" width="210" height="24" rx="4"/><text class="lbl" x="40" y="242">Demo portals</text><text class="rt" x="230" y="242" text-anchor="end">/demo</text></g>
+<g><rect class="card" x="260" y="76" width="210" height="24" rx="4"/><text class="lbl" x="270" y="92">Jobs (list + board)</text><text class="rt" x="460" y="92" text-anchor="end">/jobs</text></g>
+<g><rect class="card" x="260" y="106" width="210" height="24" rx="4"/><text class="lbl" x="270" y="122">Permits + submittals</text><text class="rt" x="460" y="122" text-anchor="end">/permits</text></g>
+<g><rect class="card" x="260" y="136" width="210" height="24" rx="4"/><text class="lbl" x="270" y="152">Orders / BOMs</text><text class="rt" x="460" y="152" text-anchor="end">/orders</text></g>
+<g><rect class="card" x="260" y="166" width="210" height="24" rx="4"/><text class="lbl" x="270" y="182">Material catalog</text><text class="rt" x="460" y="182" text-anchor="end">/materials</text></g>
+<g><rect class="card" x="260" y="196" width="210" height="24" rx="4"/><text class="lbl" x="270" y="212">Measurements</text><text class="rt" x="460" y="212" text-anchor="end">/measurements</text></g>
+<g><rect class="card" x="260" y="226" width="210" height="24" rx="4"/><text class="lbl" x="270" y="242">Site Photos (SiteCam)</text><text class="rt" x="460" y="242" text-anchor="end">/sitecam</text></g>
+<g><rect class="card" x="260" y="256" width="210" height="24" rx="4"/><text class="lbl" x="270" y="272">Worksheet</text><text class="rt" x="460" y="272" text-anchor="end">/worksheet</text></g>
+<g><rect class="card" x="490" y="76" width="210" height="24" rx="4"/><text class="lbl" x="500" y="92">Invoicing + payments</text><text class="rt" x="690" y="92" text-anchor="end">/invoices</text></g>
+<g><rect class="card" x="490" y="106" width="210" height="24" rx="4"/><text class="lbl" x="500" y="122">Commissions</text><text class="rt" x="690" y="122" text-anchor="end">/commissions</text></g>
+<g><rect class="card" x="490" y="136" width="210" height="24" rx="4"/><text class="lbl" x="500" y="152">QuickBooks export</text><text class="rt" x="690" y="152" text-anchor="end">/quickbooks</text></g>
+<g><rect class="card" x="490" y="166" width="210" height="24" rx="4"/><text class="lbl" x="500" y="182">Reports</text><text class="rt" x="690" y="182" text-anchor="end">/reports</text></g>
+<g><rect class="card" x="490" y="196" width="210" height="24" rx="4"/><text class="lbl" x="500" y="212">Paid-% ring + balances</text><text class="rt" x="690" y="212" text-anchor="end">(jobs)</text></g>
+<g><rect class="card" x="720" y="76" width="210" height="24" rx="4"/><text class="lbl" x="730" y="92">Contacts + GCs</text><text class="rt" x="920" y="92" text-anchor="end">/contacts</text></g>
+<g><rect class="card" x="720" y="106" width="210" height="24" rx="4"/><text class="lbl" x="730" y="122">Document Library</text><text class="rt" x="920" y="122" text-anchor="end">/library</text></g>
+<g><rect class="card" x="720" y="136" width="210" height="24" rx="4"/><text class="lbl" x="730" y="152">Estimate templates</text><text class="rt" x="920" y="152" text-anchor="end">/templates</text></g>
+<g><rect class="card" x="720" y="166" width="210" height="24" rx="4"/><text class="lbl" x="730" y="182">Custom fields</text><text class="rt" x="920" y="182" text-anchor="end">/customfields</text></g>
+<g><rect class="card" x="720" y="196" width="210" height="24" rx="4"/><text class="lbl" x="730" y="212">Calendar</text><text class="rt" x="920" y="212" text-anchor="end">/calendar</text></g>
+<g><rect class="card" x="720" y="226" width="210" height="24" rx="4"/><text class="lbl" x="730" y="242">Tasks + smart to-dos</text><text class="rt" x="920" y="242" text-anchor="end">/tasks</text></g>
+<g><rect class="card" x="720" y="256" width="210" height="24" rx="4"/><text class="lbl" x="730" y="272">Workflow Manager</text><text class="rt" x="920" y="272" text-anchor="end">/workflow</text></g>
+<g><rect class="card" x="720" y="286" width="210" height="24" rx="4"/><text class="lbl" x="730" y="302">Settings (admin)</text><text class="rt" x="920" y="302" text-anchor="end">/settings</text></g>
+<g><rect class="card" x="720" y="316" width="210" height="24" rx="4"/><text class="lbl" x="730" y="332">Customize / branding</text><text class="rt" x="920" y="332" text-anchor="end">/customize</text></g>
+<g><rect class="card" x="950" y="76" width="210" height="24" rx="4"/><text class="lbl" x="960" y="92">Communications</text><text class="rt" x="1150" y="92" text-anchor="end">/comms</text></g>
+<g><rect class="card" x="950" y="106" width="210" height="24" rx="4"/><text class="lbl" x="960" y="122">Gmail inbox widget</text><text class="rt" x="1150" y="122" text-anchor="end">/gmail</text></g>
+<g><rect class="card" x="950" y="136" width="210" height="24" rx="4"/><text class="lbl" x="960" y="152">Notifications bell</text><text class="rt" x="1150" y="152" text-anchor="end">/notifications</text></g>
+<g><rect class="card" x="950" y="166" width="210" height="24" rx="4"/><text class="lbl" x="960" y="182">Global search</text><text class="rt" x="1150" y="182" text-anchor="end">/search</text></g>
+<text class="band" x="30" y="372">▸ MACHINE API &amp; INGEST  (no UI — HMAC / token / CORS bridges)</text>
+<g><rect class="api" x="30"  y="384" width="270" height="46" rx="6"/><text class="lbl" x="44" y="404" font-weight="700">POST /api/takeoff</text><text class="rt" x="44" y="420" style="font-size:9.5px">Estimator/Engine envelope · HMAC</text></g>
+<g><rect class="api" x="318" y="384" width="270" height="46" rx="6"/><text class="lbl" x="332" y="404" font-weight="700">POST /measurements/ingest</text><text class="rt" x="332" y="420" style="font-size:9.5px">roof measurements · HMAC</text></g>
+<g><rect class="api" x="606" y="384" width="270" height="46" rx="6"/><text class="lbl" x="620" y="404" font-weight="700">/sync/*</text><text class="rt" x="620" y="420" style="font-size:9.5px">AccuLynx bookmarklet bridges · CORS</text></g>
+<g><rect class="api" x="894" y="384" width="266" height="46" rx="6"/><text class="lbl" x="908" y="404" font-weight="700">/sso/*  +  /portal/*</text><text class="rt" x="908" y="420" style="font-size:9.5px">app SSO mint · homeowner magic-link</text></g>
+<text class="band" x="30" y="470">▸ INTEGRATED APPS &amp; EXTERNAL SERVICES</text>
+<g><rect class="live" x="30"  y="482" width="270" height="42" rx="6"/><circle cx="46" cy="503" r="4" fill="#1D9E75"/><text class="lbl" x="58" y="500" font-weight="700">Roof Report Engine</text><text class="rt" x="58" y="515" style="font-size:9.5px">Oracle VM · measures → /api/takeoff</text></g>
+<g><rect class="live" x="318" y="482" width="270" height="42" rx="6"/><circle cx="334" cy="503" r="4" fill="#1D9E75"/><text class="lbl" x="346" y="500" font-weight="700">Estimator agent</text><text class="rt" x="346" y="515" style="font-size:9.5px">emits estimator-takeoff/v1 envelope</text></g>
+<g><rect class="live" x="606" y="482" width="270" height="42" rx="6"/><circle cx="622" cy="503" r="4" fill="#1D9E75"/><text class="lbl" x="634" y="500" font-weight="700">SiteCam app</text><text class="rt" x="634" y="515" style="font-size:9.5px">SSO · field photos · /showcase feed</text></g>
+<g><rect class="live" x="894" y="482" width="266" height="42" rx="6"/><circle cx="910" cy="503" r="4" fill="#1D9E75"/><text class="lbl" x="922" y="500" font-weight="700">Gmail (OAuth)</text><text class="rt" x="922" y="515" style="font-size:9.5px">login + draft-only inbox widget</text></g>
+<g><rect class="live" x="30"  y="532" width="270" height="42" rx="6"/><circle cx="46" cy="553" r="4" fill="#1D9E75"/><text class="lbl" x="58" y="550" font-weight="700">Google Drive</text><text class="rt" x="58" y="565" style="font-size:9.5px">file storage fallback (serverless)</text></g>
+<g><rect class="live" x="318" y="532" width="270" height="42" rx="6"/><circle cx="334" cy="553" r="4" fill="#1D9E75"/><text class="lbl" x="346" y="550" font-weight="700">QuickBooks</text><text class="rt" x="346" y="565" style="font-size:9.5px">invoice export</text></g>
+<g><rect class="legacy" x="606" y="532" width="270" height="42" rx="6"/><circle cx="622" cy="553" r="4" fill="#B4B2A9"/><text class="lbl" x="634" y="550" font-weight="700">QXO / Beacon</text><text class="rt" x="634" y="565" style="font-size:9.5px">materials — dark scaffold (disabled)</text></g>
+<g><rect class="legacy" x="894" y="532" width="266" height="42" rx="6"/><circle cx="910" cy="553" r="4" fill="#B4B2A9"/><text class="lbl" x="922" y="550" font-weight="700">AccuLynx</text><text class="rt" x="922" y="565" style="font-size:9.5px">legacy source — migrating off / retiring</text></g>
+<g><rect x="30" y="602" width="1130" height="44" rx="6" fill="#FBEAF0" stroke="#ED93B1"/>
+<text class="lbl" x="46" y="622" font-weight="700">▸ Homeowner Portal</text>
+<text class="rt" x="46" y="637" style="font-size:10px">/portal/&lt;token&gt; — login-free customer experience (status · billing · docs · e-sign · design · roof school) → see Sitemap 3</text></g>
+<text class="rt" x="30" y="676" style="font-size:10px">Legend:</text>
+<rect x="78" y="668" width="14" height="11" rx="2" class="api"/><text class="rt" x="96" y="677" style="font-size:10px">machine API</text>
+<rect x="178" y="668" width="14" height="11" rx="2" class="live"/><text class="rt" x="196" y="677" style="font-size:10px">live integration</text>
+<rect x="290" y="668" width="14" height="11" rx="2" class="legacy"/><text class="rt" x="308" y="677" style="font-size:10px">legacy / disabled</text>
+</svg>
+</section>
+
+<!-- ====================== 2. BACKEND ====================== -->
+<section>
+<h2>2 · Backend sitemap — server layers</h2>
+<svg viewBox="0 0 1180 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t2 d2" font-family="var(--font-sans)">
+<title id="t2">CRM backend sitemap</title>
+<desc id="d2">Entry and config, auth guard, blueprint feature modules, data layer, workers, storage and hosting.</desc>
+<style>
+  .h1{font-size:21px;font-weight:700;fill:var(--color-text-primary)}
+  .band{font-size:12.5px;font-weight:700;letter-spacing:.04em;fill:#fff}
+  .lbl{font-size:11.5px;fill:var(--color-text-primary)}
+  .rt{font-size:9px;fill:var(--color-text-secondary);font-family:var(--font-mono)}
+  .card{fill:var(--color-background-primary);stroke:var(--color-border-secondary)}
+  .accent{fill:#EEEDFE;stroke:#AFA9EC}
+  .data{fill:#E1F5EE;stroke:#9FE1CB}
+</style>
+<rect x="30" y="14" width="200" height="26" rx="5" fill="#6f66d8"/><text class="band" x="130" y="31" text-anchor="middle">ENTRY &amp; BOOT</text>
+<g><rect class="card" x="30" y="48" width="265" height="40" rx="6"/><text class="lbl" x="44" y="67" font-weight="700">app.py</text><text class="rt" x="44" y="81">Flask app · 64MB uploads · /uploads · /favicon</text></g>
+<g><rect class="card" x="305" y="48" width="265" height="40" rx="6"/><text class="lbl" x="319" y="67" font-weight="700">config.py</text><text class="rt" x="319" y="81">CRM_DB_PATH · DATA_DIR · UPLOAD_DIR · PORT</text></g>
+<g><rect class="card" x="580" y="48" width="265" height="40" rx="6"/><text class="lbl" x="594" y="67" font-weight="700">theme.py</text><text class="rt" x="594" y="81">company_settings → brand skin (white-label)</text></g>
+<g><rect class="card" x="855" y="48" width="295" height="40" rx="6"/><text class="lbl" x="869" y="67" font-weight="700">init: auth · notifications · automations</text><text class="rt" x="869" y="81">+ start_auto_sync background thread</text></g>
+<rect x="30" y="106" width="200" height="26" rx="5" fill="#6f66d8"/><text class="band" x="130" y="123" text-anchor="middle">AUTH GATE</text>
+<g><rect class="accent" x="30" y="140" width="365" height="56" rx="6"/><text class="lbl" x="44" y="160" font-weight="700">modules/auth.py — before_request guard</text><text class="rt" x="44" y="176">session login · werkzeug hash · Google SSO</text><text class="rt" x="44" y="189">PUBLIC allowlist · ADMIN_ONLY: /settings /orders/vendors /workflow</text></g>
+<g><rect class="accent" x="405" y="140" width="350" height="56" rx="6"/><text class="lbl" x="419" y="160" font-weight="700">PUBLIC endpoints (no login)</text><text class="rt" x="419" y="176">portal.* · signups.* · demo.* · sync.* (bridges)</text><text class="rt" x="419" y="189">measurements.ingest · takeoff.create · intake.*</text></g>
+<g><rect class="card" x="765" y="140" width="385" height="56" rx="6"/><text class="lbl" x="779" y="160" font-weight="700">context_processor → current_user</text><text class="rt" x="779" y="176">role: admin / sales · injected into every template</text><text class="rt" x="779" y="189">auto-connect Gmail once on first login</text></g>
+<rect x="30" y="214" width="240" height="26" rx="5" fill="#6f66d8"/><text class="band" x="150" y="231" text-anchor="middle">FEATURE BLUEPRINTS (40)</text>
+<g font-size="10.5px">
+  <rect class="card" x="30"  y="246" width="132" height="22" rx="4"/><text class="lbl" x="38" y="261" style="font-size:10.5px">dashboard</text>
+  <rect class="card" x="170" y="246" width="132" height="22" rx="4"/><text class="lbl" x="178" y="261" style="font-size:10.5px">leads · dedupe</text>
+  <rect class="card" x="310" y="246" width="132" height="22" rx="4"/><text class="lbl" x="318" y="261" style="font-size:10.5px">jobs · pipeline</text>
+  <rect class="card" x="450" y="246" width="132" height="22" rx="4"/><text class="lbl" x="458" y="261" style="font-size:10.5px">estimates</text>
+  <rect class="card" x="590" y="246" width="132" height="22" rx="4"/><text class="lbl" x="598" y="261" style="font-size:10.5px">permits</text>
+  <rect class="card" x="730" y="246" width="132" height="22" rx="4"/><text class="lbl" x="738" y="261" style="font-size:10.5px">orders</text>
+  <rect class="card" x="870" y="246" width="132" height="22" rx="4"/><text class="lbl" x="878" y="261" style="font-size:10.5px">materials</text>
+  <rect class="card" x="1010" y="246" width="140" height="22" rx="4"/><text class="lbl" x="1018" y="261" style="font-size:10.5px">worksheet</text>
+  <rect class="card" x="30"  y="274" width="132" height="22" rx="4"/><text class="lbl" x="38" y="289" style="font-size:10.5px">invoices</text>
+  <rect class="card" x="170" y="274" width="132" height="22" rx="4"/><text class="lbl" x="178" y="289" style="font-size:10.5px">commissions</text>
+  <rect class="card" x="310" y="274" width="132" height="22" rx="4"/><text class="lbl" x="318" y="289" style="font-size:10.5px">quickbooks</text>
+  <rect class="card" x="450" y="274" width="132" height="22" rx="4"/><text class="lbl" x="458" y="289" style="font-size:10.5px">reports</text>
+  <rect class="card" x="590" y="274" width="132" height="22" rx="4"/><text class="lbl" x="598" y="289" style="font-size:10.5px">contacts</text>
+  <rect class="card" x="730" y="274" width="132" height="22" rx="4"/><text class="lbl" x="738" y="289" style="font-size:10.5px">library</text>
+  <rect class="card" x="870" y="274" width="132" height="22" rx="4"/><text class="lbl" x="878" y="289" style="font-size:10.5px">templates</text>
+  <rect class="card" x="1010" y="274" width="140" height="22" rx="4"/><text class="lbl" x="1018" y="289" style="font-size:10.5px">customfields</text>
+  <rect class="card" x="30"  y="302" width="132" height="22" rx="4"/><text class="lbl" x="38" y="317" style="font-size:10.5px">calendar</text>
+  <rect class="card" x="170" y="302" width="132" height="22" rx="4"/><text class="lbl" x="178" y="317" style="font-size:10.5px">tasks · todos</text>
+  <rect class="card" x="310" y="302" width="132" height="22" rx="4"/><text class="lbl" x="318" y="317" style="font-size:10.5px">comms</text>
+  <rect class="card" x="450" y="302" width="132" height="22" rx="4"/><text class="lbl" x="458" y="317" style="font-size:10.5px">search</text>
+  <rect class="card" x="590" y="302" width="132" height="22" rx="4"/><text class="lbl" x="598" y="317" style="font-size:10.5px">roof_reports</text>
+  <rect class="card" x="730" y="302" width="132" height="22" rx="4"/><text class="lbl" x="738" y="317" style="font-size:10.5px">demos</text>
+  <rect class="card" x="870" y="302" width="132" height="22" rx="4"/><text class="lbl" x="878" y="317" style="font-size:10.5px">customize</text>
+  <rect class="card" x="1010" y="302" width="140" height="22" rx="4"/><text class="lbl" x="1018" y="317" style="font-size:10.5px">settings (admin)</text>
+  <rect class="accent" x="30"  y="330" width="132" height="22" rx="4"/><text class="lbl" x="38" y="345" style="font-size:10.5px">takeoff</text>
+  <rect class="accent" x="170" y="330" width="132" height="22" rx="4"/><text class="lbl" x="178" y="345" style="font-size:10.5px">measurements</text>
+  <rect class="accent" x="310" y="330" width="132" height="22" rx="4"/><text class="lbl" x="318" y="345" style="font-size:10.5px">acculynx_sync</text>
+  <rect class="accent" x="450" y="330" width="132" height="22" rx="4"/><text class="lbl" x="458" y="345" style="font-size:10.5px">sso</text>
+  <rect class="accent" x="590" y="330" width="132" height="22" rx="4"/><text class="lbl" x="598" y="345" style="font-size:10.5px">gmail</text>
+  <rect class="accent" x="730" y="330" width="132" height="22" rx="4"/><text class="lbl" x="738" y="345" style="font-size:10.5px">sitecam</text>
+  <rect class="accent" x="870" y="330" width="132" height="22" rx="4"/><text class="lbl" x="878" y="345" style="font-size:10.5px">portal · signups</text>
+  <rect class="accent" x="1010" y="330" width="140" height="22" rx="4"/><text class="lbl" x="1018" y="345" style="font-size:10.5px">automations · notif</text>
+</g>
+<text class="rt" x="30" y="368" style="font-size:9.5px">violet = integration / ingest blueprints (cross the API boundary) · others are pure in-app UI modules</text>
+<rect x="30" y="386" width="200" height="26" rx="5" fill="#1aa37a"/><text class="band" x="130" y="403" text-anchor="middle">DATA LAYER</text>
+<g><rect class="data" x="30" y="420" width="340" height="64" rx="6"/><text class="lbl" x="44" y="440" font-weight="700">db.py — dual engine</text><text class="rt" x="44" y="456">SQLite (local/Render disk) ⇆ Postgres (Neon)</text><text class="rt" x="44" y="470">db.IS_PG switch · WAL mode · _COLCACHE · add_activity()</text></g>
+<g><rect class="data" x="380" y="420" width="770" height="64" rx="6"/><text class="lbl" x="394" y="440" font-weight="700">Tables (~26k rows migrated)</text>
+<text class="rt" x="394" y="456">jobs · leads · estimates · estimate_sections/lines · worksheets · invoices · payments · measurements</text>
+<text class="rt" x="394" y="470">submittal_components · takeoffs · contacts · activities · library_docs · users · company_settings · custom_fields</text></g>
+<rect x="30" y="502" width="240" height="26" rx="5" fill="#6f66d8"/><text class="band" x="150" y="519" text-anchor="middle">WORKERS · STORAGE · HOST</text>
+<g><rect class="card" x="30" y="536" width="270" height="58" rx="6"/><text class="lbl" x="44" y="556" font-weight="700">Background workers</text><text class="rt" x="44" y="572">start_auto_sync (AccuLynx poll)</text><text class="rt" x="44" y="586">automations: stage-change hooks · notifications</text></g>
+<g><rect class="card" x="310" y="536" width="270" height="58" rx="6"/><text class="lbl" x="324" y="556" font-weight="700">File storage</text><text class="rt" x="324" y="572">/uploads → local disk first</text><text class="rt" x="324" y="586">→ Google Drive fallback (gdrive.py)</text></g>
+<g><rect class="data" x="590" y="536" width="270" height="58" rx="6"/><text class="lbl" x="604" y="556" font-weight="700">Render (canonical)</text><text class="rt" x="604" y="572">gunicorn · SQLite on 5GB /data disk</text><text class="rt" x="604" y="586">render.yaml · DATABASE_URL omitted</text></g>
+<g><rect class="card" x="870" y="536" width="280" height="58" rx="6" stroke-dasharray="4 3"/><text class="lbl" x="884" y="556" font-weight="700">Vercel (legacy / rollback)</text><text class="rt" x="884" y="572">Neon Postgres · custom domain still here</text><text class="rt" x="884" y="586">DNS cutover → Render pending</text></g>
+</svg>
+</section>
+
+<!-- ====================== 3. HOMEOWNER PORTAL ====================== -->
+<section>
+<h2>3 · Homeowner portal sitemap — /portal/&lt;token&gt;</h2>
+<svg viewBox="0 0 1180 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t3 d3" font-family="var(--font-sans)">
+<title id="t3">Homeowner portal sitemap</title>
+<desc id="d3">Login-free magic-link portal branching into status and billing, documents and e-sign, and engagement features.</desc>
+<style>
+  .lbl{font-size:12px;fill:var(--color-text-primary)}
+  .rt{font-size:9px;fill:var(--color-text-secondary);font-family:var(--font-mono)}
+  .card{fill:var(--color-background-primary);stroke:var(--color-border-secondary)}
+  .root{fill:#FBEAF0;stroke:#ED93B1}
+  .pay{fill:#E1F5EE;stroke:#9FE1CB}
+  .warn{fill:#FAECE7;stroke:#F0997B}
+  .edge{stroke:var(--color-border-tertiary);fill:none;stroke-width:1.4}
+</style>
+<rect class="root" x="455" y="14" width="270" height="56" rx="8"/><text class="lbl" x="590" y="38" text-anchor="middle" font-weight="700">Portal home</text><text class="rt" x="590" y="56" text-anchor="middle">/portal/&lt;token&gt;  ·  portal.home</text>
+<path class="edge" d="M590 70 L590 92 M170 92 L170 112 M450 92 L450 112 M730 92 L730 112 M170 92 L1010 92 L1010 112"/>
+<text class="rt" x="40"  y="108" style="font-size:11px;font-weight:700;fill:var(--color-text-secondary)">TRACK &amp; MONEY</text>
+<text class="rt" x="430" y="108" style="font-size:11px;font-weight:700;fill:var(--color-text-secondary)">DOCUMENTS &amp; SIGNING</text>
+<text class="rt" x="820" y="108" style="font-size:11px;font-weight:700;fill:var(--color-text-secondary)">ENGAGE &amp; GROW</text>
+<g><rect class="card" x="40" y="116" width="330" height="44" rx="6"/><text class="lbl" x="54" y="136" font-weight="700">Status tracker</text><text class="rt" x="54" y="152">lifecycle progress · project summary</text></g>
+<g><rect class="pay" x="40" y="168" width="330" height="60" rx="6"/><text class="lbl" x="54" y="188" font-weight="700">Billing</text><text class="rt" x="54" y="204">invoices · payment history · balance</text><text class="rt" x="54" y="218">AccuLynx-style paid-% ring · portal.pay</text></g>
+<g><rect class="card" x="40" y="236" width="330" height="44" rx="6"/><text class="lbl" x="54" y="256" font-weight="700">Messages</text><text class="rt" x="54" y="272">two-way · portal.message → team notification</text></g>
+<g><rect class="card" x="40" y="288" width="330" height="44" rx="6"/><text class="lbl" x="54" y="308" font-weight="700">Upload doc / photo</text><text class="rt" x="54" y="324">portal.upload_doc · portal.upload_photo</text></g>
+<g><rect class="card" x="425" y="116" width="330" height="60" rx="6"/><text class="lbl" x="439" y="136" font-weight="700">Sign-up package</text><text class="rt" x="439" y="152">all sign-up + permit-packet docs</text><text class="rt" x="439" y="166">signups.portal_view / portal_complete</text></g>
+<g><rect class="card" x="425" y="184" width="330" height="60" rx="6"/><text class="lbl" x="439" y="204" font-weight="700">E-sign documents</text><text class="rt" x="439" y="220">portal.sign · portal.sign_doc</text><text class="rt" x="439" y="234">one signature auto-fills across docs</text></g>
+<g><rect class="warn" x="425" y="252" width="330" height="48" rx="6"/><text class="lbl" x="439" y="272" font-weight="700">⚠ Notarized forms excluded</text><text class="rt" x="439" y="288">NOC / nailing affidavit — never auto-signed</text></g>
+<g><rect class="card" x="425" y="308" width="330" height="44" rx="6"/><text class="lbl" x="439" y="328" font-weight="700">Proposal / Welcome Packet</text><text class="rt" x="439" y="344">portal.proposal</text></g>
+<g><rect class="card" x="810" y="116" width="330" height="52" rx="6"/><text class="lbl" x="824" y="136" font-weight="700">Design Studio</text><text class="rt" x="824" y="152">shingle / color picker · design_photo</text><text class="rt" x="824" y="164">portal.design · portal.design_request</text></g>
+<g><rect class="card" x="810" y="176" width="330" height="52" rx="6"/><text class="lbl" x="824" y="196" font-weight="700">Roof School</text><text class="rt" x="824" y="212">education · portal.learn</text><text class="rt" x="824" y="224">SiteCam /showcase project photos</text></g>
+<g><rect class="card" x="810" y="236" width="330" height="52" rx="6"/><text class="lbl" x="824" y="256" font-weight="700">Referrals</text><text class="rt" x="824" y="272">referral_land · refer_share · refer_msg</text><text class="rt" x="824" y="284">share link → new lead intake</text></g>
+<g><rect class="card" x="810" y="296" width="330" height="44" rx="6"/><text class="lbl" x="824" y="316" font-weight="700">HOA seminar request</text><text class="rt" x="824" y="332">portal.seminar</text></g>
+<rect class="card" x="40" y="368" width="1100" height="58" rx="6" stroke-dasharray="4 3"/>
+<text class="lbl" x="56" y="390" font-weight="700">Demo portal (sales tool)</text>
+<text class="rt" x="56" y="408" style="font-size:10px">demo.portal / demo.design / demo.refer_* — a shareable, login-free clone with sample data. The generator UI stays staff-only.</text>
+<text class="rt" x="56" y="422" style="font-size:10px">Back-channel: every homeowner action (pay, sign, message, upload) fires a CRM notification + activity on the job.</text>
+<rect class="pay" x="40" y="440" width="1100" height="40" rx="6"/>
+<text class="lbl" x="56" y="464" font-weight="700">⟲ Everything the homeowner does writes straight back to the job in the CRM — single source of truth, no separate portal database.</text>
+</svg>
+</section>
+
+<!-- ====================== 4. WORKFLOW ====================== -->
+<section>
+<h2>4 · Workflow — lifecycle &amp; data pipeline</h2>
+<svg viewBox="0 0 1180 660" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t4 d4" font-family="var(--font-sans)">
+<title id="t4">CRM workflow — lifecycle and data flow</title>
+<desc id="d4">The lead-to-cash pipeline and the drawing-to-portal ingest pipeline that feeds it.</desc>
+<style>
+  .band{font-size:12.5px;font-weight:700;letter-spacing:.04em;fill:var(--color-text-secondary)}
+  .stg{font-size:13px;font-weight:700;fill:#fff}
+  .lbl{font-size:11px;fill:var(--color-text-primary)}
+  .rt{font-size:9px;fill:var(--color-text-secondary);font-family:var(--font-mono)}
+  .card{fill:var(--color-background-primary);stroke:var(--color-border-secondary)}
+  .ing{fill:#EEEDFE;stroke:#AFA9EC}
+  .out{fill:#E1F5EE;stroke:#9FE1CB}
+</style>
+<defs><marker id="ar4" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="var(--color-text-secondary)"/></marker></defs>
+<text class="band" x="30" y="26">▸ A · LEAD-TO-CASH PIPELINE  (stage tags match AccuLynx 1:1)</text>
+<rect x="30"  y="40" width="170" height="34" rx="6" fill="#6f66d8"/><text class="stg" x="115" y="62" text-anchor="middle">1 · LEAD</text>
+<rect x="216" y="40" width="170" height="34" rx="6" fill="#6f66d8"/><text class="stg" x="301" y="62" text-anchor="middle">2 · PROSPECT</text>
+<rect x="402" y="40" width="170" height="34" rx="6" fill="#6f66d8"/><text class="stg" x="487" y="62" text-anchor="middle">3 · APPROVED</text>
+<rect x="588" y="40" width="170" height="34" rx="6" fill="#1aa37a"/><text class="stg" x="673" y="62" text-anchor="middle">4 · COMPLETED</text>
+<rect x="774" y="40" width="170" height="34" rx="6" fill="#1aa37a"/><text class="stg" x="859" y="62" text-anchor="middle">5 · INVOICED</text>
+<rect x="960" y="40" width="190" height="34" rx="6" fill="#444441"/><text class="stg" x="1055" y="62" text-anchor="middle">6 · CLOSED</text>
+<g stroke="#888780">
+  <path d="M200 57 L214 57" marker-end="url(#ar4)"/><path d="M386 57 L400 57" marker-end="url(#ar4)"/>
+  <path d="M572 57 L586 57" marker-end="url(#ar4)"/><path d="M758 57 L772 57" marker-end="url(#ar4)"/><path d="M944 57 L958 57" marker-end="url(#ar4)"/>
+</g>
+<g><rect class="card" x="30" y="84" width="170" height="120" rx="6"/><text class="rt" x="42" y="102" style="font-size:9.5px;fill:var(--color-text-primary);font-family:inherit;font-weight:700">Capture</text><text class="rt" x="42" y="120">Gmail / RingCentral /</text><text class="rt" x="42" y="132">web intake</text><text class="rt" x="42" y="148">auto-name R-26###</text><text class="rt" x="42" y="164">RoofGraf measurement</text><text class="rt" x="42" y="180">dedupe check</text></g>
+<g><rect class="card" x="216" y="84" width="170" height="120" rx="6"/><text class="rt" x="228" y="102" style="font-size:9.5px;fill:var(--color-text-primary);font-family:inherit;font-weight:700">Sell</text><text class="rt" x="228" y="120">estimate (tile template)</text><text class="rt" x="228" y="136">+ upgrades menu</text><text class="rt" x="228" y="152">portal proposal</text><text class="rt" x="228" y="168">e-signature</text></g>
+<g><rect class="card" x="402" y="84" width="170" height="120" rx="6"/><text class="rt" x="414" y="102" style="font-size:9.5px;fill:var(--color-text-primary);font-family:inherit;font-weight:700">Prep</text><text class="rt" x="414" y="120">job created</text><text class="rt" x="414" y="136">permit packet</text><text class="rt" x="414" y="152">submittals / NOA index</text><text class="rt" x="414" y="168">order materials (BOM)</text></g>
+<g><rect class="card" x="588" y="84" width="170" height="120" rx="6"/><text class="rt" x="600" y="102" style="font-size:9.5px;fill:var(--color-text-primary);font-family:inherit;font-weight:700">Build</text><text class="rt" x="600" y="120">production / install</text><text class="rt" x="600" y="136">SiteCam field photos</text><text class="rt" x="600" y="152">checklist gating</text></g>
+<g><rect class="card" x="774" y="84" width="170" height="120" rx="6"/><text class="rt" x="786" y="102" style="font-size:9.5px;fill:var(--color-text-primary);font-family:inherit;font-weight:700">Collect</text><text class="rt" x="786" y="120">invoice + worksheet</text><text class="rt" x="786" y="136">payment records</text><text class="rt" x="786" y="152">portal billing + ring</text></g>
+<g><rect class="card" x="960" y="84" width="190" height="120" rx="6"/><text class="rt" x="972" y="102" style="font-size:9.5px;fill:var(--color-text-primary);font-family:inherit;font-weight:700">Close</text><text class="rt" x="972" y="120">commissions</text><text class="rt" x="972" y="136">referral request</text><text class="rt" x="972" y="152">QuickBooks export</text></g>
+<text class="rt" x="30" y="228" style="font-size:9.5px">Per-card quick actions + Next-Step button advance the stage; Workflow Manager fires automation/notifications on each stage change.</text>
+<text class="band" x="30" y="274">▸ B · DRAWING-TO-PORTAL DATA PIPELINE  (automated ingest that feeds Flow A)</text>
+<g><rect class="card" x="30" y="292" width="150" height="64" rx="6"/><text class="lbl" x="105" y="320" text-anchor="middle" font-weight="700">Drawing upload</text><text class="rt" x="105" y="338" text-anchor="middle">plan set / PDF</text></g>
+<g><rect class="ing" x="222" y="292" width="160" height="64" rx="6"/><text class="lbl" x="302" y="318" text-anchor="middle" font-weight="700">Roof Engine</text><text class="rt" x="302" y="334" text-anchor="middle">Oracle VM</text><text class="rt" x="302" y="346" text-anchor="middle">measures roof</text></g>
+<g><rect class="ing" x="424" y="292" width="160" height="64" rx="6"/><text class="lbl" x="504" y="318" text-anchor="middle" font-weight="700">Estimator</text><text class="rt" x="504" y="334" text-anchor="middle">builds takeoff</text><text class="rt" x="504" y="346" text-anchor="middle">estimator-takeoff/v1</text></g>
+<g><rect class="ing" x="626" y="292" width="170" height="64" rx="6"/><text class="lbl" x="711" y="318" text-anchor="middle" font-weight="700">POST /api/takeoff</text><text class="rt" x="711" y="334" text-anchor="middle">HMAC signed</text><text class="rt" x="711" y="346" text-anchor="middle">idempotent</text></g>
+<g><rect class="out" x="838" y="292" width="170" height="64" rx="6"/><text class="lbl" x="923" y="312" text-anchor="middle" font-weight="700">CRM fan-out</text><text class="rt" x="923" y="328" text-anchor="middle">job · measurement</text><text class="rt" x="923" y="340" text-anchor="middle">estimate · submittals</text><text class="rt" x="923" y="352" text-anchor="middle">warnings</text></g>
+<g stroke="#888780">
+  <path d="M180 324 L220 324" marker-end="url(#ar4)"/><path d="M382 324 L422 324" marker-end="url(#ar4)"/>
+  <path d="M584 324 L624 324" marker-end="url(#ar4)"/><path d="M796 324 L836 324" marker-end="url(#ar4)"/>
+</g>
+<path d="M923 356 L923 386" stroke="#888780" marker-end="url(#ar4)"/>
+<g><rect x="788" y="390" width="270" height="40" rx="6" fill="#EEEDFE" stroke="#AFA9EC"/><text class="lbl" x="923" y="415" text-anchor="middle" font-weight="700">→ lands as an APPROVED job in Flow A</text></g>
+<text class="band" x="30" y="468" style="font-size:11px">▸ Legacy bridge (being retired)</text>
+<g><rect class="card" x="30" y="480" width="150" height="56" rx="6" stroke-dasharray="4 3"/><text class="lbl" x="105" y="505" text-anchor="middle" font-weight="700">AccuLynx</text><text class="rt" x="105" y="522" text-anchor="middle">logged-in session</text></g>
+<g><rect class="card" x="222" y="480" width="180" height="56" rx="6" stroke-dasharray="4 3"/><text class="lbl" x="312" y="502" text-anchor="middle" font-weight="700">Bookmarklet bridge</text><text class="rt" x="312" y="520" text-anchor="middle">CORS · 20-at-a-time</text></g>
+<g><rect class="card" x="444" y="480" width="160" height="56" rx="6" stroke-dasharray="4 3"/><text class="lbl" x="524" y="502" text-anchor="middle" font-weight="700">/sync/*</text><text class="rt" x="524" y="520" text-anchor="middle">docs · billing · est · photos</text></g>
+<g><rect class="out" x="646" y="480" width="160" height="56" rx="6"/><text class="lbl" x="726" y="505" text-anchor="middle" font-weight="700">CRM (migrated)</text><text class="rt" x="726" y="522" text-anchor="middle">~26k rows imported</text></g>
+<g stroke="#888780">
+  <path d="M180 508 L220 508" marker-end="url(#ar4)"/><path d="M402 508 L442 508" marker-end="url(#ar4)"/><path d="M604 508 L644 508" marker-end="url(#ar4)"/>
+</g>
+<text class="rt" x="30" y="576" style="font-size:9.5px">Once migration + the live engine push are confirmed, the AccuLynx bridge is decommissioned — the takeoff API (Flow B) becomes the only inbound path.</text>
+</svg>
+</section>
+
+</div>
