@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}New Roof Report{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>🏠 New Roof Report</h1>
+  <div class="grow"></div>
+  <a class="btn" href="{{ url_for('roof_reports.index') }}">Cancel</a>
+</div>
+<form method="post" style="max-width:640px">
+  <p class="sub" style="margin-bottom:14px">Pick a job to use its address, or type one in.</p>
+
+  <label style="display:block;margin-bottom:12px">From a job
+    <select name="job_id" style="display:block;width:100%;margin-top:4px">
+      <option value="">— or enter an address below —</option>
+      {% for j in jobs %}
+      <option value="{{ j.id }}">{{ j.name or j.address or ('Job #' ~ j.id) }}{% if j.address %} — {{ j.address }}, {{ j.city }}{% endif %}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label style="display:block;margin-bottom:12px">Address
+    <input name="address" placeholder="123 Main St" style="display:block;width:100%;margin-top:4px">
+  </label>
+  <div style="display:flex;gap:10px;margin-bottom:16px">
+    <label style="flex:2">City<input name="city" style="display:block;width:100%;margin-top:4px"></label>
+    <label style="flex:1">State<input name="state" value="FL" style="display:block;width:100%;margin-top:4px"></label>
+    <label style="flex:1">Zip<input name="zip" style="display:block;width:100%;margin-top:4px"></label>
+  </div>
+
+  <button class="btn primary" type="submit">Generate report</button>
+</form>
+{% endblock %}

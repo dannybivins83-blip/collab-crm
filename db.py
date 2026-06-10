@@ -292,6 +292,17 @@ CREATE TABLE IF NOT EXISTS automations (
     template_text TEXT, offset_days INTEGER DEFAULT 0,
     active INTEGER DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS roof_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created TEXT, updated TEXT,
+    job_id INTEGER,
+    address TEXT, city TEXT, state TEXT, zip TEXT,
+    engine_job TEXT,                 -- the Roof Report Engine job id
+    status TEXT DEFAULT 'queued',    -- queued | processing | done | failed
+    squares TEXT, pitch TEXT, confidence TEXT,
+    api_result TEXT                  -- full measurement JSON
+);
 """
 
 

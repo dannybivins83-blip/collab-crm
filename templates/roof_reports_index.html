@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Roof Reports{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>🏠 Roof Reports</h1>
+  <span class="sub">{{ reports|length }} total</span>
+  <div class="grow"></div>
+  <a class="btn primary" href="{{ url_for('roof_reports.new') }}">+ New Report</a>
+</div>
+{% if not configured %}
+<div class="empty" style="padding:14px;margin-bottom:12px">
+  Roof engine not configured — set <code>ROOF_ENGINE_URL</code> and
+  <code>ROOF_ENGINE_API_KEY</code> in the environment.
+</div>
+{% endif %}
+<table class="grid">
+  <tr><th>Address</th><th>Squares</th><th>Pitch</th><th>Building</th><th>Status</th><th>Created</th></tr>
+  {% for r in reports %}
+  <tr onclick="location.href='{{ url_for('roof_reports.detail', report_id=r.id) }}'" style="cursor:pointer">
+    <td><b>{{ r.address }}</b></td>
+    <td>{{ r.squares or '—' }}</td>
+    <td>{{ r.pitch or '—' }}</td>
+    <td>{% if r.confidence %}<span class="tag">{{ r.confidence }}</span>{% endif %}</td>
+    <td>{{ r.status }}</td>
+    <td>{{ r.created }}</td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="empty">No reports yet.</td></tr>{% endfor %}
+</table>
+{% endblock %}
