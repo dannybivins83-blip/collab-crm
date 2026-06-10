@@ -351,10 +351,40 @@ def _photo_bucket(phase):
     return "Installation"
 
 
+# SiteCam is the standalone photo source of truth. The portal pulls real, R2-hosted
+# field photos by roof system from SiteCam's public showcase endpoint, so the
+# "recent jobs like yours" galleries always show working images — no local file syncing,
+# no AccuLynx. City/area only on the SiteCam side (no homeowner names/addresses).
+_SC_API = os.environ.get("SITECAM_API_URL", "https://sitecam-api.onrender.com").rstrip("/")
+_SC_TENANT = os.environ.get("SITECAM_TENANT", "seabreeze")
+
+
+def sitecam_showcase_photos(sysk, limit=6, per=8):
+    """Flat list of full https R2 photo URLs for a roof system, newest job first.
+    Best-effort: returns [] on any error/timeout so the portal page never breaks."""
+    if not sysk:
+        return []
+    import json
+    import urllib.parse
+    import urllib.request
+    try:
+        qs = urllib.parse.urlencode(
+            {"tenant": _SC_TENANT, "system": sysk, "limit": limit, "photosPerJob": per}
+        )
+        with urllib.request.urlopen(f"{_SC_API}/api/public/showcase?{qs}", timeout=4) as r:
+            jobs = json.loads(r.read().decode())
+        return [p["url"] for j in jobs for p in (j.get("photos") or []) if p.get("url")]
+    except Exception:
+        return []
+
+
 def similar_job_photos(system, exclude_id, cap=24):
-    """Real field photos from OTHER jobs of the same roof system, grouped into
-    Tear-off / Installation / Finished. Anonymized — photos only, no names/addresses —
-    so a homeowner sees their exact system being installed on real, similar projects."""
+    """Real field photos from OTHER jobs of the same roof system. Prefers SiteCam's
+    R2-hosted photos (the standalone source); falls back to locally-synced photos.
+    Anonymized — photos only, no names/addresses."""
+    urls = sitecam_showcase_photos(system, limit=8, per=6)[:cap]
+    if urls:
+        return {"Recent installs": urls}
     from modules import ahj as ahj_mod
     groups = {"Tear-off": [], "Installation": [], "Finished": []}
     n = 0
@@ -375,10 +405,14 @@ def similar_job_photos(system, exclude_id, cap=24):
 
 
 def one_photo_per_system():
-    """A single representative REAL field photo filename per roof system (for the Roof
-    School cards). Empty for systems with no synced photos yet (template falls back)."""
+    """A single representative REAL field photo per roof system (for the Roof School
+    cards). Prefers a SiteCam R2 photo; falls back to a locally-synced filename."""
     from modules import ahj as ahj_mod
     out = {}
+    for s in ("shingle", "tile", "metal", "flat"):
+        ph = sitecam_showcase_photos(s, limit=1, per=1)
+        if ph:
+            out[s] = ph[0]
     for j in db.all_rows("jobs"):
         s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
         if s and s not in out:
@@ -414,9 +448,12 @@ def product_docs_for(sysk):
 
 
 def latest_system_job_photos(sysk, cap=18):
-    """The newest job of this system that has SiteCam/field photos — returns its photos
-    (newest first) + sitecam_url, so Roof School can show a real, recently-documented job
-    of the homeowner's exact system (re-nailing, decking, dry-in, install)."""
+    """The newest documented job of this system — returns its photos (newest first) so
+    Roof School can show a real, recently-documented job of the homeowner's exact system.
+    Prefers SiteCam's R2 photos; falls back to locally-synced job photos."""
+    sc = sitecam_showcase_photos(sysk, limit=1, per=cap)
+    if sc:
+        return {"sitecam_url": None, "photos": [{"filename": u, "caption": ""} for u in sc]}
     from modules import ahj as ahj_mod
     for j in sorted(db.all_rows("jobs"), key=lambda x: x.get("id", 0), reverse=True):
         s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()

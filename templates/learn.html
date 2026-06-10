@@ -139,7 +139,7 @@
       <div class="glabel" style="margin-top:16px;font-size:13px;color:var(--ink)">📸 Real photos from {{ my_system.name if my_system else 'similar' }} jobs we've done</div>
       {% for bucket, files in gallery.items() %}
       <div class="glabel">{{ bucket }}</div>
-      <div class="ggrid">{% for f in files %}<a href="{{ url_for('uploads', subpath='photos/' ~ f) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ f) }}" loading="lazy" alt="{{ bucket }} photo"></a>{% endfor %}</div>
+      <div class="ggrid">{% for f in files %}{% set fsrc = f if f.startswith('http') else url_for('uploads', subpath='photos/' ~ f) %}<a href="{{ fsrc }}" target="_blank"><img src="{{ fsrc }}" loading="lazy" alt="{{ bucket }} photo"></a>{% endfor %}</div>
       {% endfor %}
       <div style="font-size:11.5px;color:var(--mut);margin-top:9px">Real projects we've completed — shown so you can picture yours. (Customer details kept private.)</div>
       {% else %}
@@ -154,8 +154,9 @@
       <p style="margin:0 0 12px;font-size:13.5px;color:var(--mut)">We photo-document your entire project in <b>SiteCam</b> — the bare deck, the <b>re-nailing</b>, the <b>dry-in</b>, the install, the cleanup — so nothing is ever hidden from you. Here's a recent {{ my_system.name if my_system else '' }} job we documented:</p>
       <div class="ggrid">
         {% for ph in sitecam_job.photos %}
-        <a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank">
-          <img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" loading="lazy" alt="{{ ph.caption or 'job photo' }}">
+        {% set psrc = ph.filename if ph.filename.startswith('http') else url_for('uploads', subpath='photos/' ~ ph.filename) %}
+        <a href="{{ psrc }}" target="_blank">
+          <img src="{{ psrc }}" loading="lazy" alt="{{ ph.caption or 'job photo' }}">
           {% if ph.caption %}<div class="gcap">{{ ph.caption }}</div>{% endif %}
         </a>
         {% endfor %}
@@ -202,7 +203,7 @@
       <div class="h">The 4 roof systems — tap to expand</div>
       {% for s in systems %}
       {% set photo = system_photos.get(s.key) %}
-      {% set src = (url_for('uploads', subpath='photos/' ~ photo) if photo else s.img) %}
+      {% set src = ((photo if photo.startswith('http') else url_for('uploads', subpath='photos/' ~ photo)) if photo else s.img) %}
       <details class="sysacc"{% if s.key == sysk %} open{% endif %}>
         <summary>
           <div class="sthumb" style="background:linear-gradient(160deg,{{ s.hex }},#10131c)">
