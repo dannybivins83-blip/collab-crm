@@ -1,3 +1,7 @@
+# ---- Sensitive: secret VALUES — NEVER commit. Drop real keys in secrets/keys.local.env.
+#      The committed registry (names/purpose/status, NO values) lives in docs/SECRETS.md ----
+secrets/
+
 # ---- Sensitive: never commit customer data or uploaded files (PII) ----
 data/
 *.db
