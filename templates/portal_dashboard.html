@@ -1,3 +1,4 @@
+{% from "_portal_icons.html" import pic %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -414,7 +415,7 @@
   <!-- SIGN-UP PACKAGE (action needed) -->
   {% if signup_packet %}
   <div class="card action" id="signup">
-    <div class="h act">📋 Action Needed — Complete Your Sign-Up Package</div>
+    <div class="h act">{{ pic('clipboard',16) }} Action Needed — Complete Your Sign-Up Package</div>
     <div class="muted" style="margin-bottom:14px">Your {{ signup_packet.system }} roof sign-up package is ready. It's pre-filled with your info — just review, initial each section, and sign online.</div>
     <a class="btn green block" href="{{ url_for('signups.portal_view', token=token, packet_id=signup_packet.id) }}">Open &amp; Complete Sign-Up Package →</a>
   </div>
@@ -449,7 +450,7 @@
 
   <!-- VALUE CHECKLIST — everything we're doing for you -->
   <div class="card">
-    <div class="h">✅ Everything We're Doing For You
+    <div class="h">{{ pic('check-circle',16) }} Everything We're Doing For You
       <span style="margin-left:auto;font-weight:800;color:var(--green-deep)">{{ value_done }}/{{ value_total }} done</span>
     </div>
     <div class="vprog"><span style="width:{{ (100 * value_done / value_total)|round|int if value_total else 0 }}%"></span></div>
@@ -458,8 +459,8 @@
       <span class="vck">{{ '✓' if v.done else ('●' if v.current else '○') }}</span>
       <span class="vtx">{{ v.text }}{% if v.current %} <span class="pill green">happening now</span>{% endif %}
         {% if 'color' in v.text|lower and 'selection' in v.text|lower %}
-        <a class="vlink" href="{{ url_for('portal.design', token=token) }}">🎨 Design your roof &amp; pick your colors →</a>
-        <a class="vlink" href="#estimate">📄 Your roof-covering selection docs →</a>
+        <a class="vlink" href="{{ url_for('portal.design', token=token) }}">{{ pic('palette',16) }} Design your roof &amp; pick your colors →</a>
+        <a class="vlink" href="#estimate">{{ pic('doc',15) }} Your roof-covering selection docs →</a>
         {% endif %}</span>
     </div>
     {% endfor %}
@@ -474,7 +475,7 @@
 
   <!-- REFERRAL GAME -->
   <div class="card cta-card" id="refGame">
-    <div class="h">🎮 Referral Game — Level Up &amp; Win</div>
+    <div class="h">{{ pic('game',16) }} Referral Game — Level Up &amp; Win</div>
     <div class="refhdr">
       <div class="reflvl"><span id="refIcon">{{ referral.level.ic }}</span>
         <span><b id="refLvlName">{{ referral.level.name }}</b><br><span class="muted" id="refShares">{{ referral.shares }} sent</span></span></div>
@@ -486,7 +487,7 @@
     <div class="muted" style="margin:12px 0 6px">Your personal invite — edit it, then send it to neighbors. Every send levels you up:</div>
     <textarea id="refMsg" rows="3">{{ referral.msg or "I'm getting my roof done by " ~ company.name ~ " and they've been great! Get a free quote 👉 " }}{{ referral.link }}</textarea>
     <div class="refbtns">
-      <button class="btn green" type="button" onclick="sendRef('copy')">📋 Copy &amp; Send</button>
+      <button class="btn green" type="button" onclick="sendRef('copy')">{{ pic('clipboard',16) }} Copy &amp; Send</button>
       <a class="btn share" id="refSms" href="sms:?&body=" onclick="bumpShare()">💬 Text it</a>
       <button class="btn ghost" type="button" onclick="saveRefMsg(this)">💾 Save my message</button>
     </div>
@@ -568,7 +569,7 @@
   <div class="card" id="estimate">
     <style>#estimate .pkt-h{font-weight:800;font-size:14.5px;margin:0 0 8px;color:var(--ink)}
       #estimate .pkt-sec{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}</style>
-    <div class="h">📋 Your Welcome Packet{% if j.work_type %} — {{ j.work_type }}{% endif %}</div>
+    <div class="h">{{ pic('clipboard',16) }} Your Welcome Packet{% if j.work_type %} — {{ j.work_type }}{% endif %}</div>
     <div class="muted" style="margin-bottom:14px">Your proposal, sign-up paperwork, and permit documents — all in one place to review and sign.</div>
 
     <!-- 1. Proposal -->
@@ -693,7 +694,7 @@
   </div>
 
   <!-- PHOTOS -->
-  <div class="card" id="photos"><div class="h">📸 Your Site Photos — live from the field</div>
+  <div class="card" id="photos"><div class="h">{{ pic('camera',16) }} Your Site Photos — live from the field</div>
     {% if j.sitecam_url %}
     <iframe src="{{ j.sitecam_url }}" loading="lazy" referrerpolicy="origin" title="Your job site photos"
             style="width:100%;height:520px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:10px"></iframe>
@@ -764,7 +765,7 @@
 <!-- STICKY PRIMARY ACTION -->
 {% if signup_packet %}
 <div class="cta-bar"><div class="inner">
-  <a class="btn green block" href="{{ url_for('signups.portal_view', token=token, packet_id=signup_packet.id) }}">📋 Complete Your Sign-Up Package →</a>
+  <a class="btn green block" href="{{ url_for('signups.portal_view', token=token, packet_id=signup_packet.id) }}">{{ pic('clipboard',16) }} Complete Your Sign-Up Package →</a>
 </div></div>
 {% elif pay_url and j._balance > 0 %}
 <div class="cta-bar"><div class="inner">

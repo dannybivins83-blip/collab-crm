@@ -1,3 +1,4 @@
+{% from "_portal_icons.html" import pic %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -33,21 +34,21 @@
     </div>
 
     <div class="card" style="background:linear-gradient(125deg,#fff7e6,#fff);border-color:#ffe2a8">
-      <h2>🎨 Design Your Roof — while you wait</h2>
+      <h2>{{ pic('palette',20) }} Design Your Roof — while you wait</h2>
       <p class="muted">Have some fun: mock up your new roof in different colors and styles, add your options, and request free samples. It'll be ready for your inspection visit.</p>
-      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.design', token=token) }}">🎨 Open the Design Studio →</a>
+      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.design', token=token) }}">{{ pic("palette",17) }} Open the Design Studio →</a>
     </div>
 
     <div class="card">
-      <h2>🎓 Learn while you wait</h2>
+      <h2>{{ pic('cap',20) }} Learn while you wait</h2>
       <p class="muted">New to roofing decisions? Take a 2-minute tour of the systems and test your Roof IQ — so you walk into your inspection already an expert.</p>
-      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.learn', token=token) }}">🎓 Open Roof School →</a>
+      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.learn', token=token) }}">{{ pic("cap",17) }} Open Roof School →</a>
     </div>
 
     <div class="card" style="background:linear-gradient(125deg,#eef9f0,#fff);border-color:#cdeccf">
-      <h2>🍽️ HOA board or community?</h2>
+      <h2>{{ pic('food',20) }} HOA board or community?</h2>
       <p class="muted">We'll bring lunch and host a Q&amp;A for your residents or board — and if a specific tile manufacturer/color is required, we'll bring their reps.</p>
-      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.seminar', token=token) }}">🍽️ Request a Lunch &amp; Learn →</a>
+      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.seminar', token=token) }}">{{ pic("food",17) }} Request a Lunch &amp; Learn →</a>
     </div>
 
     <div class="card">
@@ -67,7 +68,7 @@
           <div class="muted">{{ company.name }}</div>
         </div>
       </div>
-      {% if company.phone %}<a class="btn" href="tel:{{ company.phone }}">📞 Call us: {{ company.phone }}</a>{% endif %}
+      {% if company.phone %}<a class="btn" href="tel:{{ company.phone }}">{{ pic("phone",17) }} Call us: {{ company.phone }}</a>{% endif %}
     </div>
     {% endif %}
 

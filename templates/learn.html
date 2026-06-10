@@ -1,3 +1,4 @@
+{% from "_portal_icons.html" import pic %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -112,7 +113,7 @@
 <body>
   <div class="top" style="position:relative">
     <a href="{{ url_for('portal.home', token=token) }}" style="position:absolute;left:14px;top:calc(16px + env(safe-area-inset-top));color:#fff;text-decoration:none;font-weight:700;font-size:14px;background:rgba(255,255,255,.16);padding:7px 12px;border-radius:999px">‹ Back</a>
-    <h1>🎓 Roof School</h1><p>Learn how roofs really work — and test your Roof IQ.</p>
+    <h1>{{ pic('cap',22) }} Roof School</h1><p>Learn how roofs really work — and test your Roof IQ.</p>
   </div>
   <div class="wrap">
 
@@ -167,7 +168,7 @@
     <!-- DEEP COMPONENT EDUCATION -->
     {% if features %}
     <div class="card">
-      <div class="h">🔧 Every part of your roof — explained</div>
+      <div class="h">{{ pic("shield",16) }} Every part of your roof — explained</div>
       <p style="margin:0 0 12px;font-size:13.5px;color:var(--mut)">Tap any part to learn the types, the exact brands we install, and why it matters — with the manufacturer's data sheet.</p>
       {% for f in features %}
       <details class="feat">
@@ -189,7 +190,7 @@
     <!-- PRODUCT DATA SHEETS (real company library docs for this system) -->
     {% if product_docs %}
     <div class="card">
-      <div class="h">📄 Product data sheets &amp; color charts{% if my_system %} — your {{ my_system.name }} system{% endif %}</div>
+      <div class="h">{{ pic("doc",16) }} Product data sheets &amp; color charts{% if my_system %} — your {{ my_system.name }} system{% endif %}</div>
       <p style="margin:0 0 12px;font-size:13.5px;color:var(--mut)">The exact products we'll install on your home — straight from the manufacturer.</p>
       {% for d in product_docs %}
       <a class="docrow" href="{{ url_for('uploads', subpath='library/' ~ d.filename) }}" target="_blank" rel="noopener">📄 {{ d.original_name.rsplit('.',1)[0].replace('_',' ').replace('-',' ')|title }}<span style="margin-left:auto;color:var(--brand)">›</span></a>
@@ -226,7 +227,7 @@
     </div>
 
     <div class="card" id="quizCard">
-      <div class="h">🧠 Test your Roof IQ</div>
+      <div class="h">{{ pic("check-circle",16) }} Test your Roof IQ</div>
       <div id="quizBody">
         <div class="qprog" id="qprog"></div>
         <div class="q" id="qtext"></div>

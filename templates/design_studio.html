@@ -1,3 +1,4 @@
+{% from "_portal_icons.html" import pic %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,7 +56,7 @@
 <body>
   <div class="top" style="position:relative">
     <a href="{{ url_for('portal.home', token=token) }}" style="position:absolute;left:14px;top:calc(14px + env(safe-area-inset-top));color:#fff;text-decoration:none;font-weight:700;font-size:14px;background:rgba(255,255,255,.16);padding:7px 12px;border-radius:999px">‹ Back</a>
-    <h1>🎨 Design Your Roof</h1>
+    <h1>{{ pic('palette',22) }} Design Your Roof</h1>
     <p>Pick your system, play with colors, add your options — see it come to life.</p>
   </div>
   <div class="wrap">
@@ -64,7 +65,7 @@
     <!-- LIVE PREVIEW + REAL-PHOTO MOCKUP -->
     <div class="card">
       <div style="background:linear-gradient(120deg,#fff7e6,#fff);border:1px solid #ffe2a8;border-radius:11px;padding:11px 13px;margin-bottom:12px;font-size:13.5px">
-        <b>📸 See it on YOUR house!</b> Take a photo of the front of your home (straight-on from the street), upload it, then <b>brush your chosen color right onto your roof.</b>
+        <b>{{ pic('camera',17) }} See it on YOUR house!</b> Take a photo of the front of your home (straight-on from the street), upload it, then <b>brush your chosen color right onto your roof.</b>
       </div>
       <div class="preview" id="previewBox" style="position:relative">
         <svg id="svgHouse" viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
@@ -81,12 +82,12 @@
         <div class="selname" id="selWrap">Your roof in <b id="selName">Charcoal</b></div>
       </div>
       <div style="margin-top:12px">
-        <label class="btn green" style="display:flex;cursor:pointer"><input type="file" id="housePhoto" accept="image/*" capture="environment" style="display:none">📸 Upload a photo of your house</label>
+        <label class="btn green" style="display:flex;cursor:pointer"><input type="file" id="housePhoto" accept="image/*" capture="environment" style="display:none">{{ pic('camera',17) }} Upload a photo of your house</label>
         <div id="brushTools" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px">
           <span style="font-size:12px;color:var(--mut);font-weight:700">Brush</span>
           <input type="range" id="brushSize" min="12" max="100" value="50" style="flex:1;min-width:110px">
           <button type="button" class="btn ghost" onclick="resetMock()">↺ Reset</button>
-          <button type="button" class="btn green" onclick="saveMock(this)">💾 Save my mockup</button>
+          <button type="button" class="btn green" onclick="saveMock(this)">{{ pic('check',16) }} Save my mockup</button>
         </div>
         <div id="brushHint" style="display:none;font-size:12.5px;color:var(--mut);margin-top:8px">👆 Pick a color below, then <b>drag over your roof</b> to paint it that color. Use Reset to start over.</div>
       </div>
@@ -146,7 +147,7 @@
     <div class="card" style="background:linear-gradient(125deg,#eef4fb,#fff)">
       <div class="h">5 · Learn about your roof</div>
       <p style="margin:0 0 10px;font-size:13px;color:var(--mut)">New to this? Take a quick, fun tour of the roof systems and test your Roof IQ.</p>
-      <a class="btn" style="width:100%;background:var(--brand);color:#fff" href="{{ url_for('portal.learn', token=token) }}">🎓 Open Roof School →</a>
+      <a class="btn" style="width:100%;background:var(--brand);color:#fff" href="{{ url_for('portal.learn', token=token) }}"> {{ pic('cap',17) }} Open Roof School →</a>
     </div>
 
     <!-- WELCOME PACKET & DOCS -->
