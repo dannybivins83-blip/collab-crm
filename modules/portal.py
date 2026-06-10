@@ -944,6 +944,25 @@ def seminar(token):
     return render_template("seminar.html", token=token, company=db.get_company(), systems=ROOF_EDU)
 
 
+@bp.route("/<token>/proposal/<int:est_id>")
+def proposal(token, est_id):
+    """Token-gated, login-free render of the homeowner's own proposal (the estimate print
+    view). Only serves estimates that belong to this token's record — so it's safe to embed
+    in the portal without exposing other customers' estimates."""
+    kind, rec = _record_by_any_token(token)
+    if not rec:
+        abort(404)
+    e = db.get("estimates", est_id)
+    link = "job_id" if kind == "job" else "lead_id"
+    if not e or e.get(link) != rec["id"]:
+        abort(404)
+    from modules import estimates as est_mod
+    sections = est_mod._load_sections(est_id)
+    totals = est_mod.estimate_totals(e, sections)
+    return render_template("estimate_print.html", e=e, sections=sections, totals=totals,
+                           draws=est_mod._draws(totals["total"]))
+
+
 @bp.route("/<token>/upload-doc", methods=["POST"])
 def upload_doc(token):
     j = _job_by_token(token)

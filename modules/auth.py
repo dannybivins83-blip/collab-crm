@@ -31,7 +31,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "portal.home", "portal.message", "portal.sign", "portal.sign_doc", "portal.pay",
           "portal.upload_doc", "portal.upload_photo", "portal.design", "portal.design_request",
           "portal.referral_land", "portal.refer_share", "portal.refer_msg",
-          "portal.learn", "portal.seminar", "portal.design_photo",
+          "portal.learn", "portal.seminar", "portal.design_photo", "portal.proposal",
           "signups.portal_view", "signups.portal_complete",
           "measurements.ingest",
           # Branded demo portal (shareable, login-free sales tool). The generator

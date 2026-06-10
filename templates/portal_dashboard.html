@@ -568,7 +568,11 @@
   <!-- WELCOME PACKET — proposal + sign-up package + docs to sign + permit docs -->
   <div class="card" id="estimate">
     <style>#estimate .pkt-h{font-weight:800;font-size:14.5px;margin:0 0 8px;color:var(--ink)}
-      #estimate .pkt-sec{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}</style>
+      #estimate .pkt-sec{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
+      #estimate .docframe{width:100%;height:460px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-top:8px}
+      #estimate details>summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--accent);list-style:none;padding:7px 0}
+      #estimate details>summary::-webkit-details-marker{display:none}
+      #estimate details>summary:before{content:"▸ ";} #estimate details[open]>summary:before{content:"▾ ";}</style>
     <div class="h">{{ pic('clipboard',16) }} Your Welcome Packet{% if j.work_type %} — {{ j.work_type }}{% endif %}</div>
     <div class="muted" style="margin-bottom:14px">Your proposal, sign-up paperwork, and permit documents — all in one place to review and sign.</div>
 
@@ -581,8 +585,12 @@
         <div style="flex:1;min-width:0"><b>{{ e.number }}</b> — {{ e.title }}
           {% if e.status=='signed' %}<span class="pill green">✓ Approved</span>{% else %}<span class="pill">{{ e.status|capitalize }}</span>{% endif %}
         </div>
-        <a class="btn ghost sm" href="{{ url_for('estimates.print_view', est_id=e.id) }}" target="_blank">View</a>
+        <a class="btn ghost sm" href="{{ url_for('portal.proposal', token=token, est_id=e.id) }}" target="_blank">Full page ↗</a>
       </div>
+      <details {{ 'open' if e.status != 'signed' }}>
+        <summary>Read the full proposal</summary>
+        <iframe class="docframe" src="{{ url_for('portal.proposal', token=token, est_id=e.id) }}" title="Proposal {{ e.number }}"></iframe>
+      </details>
       {% if e.status != 'signed' %}
       <form method="post" action="{{ url_for('portal.sign', token=token, est_id=e.id) }}" class="stack" style="margin-top:12px">
         <label>Approve this proposal — type your full name to e-sign</label>
@@ -599,6 +607,16 @@
       <div class="pkt-h">2 · Your {{ signup_packet.system|title }} Sign-Up Package</div>
       <div class="muted" style="margin-bottom:10px">Pre-filled with your info — review, initial each section, and sign online.</div>
       <a class="btn green block" href="{{ url_for('signups.portal_view', token=token, packet_id=signup_packet.id) }}">Open &amp; Complete Sign-Up Package →</a>
+    </div>
+    {% endif %}
+    {% set signed_contract = (documents|selectattr('category','equalto','Contract')|list|first) %}
+    {% if signed_contract and signed_contract.filename %}
+    <div class="pkt-sec">
+      <div class="pkt-h">Your signed sign-up package</div>
+      <details open>
+        <summary>View your signed package</summary>
+        <iframe class="docframe" src="{{ url_for('uploads', subpath='documents/' ~ signed_contract.filename) }}" title="Signed sign-up package"></iframe>
+      </details>
     </div>
     {% endif %}
 
@@ -635,7 +653,10 @@
     <div class="pkt-sec">
       <div class="pkt-h">4 · Permit Documents 📑</div>
       {% for d in permit_docs %}
-      <div class="doc"><span class="di">📄</span><a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>
+      <div class="doc"><span class="di">{{ pic('doc',15) }}</span><a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>
+      <details><summary>Preview {{ d.original_name }}</summary>
+        <iframe class="docframe" src="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" title="{{ d.original_name }}"></iframe>
+      </details>
       {% endfor %}
       <div class="muted" style="font-size:12px;margin-top:9px">Notarized permit forms (Notice of Commencement, nailing affidavit) are signed in person with a notary — your project contact will coordinate that with you.</div>
     </div>
