@@ -71,7 +71,14 @@ the CRM (auto-match + store + attach + parse), and (future) embeds with SSO.
    origin to the embed page's postMessage target + its own
    `VITE_SSO_PARENT_ORIGINS`.
 3. **Point the app's "report finished" webhook** at `/measurements/ingest` per
-   `docs/MEASUREMENT_INGEST.md`. Set `MEASURE_CRM_WEBHOOK_SECRET` on both sides.
+   `docs/MEASUREMENT_INGEST.md`.
+
+> **Shared secret — RESOLVED (2026-06-10).** `MEASURE_CRM_WEBHOOK_SECRET` is now
+> **SET** to a strong value on Render (it was never on Vercel, so both sides used the
+> documented `seabreeze-webhook-secret` fallback — a forgery hole). The engine VM must
+> sign with the **same** value — *not* the fallback, *not* `SEABREEZE_…`. This
+> supersedes any earlier "copy the Render MEASURE value" note that predated it being set.
+> Verify: a signed push returns `404 no_match` (auth passed) rather than `401`.
 
 > Nothing here is blocked on the CRM — the seam is ready to receive. It's blocked
 > only on the measurement app existing.
@@ -128,3 +135,27 @@ roof geometry from the job's measurement.
 - Ingest: header is `X-Signature` with a **bare hex** digest (no `sha256=`), over
   the **exact** transmitted bytes.
 - Permit: never forward the captured e-signature into the packet.
+
+---
+
+## Hosting — Render migration (verified 2026-06-10) ✅
+Moved CRM off **3 vendors → 1**: Vercel + Neon + Google Drive → a single **Render**
+service `collab-crm` (https://collab-crm-bwsl.onrender.com), **SQLite + uploads on one
+5 GB persistent disk** (`/data`). Drive kept only as a read-fallback for old uploads.
+
+- **Verified:** 26,258 rows loaded Neon→SQLite (jobs 1231, leads 309, est 177, ws 580 +
+  3972 lines, inv 429, pay 178, meas 850, lib 146, users 6); dashboard/pipeline/to-dos/$
+  correct; the "saved-but-won't-open" doc bug **fixed** (real roof-report PDF served from
+  Drive on Render).
+- **`render.yaml`** is the blueprint. **`DATABASE_URL` is intentionally OMITTED** →
+  `db.IS_PG=False` → SQLite. **Do NOT add `DATABASE_URL` to Render** or it reverts to Neon.
+- `config.py` reads `CRM_DB_PATH`/`CRM_DATA_DIR`/`CRM_UPLOAD_DIR` (under `/data`); WAL mode
+  for the 2-worker gunicorn. One-time export: `scripts/neon_to_sqlite.py` (resumable).
+- Render secrets (not in git): `GDRIVE_SA_JSON` (base64), `GDRIVE_FOLDER_ID`,
+  `GOOGLE_OAUTH_CLIENT_ID/SECRET`, `SEABREEZE_CRM_WEBHOOK_SECRET`, and now
+  `MEASURE_CRM_WEBHOOK_SECRET` (strong; see §2). Google OAuth: added 4 redirect URIs
+  (`/auth/google/callback` + `/gmail/callback` × onrender + custom domain).
+- **Branch:** Render builds `agent/gc-consolidation`; `main` is fast-forwarded to it on
+  GitHub (same commit), so switching Render → `main` after merge is a content no-op.
+- **Pending, non-blocking:** DNS cutover of `crm.collaborativeconceptsfl.com` Vercel→Render
+  (Vercel stays as instant rollback); optional Drive→`/data/uploads` backfill to drop Drive.
