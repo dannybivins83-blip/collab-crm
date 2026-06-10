@@ -28,7 +28,9 @@ update your row → push. One pusher at a time. Don't route status through the o
 ## TASK QUEUE (priority order)
 | # | Task | Owner | State | Notes |
 |---|---|---|---|---|
-| P0 | **Close Critical #1 on the LIVE domain** | Head Coach + owner | OPEN | `a9c0550` gated Render only; Vercel domain still serves ungated code. Close via `vercel --prod` (after Vercel secrets) OR DNS cutover to Render. |
+| P0 | **Close Critical #1 on the LIVE domain → via DNS cutover to Render** | Head Coach + owner | OPEN | Decision made: cut over to Render (not a Vercel redeploy). Needs Render fully configured+verified, then DNS repoint. Interim: hole is data-integrity only (no PII path), unadvertised domain — accepted briefly pending a prompt cutover. |
+| P1 | **Build secret provisioning script** | Head Coach | NEXT | `scripts/provision_secrets.py`: reads `secrets/keys.local.env`, pushes to Render + Vercel via env-var APIs (host API tokens from local env, never chat). Seed of tenant onboarding. |
+| P1 | **Stand up scheduled Head Coach (cron)** | Head Coach | NEXT | Wakes every few hrs: pull, verify state, reconcile board, ping idle/blocked lanes, escalate owner-decisions. Autonomy = act-on-safe. |
 | P0 | **Set `CRM_SYNC_SECRET` + `CRM_SECRET` on Render** | owner (dashboard) | in progress | Render fail-closes without them. Reinstall bookmarklets after. |
 | P1 | **Rotate burned/leaked secrets** | owner | OPEN | `MEASURE` (chat-leak ×2), `SEABREEZE` (leaked), `GOOGLE_OAUTH_CLIENT_SECRET` (screenshot), roof-engine key. Fresh values → dashboards + `secrets/keys.local.env`. |
 | P1 | **Permit lane: commit+push 3 files, FF main** | Permit | OPEN | Unblocks main catch-up; stops interleaving. |
@@ -40,10 +42,10 @@ update your row → push. One pusher at a time. Don't route status through the o
 
 ---
 
-## DECISIONS NEEDED (owner)
-- [ ] **Live-#1 close path:** `vercel --prod` redeploy vs DNS cutover to Render? (Head Coach recommends: set Render secrets → cutover DNS to Render, retire Vercel.)
-- [ ] **Head-coach autonomy level** (see chat) — report-only / act-on-safe / full.
-- [ ] **Secret automation** — provisioning script (no new vendor) / Doppler / self-host Infisical.
+## DECISIONS — RESOLVED (2026-06-10)
+- [x] **Head-coach autonomy:** ACT on safe/reversible (board, pings, FF main, doc commits, local tests); ESCALATE irreversible/outward-facing/spend (deploys, DNS, secrets, sends).
+- [x] **Secret automation:** build a **provisioning script** now (reads `secrets/keys.local.env` → pushes to Render/Vercel APIs). No new vendor; becomes the tenant-onboarding seed.
+- [x] **Live-#1 close path:** owner delegated → **Head Coach call = DNS cutover to Render** (closes the hole + collapses to one vendor, the stated direction). Sequence: set/rotate all Render secrets → verify Render healthy on onrender URL → repoint DNS → keep Vercel as rollback. **Blocked on:** owner's DNS host (for exact records) + Render secrets finished.
 
 ## PROTOCOL
 Pull before, push after. Update your row. `send_message` for "your turn now" pings only.
