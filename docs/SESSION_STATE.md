@@ -5,24 +5,25 @@ project has had multiple parallel agents and stale-narration confusion all sessi
 
 ## Repo / hosts (the important part)
 - **Repo:** `…/acculynx roofr reprot/whitelabel-crm`, remote `github.com/dannybivins83-blip/collab-crm`. Working branch: **`agent/gc-consolidation`**.
-- **Git reality (verify with `git log --oneline -1` + `git rev-parse origin/main origin/agent/gc-consolidation`):**
-  - local HEAD `1c7a17d` (adds `POST /api/takeoff`) — **NOT pushed**.
-  - `origin/agent/gc-consolidation` = `212d40e` (one behind local; **Render builds from this branch**).
-  - `origin/main` = `b3f134e` (behind both).
-  - **Uncommitted:** `docs/INTEGRATION_HANDOFF.md` (modified). **Untracked:** `modules/qxo.py` (a parallel agent's — inspect before committing/deleting).
+- **Git reality (verified 2026-06-10 via `git rev-parse HEAD origin/main origin/agent/gc-consolidation` + `git status`):**
+  - **UNIFIED at `9dd3f02`** ("Add CRM sitemaps") — tip; parent `8f2c2c1` ("session-state + integration handoff + QXO scaffold"). local HEAD == `origin/main` == `origin/agent/gc-consolidation` == `9dd3f02`.
+  - History folds in the former `1c7a17d` (`POST /api/takeoff`), the `INTEGRATION_HANDOFF.md` edit, and `modules/qxo.py` (inert "QXO dark scaffold"); the old `1c7a17d`/`212d40e`/`b3f134e` divergence is RESOLVED.
+  - **Uncommitted (this session, intentional):** `docs/SESSION_STATE.md` (this regrounding) + new `docs/CUTOVER_AND_SECRETS_RUNBOOK.md`. Nav aid: `docs/SITEMAP.html` (4 maps — full system / backend / portal / workflow).
 - **TWO live deployments (not yet unified):**
   - **Vercel** — `crm.collaborativeconceptsfl.com` (custom domain currently points here) + `whitelabel-crm-rho.vercel.app`. DB = **Neon Postgres**. Deployed via CLI from local tree → **has `/api/takeoff`**. Roof-engine env vars set here.
-  - **Render** — `collab-crm-bwsl.onrender.com`, service `collab-crm`. DB = **SQLite on a 5GB disk** (`/data`), `DATABASE_URL` intentionally omitted. **Migration agent loaded 26,258 rows Neon→SQLite here.** Builds from `origin/agent/gc-consolidation` (`212d40e`) → **does NOT yet have `/api/takeoff`** (it's in the unpushed `1c7a17d`).
+  - **Render** — `collab-crm-bwsl.onrender.com`, service `collab-crm`. DB = **SQLite on a 5GB disk** (`/data`), `DATABASE_URL` intentionally omitted. **Migration agent loaded 26,258 rows Neon→SQLite here.** Builds from `origin/agent/gc-consolidation` (now `8f2c2c1`) → **HAS `/api/takeoff`** (verified 2026-06-10: `OPTIONS /api/takeoff` → 200, and `/measurements/ingest` → 200).
 - **Canonical target = Render** (1 vendor: SQLite+uploads on disk, Drive read-fallback). **DNS cutover Vercel→Render is PENDING** (still baking on the onrender URL; Vercel kept as instant rollback).
 
-## To unify (recommended first actions for the new session)
-1. **Inspect `modules/qxo.py`** (untracked, unknown) — decide commit vs delete.
-2. **Commit** `docs/INTEGRATION_HANDOFF.md`, then **push `agent/gc-consolidation`** so `origin/gc` gets `1c7a17d` (→ Render redeploys **with `/api/takeoff`**).
-3. **Fast-forward `main` → `gc-consolidation`** and push (clean FF; verified earlier `origin/main` is an ancestor).
-4. **DNS cutover** when ready: repoint `crm.collaborativeconceptsfl.com` Vercel→Render; keep Vercel as rollback.
+## To unify
+1. ✅ **DONE** — `modules/qxo.py` committed (inert "QXO dark scaffold") in `8f2c2c1`.
+2. ✅ **DONE** — `INTEGRATION_HANDOFF.md` committed + `agent/gc-consolidation` pushed; Render redeployed **with `/api/takeoff`** (verified 200).
+3. ✅ **DONE** — `main` fast-forwarded to `8f2c2c1` and pushed (all three refs equal).
+4. ⏳ **PENDING — DNS cutover** `crm.collaborativeconceptsfl.com` Vercel→Render. Still served by Vercel (verified `Server: Vercel`; resolves to Vercel IPs 216.198.79.65 / 64.29.17.1 via Cloudflare DNS-only). **Precondition: add the custom domain on Render + let its TLS cert issue BEFORE flipping DNS; keep Vercel as instant rollback.** Blocked on Cloudflare + Render dashboard access (no token in the agent env).
 
 ## Secrets (HMAC for the ingest endpoints)
-- `MEASURE_CRM_WEBHOOK_SECRET` is **deliberately UNSET** on both hosts → both derive the fallback **`seabreeze-webhook-secret`**. So the **roof engine + Estimator must sign with `seabreeze-webhook-secret`** (the fallback) — NOT a random value, NOT the SEABREEZE one — OR set a strong value on **both** the live CRM host **and** the engine VM (safe now; nothing live-signs with it yet, more secure than the public fallback).
+- ▶ **Step-by-step runbook for everything in this section + the DNS cutover: `docs/CUTOVER_AND_SECRETS_RUNBOOK.md`** (the agent can't reach Cloudflare/Render/GitHub/the VM — you click; no secret values in the file).
+- **DECIDED 2026-06-10:** MEASURE secret → **strong value on both sides** (set `MEASURE_CRM_WEBHOOK_SECRET` on Render+Vercel + the engine VM/Estimator; stop using the fallback). Execution path → **runbooks, user clicks.**
+- `MEASURE_CRM_WEBHOOK_SECRET` is currently **UNSET** on both hosts → both derive the fallback **`seabreeze-webhook-secret`** (`_ingest_secret()` → `{SSO_TENANT_KEY|seabreeze}-webhook-secret`). Safe to set a strong value now — nothing live-signs `/api/takeoff` yet (engine push dormant). See runbook §2.
 - 🔒 **Rotate `SEABREEZE_CRM_WEBHOOK_SECRET`** (`7938…efbb87`) and the **roof-engine API key** (`71tk…`) — both leaked into the prior chat transcript. (SEABREEZE = the SiteCam SSO secret.)
 - 🔒 **Revoke the `roof-crm-deploy` GitHub PAT** once integrations confirmed.
 
