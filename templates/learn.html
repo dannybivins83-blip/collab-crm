@@ -87,6 +87,26 @@
   .docrow{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
     margin-bottom:7px;text-decoration:none;color:var(--ink);font-weight:600;font-size:13.5px}
   .docrow:hover{border-color:var(--brand)}
+  /* system accordion */
+  .sysacc{border:1px solid var(--line);border-radius:13px;margin-bottom:10px;overflow:hidden}
+  .sysacc summary{display:flex;gap:12px;align-items:center;padding:10px;cursor:pointer;list-style:none}
+  .sysacc summary::-webkit-details-marker{display:none}
+  .sysacc summary:after{content:"＋";margin-left:auto;color:var(--mut);font-weight:700;font-size:18px;padding-right:6px}
+  .sysacc[open] summary:after{content:"－"}
+  .sysacc[open]{box-shadow:0 6px 18px -12px rgba(16,34,64,.3)}
+  .sthumb{position:relative;width:62px;height:62px;border-radius:11px;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center}
+  .sthumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .sthumb .sic{position:relative;font-size:26px;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .snm{font-weight:800;font-size:15.5px} .slife{font-size:12.5px;color:var(--mut)}
+  .syours{font-size:9.5px;font-weight:800;background:var(--green);color:#16240a;padding:2px 7px;border-radius:999px;margin-left:5px}
+  .sbody{padding:2px 14px 16px}
+  .sbody .dt{font-size:13px;line-height:1.5;margin-bottom:8px}
+  .sbody .swb{background:#eef4fb;border:1px solid #d4e3f5;border-radius:9px;padding:10px;font-size:12.5px;line-height:1.5;margin-bottom:9px}
+  .sbody .lh{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);margin:10px 0 4px}
+  .sbody .ll{font-size:12.5px;padding:3px 0;border-bottom:1px dashed var(--line)}
+  .sbody ul{margin:3px 0 6px;padding-left:17px;font-size:12.5px;line-height:1.5}
+  .sbody .pro li{color:#2e7d32} .sbody .con li{color:#b0413c}
+  .sbody .fln{background:#f0f8ee;border:1px solid #cde9c9;border-radius:9px;padding:9px 10px;font-size:12.5px;line-height:1.5;margin-top:8px}
 </style>
 </head>
 <body>
@@ -178,41 +198,31 @@
     {% endif %}
 
     <div class="card">
-      <div class="h">The 4 roof systems — tap a card to flip it</div>
-      <div class="syscards">
-        {% for s in systems %}
-        {% set photo = system_photos.get(s.key) %}
-        {% set src = (url_for('uploads', subpath='photos/' ~ photo) if photo else s.img) %}
-        <div class="flip" onclick="this.classList.toggle('on')">
-          <div class="inner">
-            <div class="face front" style="background:linear-gradient(160deg,{{ s.hex }},#10131c)">
-              {% if src %}<img class="cardimg" src="{{ src }}" loading="lazy" alt="{{ s.name }}" onerror="this.style.display='none'">{% endif %}
-              <div class="fov"></div>
-              <div class="fc">
-                <div class="tap">tap to learn ↻</div>
-                <div class="ic">{{ s.ic }}</div>
-                <div class="nm">{{ s.name }}</div>
-                <div class="meta">Lasts {{ s.life }} · {{ s.cost }}</div>
-              </div>
-            </div>
-            <div class="face back">
-              <div class="bk">
-                <div class="nm">{{ s.ic }} {{ s.name }}</div>
-                <div class="dt">{{ s.detail or s.blurb }}</div>
-                {% if s.swb %}<div class="swb"><b>🛡️ The SWB (Secondary Water Barrier):</b> {{ s.swb }}</div>{% endif %}
-                {% if s.layers %}<div class="lh">How it's layered (top → deck)</div>
-                {% for l in s.layers %}<div class="ll">{{ loop.index }}. {{ l }}</div>{% endfor %}{% endif %}
-                {% if s.includes %}<div class="lh">What's included</div><ul>{% for i in s.includes %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}
-                <div class="lh">Pros</div><ul class="pro">{% for p in s.pros %}<li>{{ p }}</li>{% endfor %}</ul>
-                <div class="lh">Trade-offs</div><ul class="con">{% for cn in s.cons %}<li>{{ cn }}</li>{% endfor %}</ul>
-                {% if s.fl %}<div class="fln">🌴 <b>In Florida:</b> {{ s.fl }}</div>{% endif %}
-                <div class="tap">↻ tap to flip back</div>
-              </div>
-            </div>
+      <div class="h">The 4 roof systems — tap to expand</div>
+      {% for s in systems %}
+      {% set photo = system_photos.get(s.key) %}
+      {% set src = (url_for('uploads', subpath='photos/' ~ photo) if photo else s.img) %}
+      <details class="sysacc"{% if s.key == sysk %} open{% endif %}>
+        <summary>
+          <div class="sthumb" style="background:linear-gradient(160deg,{{ s.hex }},#10131c)">
+            {% if src %}<img src="{{ src }}" loading="lazy" alt="" onerror="this.style.display='none'">{% endif %}
+            <span class="sic">{{ s.ic }}</span>
           </div>
+          <div><div class="snm">{{ s.name }}{% if s.key == sysk %}<span class="syours">YOUR ROOF</span>{% endif %}</div>
+            <div class="slife">Lasts {{ s.life }} · {{ s.cost }}</div></div>
+        </summary>
+        <div class="sbody">
+          <div class="dt">{{ s.detail or s.blurb }}</div>
+          {% if s.swb %}<div class="swb"><b>🛡️ The SWB (Secondary Water Barrier):</b> {{ s.swb }}</div>{% endif %}
+          {% if s.layers %}<div class="lh">How it's layered (top → deck)</div>
+          {% for l in s.layers %}<div class="ll">{{ loop.index }}. {{ l }}</div>{% endfor %}{% endif %}
+          {% if s.includes %}<div class="lh">What's included</div><ul>{% for i in s.includes %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}
+          <div class="lh">Pros</div><ul class="pro">{% for p in s.pros %}<li>{{ p }}</li>{% endfor %}</ul>
+          <div class="lh">Trade-offs</div><ul class="con">{% for cn in s.cons %}<li>{{ cn }}</li>{% endfor %}</ul>
+          {% if s.fl %}<div class="fln">🌴 <b>In Florida:</b> {{ s.fl }}</div>{% endif %}
         </div>
-        {% endfor %}
-      </div>
+      </details>
+      {% endfor %}
     </div>
 
     <div class="card" id="quizCard">
