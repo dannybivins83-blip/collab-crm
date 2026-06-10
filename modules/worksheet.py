@@ -44,11 +44,27 @@ def lines_for(ws_id):
     return db.all_rows("worksheet_lines", "worksheet_id=?", (ws_id,), "sort, id")
 
 
+def _est_line_count(eid):
+    try:
+        return len(db.all_rows("estimate_lines", "estimate_id=?", (eid,)))
+    except Exception:
+        return 0
+
+
 def _signed_estimate(job_id):
-    """The job's signed estimate, else the most recent one."""
+    """The estimate to seed the worksheet from: the signed one, else the estimate with
+    the MOST line items (a populated estimate beats an empty synced header), else the
+    most recent. Picking by line count avoids seeding from a 0-line estimate."""
     rows = db.all_rows("estimates", "job_id=?", (job_id,), "id DESC")
+    if not rows:
+        return None
     signed = [e for e in rows if e.get("status") == "signed"]
-    return (signed or rows or [None])[0]
+    if signed:
+        # among signed, still prefer the one that actually has lines
+        signed.sort(key=lambda e: _est_line_count(e["id"]), reverse=True)
+        return signed[0]
+    rows_by_lines = sorted(rows, key=lambda e: _est_line_count(e["id"]), reverse=True)
+    return rows_by_lines[0]
 
 
 def seed_from_estimate(ws_id, job_id):
@@ -96,6 +112,15 @@ def seed_from_estimate(ws_id, job_id):
 def get_or_create(job_id):
     ws = for_job(job_id)
     if ws:
+        # Auto-(re)seed if the worksheet is still empty or only the $0.01 placeholder
+        # (e.g. it was seeded earlier when the estimate had no line items) AND the
+        # estimate now has real lines. Never touches a worksheet that's been built out.
+        real = [l for l in lines_for(ws["id"]) if (l.get("budget_cost") or 0) > 1]
+        if not real:
+            e = _signed_estimate(job_id)
+            if e and _est_line_count(e["id"]):
+                seed_from_estimate(ws["id"], job_id)
+                return for_job(job_id)
         return ws
     job = db.get("jobs", job_id) or {}
     wid = db.insert("worksheets", {"job_id": job_id,

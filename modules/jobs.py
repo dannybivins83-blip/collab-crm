@@ -172,6 +172,15 @@ def detail(job_id):
     if not j:
         return redirect(url_for("jobs.board"))
     _decorate(j)
+    # Auto-materialize the worksheet from the estimate so Profit Analysis fills in without
+    # opening the worksheet + clicking Seed. Only when an estimate with line items exists
+    # (get_or_create seeds new/placeholder worksheets, never clobbers a built-out one).
+    try:
+        from modules import worksheet as _ws
+        if db.all_rows("estimates", "job_id=?", (job_id,)):
+            _ws.get_or_create(job_id)
+    except Exception:
+        pass
     from modules import measurements as meas
     idx = constants.JOB_STAGE_INDEX.get(j["stage"], 0)
     next_stage = constants.JOB_STAGES[idx + 1] if idx < len(constants.JOB_STAGES) - 1 else None
