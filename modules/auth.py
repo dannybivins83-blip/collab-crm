@@ -33,7 +33,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "portal.referral_land", "portal.refer_share", "portal.refer_msg",
           "portal.learn", "portal.seminar", "portal.design_photo", "portal.proposal",
           "signups.portal_view", "signups.portal_complete",
-          "measurements.ingest",
+          "measurements.ingest", "takeoff.create",
           # Branded demo portal (shareable, login-free sales tool). The generator
           # UI (demo.generator/create/delete) is intentionally NOT public.
           "demo.portal", "demo.design", "demo.design_request",
