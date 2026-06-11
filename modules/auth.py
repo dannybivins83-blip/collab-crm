@@ -38,6 +38,10 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # UI (demo.generator/create/delete) is intentionally NOT public.
           "demo.portal", "demo.design", "demo.design_request",
           "demo.refer_share", "demo.refer_msg",
+          # Token-gated DB-restore: NOT session-auth'd. Its own X-Restore-Token
+          # check is the gate (404 when unarmed/wrong). Must bypass the login
+          # redirect so the gate returns 404, not a 302 to /login.
+          "dbadmin.db_restore",
           "sitecam.gallery_link"}
 # Endpoints only admins may hit (prefix match on the path).
 ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow")
