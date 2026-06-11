@@ -311,6 +311,14 @@ CREATE TABLE IF NOT EXISTS automations (
     template_text TEXT, offset_days INTEGER DEFAULT 0,
     active INTEGER DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS team_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created TEXT,
+    user_id INTEGER,
+    user_name TEXT,
+    body TEXT
+);
 """
 
 

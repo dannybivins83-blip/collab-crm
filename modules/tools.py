@@ -354,6 +354,139 @@ def dev_note():
     return jsonify({"ok": True})
 
 
+@bp.route("/delegate", methods=["POST"])
+def delegate():
+    """Write a Danny→agent command to the OVERLORD bus.
+    Body: {message, url, page_title, context, lane, priority}"""
+    import json as _json, datetime as _dt, os as _os
+    from modules.auth import current_user as _cu
+    if not _cu():
+        return jsonify({"ok": False, "error": "not logged in"}), 401
+    data = request.get_json(silent=True) or {}
+    message = (data.get("message") or "").strip()
+    if not message:
+        return jsonify({"ok": False, "error": "empty message"}), 400
+    url = (data.get("url") or "").strip()[:200]
+    page_title = (data.get("page_title") or "").strip()[:120]
+    context = (data.get("context") or "").strip()[:600]
+    priority = (data.get("priority") or "P1").strip().upper()
+    if priority not in ("P0", "P1", "P2", "P3"):
+        priority = "P1"
+    lane = (data.get("lane") or "crm-coord").strip()
+    KNOWN_LANES = {"crm-coord", "crm-ui", "security", "sitecam", "roofengine",
+                   "takeoff", "permit", "appconnect", "overlord"}
+    if lane not in KNOWN_LANES:
+        lane = "crm-coord"
+    now = _dt.datetime.now()
+    ts = now.strftime("%Y-%m-%dT%H%M")
+    task_id = "%s__danny__dispatch" % ts
+    frontmatter = ("---\nto: %s\nfrom: danny\ncreated: %s\nsubject: %s\n"
+                   "status: new\npriority: %s\nneeds_ack: true\n"
+                   "action_required: OPEN-AND-EXTRACT-TODOS\n---\n") % (
+        lane, now.isoformat(), message[:80].replace("\n", " "), priority)
+    body = "\U0001F6A9 FLAG — OPEN & ANALYZE FOR TO-DOS: Read in full, pull every action item into your task list, then ack. \U0001F6A9\n\n"
+    body += "## Instruction\n%s\n\n" % message
+    if page_title or url:
+        body += "**Page:** %s\n**URL:** %s\n\n" % (page_title or "(untitled)", url or "(none)")
+    if context:
+        body += "**Selected text:**\n> %s\n\n" % context
+    body += "**Priority:** %s | **From:** Danny (CRM dispatch widget %s)\n" % (priority, now.strftime("%Y-%m-%d %H:%M"))
+    body += "\n---\nTO: %s\nFROM: danny\nSTATUS: new\nSUMMARY: in-CRM dispatch\nNEEDS: nothing" % lane
+    try:
+        crm_root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        inbox_dir = _os.path.normpath(_os.path.join(crm_root, "..", "_OVERLORD", "bus", "inbox", lane))
+        _os.makedirs(inbox_dir, exist_ok=True)
+        fpath = _os.path.join(inbox_dir, "%s__danny__dispatch.md" % ts)
+        with open(fpath, "w", encoding="utf-8") as f:
+            f.write(frontmatter + body)
+    except Exception as e:
+        return jsonify({"ok": False, "error": "bus write failed: %s" % e}), 500
+    try:
+        log_path = _os.path.join(crm_root, "dispatch_log.jsonl")
+        entry = _json.dumps({"ts": now.isoformat(), "task_id": task_id,
+                              "message": message[:120], "lane": lane,
+                              "priority": priority, "url": url}) + "\n"
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except Exception:
+        pass
+    return jsonify({"ok": True, "task_id": task_id, "lane": lane, "ts": now.isoformat()})
+
+
+@bp.route("/delegate-log")
+def delegate_log():
+    """Return last 10 dispatched tasks for the floating widget history."""
+    import json as _json, os as _os
+    from modules.auth import current_user as _cu
+    if not _cu():
+        return jsonify({"ok": False}), 401
+    log_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "dispatch_log.jsonl")
+    entries = []
+    try:
+        with open(log_path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    entries.append(_json.loads(line.strip()))
+                except Exception:
+                    pass
+    except FileNotFoundError:
+        pass
+    return jsonify({"ok": True, "entries": entries[-10:][::-1]})
+
+
+@bp.route("/team-messages", methods=["GET", "POST"])
+def team_messages():
+    from modules.auth import current_user as _cu
+    u = _cu()
+    if not u:
+        return jsonify({"ok": False, "error": "not logged in"}), 401
+    conn = db.connect()
+    conn.execute("""CREATE TABLE IF NOT EXISTS team_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created TEXT, user_id INTEGER, user_name TEXT, body TEXT)""")
+    conn.commit()
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        body = (data.get("body") or "").strip()
+        if not body:
+            conn.close()
+            return jsonify({"ok": False, "error": "empty message"}), 400
+        conn.execute(
+            "INSERT INTO team_messages (created, user_id, user_name, body) VALUES (?,?,?,?)",
+            (db.now(), u.get("id"), u.get("name") or u.get("email") or "Unknown", body))
+        conn.commit()
+        conn.close()
+        return jsonify({"ok": True})
+    rows = conn.execute(
+        "SELECT id, created, user_name, body FROM team_messages ORDER BY id DESC LIMIT 60"
+    ).fetchall()
+    conn.close()
+    msgs = [dict(r) for r in rows]
+    msgs.reverse()
+    return jsonify({"ok": True, "messages": msgs})
+
+
+@bp.route("/team-messages/<int:msg_id>", methods=["DELETE"])
+def delete_team_message(msg_id):
+    from modules.auth import current_user as _cu
+    u = _cu()
+    if not u:
+        return jsonify({"ok": False}), 401
+    conn = db.connect()
+    row = conn.execute("SELECT user_id FROM team_messages WHERE id=?", (msg_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"ok": False, "error": "not found"}), 404
+    row = dict(row)
+    if row["user_id"] != u.get("id") and u.get("role") != "admin" and not u.get("is_owner"):
+        conn.close()
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+    conn.execute("DELETE FROM team_messages WHERE id=?", (msg_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
 @bp.route("/mass-email")
 def mass_email():
     kind = request.args.get("kind", "lead")

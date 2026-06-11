@@ -143,6 +143,19 @@
       <div id="todoBody"><div class="muted" style="padding:6px 2px">Loading…</div></div>
     </div>
 
+    <!-- Internal team comms board -->
+    <div class="card" id="commsBoardCard">
+      <div class="panel-head">
+        <span>💬 Team Board <span class="badge" id="commsBadge"></span></span>
+        <button class="btn sm" id="commsRefresh" title="Refresh">⟳</button>
+      </div>
+      <div id="commsList" style="max-height:320px;overflow-y:auto;margin:0 -4px"></div>
+      <div class="cb-compose">
+        <input id="commsInput" type="text" placeholder="Post a message to the team…" maxlength="500" autocomplete="off">
+        <button class="btn primary sm" id="commsPost">Post</button>
+      </div>
+    </div>
+
     <!-- Gmail inbox widget (Gmail API via per-user OAuth; drafts only, never auto-sends) -->
     <div class="card" id="gmailCard">
       <div class="panel-head">
@@ -211,6 +224,17 @@
   background:var(--accent,#29ABE2)14;border:1px solid var(--accent,#29ABE2)44;
   border-radius:999px;padding:1px 8px;text-decoration:none}
 .gm-crm:hover{background:var(--accent,#29ABE2)22}
+/* Team comms board */
+#commsBoardCard .cb-compose{display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--line,#eef1f6);padding-top:10px}
+#commsBoardCard .cb-compose input{flex:1;padding:7px 10px;border:1px solid var(--line,#c7d0de);border-radius:7px;font:inherit;font-size:13px}
+#commsBoardCard .cb-compose input:focus{outline:none;border-color:var(--accent2,#29ABE2);box-shadow:0 0 0 2px var(--accent2,#29ABE2)22}
+.cb-row{padding:8px 6px;border-bottom:1px solid var(--line,#eef1f6);display:flex;gap:10px;align-items:flex-start}
+.cb-row:last-child{border-bottom:0}
+.cb-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent2,#29ABE2);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+.cb-meta{font-size:11px;color:var(--mut,#8a93a6);margin-bottom:2px}
+.cb-body{font-size:13px;line-height:1.4;word-break:break-word}
+.cb-del{margin-left:auto;flex:none;background:none;border:none;color:var(--mut,#aaa);cursor:pointer;font-size:13px;padding:0 2px;opacity:0;transition:opacity .15s}
+.cb-row:hover .cb-del{opacity:1}
 /* Smart To-Do panel */
 #todoCard .td-list{max-height:380px;overflow:auto;margin:-2px -4px 0}
 .td-item{display:flex;gap:8px;padding:8px 6px;border-bottom:1px solid var(--line,#eef1f6)}
@@ -336,6 +360,72 @@
   }
 
   init();
+})();
+</script>
+
+<!-- Team comms board -->
+<script>
+(function(){
+  var list=document.getElementById('commsList');
+  var input=document.getElementById('commsInput');
+  var postBtn=document.getElementById('commsPost');
+  var badge=document.getElementById('commsBadge');
+  var lastCount=0;
+  function initials(name){ return (name||'?').trim().split(/\s+/).map(function(w){return w[0]||'';}).slice(0,2).join('').toUpperCase()||'?'; }
+  function relTime(ts){
+    if(!ts) return '';
+    var d=new Date(ts.replace(' ','T')+'Z'); if(isNaN(d)) d=new Date(ts.replace(' ','T'));
+    var diff=Math.floor((Date.now()-d)/1000);
+    if(diff<60) return 'just now';
+    if(diff<3600) return Math.floor(diff/60)+'m ago';
+    if(diff<86400) return Math.floor(diff/3600)+'h ago';
+    return Math.floor(diff/86400)+'d ago';
+  }
+  function render(msgs){
+    if(!msgs||!msgs.length){ list.innerHTML='<div class="muted" style="padding:8px 6px;font-size:13px">No messages yet. Say hi 👋</div>'; return; }
+    list.innerHTML='';
+    msgs.forEach(function(m){
+      var row=document.createElement('div'); row.className='cb-row';
+      var av=document.createElement('div'); av.className='cb-avatar'; av.textContent=initials(m.user_name);
+      var body=document.createElement('div'); body.style.flex='1';
+      var meta=document.createElement('div'); meta.className='cb-meta';
+      meta.textContent=(m.user_name||'Unknown')+' · '+relTime(m.created);
+      var txt=document.createElement('div'); txt.className='cb-body';
+      txt.textContent=m.body;
+      var del=document.createElement('button'); del.className='cb-del'; del.title='Delete'; del.textContent='✕';
+      del.onclick=function(){ if(!confirm('Delete this message?')) return;
+        fetch('/tools/team-messages/'+m.id,{method:'DELETE'}).then(function(){ load(); }); };
+      body.appendChild(meta); body.appendChild(txt);
+      row.appendChild(av); row.appendChild(body); row.appendChild(del);
+      list.appendChild(row);
+    });
+    list.scrollTop=list.scrollHeight;
+  }
+  function load(){
+    fetch('/tools/team-messages').then(function(r){return r.json();}).then(function(d){
+      if(!d.ok) return;
+      if(d.messages.length>lastCount && lastCount>0){
+        badge.textContent='+'+( d.messages.length-lastCount); badge.style.display='';
+        setTimeout(function(){badge.textContent='';},4000);
+      }
+      lastCount=d.messages.length;
+      render(d.messages);
+    }).catch(function(){});
+  }
+  function post(){
+    var txt=(input.value||'').trim(); if(!txt) return;
+    postBtn.disabled=true;
+    fetch('/tools/team-messages',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({body:txt})}).then(function(r){return r.json();}).then(function(d){
+      postBtn.disabled=false;
+      if(d.ok){ input.value=''; load(); }
+    }).catch(function(){ postBtn.disabled=false; });
+  }
+  postBtn.onclick=post;
+  input.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); post(); } });
+  document.getElementById('commsRefresh').onclick=load;
+  load();
+  setInterval(load, 30000);
 })();
 </script>
 

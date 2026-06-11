@@ -169,22 +169,24 @@
 
   <!-- ── Notes / Tools sidebar ───────────────────────────────────── -->
   <div>
-    <div class="card">
-      <h2>🗒️ Notes / Tools</h2>
-      <div class="field"><label>Lead Rank</label>
-        <select name="rank">
+    <div class="card sidebar-tools">
+      <h2 style="font-size:16px;margin-bottom:14px">🗒️ Notes / Tools</h2>
+      <div class="field sidebar-field">
+        <label class="sidebar-label">Lead Rank</label>
+        <select name="rank" class="sidebar-select">
           {% set cur_rank = lead.rank or 0 %}
           <option value="0" {{ 'selected' if cur_rank==0 }}>Unranked</option>
           {% for n in [1,2,3,4] %}<option value="{{ n }}" {{ 'selected' if cur_rank==n }}>{{ '🟩' * n }} ({{ n }})</option>{% endfor %}
         </select>
       </div>
-      <div class="field"><label>Priority Level</label>
-        <select name="priority">{% for p in constants.PRIORITY_LEVELS %}<option {{ 'selected' if (lead.priority or 'Normal')==p }}>{{ p }}</option>{% endfor %}</select>
+      <div class="field sidebar-field">
+        <label class="sidebar-label">Priority Level</label>
+        <select name="priority" class="sidebar-select">{% for p in constants.PRIORITY_LEVELS %}<option {{ 'selected' if (lead.priority or 'Normal')==p }}>{{ p }}</option>{% endfor %}</select>
       </div>
     </div>
     <div class="card">
-      <button class="primary" type="submit" style="width:100%">{{ 'Create Lead' if mode=='new' else 'Save Changes' }}</button>
-      <a class="btn ghost" style="width:100%;text-align:center;margin-top:8px" href="{{ url_for('leads.board') }}">Cancel</a>
+      <button class="primary" type="submit" style="width:100%;padding:14px;font-size:16px;font-weight:800">{{ 'Create Lead' if mode=='new' else 'Save Changes' }}</button>
+      <a class="btn ghost" style="width:100%;text-align:center;margin-top:10px;padding:12px;font-size:14px;display:block" href="{{ url_for('leads.board') }}">Cancel</a>
     </div>
   </div>
 </div>
@@ -221,6 +223,14 @@
   .vi-chip{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--panel2);
     border:1px solid var(--line);color:var(--mut)}
   .vi-chip.done{background:#8CC63F22;border-color:#8CC63F;color:#3c6b16}
+  /* Sidebar: bigger, easier-to-tap fields */
+  .sidebar-tools{padding:20px}
+  .sidebar-field{margin-bottom:18px}
+  .sidebar-field:last-child{margin-bottom:0}
+  .sidebar-label{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+  .sidebar-select{width:100%;font-size:16px;padding:11px 12px;border-radius:8px;
+    border:1.5px solid var(--line,#c7d0de);background:#fff;cursor:pointer;font-weight:600}
+  .sidebar-select:focus{outline:none;border-color:var(--accent2,#29ABE2);box-shadow:0 0 0 3px var(--accent2,#29ABE2)22}
 
 </style>
 <script>
