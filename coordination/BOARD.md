@@ -36,7 +36,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | P0 | **Set `CRM_SYNC_SECRET` + `CRM_SECRET` on Render** | owner (dashboard) | in progress | Render fail-closes without them. Reinstall bookmarklets after. |
 | P1 | **Rotate burned/leaked secrets** | owner | OPEN | `MEASURE` (chat-leak ×2), `SEABREEZE` (leaked), `GOOGLE_OAUTH_CLIENT_SECRET` (screenshot), roof-engine key. Fresh values → dashboards + `secrets/keys.local.env`. |
 | P1 | **Permit lane: commit+push 3 files, FF main** | Permit | OPEN | Unblocks main catch-up; stops interleaving. |
-| P1 | **Import Service + Warranty depts (migration parity A)** | Sync/Security (crm-ui) | OPEN | Owner-flagged 2026-06-11 (dashboard screenshot). `acculynx_sync.py:663` hardcodes `"REROOF Department"` on every record → Service/Warranty land under Reroof; their dept views are empty. Make the milestone walk dept-aware (per-dept query or read AccuLynx dept field) + map→store. Gates AccuLynx cancellation. Escalated to overlord. |
+| P1 | **Import Service + Warranty depts (migration parity A)** | Sync (done) → owner | ✅ CODE FIXED (`fdb2f97`, crm-ui-verified: `_department_for` maps workType→configured dept, tenant-agnostic). **NOW owner-gated: RE-SYNC** (re-run ⭐Sync All) so existing jobs pick up the corrected department; dept views are empty until then. Gates AccuLynx cancellation. |
 | P2 | **Audit #3 (`est_num` money corruption) + #4 (dup invoice #s)** | Security | QUEUED | No decision needed; do after permit resync. |
 | P2 | **Secret provisioning automation** | Head Coach | DESIGN | One-command push of `keys.local.env` → Render/Vercel APIs; seed of tenant onboarding. |
 | P3 | **SSO go-live** | SiteCam + owner | BLOCKED | Needs fresh `SEABREEZE` on both sides + sitecam-api `SEED_FORCE=true`. |
@@ -67,6 +67,7 @@ Runs in parallel: Permit lane FF's `main`; Security lane does audit #3/#4; Head 
 3. **sitecam-api** → set the *same* fresh `SEABREEZE` value → redeploy once with `SEED_FORCE=true` → flip back.
 4. **Engine VM** (via Roof Engine lane) → set the *same* fresh `MEASURE` value.
 5. **Cloudflare DNS cutover** — only after I green-light Render health.
+6. **RE-SYNC after the dept fix** (`fdb2f97`): re-run the ⭐Sync All bookmarklet once so existing Service/Warranty jobs move out of REROOF into the right department views.
 → After this one manual round, the provisioning script makes secret-setting a single command. This is the last hand-entry pass.
 
 ## PROTOCOL
