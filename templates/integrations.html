@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Integrations{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>🔌 Integrations</h1>
+  <span class="sub">{{ total }} integration{{ '' if total == 1 else 's' }}</span>
+  <div class="grow"></div>
+  {% for icon, label, n in summary %}
+    {% if n %}<span class="tag" title="{{ label }}" style="margin-left:6px">{{ icon }} {{ n }} {{ label }}</span>{% endif %}
+  {% endfor %}
+</div>
+
+<style>
+  .integ-grid td{vertical-align:middle}
+  .integ-name{font-weight:700}
+  .integ-what{color:#5b6b85;font-size:12.5px;margin-top:2px;line-height:1.4}
+  .integ-detail{font-size:12px;color:#8a93a6;margin-top:3px}
+  .integ-badge{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:12.5px;
+    white-space:nowrap;padding:3px 9px;border-radius:999px;border:1px solid var(--line)}
+  .integ-badge.connected{background:color-mix(in srgb,var(--accent2) 16%,#fff);color:#2f5d12;border-color:color-mix(in srgb,var(--accent2) 40%,#fff)}
+  .integ-badge.degraded{background:color-mix(in srgb,var(--warn) 14%,#fff);color:#8a4b00;border-color:color-mix(in srgb,var(--warn) 40%,#fff)}
+  .integ-badge.not_configured{background:#f4f6fa;color:#6b7689}
+  .integ-badge.down{background:color-mix(in srgb,var(--danger) 14%,#fff);color:#9b2020;border-color:color-mix(in srgb,var(--danger) 40%,#fff)}
+</style>
+
+<table class="grid integ-grid">
+  <tr><th>Integration</th><th>Status</th><th style="text-align:right">Configure</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>
+      <div class="integ-name">{{ r.name }}</div>
+      <div class="integ-what">{{ r.what }}</div>
+      {% if r.detail %}<div class="integ-detail">{{ r.detail }}</div>{% endif %}
+    </td>
+    <td><span class="integ-badge {{ r.status }}">{{ r.badge_icon }} {{ r.badge_label }}</span></td>
+    <td style="text-align:right">
+      {% if r.config_endpoint %}
+        <a class="btn" href="{{ url_for(r.config_endpoint) }}">{{ r.config_label }} →</a>
+      {% else %}
+        <span class="integ-detail">env / config</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="3" class="empty">No integrations registered.</td></tr>{% endfor %}
+</table>
+
+<p class="integ-detail" style="margin-top:12px">
+  Status is derived from configuration presence and trivial health checks. Secret values are never read or shown here.
+</p>
+{% endblock %}
