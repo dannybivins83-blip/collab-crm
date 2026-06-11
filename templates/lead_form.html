@@ -14,57 +14,51 @@
     {% if mode=='new' %}
     <!-- 🎤 Voice-guided intake (Karla) -->
     <div class="card vintake">
-      <div class="vi-split">
-        <div class="vi-left">
-          <button type="button" id="micBtn" class="vi-mic" aria-label="Tap to talk">🎤</button>
-          <div id="micState" class="vi-state-main" style="font-size:12px;margin-top:8px;text-align:center"></div>
-          <div class="field" style="margin-top:12px;margin-bottom:0">
-            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Notes</label>
-            <textarea name="notes" id="f_notes" style="min-height:100px;width:100%" placeholder="Notes...">{{ lead.notes or '' }}</textarea>
+      <!-- Mic row -->
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:12px">
+        <button type="button" id="micBtn" class="vi-mic" aria-label="Tap to record">🎤</button>
+        <div style="flex:1;min-width:0">
+          <div id="micState" class="vi-state-main">Tap to record — fields fill when you stop</div>
+          <div class="muted" style="font-size:11px;margin-top:3px">Records the whole call. Fields fill all at once when you press Stop.</div>
+          <div id="viRecordingWrap" style="display:none;margin-top:8px">
+            <audio id="viAudioPlayer" controls style="width:100%;height:36px;display:block"></audio>
+            <a id="viAudioDl" class="btn ghost" style="font-size:11px;padding:4px 10px;margin-top:5px;display:inline-block" download="lead-recording.webm">💾 Save recording</a>
           </div>
         </div>
-        <div class="vi-right vi-guide">
-          <div class="vi-q-row">
-            <span class="vi-step-no" id="viStepNo">1/7</span>
-            <div>
-              <div class="vi-ask">Ask the customer:</div>
-              <div class="vi-q" id="viQ">What's the customer's full name?</div>
-            </div>
-          </div>
-          <div id="viHeard" class="vi-heard"></div>
-          <div class="vi-nav">
-            <button type="button" class="btn" id="viPrev">← Back</button>
-            <button type="button" class="btn primary" id="viNext">Next question →</button>
-            <button type="button" class="btn ghost" id="viSkip">Skip</button>
-          </div>
-          <div class="vi-chips" id="viChips"></div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if mode=='new' %}
-    <!-- 📸 Scan email/screenshot → AI autofill -->
-    <div class="card" id="scanCard" style="border:2px dashed var(--line)">
-      <div class="scan-row">
-        <span style="font-size:26px;flex:0 0 auto">📸</span>
-        <div style="flex:1">
-          <div style="font-weight:800;font-size:14px">Scan an email or screenshot</div>
-          <div class="muted" style="font-size:11px">Screenshot a lead email, text, or form — AI reads it and fills the fields below</div>
-        </div>
-        <label class="btn" style="cursor:pointer;margin:0;flex:0 0 auto">
-          Choose image
+        <label class="btn ghost" style="cursor:pointer;font-size:12px;padding:5px 10px;white-space:nowrap;flex:0 0 auto;margin-top:2px">
+          📸 Scan email
           <input type="file" id="scanInput" accept="image/jpeg,image/png,image/gif,image/webp,image/*" style="display:none">
         </label>
       </div>
-      <div id="scanPreviewWrap" style="display:none;margin-top:10px;display:none;align-items:center;gap:12px">
-        <img id="scanPreview" style="max-height:100px;border-radius:6px;border:1px solid var(--line);cursor:pointer" title="Click to enlarge">
-        <div>
-          <button type="button" class="btn primary" id="scanBtn">Extract info →</button>
-          <div id="scanStatus" class="muted" style="font-size:12px;margin-top:4px"></div>
-        </div>
+      <!-- Scan preview (appears after file chosen) -->
+      <div id="scanPreviewWrap" style="display:none;margin-bottom:10px;padding:10px;background:#f8f9fb;border-radius:8px;border:1px solid var(--line)">
+        <img id="scanPreview" style="max-height:80px;border-radius:6px;border:1px solid var(--line);cursor:pointer;vertical-align:middle" title="Click to enlarge">
+        <button type="button" class="btn primary" id="scanBtn" style="margin-left:10px;vertical-align:middle">Extract info →</button>
+        <span id="scanStatus" class="muted" style="font-size:11px;margin-left:8px"></span>
+        <div id="scanChips" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px"></div>
       </div>
-      <div id="scanChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+      <!-- Question guide (full width) -->
+      <div class="vi-guide">
+        <div class="vi-q-row">
+          <span class="vi-step-no" id="viStepNo">1/18</span>
+          <div>
+            <div class="vi-ask">Ask the customer:</div>
+            <div class="vi-q" id="viQ">What's the customer's full name?</div>
+          </div>
+        </div>
+        <div id="viHeard" class="vi-heard"></div>
+        <div class="vi-nav">
+          <button type="button" class="btn" id="viPrev">← Back</button>
+          <button type="button" class="btn primary" id="viNext">Next question →</button>
+          <button type="button" class="btn ghost" id="viSkip">Skip</button>
+        </div>
+        <div class="vi-chips" id="viChips"></div>
+      </div>
+      <!-- Notes (full width, bigger) -->
+      <div class="field" style="margin-top:14px;margin-bottom:0">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Notes</label>
+        <textarea name="notes" id="f_notes" style="min-height:200px;width:100%" placeholder="Notes...">{{ lead.notes or '' }}</textarea>
+      </div>
     </div>
     {% endif %}
 
@@ -205,37 +199,29 @@
 </script>
 
 <style>
-  .vintake{border:2px solid var(--accent2);background:linear-gradient(180deg,#fff, #f4f9ff);position:sticky;top:86px;z-index:30}
-  .vi-mic-wrap{display:flex;align-items:center;gap:16px;margin-bottom:14px}
-  .vi-split{display:flex;gap:20px;align-items:flex-start}
-  .vi-left{flex:0 0 38%;display:flex;flex-direction:column;align-items:center}
-  .vi-right{flex:1;border-top:none;padding-top:0}
-  .vi-mic{flex:0 0 auto;width:84px;height:84px;min-height:84px;border-radius:50%;font-size:36px;
-    background:var(--accent2);border:none;color:#fff;box-shadow:0 6px 18px rgba(20,60,120,.28);cursor:pointer;
+  .vintake{border:2px solid var(--accent2);background:linear-gradient(180deg,#fff,#f4f9ff);position:sticky;top:86px;z-index:30}
+  .vi-mic{flex:0 0 auto;width:52px;height:52px;min-height:52px;border-radius:50%;font-size:22px;
+    background:var(--accent2);border:none;color:#fff;box-shadow:0 4px 12px rgba(20,60,120,.28);cursor:pointer;
     display:flex;align-items:center;justify-content:center;transition:transform .1s}
   .vi-mic:hover{transform:scale(1.05)}
   .vi-mic.live{background:var(--danger);animation:vipulse 1.1s infinite}
-  @keyframes vipulse{0%{box-shadow:0 0 0 0 rgba(226,80,80,.5)}70%{box-shadow:0 0 0 16px rgba(226,80,80,0)}100%{box-shadow:0 0 0 0 rgba(226,80,80,0)}}
-  /* On page load, draw the eye to the mic until Karla taps it (no auto-start — needs a user gesture). */
+  @keyframes vipulse{0%{box-shadow:0 0 0 0 rgba(226,80,80,.5)}70%{box-shadow:0 0 0 14px rgba(226,80,80,0)}100%{box-shadow:0 0 0 0 rgba(226,80,80,0)}}
   .vi-mic.hint{outline:3px solid var(--accent2);outline-offset:3px;animation:vihint 1.4s ease-in-out infinite}
-  @keyframes vihint{0%{box-shadow:0 0 0 0 rgba(20,60,120,.45)}70%{box-shadow:0 0 0 14px rgba(20,60,120,0)}100%{box-shadow:0 0 0 0 rgba(20,60,120,0)}}
-  .vi-state-main{font-weight:800;font-size:15px}
-  .vi-guide{border-top:1px dashed var(--line);padding-top:12px}
+  @keyframes vihint{0%{box-shadow:0 0 0 0 rgba(20,60,120,.45)}70%{box-shadow:0 0 0 12px rgba(20,60,120,0)}100%{box-shadow:0 0 0 0 rgba(20,60,120,0)}}
+  .vi-state-main{font-weight:800;font-size:14px}
+  .vi-guide{border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
   .vi-q-row{display:flex;align-items:center;gap:12px}
   .vi-step-no{flex:0 0 auto;background:var(--accent2);color:#fff;font-weight:800;font-size:13px;
     border-radius:999px;padding:4px 11px}
   .vi-ask{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
-  .vi-q{font-size:19px;font-weight:800;line-height:1.2}
-  .vi-heard{margin:10px 0;min-height:20px;font-size:13px;color:var(--accent2);font-style:italic}
+  .vi-q{font-size:18px;font-weight:800;line-height:1.2}
+  .vi-heard{margin:8px 0;min-height:18px;font-size:13px;color:var(--accent2);font-style:italic}
   .vi-nav{display:flex;gap:8px;flex-wrap:wrap}
-  .vi-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .vi-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
   .vi-chip{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--panel2);
     border:1px solid var(--line);color:var(--mut)}
   .vi-chip.done{background:#8CC63F22;border-color:#8CC63F;color:#3c6b16}
-  /* scan card */
-  #scanCard{transition:border-color .2s}
-  #scanCard.drag-over{border-color:var(--accent2);background:#f0f6ff}
-  .scan-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+
 </style>
 <script>
 (function(){
@@ -454,30 +440,84 @@
     micState.textContent='All set — review the form below and Create Lead.';
   }
 
+  // ---- audio recording (MediaRecorder) ----
+  var audioStream=null, mediaRec=null, audioChunks=[];
+  function startAudioRec(){
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return;
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      audioStream=stream;
+      try{
+        mediaRec=new MediaRecorder(stream);
+        audioChunks=[];
+        mediaRec.ondataavailable=function(e){ if(e.data&&e.data.size>0) audioChunks.push(e.data); };
+        mediaRec.start(1000);
+      }catch(e){}
+    }).catch(function(){});
+  }
+  function stopAudioRec(){
+    if(!mediaRec||mediaRec.state==='inactive') return;
+    mediaRec.onstop=function(){
+      var blob=new Blob(audioChunks,{type:'audio/webm'});
+      var url=URL.createObjectURL(blob);
+      var wrap=document.getElementById('viRecordingWrap');
+      var player=document.getElementById('viAudioPlayer');
+      var dl=document.getElementById('viAudioDl');
+      if(player){ player.src=url; }
+      if(dl){ dl.href=url; }
+      if(wrap){ wrap.style.display='block'; }
+    };
+    try{ mediaRec.stop(); }catch(e){}
+    if(audioStream){ audioStream.getTracks().forEach(function(t){ try{t.stop();}catch(e){} }); audioStream=null; }
+  }
+
+  // ---- batch fill on Stop ----
+  var pendingFills=[];  // [{stepIdx, text}] accumulated during recording
+  function batchFill(){
+    var savedStep=step;
+    pendingFills.forEach(function(item){
+      step=item.stepIdx;
+      applyAnswer(item.text);
+    });
+    step=savedStep;
+    pendingFills=[];
+    finalPass();
+    renderChips();
+  }
+
   // ---- speech recognition ----
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition, rec=null, listening=false;
   if(!SR){ micBtn.disabled=true; micState.textContent='Voice input needs Chrome — you can still type the answers.'; try{ window.scrollTo(0,0); }catch(e){} renderChips(); go(0); return; }
   function start(){
+    startAudioRec();
     rec=new SR(); rec.lang='en-US'; rec.continuous=true; rec.interimResults=true;
     rec.onresult=function(e){
       var fin='',interim='';
       for(var i=e.resultIndex;i<e.results.length;i++){ var r=e.results[i]; if(r.isFinal) fin+=r[0].transcript; else interim+=r[0].transcript; }
-      viHeard.textContent=(fin||interim)? ('“'+(fin||interim).trim()+'”') : '';
+      viHeard.textContent=(fin||interim)? ('”'+(fin||interim).trim()+'”') : '';
       if(fin){
         var low=fin.trim().toLowerCase();
         if(/^(next|next question|move on)\b/.test(low)){ advance(); return; }
         if(/^(back|go back|previous)\b/.test(low)){ go(step-1); return; }
         if(/^(done|finish|that's all|thats all|all done|wrap up)\b/.test(low)){ finish(); return; }
-        applyAnswer(fin);
+        // BATCH MODE: accumulate — don't fill fields yet
+        pendingFills.push({stepIdx:step, text:fin.trim()});
+        transcript.push(fin.trim());
+        viHeard.textContent='”'+fin.trim()+'”';
       }
     };
     rec.onend=function(){ if(listening){ try{rec.start();}catch(e){} } };
-    rec.onerror=function(ev){ if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){ stop(); micState.textContent='Mic blocked — click the 🔒 in the address bar and allow the microphone.'; } };
+    rec.onerror=function(ev){ if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){ stop(); micState.textContent='Mic blocked — click the lock icon and allow the microphone.'; } };
     try{ rec.start(); }catch(e){}
     listening=true; micBtn.classList.remove('hint'); micBtn.classList.add('live');
-    micState.textContent='Listening… speak naturally. Say “next” to move on, “done” to finish.';
+    micState.textContent='Recording... speak naturally. Say “next” to move on, “done” to stop.';
   }
-  function stop(){ listening=false; micBtn.classList.remove('live'); if(rec){ try{rec.stop();}catch(e){} } micState.textContent='Paused — tap the mic to resume.'; }
+  function stop(){
+    listening=false; micBtn.classList.remove('live');
+    if(rec){ try{rec.stop();}catch(e){} }
+    stopAudioRec();
+    batchFill();
+    micState.textContent='Done — review the filled fields and save the lead.';
+  }
   micBtn.onclick=function(){ listening? stop() : start(); };
 
   // On load: jump to the top and draw the eye to the mic (Karla taps it — we do
@@ -511,26 +551,17 @@
       preview=document.getElementById('scanPreview'),
       scanBtn=document.getElementById('scanBtn'),
       scanStatus=document.getElementById('scanStatus'),
-      scanChips=document.getElementById('scanChips'),
-      card=document.getElementById('scanCard');
+      scanChips=document.getElementById('scanChips');
   var pendingFile=null;
 
   function showPreview(file){
     pendingFile=file;
     preview.src=URL.createObjectURL(file);
-    previewWrap.style.display='flex';
+    previewWrap.style.display='block';
     scanChips.innerHTML=''; scanStatus.textContent='';
   }
 
   input.addEventListener('change',function(){ if(input.files[0]) showPreview(input.files[0]); });
-
-  card.addEventListener('dragover',function(e){ e.preventDefault(); card.classList.add('drag-over'); });
-  card.addEventListener('dragleave',function(){ card.classList.remove('drag-over'); });
-  card.addEventListener('drop',function(e){
-    e.preventDefault(); card.classList.remove('drag-over');
-    var f=e.dataTransfer.files[0];
-    if(f && f.type.startsWith('image/')) showPreview(f);
-  });
 
   preview.addEventListener('click',function(){ window.open(preview.src,'_blank'); });
 
