@@ -327,10 +327,25 @@ def ingest():
             except Exception:
                 pdf_bytes = None
         elif body.get("report_url"):
-            import urllib.request
+            # SSRF guard: only fetch http(s) URLs that resolve to a PUBLIC host —
+            # blocks localhost / private / link-local / cloud-metadata (169.254.x) targets.
+            import urllib.request, socket, ipaddress
+            from urllib.parse import urlparse
+            pdf_bytes = None
+            u = body["report_url"]
             try:
-                with urllib.request.urlopen(body["report_url"], timeout=30) as resp:
-                    pdf_bytes = resp.read()
+                p = urlparse(u)
+                safe = p.scheme in ("http", "https") and bool(p.hostname)
+                if safe:
+                    for info in socket.getaddrinfo(p.hostname, None):
+                        ip = ipaddress.ip_address(info[4][0])
+                        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                                or ip.is_reserved or ip.is_multicast):
+                            safe = False
+                            break
+                if safe:
+                    with urllib.request.urlopen(u, timeout=30) as resp:
+                        pdf_bytes = resp.read()
             except Exception:
                 pdf_bytes = None
 
