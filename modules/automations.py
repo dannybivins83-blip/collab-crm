@@ -5,8 +5,22 @@ Admin-configured rules that fire on milestone changes: create a task, a reminder
 or an email DRAFT (never auto-sent, per house rules). Hooked without touching
 jobs.py/leads.py by wrapping db.add_activity: every stage-change activity
 (kind='stage') is matched against active automations for that stage.
+
+Audit #11 (AUDIT_2026-06-10.md):
+  A. Stage detection used to regex-parse the English activity text
+     ('Moved to X'/'Advanced to X'). Rewording the label silently broke
+     every automation. NEW: we read the entity's current `stage` column
+     directly — the source of truth the caller just set.
+  B. Two `except: pass` blocks swallowed every automation failure with no
+     trace. NEW: all exception paths log via the stdlib logger.
+  C. Two stage activities for one transition = double-fire (the monkey-
+     patched add_activity fires on each call). NEW: an `automation_fires`
+     table with a UNIQUE constraint on
+     (automation_id, entity_type, entity_id, stage_key, fire_date)
+     gives us insert-first / catch-violation atomic dedupe per
+     (entity, stage, day).
 """
-import re
+import logging
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
@@ -14,6 +28,7 @@ import db
 import constants
 
 bp = Blueprint("automations", __name__, url_prefix="/workflow")
+_log = logging.getLogger(__name__)
 
 ACTION_TYPES = ["create_task", "draft_email", "create_reminder"]
 
@@ -21,18 +36,28 @@ ACTION_TYPES = ["create_task", "draft_email", "create_reminder"]
 # in the Workflow admin and fired explicitly from their own module.
 _EXTRA_TRIGGERS = [("invoice_overdue", "Invoice overdue")]
 
-# stage display-name -> key (lead + job stage keys are disjoint, so one map is safe)
-_STAGE_BY_NAME = {}
-for _s in constants.LEAD_STAGES + constants.JOB_STAGES:
-    _STAGE_BY_NAME[_s["name"].lower()] = _s["key"]
+
+# Audit #11.C: dedupe-fire table. UNIQUE constraint is what enforces "at most
+# once per (entity, stage, day)" — the runtime code does insert-first /
+# catch-violation, so the race is closed at the SQL layer (not a Python check).
+try:
+    db.execute(
+        """CREATE TABLE IF NOT EXISTS automation_fires (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, created TEXT,
+            automation_id INTEGER, entity_type TEXT, entity_id INTEGER,
+            stage_key TEXT, fire_date TEXT,
+            UNIQUE(automation_id, entity_type, entity_id, stage_key, fire_date))""")
+except Exception:   # pragma: no cover — best-effort like the rest of module-load DDL
+    pass
+db._COLCACHE.clear()
 
 
-def _stage_key_from_text(text):
-    """A stage-change activity reads e.g. 'Moved to Permit Approved' / 'Advanced to X'."""
-    m = re.search(r"\b(?:to|in)\s+(.+?)\s*$", text or "")
-    if not m:
-        return None
-    return _STAGE_BY_NAME.get(m.group(1).strip().lower())
+def _current_stage_key(entity_type, entity_id):
+    """Audit #11.A: read the entity's CURRENT stage column from the DB. The
+    caller just set it before logging the breadcrumb activity, so the DB is
+    the source of truth — not the English text we were parsing before."""
+    rec = db.get(entity_type + "s", entity_id) or {}
+    return (rec.get("stage") or "").strip() or None
 
 
 def _fill(template, entity_type, entity_id):
@@ -71,30 +96,71 @@ def _execute(auto, entity_type, entity_id):
         db.add_activity(entity_type, entity_id, "task", text, due=due)
 
 
-def _maybe_fire(entity_type, entity_id, text):
+def _claim_fire(auto_id, entity_type, entity_id, stage_key):
+    """Audit #11.C dedupe. SELECT-then-INSERT: returns True if we just claimed
+    a fire-slot for today; False if a prior fire already exists. The UNIQUE
+    constraint on automation_fires is a defensive backstop for true cross-
+    process races; in normal in-process flow the SELECT catches duplicates
+    before INSERT, so we never hit the IntegrityError path (and never trigger
+    db.insert's connection-leak-on-exception."""
+    today = db.today()
+    existing = db.all_rows(
+        "automation_fires",
+        where=("automation_id=? AND entity_type=? AND entity_id=? "
+               "AND stage_key=? AND fire_date=?"),
+        params=(auto_id, entity_type, entity_id, stage_key, today))
+    if existing:
+        _log.debug("automation %s already fired today for %s/%s stage=%s",
+                   auto_id, entity_type, entity_id, stage_key)
+        return False
+    try:
+        db.insert("automation_fires", {
+            "automation_id": auto_id, "entity_type": entity_type,
+            "entity_id": entity_id, "stage_key": stage_key, "fire_date": today})
+        return True
+    except Exception:
+        # UNIQUE backstop fired (true cross-process race). Treat as dedup-skip.
+        _log.debug("automation %s race-loser for %s/%s stage=%s",
+                   auto_id, entity_type, entity_id, stage_key)
+        return False
+
+
+def _maybe_fire(entity_type, entity_id):
     if entity_type not in ("job", "lead"):
         return
-    key = _stage_key_from_text(text)
+    key = _current_stage_key(entity_type, entity_id)
     if not key:
+        _log.debug("no current stage on %s %s; skipping automations", entity_type, entity_id)
         return
     for auto in db.all_rows("automations", "trigger_stage=? AND active=1", (key,)):
+        if not _claim_fire(auto["id"], entity_type, entity_id, key):
+            continue
         try:
             _execute(auto, entity_type, entity_id)
         except Exception:
-            pass
+            _log.exception("automation %s failed for %s %s (stage=%s)",
+                           auto.get("id"), entity_type, entity_id, key)
 
 
 def fire_invoice_overdue(inv, job=None):
     """Status-engine entry point for overdue invoices. Invoices have no pipeline stage,
     so the invoice layer calls this when one is first observed overdue. Fires any active
-    'invoice_overdue' automations against the linked job (draft nudge — never sends)."""
+    'invoice_overdue' automations against the linked job (draft nudge — never sends).
+    Dedupe key uses the invoice id (the entity actually transitioning) so the same
+    invoice can't fire twice in one day even if the overdue scan re-runs."""
     if not inv or not inv.get("job_id"):
         return
+    inv_id = inv.get("id")
     for auto in db.all_rows("automations", "trigger_stage=? AND active=1", ("invoice_overdue",)):
+        # Dedupe scope: (automation, invoice, "invoice_overdue", today). Stored
+        # under entity_type='invoice' so it doesn't collide with job-stage fires.
+        if not _claim_fire(auto["id"], "invoice", inv_id, "invoice_overdue"):
+            continue
         try:
             _execute(auto, "job", inv["job_id"])
         except Exception:
-            pass
+            _log.exception("invoice_overdue automation %s failed for inv=%s job=%s",
+                           auto.get("id"), inv_id, inv.get("job_id"))
 
 
 def _ensure_invoice_overdue_default():
@@ -146,7 +212,12 @@ def init_automations(app):
     def _wrapped(entity_type, entity_id, kind, text, due=None, assignee=None):
         aid = _orig(entity_type, entity_id, kind, text, due=due, assignee=assignee)
         if kind == "stage":
-            _maybe_fire(entity_type, entity_id, text)
+            # Audit #11.A: do NOT pass the prose text — _maybe_fire now reads
+            # the entity's current stage column from the DB.
+            try:
+                _maybe_fire(entity_type, entity_id)
+            except Exception:
+                _log.exception("automation dispatch crashed for %s %s", entity_type, entity_id)
         return aid
     _wrapped._automated = True
     db.add_activity = _wrapped
