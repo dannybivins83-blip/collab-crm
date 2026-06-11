@@ -110,28 +110,20 @@ def new():
     if request.method == "POST":
         work_type = request.form.get("work_type", "")
         template_id = request.form.get("template_id") or None
-        name, wt, scope, lines = _resolve_template(template_id, work_type)
-        est = {
-            "number": _next_number(),
-            "title": request.form.get("title") or name,
-            "job_id": request.form.get("job_id") or None,
-            "lead_id": request.form.get("lead_id") or None,
-            "contact_id": request.form.get("contact_id") or None,
-            "work_type": work_type, "template_key": template_id or "", "status": "draft",
-            "margin_pct": 30, "tax_pct": 0,
-            "terms": db.get_company().get("terms", ""),
-        }
-        eid = db.insert("estimates", est)
-        sid = db.insert("estimate_sections", {
-            "estimate_id": eid, "sort": 0,
-            "name": name, "scope_text": scope, "margin_pct": 30})
-        for i, line in enumerate(lines):
-            db.insert("estimate_lines", {
-                "estimate_id": eid, "section_id": sid, "sort": i,
-                "description": line.get("description", ""), "unit": line.get("unit", "EA"),
-                "qty": line.get("qty", 0), "waste_pct": 0, "cost": line.get("cost", 0),
-                "qrule": db.dump_json(line["q"]) if line.get("q") else ""})
-        flash("Estimate created from %s." % name, "ok")
+        # Single source of truth: build_estimate injects the base scope section AND the
+        # "Upgrades & Options" option groups (qty 0 accept/decline menu). Doing the insert
+        # here by hand previously skipped the upgrade menu entirely (the EST-0154 bug).
+        eid = build_estimate(
+            lead_id=request.form.get("lead_id") or None,
+            job_id=request.form.get("job_id") or None,
+            template_id=template_id, work_type=work_type)
+        # Honor an explicit title typed on the New form (build_estimate defaults to the
+        # lead/job/template name); the form is the only path that offers a title field.
+        title = (request.form.get("title") or "").strip()
+        if title:
+            db.update("estimates", eid, title=title)
+        name = _resolve_template(template_id, work_type)[0]
+        flash("Estimate created from %s — base scope + system upgrades." % name, "ok")
         return redirect(url_for("estimates.detail", est_id=eid))
     pre = {}
     if request.args.get("lead_id"):
