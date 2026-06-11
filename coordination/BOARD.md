@@ -68,6 +68,8 @@ Runs in parallel: Permit lane FF's `main`; Security lane does audit #3/#4; Head 
 4. **Engine VM** (via Roof Engine lane) → set the *same* fresh `MEASURE` value.
 5. **Cloudflare DNS cutover** — only after I green-light Render health.
 6. **RE-SYNC after the dept fix** (`fdb2f97`): re-run the ⭐Sync All bookmarklet once so existing Service/Warranty jobs move out of REROOF into the right department views.
+7. **🔴 Update `GDRIVE_SA_JSON` on Render** (srv-d8kq47jbc2fs73crtnug/env) — the old SA key was REVOKED; CRM Drive uploads FAIL until you paste the new key file's contents (`C:\Users\kjburnz\seabreeze_jobs\_shared\keys\gcp-crm-files-sa-helpful-weft-498804-c7.json`) into the Render field. Don't paste it in chat.
+8. **Neon `DATABASE_URL`** → add to `secrets/keys.local.env` (or run the proof cmd where it lives) so the parity proof can run. + supply AccuLynx reference totals.
 → After this one manual round, the provisioning script makes secret-setting a single command. This is the last hand-entry pass.
 
 ## PROTOCOL
