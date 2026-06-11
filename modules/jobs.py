@@ -232,17 +232,47 @@ def _notify_phase(job_id, old_stage, new_stage):
         pass
 
 
+def _incomplete_on_stage(job, stage_key):
+    """How many checklist items are still unchecked on `stage_key` (0 = complete/none).
+    Audit #8: checklists are advisory — we WARN on a forward move that leaves items
+    unchecked (e.g. skipping permits/inspections), but never block (owner's call)."""
+    sd = constants.job_stage(stage_key)
+    checklist = sd.get("checklist") or []
+    if not checklist:
+        return 0
+    checks = db.load_json(job.get("checks"), {})
+    return sum(1 for i in range(len(checklist))
+               if not checks.get("%s:%d" % (sd["key"], i)))
+
+
+def _skip_warning(job, from_stage, to_stage):
+    """A friendly 'you left N items unchecked' string for a FORWARD move, else ''."""
+    fi = constants.JOB_STAGE_INDEX.get(from_stage, 0)
+    ti = constants.JOB_STAGE_INDEX.get(to_stage, 0)
+    if ti <= fi:
+        return ""  # backward / same — nothing to warn about
+    n = _incomplete_on_stage(job, from_stage)
+    if not n:
+        return ""
+    return "%d checklist item%s on %s %s still unchecked." % (
+        n, "" if n == 1 else "s", constants.job_stage(from_stage)["name"],
+        "was" if n == 1 else "were")
+
+
 @bp.route("/<int:job_id>/stage", methods=["POST"])
 def set_stage(job_id):
     stage = request.form.get("stage")
     if stage in constants.JOB_STAGE_INDEX:
-        _old = (db.get("jobs", job_id) or {}).get("stage")
+        job = db.get("jobs", job_id) or {}
+        _old = job.get("stage")
+        warn = _skip_warning(job, _old, stage)
         db.update("jobs", job_id, stage=stage, stage_since=db.today())
         db.add_activity("job", job_id, "stage", "Moved to %s" % constants.job_stage(stage)["name"])
         _notify_phase(job_id, _old, stage)
         if request.form.get("ajax"):
-            return jsonify({"ok": True, "stage": stage})
-        flash("Stage updated.", "ok")
+            return jsonify({"ok": True, "stage": stage, "warning": warn})
+        flash(("Stage updated. ⚠️ " + warn) if warn else "Stage updated.",
+              "info" if warn else "ok")
     elif request.form.get("ajax"):
         return jsonify({"ok": False}), 400
     return redirect(url_for("jobs.detail", job_id=job_id))
@@ -256,10 +286,13 @@ def advance(job_id):
         idx = constants.JOB_STAGE_INDEX.get(j["stage"], 0)
         if idx < len(constants.JOB_STAGES) - 1:
             nxt = constants.JOB_STAGES[idx + 1]["key"]
+            warn = _skip_warning(j, j["stage"], nxt)
             db.update("jobs", job_id, stage=nxt, stage_since=db.today())
             db.add_activity("job", job_id, "stage", "Advanced to %s" % constants.job_stage(nxt)["name"])
             _notify_phase(job_id, j["stage"], nxt)
-            flash("Advanced to %s." % constants.job_stage(nxt)["name"], "ok")
+            name = constants.job_stage(nxt)["name"]
+            flash(("Advanced to %s. ⚠️ %s" % (name, warn)) if warn
+                  else "Advanced to %s." % name, "info" if warn else "ok")
     return redirect(url_for("jobs.detail", job_id=job_id))
 
 
@@ -267,9 +300,11 @@ def advance(job_id):
 def move(job_id):
     stage = (request.get_json(silent=True) or {}).get("stage") or request.form.get("stage")
     if stage in constants.JOB_STAGE_INDEX:
+        job = db.get("jobs", job_id) or {}
+        warn = _skip_warning(job, job.get("stage"), stage)
         db.update("jobs", job_id, stage=stage, stage_since=db.today())
         db.add_activity("job", job_id, "stage", "Moved to %s" % constants.job_stage(stage)["name"])
-        return jsonify({"ok": True})
+        return jsonify({"ok": True, "warning": warn})
     return jsonify({"ok": False}), 400
 
 
