@@ -20,7 +20,7 @@
           <div id="micState" class="vi-state-main" style="font-size:12px;margin-top:8px;text-align:center"></div>
           <div class="field" style="margin-top:12px;margin-bottom:0">
             <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Notes</label>
-            <textarea name="notes" id="f_notes" style="min-height:100px;width:100%" placeholder="Notes...">{{ lead.notes or ‘’ }}</textarea>
+            <textarea name="notes" id="f_notes" style="min-height:100px;width:100%" placeholder="Notes...">{{ lead.notes or '' }}</textarea>
           </div>
         </div>
         <div class="vi-right vi-guide">
@@ -28,7 +28,7 @@
             <span class="vi-step-no" id="viStepNo">1/7</span>
             <div>
               <div class="vi-ask">Ask the customer:</div>
-              <div class="vi-q" id="viQ">What’s the customer’s full name?</div>
+              <div class="vi-q" id="viQ">What's the customer's full name?</div>
             </div>
           </div>
           <div id="viHeard" class="vi-heard"></div>
@@ -283,10 +283,10 @@
   var STEPS=buildSteps();
   if(!STEPS.length){
     STEPS=[
-      {q:"What’s the customer’s full name?", sel:"name", kind:"name", target:"field", label:"Name"},
+      {q:"What's the customer's full name?", sel:"name", kind:"name", target:"field", label:"Name"},
       {q:"Best phone number to reach them?", sel:"phone", kind:"phone", target:"field", label:"Phone"},
       {q:"Email address?", sel:"email", kind:"email", target:"field", label:"Email"},
-      {q:"What’s the property address? (street, city, zip)", sel:"address", kind:"text", target:"field", label:"Address"},
+      {q:"What's the property address? (street, city, zip)", sel:"address", kind:"text", target:"field", label:"Address"},
       {q:"What kind of roof or work do they need?", sel:"work_type", kind:"select", target:"field", label:"Work type"},
       {q:"How did they hear about us? (lead source)", sel:"source", kind:"select", target:"field", label:"Source"},
       {q:"Anything else we should know? (notes)", sel:"notes", kind:"notes", target:"notes", label:"Note"}
