@@ -329,6 +329,31 @@ def _draft(rec, kind):
     return su, body
 
 
+@bp.route("/dev-note", methods=["POST"])
+def dev_note():
+    import json as _json, datetime as _dt
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    body_text = (data.get("body") or "").strip()
+    page = (data.get("page") or "").strip()
+    if not title and not body_text:
+        return jsonify({"error": "empty note"}), 400
+    line = "[%s] %s%s%s\n" % (
+        _dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        (title + " -- ") if title else "",
+        body_text,
+        (" (on " + page + ")") if page else "",
+    )
+    try:
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dev_notes.txt")
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True})
+
+
 @bp.route("/mass-email")
 def mass_email():
     kind = request.args.get("kind", "lead")

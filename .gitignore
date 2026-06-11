@@ -43,3 +43,5 @@ _blob_rescue/
 scripts/_ws_*.json
 scripts/_ws_seed.json
 static/_wsg.json
+dev_notes.txt
+scripts/_ws_guids.json

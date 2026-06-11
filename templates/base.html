@@ -335,5 +335,54 @@ document.querySelectorAll('table.grid').forEach(function(t){
 })();
 </script>
 {% block scripts %}{% endblock %}
+
+{% if current_user and (current_user.is_owner or current_user.role == 'admin') %}
+<div id="devNoteBtn" title="Leave a dev note" style="position:fixed;bottom:20px;right:20px;z-index:9999;
+  width:44px;height:44px;border-radius:50%;background:var(--accent2);color:#fff;font-size:20px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.3);user-select:none">💬</div>
+<div id="devNoteCard" style="display:none;position:fixed;bottom:72px;right:20px;z-index:9999;
+  width:300px;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);
+  padding:16px;border:1px solid var(--line)">
+  <div style="font-weight:700;font-size:13px;margin-bottom:10px;color:var(--accent2)">📝 Dev note</div>
+  <input id="devNoteTitle" placeholder="What's the issue?" style="width:100%;margin-bottom:8px;
+    padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;box-sizing:border-box">
+  <textarea id="devNoteBody" placeholder="Details, page URL, steps to reproduce…"
+    style="width:100%;height:80px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;
+    font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+    <span id="devNoteFeedback" style="font-size:12px;color:var(--mut)"></span>
+    <button id="devNoteSubmit" class="btn primary" style="padding:6px 14px;font-size:13px">Save</button>
+  </div>
+</div>
+<script>
+(function(){
+  var btn=document.getElementById('devNoteBtn'),
+      card=document.getElementById('devNoteCard'),
+      titleEl=document.getElementById('devNoteTitle'),
+      bodyEl=document.getElementById('devNoteBody'),
+      submit=document.getElementById('devNoteSubmit'),
+      fb=document.getElementById('devNoteFeedback');
+  var open=false;
+  btn.addEventListener('click',function(){ open=!open; card.style.display=open?'block':'none'; if(open) titleEl.focus(); });
+  document.addEventListener('click',function(e){ if(open&&!card.contains(e.target)&&e.target!==btn){ open=false; card.style.display='none'; } });
+  submit.addEventListener('click',function(){
+    var t=(titleEl.value||'').trim(), b=(bodyEl.value||'').trim();
+    if(!t&&!b){ fb.textContent='Add a title or note first.'; return; }
+    submit.disabled=true; fb.textContent='Saving...';
+    fetch('/tools/dev-note',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title:t,body:b,page:location.pathname+location.search})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        submit.disabled=false;
+        if(d.ok){ fb.textContent='Saved'; titleEl.value=''; bodyEl.value='';
+          setTimeout(function(){ open=false; card.style.display='none'; fb.textContent=''; },1200); }
+        else{ fb.textContent='Error: '+(d.error||'unknown'); }
+      })
+      .catch(function(){ submit.disabled=false; fb.textContent='Network error.'; });
+  });
+})();
+</script>
+{% endif %}
 </body>
 </html>
