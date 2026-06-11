@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verify with `git ls-remote`):** `b473c19` on `origin/agent/gc-consolidation`; `origin/main` = `c612877` (behind, FF after permit work lands)
-- **Last board update:** 2026-06-11 — by OVERLORD/Security: audit sweep #3,#4,#6,#7,#9,#12 + key-leak fixed
+- **Git tip (verified 2026-06-11 `git rev-parse`):** `093dfa2` on `origin/agent/gc-consolidation` (board's `b473c19` was stale — +6 commits since: migration parity + audit #8/#9); `origin/main` = `c612877` (behind, FF after permit work lands)
+- **Last board update:** 2026-06-11 — by crm-ui: logged owner-flagged Service+Warranty dept-import parity gap (`acculynx_sync.py:663`); reconciled tip `b473c19`→`093dfa2`
 
 ---
 
@@ -36,6 +36,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | P0 | **Set `CRM_SYNC_SECRET` + `CRM_SECRET` on Render** | owner (dashboard) | in progress | Render fail-closes without them. Reinstall bookmarklets after. |
 | P1 | **Rotate burned/leaked secrets** | owner | OPEN | `MEASURE` (chat-leak ×2), `SEABREEZE` (leaked), `GOOGLE_OAUTH_CLIENT_SECRET` (screenshot), roof-engine key. Fresh values → dashboards + `secrets/keys.local.env`. |
 | P1 | **Permit lane: commit+push 3 files, FF main** | Permit | OPEN | Unblocks main catch-up; stops interleaving. |
+| P1 | **Import Service + Warranty depts (migration parity A)** | Sync/Security (crm-ui) | OPEN | Owner-flagged 2026-06-11 (dashboard screenshot). `acculynx_sync.py:663` hardcodes `"REROOF Department"` on every record → Service/Warranty land under Reroof; their dept views are empty. Make the milestone walk dept-aware (per-dept query or read AccuLynx dept field) + map→store. Gates AccuLynx cancellation. Escalated to overlord. |
 | P2 | **Audit #3 (`est_num` money corruption) + #4 (dup invoice #s)** | Security | QUEUED | No decision needed; do after permit resync. |
 | P2 | **Secret provisioning automation** | Head Coach | DESIGN | One-command push of `keys.local.env` → Render/Vercel APIs; seed of tenant onboarding. |
 | P3 | **SSO go-live** | SiteCam + owner | BLOCKED | Needs fresh `SEABREEZE` on both sides + sitecam-api `SEED_FORCE=true`. |
