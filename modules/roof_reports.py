@@ -108,8 +108,20 @@ def detail(report_id):
     if not rr:
         return redirect(url_for("roof_reports.index"))
     rr["result"] = json.loads(rr.get("api_result") or "{}")
-    takeoff_url = f"{ENGINE_URL}/takeoff?api_key={ENGINE_KEY}" if _configured() else "#"
+    # Keyless link: the engine API key must NOT reach the browser, so the
+    # "Trace from plans" link points at a CRM route that redirects server-side.
+    takeoff_url = url_for("roof_reports.takeoff", report_id=report_id) if _configured() else "#"
     return render_template("roof_reports_detail.html", rr=rr, takeoff_url=takeoff_url)
+
+
+@bp.route("/<int:report_id>/takeoff")
+def takeoff(report_id):
+    """Redirect to the engine takeoff tool, injecting the API key server-side so
+    it never sits in the report page source. (Engine should move to a short-lived
+    token so the key never lands in the browser at all — flagged to roofengine.)"""
+    if not _configured():
+        return redirect(url_for("roof_reports.detail", report_id=report_id))
+    return redirect("%s/takeoff?api_key=%s" % (ENGINE_URL, ENGINE_KEY))
 
 
 @bp.route("/<int:report_id>/status")
