@@ -217,6 +217,44 @@ LEAD_SOURCES = ["Referral", "Repeat Customer", "Website", "Google", "Facebook",
                 "Door Knock", "Yard Sign", "Insurance", "Storm Canvass", "Other"]
 
 # ---------------------------------------------------------------------------
+# Voice intake onboarding script (white-label / tenant-configurable)
+# ---------------------------------------------------------------------------
+# Drives the mic-guided "Create New Lead" wizard in lead_form.html. Each entry:
+#   q     — the question Karla reads to the customer (spoken prompt)
+#   kind  — "field" fills/parses a real form input; "notes" appends a labeled
+#           line to the Notes textarea; "close" is the read-back confirmation.
+#   field — for kind="field": the form input name to fill (name/phone/email/
+#           address/work_type/source). For kind="notes": the label prefixed to
+#           the spoken answer in Notes (e.g. "Timeline: next 2 months").
+# Flow order: contact -> scope -> qualify -> schedule -> close. A tenant can
+# reorder/relabel/extend this list without touching the template JS.
+ONBOARDING_QUESTIONS = [
+    # --- contact ---
+    {"q": "What's the customer's full name?", "kind": "field", "field": "name"},
+    {"q": "Best phone number to reach them — and is it OK to text?", "kind": "field", "field": "phone"},
+    {"q": "Email address to send the estimate to?", "kind": "field", "field": "email"},
+    {"q": "Property address — street, city, and zip?", "kind": "field", "field": "address"},
+    # --- scope ---
+    {"q": "Is it shingle, tile, metal, or flat roofing?", "kind": "field", "field": "work_type"},
+    {"q": "What's prompting the call — leak, age, storm/insurance, selling, or an HOA notice?", "kind": "notes", "field": "Reason"},
+    # --- qualify ---
+    {"q": "How old is the roof, and are there active leaks or any interior damage?", "kind": "notes", "field": "Roof age / damage"},
+    {"q": "When are they hoping to have it done by?", "kind": "notes", "field": "Timeline"},
+    {"q": "Have they gotten other estimates — how many, and from who?", "kind": "notes", "field": "Other estimates"},
+    {"q": "Are they financing or paying out of pocket?", "kind": "notes", "field": "Financing"},
+    {"q": "Is this an insurance claim — is an adjuster involved?", "kind": "notes", "field": "Insurance claim"},
+    {"q": "Any budget range in mind? (soft ask)", "kind": "notes", "field": "Budget"},
+    {"q": "Who are the decision-makers — them, a spouse, or the HOA?", "kind": "notes", "field": "Decision-makers"},
+    {"q": "Is there an HOA or is it a gated community?", "kind": "notes", "field": "HOA / gated"},
+    # --- schedule ---
+    {"q": "How did they hear about us?", "kind": "field", "field": "source"},
+    {"q": "Best 2-hour inspection window — which days, and morning or afternoon?", "kind": "notes", "field": "Inspection window"},
+    {"q": "Any access notes — dogs, gate code, parking, number of stories?", "kind": "notes", "field": "Access notes"},
+    # --- close ---
+    {"q": "Confirm: we'll email the estimate to <email> and follow up at <phone>.", "kind": "close", "field": ""},
+]
+
+# ---------------------------------------------------------------------------
 # Lead onboarding pick-lists (AccuLynx "Create New Lead" parity)
 # ---------------------------------------------------------------------------
 # Notes / Tools sidebar — Priority Level dropdown (AccuLynx default "Normal").

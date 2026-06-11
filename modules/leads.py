@@ -227,7 +227,8 @@ def new():
             resolved_ahj or "—", (" · " + system) if system else "", est_msg, notify_msg), "ok")
         return redirect(url_for("leads.detail", lead_id=lid))
     return render_template("lead_form.html", lead={}, contacts=db.all_rows("contacts", order="last_name"),
-                           mode="new")
+                           mode="new",
+                           onboarding_questions=getattr(constants, "ONBOARDING_QUESTIONS", []))
 
 
 @bp.route("/<int:lead_id>")

@@ -106,6 +106,25 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="panel-head"><span>Activity Feed</span></div>
+      <ul class="timeline feed-scroll" style="padding-right:6px">
+        {% for a in feed %}
+        {% if a.entity_type=='job' %}{% set href = url_for('jobs.detail', job_id=a.entity_id) %}
+        {% elif a.entity_type=='lead' %}{% set href = url_for('leads.detail', lead_id=a.entity_id) %}
+        {% elif a.entity_type=='contact' %}{% set href = url_for('contacts.detail', contact_id=a.entity_id) %}
+        {% else %}{% set href = '' %}{% endif %}
+        <li>
+          {% if href %}<a href="{{ href }}" style="color:inherit;text-decoration:none;display:block">{% endif %}
+            <div class="k">{{ a.kind }}{% if a._who %} · {{ a._who }}{% endif %}</div>
+            <div class="t" style="{{ 'color:var(--accent)' if href }}">{{ a.text[:90] }}</div>
+            <div class="d">{{ a.created }}</div>
+          {% if href %}</a>{% endif %}
+        </li>
+        {% else %}<li class="muted">No activity yet.</li>{% endfor %}
+      </ul>
+    </div>
+
     <div class="kpis">
       <div class="kpi"><div class="v">{{ win_rate }}%</div><div class="l">Win rate ({{ won }}W / {{ lost }}L)</div></div>
       <div class="kpi"><div class="v">{{ active_jobs }}</div><div class="l">Active jobs</div></div>
@@ -133,43 +152,26 @@
       <div id="gmBody"><div class="muted" style="padding:6px 2px">Loading…</div></div>
     </div>
 
-    <div class="card">
-      <div class="panel-head"><span>Activity Feed</span></div>
-      <ul class="timeline feed-scroll" style="padding-right:6px">
-        {% for a in feed %}
-        {% if a.entity_type=='job' %}{% set href = url_for('jobs.detail', job_id=a.entity_id) %}
-        {% elif a.entity_type=='lead' %}{% set href = url_for('leads.detail', lead_id=a.entity_id) %}
-        {% elif a.entity_type=='contact' %}{% set href = url_for('contacts.detail', contact_id=a.entity_id) %}
-        {% else %}{% set href = '' %}{% endif %}
-        <li>
-          {% if href %}<a href="{{ href }}" style="color:inherit;text-decoration:none;display:block">{% endif %}
-            <div class="k">{{ a.kind }}{% if a._who %} · {{ a._who }}{% endif %}</div>
-            <div class="t" style="{{ 'color:var(--accent)' if href }}">{{ a.text[:90] }}</div>
-            <div class="d">{{ a.created }}</div>
-          {% if href %}</a>{% endif %}
-        </li>
-        {% else %}<li class="muted">No activity yet.</li>{% endfor %}
-      </ul>
+    {% set sitecam = company.sitecam_url or 'https://sitecam-web.onrender.com/' %}
+    <div class="card" id="sitecamCard">
+      <div class="panel-head">
+        <span>{{ icon('camera') }} Site Photos <span class="muted">· SiteCam</span></span>
+        <span style="display:flex;gap:6px">
+          <button class="btn sm" id="scToggle" title="Collapse / expand">▾</button>
+          <a class="btn sm" href="{{ url_for('sitecam.index') }}">⛶ Full screen</a>
+          <a class="btn sm" href="{{ sitecam }}" target="_blank" rel="noopener">↗</a>
+        </span>
+      </div>
+      <div id="scBody">
+        <iframe src="{{ sitecam }}" id="scFrame"
+                style="width:118%;height:300px;border:1px solid var(--line,#dde3ec);border-radius:8px;background:#fff;zoom:0.85;transform-origin:top left"
+                allow="camera; geolocation; clipboard-read; clipboard-write" referrerpolicy="origin" loading="lazy"></iframe>
+        <div class="muted" style="font-size:11px;margin-top:5px">Live field-photo board. If it shows a sign-in, log in once or use <a href="{{ sitecam }}" target="_blank" rel="noopener">New tab</a>.</div>
+      </div>
     </div>
   </div>
 </div>
 
-{% set sitecam = company.sitecam_url or 'https://sitecam-web.onrender.com/' %}
-<div class="card" id="sitecamCard" style="margin-top:16px">
-  <div class="panel-head">
-    <span>{{ icon('camera') }} Site Photos <span class="muted">· SeaBreeze SiteCam</span></span>
-    <span style="display:flex;gap:6px">
-      <button class="btn sm" id="scToggle" title="Collapse / expand">▾</button>
-      <a class="btn sm" href="{{ url_for('sitecam.index') }}">⛶ Full screen</a>
-      <a class="btn sm" href="{{ sitecam }}" target="_blank" rel="noopener">↗ New tab</a>
-    </span>
-  </div>
-  <div id="scBody">
-    <iframe src="{{ sitecam }}" id="scFrame" style="width:100%;height:360px;border:1px solid var(--line,#dde3ec);border-radius:8px;background:#fff"
-            allow="camera; geolocation; clipboard-read; clipboard-write" referrerpolicy="origin" loading="lazy"></iframe>
-    <div class="muted" style="font-size:11px;margin-top:5px">Live field-photo board. If it shows a sign-in, log in once here or use <a href="{{ sitecam }}" target="_blank" rel="noopener">New tab</a>.</div>
-  </div>
-</div>
 <script>
 (function(){
   var b=document.getElementById('scBody'), t=document.getElementById('scToggle');

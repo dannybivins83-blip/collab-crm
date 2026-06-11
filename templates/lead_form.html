@@ -159,7 +159,7 @@
       <div class="field"><label>Priority Level</label>
         <select name="priority">{% for p in constants.PRIORITY_LEVELS %}<option {{ 'selected' if (lead.priority or 'Normal')==p }}>{{ p }}</option>{% endfor %}</select>
       </div>
-      <div class="field" style="margin-bottom:0"><label>Notes</label><textarea name="notes" style="min-height:120px">{{ lead.notes or '' }}</textarea></div>
+      <div class="field" style="margin-bottom:0"><label>Notes</label><textarea name="notes" id="f_notes" style="min-height:120px">{{ lead.notes or '' }}</textarea></div>
     </div>
     <div class="card">
       <button class="primary" type="submit" style="width:100%">{{ 'Create Lead' if mode=='new' else 'Save Changes' }}</button>
@@ -186,6 +186,9 @@
   .vi-mic:hover{transform:scale(1.05)}
   .vi-mic.live{background:var(--danger);animation:vipulse 1.1s infinite}
   @keyframes vipulse{0%{box-shadow:0 0 0 0 rgba(226,80,80,.5)}70%{box-shadow:0 0 0 16px rgba(226,80,80,0)}100%{box-shadow:0 0 0 0 rgba(226,80,80,0)}}
+  /* On page load, draw the eye to the mic until Karla taps it (no auto-start — needs a user gesture). */
+  .vi-mic.hint{outline:3px solid var(--accent2);outline-offset:3px;animation:vihint 1.4s ease-in-out infinite}
+  @keyframes vihint{0%{box-shadow:0 0 0 0 rgba(20,60,120,.45)}70%{box-shadow:0 0 0 14px rgba(20,60,120,0)}100%{box-shadow:0 0 0 0 rgba(20,60,120,0)}}
   .vi-state-main{font-weight:800;font-size:15px}
   .vi-guide{border-top:1px dashed var(--line);padding-top:12px}
   .vi-q-row{display:flex;align-items:center;gap:12px}
@@ -217,44 +220,99 @@
   }
   if(nameEl) nameEl.addEventListener('change', linkContact);
 
-  // ---- guided steps: question -> form field ----
-  var STEPS=[
-    {q:"What’s the customer’s full name?", sel:"name", kind:"name"},
-    {q:"Best phone number to reach them?", sel:"phone", kind:"phone"},
-    {q:"Email address?", sel:"email", kind:"email"},
-    {q:"What’s the property address? (street, city, zip)", sel:"address", kind:"text"},
-    {q:"What kind of roof or work do they need?", sel:"work_type", kind:"select"},
-    {q:"How did they hear about us? (lead source)", sel:"source", kind:"select"},
-    {q:"Anything else we should know? (notes)", sel:"notes", kind:"text"}
-  ];
+  // ---- guided onboarding steps ----------------------------------------
+  // The script is tenant-configurable: it comes from constants.ONBOARDING_QUESTIONS
+  // (rendered below). Each item: {q, kind, field}.
+  //   kind "field" -> fills/parses the named form input (name/phone/email/address/work_type/source)
+  //   kind "notes" -> APPENDS the spoken answer to the Notes textarea as "Label: answer"
+  //   kind "close" -> read-back confirmation (no field write); finishes the wizard
+  var ONBOARDING={{ (onboarding_questions or []) | tojson }};
+  // Map a contact field name to the right input-handling kind + chip label.
+  var FIELD_KIND={name:"name",phone:"phone",email:"email",address:"text",work_type:"select",source:"select"};
+  var FIELD_LABEL={name:"Name",phone:"Phone",email:"Email",address:"Address",work_type:"Work type",source:"Source"};
+  function buildSteps(){
+    var out=[];
+    (ONBOARDING||[]).forEach(function(o){
+      if(!o||!o.kind) return;
+      if(o.kind==="field"){
+        out.push({q:o.q, kind:FIELD_KIND[o.field]||"text", sel:o.field, target:"field",
+                  label:FIELD_LABEL[o.field]||o.field});
+      } else if(o.kind==="notes"){
+        out.push({q:o.q, kind:"notes", sel:"notes", target:"notes", label:o.field||"Note"});
+      } else if(o.kind==="close"){
+        out.push({q:o.q, kind:"close", sel:null, target:"close", label:"Confirm"});
+      }
+    });
+    return out;
+  }
+  // Fallback to the original short script if the constant is missing/empty.
+  var STEPS=buildSteps();
+  if(!STEPS.length){
+    STEPS=[
+      {q:"What’s the customer’s full name?", sel:"name", kind:"name", target:"field", label:"Name"},
+      {q:"Best phone number to reach them?", sel:"phone", kind:"phone", target:"field", label:"Phone"},
+      {q:"Email address?", sel:"email", kind:"email", target:"field", label:"Email"},
+      {q:"What’s the property address? (street, city, zip)", sel:"address", kind:"text", target:"field", label:"Address"},
+      {q:"What kind of roof or work do they need?", sel:"work_type", kind:"select", target:"field", label:"Work type"},
+      {q:"How did they hear about us? (lead source)", sel:"source", kind:"select", target:"field", label:"Source"},
+      {q:"Anything else we should know? (notes)", sel:"notes", kind:"notes", target:"notes", label:"Note"}
+    ];
+  }
   var step=0;
+  var transcript=[];   // every finalized utterance, for the final blanks-only pass
+  var notesPrefix="";  // notes content present before the wizard started (preserved)
   var viQ=document.getElementById('viQ'), viNo=document.getElementById('viStepNo'),
       viHeard=document.getElementById('viHeard'), viChips=document.getElementById('viChips'),
-      micState=document.getElementById('micState');
+      micState=document.getElementById('micState'), viNextBtn=document.getElementById('viNext');
 
-  function fieldEl(sel){ return document.querySelector('[name="'+sel+'"]'); }
+  function fieldEl(sel){ return sel? document.querySelector('[name="'+sel+'"]') : null; }
+  var notesEl=document.getElementById('f_notes')||fieldEl('notes');
+  // Track which notes-step labels we've already written so re-answering replaces, not dupes.
+  var notesWritten={};
   function renderChips(){
     viChips.innerHTML='';
     STEPS.forEach(function(s,i){
-      var el=fieldEl(s.sel), filled=el&&(''+el.value).trim();
-      var c=document.createElement('span'); c.className='vi-chip'+(filled?' done':'');
-      c.textContent=(filled?'✓ ':'')+({name:'Name',phone:'Phone',email:'Email',address:'Address',work_type:'Work type',source:'Source',notes:'Notes'}[s.sel]||s.sel);
+      var done=false;
+      if(s.target==='field'){ var el=fieldEl(s.sel); done=el&&(''+el.value).trim(); }
+      else if(s.target==='notes'){ done=!!notesWritten[s.label]; }
+      else if(s.target==='close'){ done=(i<step); }
+      var c=document.createElement('span'); c.className='vi-chip'+(done?' done':'');
+      c.textContent=(done?'✓ ':'')+(s.label||s.sel);
       c.onclick=function(){ go(i); }; c.style.cursor='pointer';
       viChips.appendChild(c);
     });
   }
+  // Read-back for the close step: swap in the captured email/phone.
+  function closeText(raw){
+    var em=(fieldEl('email')||{}).value||'<email>', ph=(fieldEl('phone')||{}).value||'<phone>';
+    return (raw||'').replace(/<email>/g, em).replace(/<phone>/g, ph);
+  }
   function go(i){
     step=Math.max(0,Math.min(STEPS.length-1,i));
-    viQ.textContent=STEPS[step].q; viNo.textContent=(step+1)+'/'+STEPS.length; viHeard.textContent='';
-    var el=fieldEl(STEPS[step].sel); if(el){ try{ el.focus(); el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} }
+    var s=STEPS[step];
+    viQ.textContent=(s.kind==='close')? closeText(s.q) : s.q;
+    viNo.textContent=(step+1)+'/'+STEPS.length; viHeard.textContent='';
+    // Field steps: jump focus to the matching input (Karla can also type there
+    // while the mic listens — inputs are never disabled). Notes/close steps:
+    // surface the Notes box so she sees the answer land.
+    var el=(s.target==='field')? fieldEl(s.sel) : (s.target==='notes'? notesEl : null);
+    if(el){ try{ el.focus(); el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} }
+    // On the last step the "Next" button becomes "Finish" (runs the blanks-only pass).
+    viNextBtn.textContent=(step>=STEPS.length-1)? 'Finish ✓' : 'Next question →';
     renderChips();
   }
-  document.getElementById('viNext').onclick=function(){ go(step+1); };
+  // advance(): step forward, or finish when we're already on the last step.
+  function advance(){ if(step>=STEPS.length-1){ finish(); } else { go(step+1); } }
+  viNextBtn.onclick=advance;
   document.getElementById('viPrev').onclick=function(){ go(step-1); };
-  document.getElementById('viSkip').onclick=function(){ go(step+1); };
+  document.getElementById('viSkip').onclick=advance;
 
-  // ---- smart parse: pull phone/email out of ANY utterance ----
-  function setIf(sel,val){ var el=fieldEl(sel); if(el&&!(''+el.value).trim()){ el.value=val; } }
+  // ---- smart parse: fill BLANK data fields from any utterance ------------
+  // GOLDEN RULE: only ever write a data field that Karla left blank. setIf()
+  // refuses to overwrite anything that already has a (typed or spoken) value,
+  // so manual entries always win.
+  function isBlank(sel){ var el=fieldEl(sel); return el && !(''+el.value).trim(); }
+  function setIf(sel,val){ var el=fieldEl(sel); if(el&&!(''+el.value).trim()){ el.value=val; return true; } return false; }
   function selectMatch(sel,text){
     var el=fieldEl(sel); if(!el||el.tagName!=='SELECT') return false;
     var t=text.toLowerCase();
@@ -263,26 +321,89 @@
     for(var k in map){ if(t.indexOf(k)>-1){ for(var j=0;j<el.options.length;j++){ if((el.options[j].text||'').toLowerCase().indexOf(map[k])>-1){ el.selectedIndex=j; return true; } } } }
     return false;
   }
+  function fmtPhone(d){ return d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6,10); }
+  function titleCaseName(t){ return t.replace(/[0-9].*$/,'').replace(/\b\w/g,function(m){return m.toUpperCase();}).trim(); }
+  // Parse loose facts out of ANY utterance and drop them into blank fields only.
   function smartParse(t){
-    var ph=t.match(/(\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4})/); if(ph) setIf('phone', ph[1].trim());
+    // --- phone(s): first 10-digit run -> primary, a distinct second -> secondary ---
+    var phones=(t.match(/(\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4})/g)||[])
+      .map(function(p){return p.replace(/\D/g,'');}).filter(function(d){return d.length>=10;})
+      .map(function(d){return fmtPhone(d.slice(0,10));});
+    if(phones[0]) setIf('phone', phones[0]);
+    if(phones[1] && phones[1]!==((fieldEl('phone')||{}).value||'')) setIf('phone2', phones[1]);
+    // --- email ("name at host dot com") ---
     var em=t.replace(/\s+at\s+/gi,'@').replace(/\s+dot\s+/gi,'.').match(/[\w.\-]+@[\w.\-]+\.\w+/); if(em) setIf('email', em[0].toLowerCase());
+    // --- street address + 5-digit zip -> address (if blank) ---
+    if(isBlank('address')){
+      var addr=t.match(/\d{1,6}\s+[A-Za-z0-9.\- ]+?(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|court|ct|circle|cir|boulevard|blvd|way|place|pl|terrace|ter|trail|trl|highway|hwy|pkwy|parkway)\b[A-Za-z0-9.,\- ]*?\d{5}\b/i)
+            || t.match(/\d{1,6}\s+[A-Za-z0-9.,\- ]+?\b\d{5}\b/);
+      if(addr) setIf('address', addr[0].replace(/\s+/g,' ').trim());
+    }
+    // --- work type by keyword (shingle/tile/metal/flat) ---
+    if(isBlank('work_type') && /\b(shingle|tile|metal|flat|tpo|5v)\b/i.test(t)) selectMatch('work_type', t);
+    // --- financing yes/no -> a labeled notes line (only if not already captured) ---
+    if(notesEl && !notesWritten['Financing']){
+      if(/\b(financ\w*|finance it|monthly payment|payment plan)\b/i.test(t)) appendNote('Financing','yes (financing)');
+      else if(/\b(out of pocket|paying cash|pay cash|cash|own funds)\b/i.test(t)) appendNote('Financing','out of pocket');
+    }
+  }
+  // ---- notes: append/replace one labeled line in the Notes textarea --------
+  function appendNote(label,answer){
+    if(!notesEl) return;
+    answer=(answer||'').trim(); if(!answer) return;
+    var line=label+': '+answer;
+    var lines=(notesEl.value||'').split('\n');
+    if(notesWritten[label]){
+      // replace the line we previously wrote for this label
+      for(var i=0;i<lines.length;i++){ if(lines[i].indexOf(label+': ')===0){ lines[i]=line; break; } }
+      notesEl.value=lines.join('\n');
+    } else {
+      notesEl.value=(notesEl.value && notesEl.value.trim())? (notesEl.value.replace(/\s*$/,'')+'\n'+line) : line;
+    }
+    notesWritten[label]=answer;
   }
 
-  // ---- write the current step's answer into its field ----
+  // ---- write the current step's answer ----
   function applyAnswer(text){
-    var s=STEPS[step], el=fieldEl(s.sel); if(!el) return;
-    var t=text.trim(); if(!t) return;
-    if(s.kind==='phone'){ var d=t.replace(/\D/g,''); if(d.length>=10){ el.value=d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6,10); } }
-    else if(s.kind==='email'){ el.value=t.replace(/\s+at\s+/gi,'@').replace(/\s+dot\s+/gi,'.').replace(/\s+/g,'').toLowerCase(); }
-    else if(s.kind==='select'){ selectMatch(s.sel,t); }
-    else if(s.kind==='name'){ el.value=t.replace(/[0-9].*$/,'').replace(/\b\w/g,function(m){return m.toUpperCase();}).trim(); linkContact(); }
-    else { el.value=(el.value? el.value+' ' : '')+t; }
+    var s=STEPS[step]; var t=(text||'').trim(); if(!t) return;
+    transcript.push(t);
+    if(s.target==='notes'){ appendNote(s.label, t); }
+    else if(s.target==='close'){ /* read-back only — nothing to store */ }
+    else {
+      var el=fieldEl(s.sel);
+      if(el){
+        if(s.kind==='phone'){ var d=t.replace(/\D/g,''); if(d.length>=10){ el.value=fmtPhone(d.slice(0,10)); } }
+        else if(s.kind==='email'){ el.value=t.replace(/\s+at\s+/gi,'@').replace(/\s+dot\s+/gi,'.').replace(/\s+/g,'').toLowerCase(); }
+        else if(s.kind==='select'){ selectMatch(s.sel,t); }
+        else if(s.kind==='name'){ el.value=titleCaseName(t); linkContact(); }
+        else { el.value=(el.value? el.value+' ' : '')+t; }
+      }
+    }
     smartParse(t); renderChips();
+  }
+
+  // ---- final pass: on finish, re-scan the WHOLE transcript and fill any data
+  // field Karla left blank (blanks-only; never overwrites a manual value). ----
+  function finalPass(){
+    var all=transcript.join(' . ');
+    if(!all.trim()) return;
+    smartParse(all);
+    // Name: if still blank, take the first answer that has no digits/@ (likely the name).
+    if(isBlank('name')){
+      for(var i=0;i<transcript.length;i++){ var u=transcript[i];
+        if(u && !/[0-9@]/.test(u) && u.split(/\s+/).length<=5){ setIf('name', titleCaseName(u)); linkContact(); break; } }
+    }
+    renderChips();
+  }
+  function finish(){
+    finalPass();
+    if(listening) stop();
+    micState.textContent='All set — review the form below and Create Lead.';
   }
 
   // ---- speech recognition ----
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition, rec=null, listening=false;
-  if(!SR){ micBtn.disabled=true; micState.textContent='Voice input needs Chrome — you can still type the answers.'; renderChips(); go(0); return; }
+  if(!SR){ micBtn.disabled=true; micState.textContent='Voice input needs Chrome — you can still type the answers.'; try{ window.scrollTo(0,0); }catch(e){} renderChips(); go(0); return; }
   function start(){
     rec=new SR(); rec.lang='en-US'; rec.continuous=true; rec.interimResults=true;
     rec.onresult=function(e){
@@ -291,19 +412,25 @@
       viHeard.textContent=(fin||interim)? ('“'+(fin||interim).trim()+'”') : '';
       if(fin){
         var low=fin.trim().toLowerCase();
-        if(/^(next|next question)\b/.test(low)){ go(step+1); return; }
+        if(/^(next|next question|move on)\b/.test(low)){ advance(); return; }
         if(/^(back|go back|previous)\b/.test(low)){ go(step-1); return; }
+        if(/^(done|finish|that's all|thats all|all done|wrap up)\b/.test(low)){ finish(); return; }
         applyAnswer(fin);
       }
     };
     rec.onend=function(){ if(listening){ try{rec.start();}catch(e){} } };
     rec.onerror=function(ev){ if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){ stop(); micState.textContent='Mic blocked — click the 🔒 in the address bar and allow the microphone.'; } };
     try{ rec.start(); }catch(e){}
-    listening=true; micBtn.classList.add('live'); micState.textContent='Listening… speak naturally. Say “next” to move on.';
+    listening=true; micBtn.classList.remove('hint'); micBtn.classList.add('live');
+    micState.textContent='Listening… speak naturally. Say “next” to move on, “done” to finish.';
   }
   function stop(){ listening=false; micBtn.classList.remove('live'); if(rec){ try{rec.stop();}catch(e){} } micState.textContent='Paused — tap the mic to resume.'; }
   micBtn.onclick=function(){ listening? stop() : start(); };
 
+  // On load: jump to the top and draw the eye to the mic (Karla taps it — we do
+  // NOT auto-start recognition, browsers require a user gesture). Pulse stops on tap.
+  try{ window.scrollTo(0,0); }catch(e){}
+  micBtn.classList.add('hint');
   renderChips(); go(0);
 })();
 </script>

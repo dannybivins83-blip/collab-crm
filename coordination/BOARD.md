@@ -43,6 +43,9 @@ update your row → push. One pusher at a time. Don't route status through the o
 | P3 | **QuickBooks integration (product)** | TBD | BACKLOG | Per-tenant OAuth design needed for white-label. |
 | P3 | **Audit #5–#12** | Security | BACKLOG | SECRET_KEY default, CSRF, SSRF, checklist gating, etc. (#8,#9,#10,#11 now DONE) |
 | P2 | **`db.insert()` connection leak on IntegrityError** | Takeoff | ▶ IN PROGRESS | takeoff found + assigned to fix (confirmed db.py:495 no try/finally). Fix insert + update/execute consistently + test; db.py clean, guarded-push db.py + test only. |
+| P0 | **Owner-only System Map page (Danny-direct)** | crm-ui | ✅ DONE | `cfe1188` — /reports/system-map, owner-gated (is_owner seeded on id1; Karla 403; anon→login). Live: lead-flow SVG + disk tree + DB census w/ red flags. Verified via test client. |
+| P2 | **Nav: Site Photos + Roof Reports under Integrations dropdown (Danny-direct)** | crm-ui | ✅ DONE | `7d5ca01` — verified on local preview. |
+| P3 | **Backlog from data-trace (operations 1145)** | TBD | OPEN | (a) link 610 unregistered uploads/documents files into `documents` table; (b) payment-receipt email on `/invoices/<id>/pay` (no email today); (c) portal token TTL/expiry (`token_urlsafe(12)` never expires). |
 
 ---
 
