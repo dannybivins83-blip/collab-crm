@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verify with `git ls-remote`):** `a9c0550` on `origin/agent/gc-consolidation`; `origin/main` = `c612877` (behind, FF after permit work lands)
-- **Last board update:** 2026-06-10 — by Head Coach lane (coordination spine created)
+- **Git tip (verify with `git ls-remote`):** `b473c19` on `origin/agent/gc-consolidation`; `origin/main` = `c612877` (behind, FF after permit work lands)
+- **Last board update:** 2026-06-11 — by OVERLORD/Security: audit sweep #3,#4,#6,#7,#9,#12 + key-leak fixed
 
 ---
 
@@ -13,7 +13,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | Lane | Session title | Owns | Status |
 |---|---|---|---|
 | 🧭 Head Coach | SB CRM-clone MAIN DEV UI CODER-2nd | Coordination, audit, sequencing, owner decisions | **Active** — spine up; holding code-clean |
-| 🔒 Security | (UI CODER lane) | Audit fixes #1–#7 | #1+#2 pushed (`a9c0550`); next: #3/#4 (queued) |
+| 🔒 Security | OVERLORD/Security lane | Audit fixes | ✅ #1,#2,#3,#4,#6,#7,#9,#12 + engine-key-leak pushed (`b473c19`). OPEN: #8 (owner decision), #10 (parity lane), #11 (queued), #9 takeoff-overwrite (`takeoff.py`) |
 | 🧱 Permit | SB CRM-clone MAIN PERMITBUILDER CODER | `ahj.py`, `permits.py`, `permit_detail.html` | **3 files uncommitted** — needs commit+push, then FF main |
 | 🏠 Portal | SB CRM-clone MAIN DEV HO PORTAL UI CODER | `portal.py`, portal templates | idle |
 | 🔌 AppConnect | SB CRM-clone MAIN APPCONNECT CODER | integration glue / takeoff | idle |
