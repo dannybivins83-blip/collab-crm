@@ -39,6 +39,7 @@ PERMIT_DIR = os.path.join(UPLOAD_DIR, "permits")
 MEAS_DIR = os.path.join(UPLOAD_DIR, "measurements")
 
 SECRET_KEY = os.environ.get("CRM_SECRET", "white-label-crm-dev-secret")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 PORT = int(os.environ.get("CRM_PORT", "5050"))
 
 # True on a production host. Integration secrets fail CLOSED in prod (reject) rather than

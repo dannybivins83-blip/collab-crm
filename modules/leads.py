@@ -231,6 +231,58 @@ def new():
                            onboarding_questions=getattr(constants, "ONBOARDING_QUESTIONS", []))
 
 
+@bp.route("/parse-image", methods=["POST"])
+def parse_image():
+    """Accept an uploaded image, send to Claude vision, return extracted lead fields as JSON."""
+    import base64, json
+    import config
+
+    f = request.files.get("image")
+    if not f:
+        return jsonify({"error": "no image"}), 400
+    ct = (f.content_type or "").lower()
+    if ct not in ("image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"):
+        ct = "image/jpeg"  # browser sometimes sends empty content-type; treat as jpeg
+
+    api_key = config.ANTHROPIC_API_KEY
+    if not api_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY not set — add it to your .env or Render env"}), 503
+
+    img_b64 = base64.standard_b64encode(f.read()).decode()
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": ct, "data": img_b64}},
+                    {"type": "text", "text": (
+                        "Extract lead/customer information from this email screenshot or image. "
+                        "Return ONLY valid JSON (no markdown, no code fences, no explanation). "
+                        "Include only the fields you are confident about:\n"
+                        "name (full name), phone (digits+dashes), email, address (street only), "
+                        "city, zip, work_type (one of: Shingle Reroof, Tile Reroof, Metal Reroof, "
+                        "Flat/TPO Reroof, Roof Repair, Other), source (e.g. Referral/Website/"
+                        "Facebook/Google/Insurance/Other), notes (damage details, urgency, "
+                        "insurance info, any other relevant facts). Omit uncertain fields entirely."
+                    )}
+                ]
+            }]
+        )
+        raw = msg.content[0].text.strip()
+        # Strip markdown code fences if model adds them
+        if raw.startswith("```"):
+            raw = "\n".join(raw.split("\n")[1:])
+            if raw.endswith("```"):
+                raw = raw[:-3].strip()
+        return jsonify({"ok": True, "fields": json.loads(raw)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @bp.route("/<int:lead_id>")
 def detail(lead_id):
     l = db.get("leads", lead_id)
