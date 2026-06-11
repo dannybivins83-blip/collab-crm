@@ -22,6 +22,12 @@ app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024  # 64 MB uploads
 app.config["TEMPLATES_AUTO_RELOAD"] = True  # pick up template edits without a restart
+# Session/CSRF hardening (audit #7): SameSite=Lax stops the session cookie riding
+# cross-site form POSTs (the main CSRF vector); HttpOnly hides it from JS; Secure only
+# in prod so local http dev still keeps its session.
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = config.IS_PROD
 app.jinja_env.auto_reload = True
 
 db.init_db()
