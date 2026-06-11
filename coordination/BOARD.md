@@ -49,6 +49,13 @@ update your row → push. One pusher at a time. Don't route status through the o
 - [x] **Secret automation:** build a **provisioning script** now (reads `secrets/keys.local.env` → pushes to Render/Vercel APIs). No new vendor; becomes the tenant-onboarding seed.
 - [x] **Live-#1 close path:** owner delegated → **Head Coach call = DNS cutover to Render** (closes the hole + collapses to one vendor, the stated direction). Sequence: set/rotate all Render secrets → verify Render healthy on onrender URL → repoint DNS → keep Vercel as rollback. **Blocked on:** owner's DNS host (for exact records) + Render secrets finished.
 
+## 🚚 MIGRATION PROGRAM (AccuLynx→CRM · lead: crm-ui) — proof in `docs/PARITY_2026-06-11.md`
+- **A. Data parity** — IN PROGRESS. Counts look migrated (1,231 jobs, 1,952 contacts, 429 invoices…). **Financials NOT:** only 89/1,231 jobs have a contract_value; `collected`=$2,290 / payments $1.008M not rolled up; invoices 0-paid; photos 2; docs 146 (partial); roof_reports 0. **Blockers:** run financial-progress + billing-linkage + photos + docs collectors (owner-gated bookmarklets) + need AccuLynx reference totals. Confirm Render serves the migrated DB (not `crm.db`/25 jobs).
+- **B. One vendor** — owner: Render secrets + DNS cutover (see owner list).
+- **C. Integrations** — Roof Engine (MEASURE gate) · SiteCam SSO (SEABREEZE+SEED_FORCE) · Gmail/Drive/QBO/QXO verify each.
+- **D. Tightened** — #1/#2 live; #3/#4 next; then #5/#6/#7; #8–#12 triage.
+- **E. Cancel AccuLynx** — gated on A parity confirmed (~$250/mo saved).
+
 ## CRITICAL PATH → "SeaBreeze live + secure on ONE vendor"
 1. **Owner** sets/rotates all Render secrets (below) → 2. **Head Coach** verifies Render healthy on `collab-crm-bwsl.onrender.com` → 3. **Owner** DNS cutover in Cloudflare (CNAME `crm` → Render, grey-cloud) → 4. **Critical #1 closed on the live domain**, Vercel kept as rollback.
 Runs in parallel: Permit lane FF's `main`; Security lane does audit #3/#4; Head Coach builds the provisioning script + assesses WWS divergence.
