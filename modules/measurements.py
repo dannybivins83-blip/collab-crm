@@ -259,6 +259,25 @@ def _verify_sig(raw):
         return False
 
 
+def _norm_addr(s):
+    """Lowercase, collapse whitespace, trim trailing commas — for address compares."""
+    return re.sub(r"\s+", " ", str(s or "").strip().lower()).strip(" ,")
+
+
+def _addr_match(incoming, stored):
+    """True only for an exact address, or one being a token-boundary PREFIX of the other
+    (incoming street-only vs stored 'street, city ST zip'). NOT a bare substring — that's
+    what let '1 Main St' attach to '11 Main St'. Prefix-only (no suffix) so a leading house
+    number can't be swallowed by a longer one."""
+    a, b = _norm_addr(incoming), _norm_addr(stored)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    lo, hi = (a, b) if len(a) <= len(b) else (b, a)
+    return hi.startswith(lo + " ") or hi.startswith(lo + ",")
+
+
 def _match_record(b):
     if b.get("job_id"):
         j = db.get("jobs", b["job_id"])
@@ -276,15 +295,21 @@ def _match_record(b):
         for l in db.all_rows("leads"):
             if ref in (l.get("external_url") or "").lower():
                 return "lead", l
-    addr = str(b.get("address") or "").strip().lower()
+    addr = b.get("address")
     name = str(b.get("name") or "").strip().lower()
     if addr or name:
-        for j in db.all_rows("jobs"):
-            if (addr and addr in (j.get("address") or "").lower()) or (name and name == (j.get("name") or "").lower()):
-                return "job", j
-        for l in db.all_rows("leads"):
-            if (addr and addr in (l.get("address") or "").lower()) or (name and name == (l.get("name") or "").lower()):
-                return "lead", l
+        def _cands(rows):
+            return [r for r in rows
+                    if (addr and _addr_match(addr, r.get("address")))
+                    or (name and name == (r.get("name") or "").strip().lower())]
+        jc = _cands(db.all_rows("jobs"))
+        if len(jc) == 1:
+            return "job", jc[0]
+        if len(jc) > 1:
+            return None, None  # ambiguous — refuse, don't attach to the wrong job
+        lc = _cands(db.all_rows("leads"))
+        if len(lc) == 1:
+            return "lead", lc[0]
     return None, None
 
 
