@@ -1,0 +1,21 @@
+{
+  "_README": "Copy to docs/acculynx_reference.json and fill from AccuLynx's own reports. These are the parity yardstick. Counts = totals AccuLynx shows for each entity; financials = lifetime $ totals. Then run: python scripts/parity_compare.py",
+  "counts": {
+    "leads": 0,
+    "contacts": 0,
+    "jobs": 0,
+    "estimates": 0,
+    "invoices": 0,
+    "payments": 0,
+    "measurements": 0,
+    "library_docs": 0,
+    "photos": 0,
+    "roof_reports": 0
+  },
+  "financials": {
+    "contract_value": 0.0,
+    "invoiced": 0.0,
+    "collected": 0.0,
+    "payments": 0.0
+  }
+}
