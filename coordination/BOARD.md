@@ -21,7 +21,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | 📐 Measurement | SeaBreeze roof measurement specialist | measurement ingest | idle |
 | 🛰️ Roof Engine | SB CRM-clone MAIN DEV ROOFENGINE CODER | engine VM, `/api/takeoff` push | waiting on `MEASURE_CRM_WEBHOOK_SECRET` |
 | 📷 SiteCam | SB CRM SiteCam-clone MAIN DEV UI CODER | sitecam-api, SSO verify | waiting on `SEABREEZE` rotation + SEED_FORCE |
-| 🧮 Takeoff | SB CRM-clone TAKEOFFBUILDER CODER | estimator envelope · takeoff.py | ✅ audit #9 done + crm-ui-verified (`093dfa2`, 4/4 tests) |
+| 🧮 Takeoff | SB CRM-clone TAKEOFFBUILDER CODER | estimator envelope · takeoff.py · audit | ✅ #9 done (`093dfa2`); ▶ now on audit #11 (automations.py prose-parse/double-fire) |
 | 📧 Gmail Alias | Gmail alias automation Chrome Extension | per-account Gmail alias/draft automation | active |
 | 🏢 WWS (SEPARATE project) | WWSLGC: WWS CRM + WWS SiteCam | 2nd tenant — NOT in this repo | ⚠ divergence risk — assess fork vs. make-it-a-tenant of this codebase |
 
