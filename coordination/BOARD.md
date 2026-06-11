@@ -21,7 +21,9 @@ update your row → push. One pusher at a time. Don't route status through the o
 | 📐 Measurement | SeaBreeze roof measurement specialist | measurement ingest | idle |
 | 🛰️ Roof Engine | SB CRM-clone MAIN DEV ROOFENGINE CODER | engine VM, `/api/takeoff` push | waiting on `MEASURE_CRM_WEBHOOK_SECRET` |
 | 📷 SiteCam | SB CRM SiteCam-clone MAIN DEV UI CODER | sitecam-api, SSO verify | waiting on `SEABREEZE` rotation + SEED_FORCE |
-| 🏢 WWS (tenant 2) | WWS CRM-clone / WWS SiteCam-clone | 2nd white-label tenant | parallel — keep in sync with product changes |
+| 🧮 Takeoff | SB CRM-clone TAKEOFFBUILDER CODER | estimator → `estimator-takeoff/v1` envelope | active |
+| 📧 Gmail Alias | Gmail alias automation Chrome Extension | per-account Gmail alias/draft automation | active |
+| 🏢 WWS (SEPARATE project) | WWSLGC: WWS CRM + WWS SiteCam | 2nd tenant — NOT in this repo | ⚠ divergence risk — assess fork vs. make-it-a-tenant of this codebase |
 
 ---
 
@@ -46,6 +48,18 @@ update your row → push. One pusher at a time. Don't route status through the o
 - [x] **Head-coach autonomy:** ACT on safe/reversible (board, pings, FF main, doc commits, local tests); ESCALATE irreversible/outward-facing/spend (deploys, DNS, secrets, sends).
 - [x] **Secret automation:** build a **provisioning script** now (reads `secrets/keys.local.env` → pushes to Render/Vercel APIs). No new vendor; becomes the tenant-onboarding seed.
 - [x] **Live-#1 close path:** owner delegated → **Head Coach call = DNS cutover to Render** (closes the hole + collapses to one vendor, the stated direction). Sequence: set/rotate all Render secrets → verify Render healthy on onrender URL → repoint DNS → keep Vercel as rollback. **Blocked on:** owner's DNS host (for exact records) + Render secrets finished.
+
+## CRITICAL PATH → "SeaBreeze live + secure on ONE vendor"
+1. **Owner** sets/rotates all Render secrets (below) → 2. **Head Coach** verifies Render healthy on `collab-crm-bwsl.onrender.com` → 3. **Owner** DNS cutover in Cloudflare (CNAME `crm` → Render, grey-cloud) → 4. **Critical #1 closed on the live domain**, Vercel kept as rollback.
+Runs in parallel: Permit lane FF's `main`; Security lane does audit #3/#4; Head Coach builds the provisioning script + assesses WWS divergence.
+
+## OWNER — your minimal clicks (only you can do these; I drive everything else)
+1. **Render env** (use *Generate*, don't type values): `CRM_SYNC_SECRET`, `CRM_SECRET`, fresh `MEASURE_CRM_WEBHOOK_SECRET`, fresh `SEABREEZE_CRM_WEBHOOK_SECRET`.
+2. **Google Console** → rotate `GOOGLE_OAUTH_CLIENT_SECRET` (leaked) → paste new into Render; add the CRM redirect URIs.
+3. **sitecam-api** → set the *same* fresh `SEABREEZE` value → redeploy once with `SEED_FORCE=true` → flip back.
+4. **Engine VM** (via Roof Engine lane) → set the *same* fresh `MEASURE` value.
+5. **Cloudflare DNS cutover** — only after I green-light Render health.
+→ After this one manual round, the provisioning script makes secret-setting a single command. This is the last hand-entry pass.
 
 ## PROTOCOL
 Pull before, push after. Update your row. `send_message` for "your turn now" pings only.
