@@ -58,6 +58,16 @@ update your row → push. One pusher at a time. Don't route status through the o
 - **D. Tightened** — #1/#2 live; #3/#4 next; then #5/#6/#7; #8–#12 triage.
 - **E. Cancel AccuLynx** — gated on A parity confirmed (~$250/mo saved).
 
+## 🧹 SESSION CONSOLIDATION PROGRAM (lead: crm-ui · dispatched 2026-06-11)
+12 stale one-off task sessions (none running, 06-04..06-09) collapse into 3 standing lanes. All
+features already merged; lanes VERIFY-don't-rebuild vs current tip, then sessions get archived.
+| Lane | Legacy sessions folded in | Status |
+|---|---|---|
+| **crm-ui** (me) | QA+mobile/UX+lead-intake · overdue-invoice 1-click · onboarding+comms/worksheet tabs · estimate templates (EST-0154 ✅) · dashboard · "resume sales CRM" | mine to verify — pending (voice-wizard worker active on intake; verify after it lands) |
+| **permit** | submittal packet · Broward folio+legal · NOC/form stamp · HVHZ cover · gov-portals signup | 📨 intake sent (inbox/permit, 2026-06-11T1743). Flagged likely-gap: gov-portals signup (no grep hit) |
+| **roofengine** | Roof Report Engine v3 | 📨 intake sent (inbox/roofengine, 2026-06-11T1743) |
+Archive trigger: each lane replies "<LANE> consolidation clean" → crm-ui hands Danny the one-click archive list.
+
 ## CRITICAL PATH → "SeaBreeze live + secure on ONE vendor"
 1. **Owner** sets/rotates all Render secrets (below) → 2. **Head Coach** verifies Render healthy on `collab-crm-bwsl.onrender.com` → 3. **Owner** DNS cutover in Cloudflare (CNAME `crm` → Render, grey-cloud) → 4. **Critical #1 closed on the live domain**, Vercel kept as rollback.
 Runs in parallel: Permit lane FF's `main`; Security lane does audit #3/#4; Head Coach builds the provisioning script + assesses WWS divergence.
