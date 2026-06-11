@@ -114,6 +114,27 @@ def main():
         print("  {:<18} ${:>13}   {:>13}   {:>6}   {}".format(
             k, format(crmv, ",.2f"), refstr, g, mark))
 
+    # per-department breakdown (CRM) — OVERLORD wants splits, not one pipeline
+    _c = sqlite3.connect(a.db); _cur = _c.cursor()
+    jdept = {r[0]: (r[1] or "(none)") for r in _cur.execute(
+        "select id, coalesce(nullif(department,''),'(none)') from jobs")}
+    dj, dv, dc = {}, {}, {}
+    for jid, cv, co in _cur.execute("select id, contract_value, collected from jobs"):
+        d = jdept[jid]
+        dj[d] = dj.get(d, 0) + 1
+        dv[d] = dv.get(d, 0.0) + money(cv)
+        dc[d] = dc.get(d, 0.0) + money(co)
+    di = {}
+    for jid, amt in _cur.execute("select job_id, amount from invoices"):
+        d = jdept.get(jid, "(unlinked)")
+        di[d] = di.get(d, 0.0) + money(amt)
+    _c.close()
+    print("\nPER-DEPARTMENT (CRM)   jobs   contract_value       invoiced        collected")
+    for d in sorted(dj, key=lambda x: -dv.get(x, 0)):
+        print("  {:<18} {:>5}   ${:>13}   ${:>13}   ${:>13}".format(
+            d[:18], dj[d], format(dv.get(d, 0), ",.2f"),
+            format(di.get(d, 0), ",.2f"), format(dc.get(d, 0), ",.2f")))
+
     print("\n" + "=" * 64)
     if ref is None:
         print("VERDICT: BLOCKED - provide AccuLynx reference totals to judge parity.")
