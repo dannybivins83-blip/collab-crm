@@ -62,8 +62,16 @@ def _draws(total):
 
 
 def _next_number():
-    rows = db.all_rows("estimates", order="id DESC")
-    return "EST-%04d" % ((rows[0]["id"] + 1) if rows else 1)
+    # Highest existing EST- number + 1 (not the row id) so deletes can't collide.
+    mx = 0
+    for r in db.all_rows("estimates"):
+        n = (r.get("number") or "")
+        if n.startswith("EST-"):
+            try:
+                mx = max(mx, int(n[4:]))
+            except Exception:
+                pass
+    return "EST-%04d" % (mx + 1)
 
 
 # ---- routes ---------------------------------------------------------------

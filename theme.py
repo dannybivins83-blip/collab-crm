@@ -48,14 +48,22 @@ def follow_status(stage_def, clock_value, snooze_until=None):
 # ---------------------------------------------------------------------------
 
 def est_num(text):
-    """Pull a number out of a money string like '$14,500'."""
+    """Pull a number out of a money string like '$14,500' or '($500)'.
+    Honors a leading minus or accounting parentheses as negative, and collapses
+    stray thousand-dots (e.g. '1.234.50') so they don't zero the value."""
     if text is None:
         return 0.0
-    digits = re.sub(r"[^0-9.]", "", str(text))
+    s = str(text).strip()
+    neg = s.startswith("-") or (s.startswith("(") and s.endswith(")"))
+    digits = re.sub(r"[^0-9.]", "", s)
+    if digits.count(".") > 1:  # treat all but the last dot as separators
+        head, _, tail = digits.rpartition(".")
+        digits = head.replace(".", "") + "." + tail
     try:
-        return float(digits) if digits else 0.0
+        val = float(digits) if digits else 0.0
     except Exception:
         return 0.0
+    return -val if neg else val
 
 
 def money(n):

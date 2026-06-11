@@ -22,8 +22,17 @@ db._COLCACHE.clear()
 
 
 def _next_number():
-    rows = db.all_rows("invoices", order="id DESC")
-    return "INV-%04d" % ((rows[0]["id"] + 1) if rows else 1)
+    # Derive from the highest existing INV- number (not the row id) so deleting
+    # an invoice can't make the next one reuse a number that still exists.
+    mx = 0
+    for r in db.all_rows("invoices"):
+        n = (r.get("number") or "")
+        if n.startswith("INV-"):
+            try:
+                mx = max(mx, int(n[4:]))
+            except Exception:
+                pass
+    return "INV-%04d" % (mx + 1)
 
 
 def _is_overdue(inv):
