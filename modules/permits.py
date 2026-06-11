@@ -99,10 +99,12 @@ def detail(permit_id):
     sys_for_meta = request.args.get("sys") or p.get("system")
     if request.args.get("sys"):
         p["system"] = request.args.get("sys")  # reflect the picker selection
+    from modules import ahj as ahj_mod
     return render_template("permit_detail.html", p=p,
                            job=db.get("jobs", p["job_id"]) if p.get("job_id") else None,
                            systems=PERMIT_SYSTEMS, status_list=PERMIT_STATUS,
-                           meta=builder_meta(sys_for_meta))
+                           meta=builder_meta(sys_for_meta),
+                           portal=ahj_mod.ahj_portal(p.get("ahj")))
 
 
 @bp.route("/<int:permit_id>/save", methods=["POST"])

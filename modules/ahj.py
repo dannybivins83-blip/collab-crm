@@ -7,7 +7,36 @@ PBC/Broward municipalities. Incorporated city -> that city's building dept;
 otherwise fall back to the county. The roof work type maps to a permit system
 (shingle/tile/metal/flat) used to auto-create the permit.
 """
+import os
+import json
 import re
+
+# Per-AHJ online permitting portal data (login URL, platform, online-submission status,
+# contractor registration, NOC recording) researched for all 70 PBC/Broward municipalities.
+# Lets the permit page render a clickable "Submit to <city> portal" link.
+_PORTALS = None
+
+
+def _load_portals():
+    global _PORTALS
+    if _PORTALS is None:
+        try:
+            import config
+            path = os.path.join(config.DATA_DIR, "ahj_portals.json")
+            with open(path, "r", encoding="utf-8") as fh:
+                _PORTALS = (json.load(fh) or {}).get("ahjs", {})
+        except Exception:
+            _PORTALS = {}
+    return _PORTALS
+
+
+def ahj_portal(ahj_key):
+    """Return the permitting-portal info dict for an AHJ key (e.g. 'Royal_Palm_Beach'),
+    or {} if unknown. Keys: city, county, platform, portal_url, login_url, register_url,
+    online, upload, notes, phone, email, confidence."""
+    if not ahj_key:
+        return {}
+    return _load_portals().get(ahj_key, {})
 
 
 def _build():
