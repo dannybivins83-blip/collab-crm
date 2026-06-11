@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}System Map{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>🗺️ System Map <span style="font-size:.5em;vertical-align:middle;background:#1f3a5f;color:#fff;padding:2px 8px;border-radius:10px">🔒 Owner only</span></h1>
+  <div class="muted">Living map of the CRM — flow, files on disk, and database census. Numbers are live (cached 60s).</div>
+</div>
+
+{% if census.flags %}
+<div class="card" style="border-left:5px solid #c0392b;background:#fdecea">
+  <h2 style="color:#c0392b;margin-top:0">⚠️ Red flags ({{ census.flags|length }})</h2>
+  <ul style="margin:0;padding-left:18px">
+    {% for f in census.flags %}<li style="color:#922b21;margin:3px 0">{{ f }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- ========================= A. LEAD ONBOARDING FLOW ========================= -->
+<div class="card">
+  <h2>A · Lead onboarding flow</h2>
+  <div class="muted" style="margin-bottom:8px">5 entry doors → dedup → lead created → 8 autofills → manual assign → pipeline → convert (auto-creates job + permit).</div>
+  <svg viewBox="0 0 980 360" style="width:100%;height:auto;font-family:inherit" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L7,3 L0,6 Z" fill="#7a8aa0"/>
+      </marker>
+      <style>
+        .b{fill:#fff;stroke:#cfd8e3;stroke-width:1.5;rx:8}
+        .lbl{font-size:12px;fill:#1f2d3d}
+        .sub{font-size:10px;fill:#7a8aa0}
+        .hd{font-size:11px;font-weight:bold;fill:#1f3a5f}
+        .door{fill:#eef4fb;stroke:#9cc0e6}
+        .stage{fill:#fff7e6;stroke:#e8c07a}
+        .ln{stroke:#7a8aa0;stroke-width:1.5;fill:none}
+      </style>
+    </defs>
+
+    <!-- entry doors -->
+    <text x="14" y="20" class="hd">5 ENTRY DOORS</text>
+    <rect class="b door" x="14" y="28" width="150" height="26" rx="8"/><text x="22" y="45" class="lbl">1 · Manual form /leads/new</text>
+    <rect class="b door" x="14" y="60" width="150" height="26" rx="8"/><text x="22" y="77" class="lbl">2 · API /leads/intake</text>
+    <rect class="b door" x="14" y="92" width="150" height="26" rx="8"/><text x="22" y="109" class="lbl">3 · Email parser</text>
+    <rect class="b door" x="14" y="124" width="150" height="26" rx="8"/><text x="22" y="141" class="lbl">4 · RingCentral call</text>
+    <rect class="b door" x="14" y="156" width="150" height="26" rx="8"/><text x="22" y="173" class="lbl">5 · Bulk import</text>
+
+    <!-- dedup -->
+    <path class="ln" d="M164,105 L210,105" marker-end="url(#arr)"/>
+    <rect class="b" x="212" y="80" width="92" height="50" rx="8"/>
+    <text x="258" y="100" class="lbl" text-anchor="middle">Dedup</text>
+    <text x="258" y="116" class="sub" text-anchor="middle">email / name+phone</text>
+
+    <!-- lead created -->
+    <path class="ln" d="M304,105 L350,105" marker-end="url(#arr)"/>
+    <rect class="b" x="352" y="78" width="120" height="54" rx="8" style="fill:#eafaf1;stroke:#84c9a3"/>
+    <text x="412" y="100" class="lbl" text-anchor="middle">Lead created</text>
+    <text x="412" y="116" class="sub" text-anchor="middle">stage = assigned</text>
+
+    <!-- 8 autofills -->
+    <path class="ln" d="M412,132 L412,170" marker-end="url(#arr)"/>
+    <rect class="b" x="300" y="172" width="224" height="86" rx="8"/>
+    <text x="412" y="190" class="hd" text-anchor="middle">8 AUTOFILLS (instant)</text>
+    <text x="412" y="206" class="sub" text-anchor="middle">AHJ · roof system · auto-name</text>
+    <text x="412" y="220" class="sub" text-anchor="middle">starter estimate · intake note</text>
+    <text x="412" y="234" class="sub" text-anchor="middle">Gmail draft · portal invite</text>
+    <text x="412" y="248" class="sub" text-anchor="middle">activity timeline</text>
+
+    <!-- manual assign -->
+    <path class="ln" d="M524,105 L570,105" marker-end="url(#arr)"/>
+    <rect class="b" x="572" y="80" width="110" height="50" rx="8"/>
+    <text x="627" y="100" class="lbl" text-anchor="middle">Assign rep</text>
+    <text x="627" y="116" class="sub" text-anchor="middle">manual today</text>
+
+    <!-- pipeline stages -->
+    <text x="700" y="20" class="hd">PIPELINE</text>
+    <rect class="b stage" x="700" y="28" width="120" height="24" rx="8"/><text x="760" y="44" class="lbl" text-anchor="middle">Assigned · 2d</text>
+    <rect class="b stage" x="700" y="56" width="120" height="24" rx="8"/><text x="760" y="72" class="lbl" text-anchor="middle">Prospect · 3d</text>
+    <rect class="b stage" x="700" y="84" width="120" height="24" rx="8"/><text x="760" y="100" class="lbl" text-anchor="middle">Negotiation · 4d</text>
+    <rect class="b stage" x="700" y="112" width="120" height="24" rx="8"/><text x="760" y="128" class="lbl" text-anchor="middle">Long Term · 14d</text>
+    <path class="ln" d="M682,105 L700,105" marker-end="url(#arr)"/>
+
+    <!-- convert -->
+    <path class="ln" d="M760,136 L760,170" marker-end="url(#arr)"/>
+    <rect class="b" x="690" y="172" width="140" height="74" rx="8" style="fill:#eafaf1;stroke:#84c9a3"/>
+    <text x="760" y="192" class="lbl" text-anchor="middle">Convert → Job</text>
+    <text x="760" y="208" class="sub" text-anchor="middle">R-26### · permit auto</text>
+    <text x="760" y="222" class="sub" text-anchor="middle">measurement + docs</text>
+    <text x="760" y="236" class="sub" text-anchor="middle">carried over</text>
+
+    <text x="14" y="300" class="sub">Source of truth: code-verified flow (leads.py / constants.py). Update this map when the flow changes.</text>
+  </svg>
+</div>
+
+<div class="detail">
+  <!-- ========================= B. DISK TREE ========================= -->
+  <div>
+    <div class="card">
+      <h2>B · Disk tree (live)</h2>
+      <div class="muted" style="margin-bottom:8px">Blue = databases · Amber = file folders.</div>
+      {% for n in disk %}
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;margin:5px 0;border-radius:8px;
+        {% if n.kind == 'db' %}background:#eef4fb;border:1px solid #9cc0e6{% else %}background:#fff7e6;border:1px solid #e8c07a{% endif %}">
+        <span style="font-size:16px">{% if n.kind == 'db' %}🗄️{% else %}📁{% endif %}</span>
+        <span style="font-weight:600;flex:1">{{ n.name }}</span>
+        <span class="muted">{{ n.files }} files</span>
+        <span style="font-weight:600;min-width:70px;text-align:right">{{ n.human }}</span>
+      </div>
+      {% else %}
+      <div class="muted">No storage folders found.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ========================= C. DATABASE CENSUS ========================= -->
+  <div>
+    <div class="card">
+      <h2>C · Database census (live)</h2>
+      {% for g in census.groups %}
+      <h3 style="margin:10px 0 4px;color:#1f3a5f">{{ g.name }}</h3>
+      <table class="grid"><tr><th>Table</th><th class="right">Rows</th></tr>
+        {% for r in g.rows %}
+        <tr>
+          <td>{{ r.table }}</td>
+          <td class="right" {% if r.count == 0 %}style="color:#c0392b;font-weight:700"{% endif %}>
+            {{ r.count if r.count is not none else '—' }}
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% endfor %}
+
+      {% if census.breakdowns %}
+      <h3 style="margin:12px 0 4px;color:#1f3a5f">Stage breakdowns</h3>
+      {% for label, rows in census.breakdowns.items() %}
+      <div style="margin:4px 0"><span class="muted">{{ label }}:</span>
+        {% for k, n in rows %}<span style="display:inline-block;background:#eef2f7;border-radius:10px;padding:1px 8px;margin:2px">{{ k }} · {{ n }}</span>{% endfor %}
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

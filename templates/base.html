@@ -115,7 +115,13 @@
       <a href="{{ url_for('jobs.list_view') }}?stage=canceled">Canceled</a>
     </div>
   </div>
-  <a class="navitem {{ 'on' if seg.startswith('/reports') }}" href="{{ url_for('reports.index') }}">Reports</a>
+  <div class="navgroup">
+    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/reports') }}">Reports ▾</a>
+    <div class="dropdown">
+      <a href="{{ url_for('reports.index') }}">{{ icon('grid') }}<span class="nlbl">Analytics</span></a>
+      {% if current_user and current_user.is_owner %}<a href="{{ url_for('reports.system_map') }}">{{ icon('grid') }}<span class="nlbl">System Map 🔒</span></a>{% endif %}
+    </div>
+  </div>
   <div class="navgroup">
     <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/integrations') or seg.startswith('/sitecam') or seg.startswith('/roof-reports') }}">Integrations ▾</a>
     <div class="dropdown">
