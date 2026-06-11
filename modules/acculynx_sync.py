@@ -193,6 +193,33 @@ def _join_list(v):
     return str(v or "")
 
 
+def _department_for(work_type, company=None):
+    """Map a job's workType/tradeType text to the tenant's configured department.
+
+    Tenant-agnostic: department NAMES come from company_settings.departments (the
+    same comma list the masthead uses), never hardcoded. Case-insensitive substring
+    on the work type picks the matching configured department by intent:
+        "service" or "repair" -> a department whose name contains "service"
+        "warranty"            -> a department whose name contains "warranty"
+    Falls back to the FIRST configured department (reroof/new-work, by convention),
+    and to the literal "REROOF Department" only when no departments are configured.
+    """
+    if company is None:
+        company = db.get_company()
+    depts = [d.strip() for d in (company.get("departments") or "").split(",") if d.strip()]
+    default = depts[0] if depts else "REROOF Department"
+    wt = (work_type or "").lower()
+
+    def _match(token):
+        return next((d for d in depts if token in d.lower()), None)
+
+    if "warranty" in wt:
+        return _match("warranty") or default
+    if "service" in wt or "repair" in wt:
+        return _match("service") or default
+    return default
+
+
 def _flatten_address(a):
     """AccuLynx locationAddress is an object; build a single display string."""
     if not isinstance(a, dict):
@@ -654,13 +681,14 @@ def run_sync(deep=False, batch=50):
                 if not name:
                     continue
                 addr = _flatten_address(loc)  # full display string from the DETAIL record
+                _wt = _name_of(_g(job, "workType", "tradeType", "trade")) or _join_list(job.get("tradeTypes"))
                 rec = {
                     "name": name, "rid": _g(job, "jobNumber", "number", "refNumber"),
                     "phone": cb["phone"], "email": cb["email"], "address": addr,
-                    "work_type": _name_of(_g(job, "workType", "tradeType", "trade")) or _join_list(job.get("tradeTypes")),
+                    "work_type": _wt,
                     "source": _name_of(_g(job, "leadSource", "source")),
                     "rep": _name_of(_g(job, "salesRep", "assignedTo", "rep")) or "Danny Bivins",
-                    "external_url": url, "department": "REROOF Department", "todo": progress,
+                    "external_url": url, "department": _department_for(_wt), "todo": progress,
                 }
                 if val:
                     rec[val_col] = val
@@ -862,7 +890,7 @@ def _upsert_record(rec):
     url = "https://my.acculynx.com/jobs/%s" % rec.get("guid") if rec.get("guid") else ""
     parts = [p.strip() for p in (rec.get("address") or "").split(",")]
     company = db.get_company()
-    dept = "REROOF Department"
+    dept = _department_for(rec.get("work_type", ""), company)
     base = {"name": name, "rid": rec.get("rid", ""), "phone": rec.get("phone", ""),
             "email": rec.get("email", ""), "work_type": rec.get("work_type", ""),
             "source": rec.get("source", ""), "rep": rec.get("rep") or "Danny Bivins",
