@@ -75,11 +75,30 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default="data/crm_migration.db")
     ap.add_argument("--ref", default="docs/acculynx_reference.json")
+    ap.add_argument("--json", action="store_true",
+                    help="emit measured data as JSON — run this where the LIVE DB is "
+                         "(e.g. Render shell) and post the JSON back to crm-ui to render the proof")
     a = ap.parse_args()
 
     counts, fin = crm_side(a.db)
     ref = json.load(open(a.ref)) if os.path.exists(a.ref) else None
     tol = DEFAULT_TOL
+
+    if a.json:
+        c2 = sqlite3.connect(a.db); cur2 = c2.cursor()
+        jdept = {r[0]: (r[1] or "(none)") for r in cur2.execute(
+            "select id, coalesce(nullif(department,''),'(none)') from jobs")}
+        dept = {}
+        for jid, cv, co in cur2.execute("select id, contract_value, collected from jobs"):
+            e = dept.setdefault(jdept[jid],
+                                {"jobs": 0, "contract_value": 0.0, "invoiced": 0.0, "collected": 0.0})
+            e["jobs"] += 1; e["contract_value"] += money(cv); e["collected"] += money(co)
+        for jid, amt in cur2.execute("select job_id, amount from invoices"):
+            dept.setdefault(jdept.get(jid, "(unlinked)"),
+                            {"jobs": 0, "contract_value": 0.0, "invoiced": 0.0, "collected": 0.0})["invoiced"] += money(amt)
+        c2.close()
+        print(json.dumps({"db": a.db, "counts": counts, "financials": fin, "by_department": dept}, indent=2))
+        return
 
     print("AccuLynx -> CRM PARITY  (db=%s)" % a.db)
     print("=" * 64)
