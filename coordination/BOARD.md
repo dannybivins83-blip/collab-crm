@@ -14,7 +14,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 |---|---|---|---|
 | 🧭 Head Coach | SB CRM-clone MAIN DEV UI CODER-2nd | Coordination, audit, sequencing, owner decisions | **Active** — spine up; holding code-clean |
 | 🔒 Security | OVERLORD/Security lane | Audit fixes | ✅ #1,#2,#3,#4,#6,#7,#9,#12 + engine-key-leak pushed (`b473c19`). OPEN: #8 (owner decision), #10 (parity lane), #11 (queued), #9 takeoff-overwrite (`takeoff.py`) |
-| 🧱 Permit | SB CRM-clone MAIN PERMITBUILDER CODER | `ahj.py`, `permits.py`, `permit_detail.html` | **3 files uncommitted** — needs commit+push, then FF main |
+| 🧱 Permit | SB CRM-clone MAIN PERMITBUILDER CODER | `ahj.py`, `permits.py`, `permit_detail.html` | ✅ pushed (`efb03c3`): AHJ portal-links card + submittal spec. **main FF'd → efb03c3** |
 | 🏠 Portal | SB CRM-clone MAIN DEV HO PORTAL UI CODER | `portal.py`, portal templates | idle |
 | 🔌 AppConnect | SB CRM-clone MAIN APPCONNECT CODER | integration glue / takeoff | idle |
 | 🔁 Sync | (Sync coder) | `acculynx_sync.py` bridges | folded into Security #1 |
@@ -35,7 +35,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | P1 | **Stand up scheduled Head Coach (cron)** | Head Coach | NEXT | Wakes every few hrs: pull, verify state, reconcile board, ping idle/blocked lanes, escalate owner-decisions. Autonomy = act-on-safe. |
 | P0 | **Set `CRM_SYNC_SECRET` + `CRM_SECRET` on Render** | owner (dashboard) | in progress | Render fail-closes without them. Reinstall bookmarklets after. |
 | P1 | **Rotate burned/leaked secrets** | owner | OPEN | `MEASURE` (chat-leak ×2), `SEABREEZE` (leaked), `GOOGLE_OAUTH_CLIENT_SECRET` (screenshot), roof-engine key. Fresh values → dashboards + `secrets/keys.local.env`. |
-| P1 | **Permit lane: commit+push 3 files, FF main** | Permit | OPEN | Unblocks main catch-up; stops interleaving. |
+| P1 | **Permit lane: commit+push 3 files, FF main** | Permit | ✅ DONE | Pushed `efb03c3`; main FF'd `c612877`→`efb03c3` (all audit+migration+permit work now on main). |
 | P1 | **Import Service + Warranty depts (migration parity A)** | Sync (done) → owner | ✅ CODE FIXED (`fdb2f97`, crm-ui-verified: `_department_for` maps workType→configured dept, tenant-agnostic). **NOW owner-gated: RE-SYNC** (re-run ⭐Sync All) so existing jobs pick up the corrected department; dept views are empty until then. Gates AccuLynx cancellation. |
 | P2 | **Audit #3 (`est_num` money corruption) + #4 (dup invoice #s)** | Security | QUEUED | No decision needed; do after permit resync. |
 | P2 | **Secret provisioning automation** | Head Coach | DESIGN | One-command push of `keys.local.env` → Render/Vercel APIs; seed of tenant onboarding. |
