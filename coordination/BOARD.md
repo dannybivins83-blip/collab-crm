@@ -21,7 +21,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | 📐 Measurement | SeaBreeze roof measurement specialist | measurement ingest | idle |
 | 🛰️ Roof Engine | SB CRM-clone MAIN DEV ROOFENGINE CODER | engine VM, `/api/takeoff` push | waiting on `MEASURE_CRM_WEBHOOK_SECRET` |
 | 📷 SiteCam | SB CRM SiteCam-clone MAIN DEV UI CODER | sitecam-api, SSO verify | waiting on `SEABREEZE` rotation + SEED_FORCE |
-| 🧮 Takeoff | SB CRM-clone TAKEOFFBUILDER CODER | estimator envelope · takeoff.py · audit | ✅ #9 done (`093dfa2`); ▶ now on audit #11 (automations.py prose-parse/double-fire) |
+| 🧮 Takeoff | SB CRM-clone TAKEOFFBUILDER CODER | estimator envelope · audit | ✅ #9 + #11 done + crm-ui-verified (`093dfa2`,`d122361`); idle — awaiting next |
 | 📧 Gmail Alias | Gmail alias automation Chrome Extension | per-account Gmail alias/draft automation | active |
 | 🏢 WWS (SEPARATE project) | WWSLGC: WWS CRM + WWS SiteCam | 2nd tenant — NOT in this repo | ⚠ divergence risk — assess fork vs. make-it-a-tenant of this codebase |
 
@@ -41,7 +41,8 @@ update your row → push. One pusher at a time. Don't route status through the o
 | P2 | **Secret provisioning automation** | Head Coach | DESIGN | One-command push of `keys.local.env` → Render/Vercel APIs; seed of tenant onboarding. |
 | P3 | **SSO go-live** | SiteCam + owner | BLOCKED | Needs fresh `SEABREEZE` on both sides + sitecam-api `SEED_FORCE=true`. |
 | P3 | **QuickBooks integration (product)** | TBD | BACKLOG | Per-tenant OAuth design needed for white-label. |
-| P3 | **Audit #5–#12** | Security | BACKLOG | SECRET_KEY default, CSRF, SSRF, checklist gating, etc. |
+| P3 | **Audit #5–#12** | Security | BACKLOG | SECRET_KEY default, CSRF, SSRF, checklist gating, etc. (#8,#9,#11 now DONE) |
+| P2 | **`db.insert()` connection leak on IntegrityError** | db.py owner (Security) | OPEN | takeoff found (`d122361` work): no try/finally around `conn=connect()`; a raising INSERT (e.g. UNIQUE) leaks the conn → cascading `database is locked` on SQLite. Real bug. |
 
 ---
 
