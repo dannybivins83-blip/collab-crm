@@ -75,6 +75,7 @@ from modules.smart_todos import bp as smart_todos_bp
 from modules.qxo import bp as qxo_bp  # native QXO materials integration (dark until QXO_API_* set)
 from modules.integrations import bp as integrations_bp  # white-label integrations status hub
 from modules.dbadmin import bp as dbadmin_bp  # token-gated SQLite DB-restore (dark until DB_RESTORE_TOKEN set)
+from modules.permit_api import bp as permit_api_bp  # white-label permit builder REST API
 
 for _bp in (dashboard_bp, settings_bp, contacts_bp, leads_bp, jobs_bp, estimates_bp,
             permits_bp, files_bp, tasks_bp, calendar_bp, invoices_bp, materials_bp,
@@ -82,7 +83,7 @@ for _bp in (dashboard_bp, settings_bp, contacts_bp, leads_bp, jobs_bp, estimates
             worksheet_bp, customize_bp, orders_bp, library_bp, commissions_bp, customfields_bp,
             portal_bp, tools_bp, signups_bp, gmail_bp, sitecam_bp, sso_bp, search_bp,
             leads_dedupe_bp, pipeline_bp, roof_reports_bp, demos_bp, smart_todos_bp, takeoff_bp,
-            qxo_bp, integrations_bp, dbadmin_bp):
+            qxo_bp, integrations_bp, dbadmin_bp, permit_api_bp):
     app.register_blueprint(_bp)
 
 # Real per-user login (registers its own blueprint + before-request guard).

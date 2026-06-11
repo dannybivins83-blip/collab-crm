@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Portal Account Status{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>Portal Account Registration</h1>
+  <div class="grow"></div>
+  <form method="POST" action="{{ url_for('permits.portal_accounts_seed') }}" style="display:inline">
+    <button class="btn">Seed from AHJ list</button>
+  </form>
+</div>
+<p style="color:#666;font-size:.9em">Track which AHJ portals have an active SeaBreeze contractor account.
+  <strong>registered</strong> = auto-submit enabled. <strong>pending</strong> = one-time registration needed first.</p>
+
+{% if accounts %}
+<table class="grid">
+  <tr><th>Platform</th><th>AHJ</th><th>City</th><th>County</th><th>Username</th><th>Status</th><th>Last checked</th><th></th></tr>
+  {% for a in accounts %}
+  <tr>
+    <td>{{ a.platform }}</td>
+    <td>{{ a.ahj|replace('_',' ') }}</td>
+    <td>{{ a.city }}</td>
+    <td>{{ a.county }}</td>
+    <td>{{ a.username or '—' }}</td>
+    <td>
+      {% if a.registration_status == 'registered' %}<span style="color:green">✓ registered</span>
+      {% elif a.registration_status == 'pending' %}<span style="color:#b8860b">⏳ pending</span>
+      {% elif a.registration_status == 'blocked' %}<span style="color:red">✗ blocked</span>
+      {% else %}{{ a.registration_status }}{% endif %}
+    </td>
+    <td>{{ a.last_checked or '—' }}</td>
+    <td>
+      <form method="POST" action="{{ url_for('permits.portal_account_update', account_id=a.id) }}" style="display:flex;gap:4px;align-items:center">
+        <select name="registration_status" style="font-size:.85em">
+          {% for s in ['pending','registered','blocked','not_applicable'] %}
+          <option value="{{ s }}" {% if a.registration_status==s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+        <input name="username" placeholder="username" value="{{ a.username or '' }}" style="width:120px;font-size:.85em">
+        <input name="notes" placeholder="notes" value="{{ a.notes or '' }}" style="width:140px;font-size:.85em">
+        <button class="btn small">Save</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No records yet. Click <strong>Seed from AHJ list</strong> to populate from the portal database.</p>
+{% endif %}
+
+{% if missing %}
+<h3 style="margin-top:2em">Online AHJs without an account record ({{ missing|length }} shown)</h3>
+<table class="grid">
+  <tr><th>AHJ</th><th>Platform</th><th>City</th><th>County</th></tr>
+  {% for k, p in missing %}
+  <tr>
+    <td>{{ k|replace('_',' ') }}</td>
+    <td>{{ p.platform }}</td>
+    <td>{{ p.city }}</td>
+    <td>{{ p.county }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endblock %}

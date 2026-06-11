@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Contractor Profile{% endblock %}
+{% block body %}
+<div class="page-head">
+  <h1>Contractor Profile</h1>
+  <div class="grow"></div>
+</div>
+<p style="color:#666;font-size:.9em">These values replace the hardcoded SeaBreeze defaults in every permit packet.
+  Set <strong>Default</strong> on the profile you want applied automatically at build time.</p>
+
+{% if profiles %}
+<h3>Saved profiles</h3>
+<table class="grid">
+  <tr><th>Company</th><th>License</th><th>Qualifier</th><th>Phone</th><th>Email</th><th>Default</th><th></th></tr>
+  {% for p in profiles %}
+  <tr>
+    <td>{{ p.company_name }}</td>
+    <td>{{ p.license_number }}</td>
+    <td>{{ p.qualifier_name }}</td>
+    <td>{{ p.phone }}</td>
+    <td>{{ p.email }}</td>
+    <td>{% if p.is_default %}<span style="color:green">✓</span>{% endif %}</td>
+    <td>
+      <button onclick="fillForm({{ p|tojson }})" class="btn small">Edit</button>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<h3 style="margin-top:2em" id="form-head">Add / Edit Profile</h3>
+<form method="POST" action="{{ url_for('permits.contractor_profile_save') }}" id="cp-form">
+  <input type="hidden" name="id" id="cp-id">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:680px">
+    <label>Company Name<input name="company_name" id="f-company_name" class="input" required></label>
+    <label>License Number<input name="license_number" id="f-license_number" class="input" required></label>
+    <label>Qualifier Name<input name="qualifier_name" id="f-qualifier_name" class="input"></label>
+    <label>Contact Person<input name="contact_person" id="f-contact_person" class="input"></label>
+    <label style="grid-column:span 2">Address<input name="address" id="f-address" class="input"></label>
+    <label>City<input name="city" id="f-city" class="input"></label>
+    <label>State<input name="state" id="f-state" class="input" value="FL"></label>
+    <label>Zip<input name="zip" id="f-zip" class="input"></label>
+    <label>Notary County<input name="notary_county" id="f-notary_county" class="input"></label>
+    <label>Phone<input name="phone" id="f-phone" class="input"></label>
+    <label>Email<input name="email" id="f-email" class="input" type="email"></label>
+  </div>
+  <label style="display:flex;gap:8px;align-items:center;margin-top:12px">
+    <input type="checkbox" name="is_default" id="f-is_default"> Use as default for permit packets
+  </label>
+  <div style="margin-top:16px;display:flex;gap:8px">
+    <button class="btn primary" type="submit">Save Profile</button>
+    <button class="btn" type="button" onclick="resetForm()">Clear</button>
+  </div>
+</form>
+<script>
+function fillForm(p) {
+  document.getElementById('cp-id').value = p.id || '';
+  ['company_name','license_number','qualifier_name','address','city','state','zip',
+   'phone','email','contact_person','notary_county'].forEach(k => {
+    const el = document.getElementById('f-' + k);
+    if (el) el.value = p[k] || '';
+  });
+  document.getElementById('f-is_default').checked = !!p.is_default;
+  document.getElementById('form-head').scrollIntoView({behavior:'smooth'});
+}
+function resetForm() {
+  document.getElementById('cp-id').value = '';
+  document.getElementById('cp-form').reset();
+}
+</script>
+{% endblock %}

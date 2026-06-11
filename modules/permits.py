@@ -148,6 +148,13 @@ def build_packet(permit_id):
               "area": job.get("area", ""), "slope": job.get("slope", ""),
               "mrh": job.get("mrh", ""), "exposure": job.get("exposure", ""),
               "value": job.get("contract_value", "")}
+    # Contractor profile — use default profile for current tenant if set; else None (SB defaults).
+    _contractor = None
+    try:
+        _cp_rows = db.all_rows("contractor_profiles", "is_default=1")
+        _contractor = dict(_cp_rows[0]) if _cp_rows else None
+    except Exception:
+        pass
     # SAFETY (docs/PERMIT_SIGNATURE.md): the captured owner e-signature is deliberately NOT
     # forwarded into the permit packet. Permit forms — the Notice of Commencement and the
     # re-roof nailing affidavit — are NOTARIZED: the owner's signature on them IS the
@@ -174,7 +181,7 @@ def build_packet(permit_id):
     fname = "Permit_%d_%s_%s_%s.pdf" % (permit_id, safe, ahj, system_lower)
     out_path = os.path.join(config.PERMIT_DIR, fname)
     try:
-        b.build_packet(client, ahj, system, attachments, out_path, underlayment, product)
+        b.build_packet(client, ahj, system, attachments, out_path, underlayment, product, contractor=_contractor)
     except Exception as e:
         flash("Build failed: %s" % e, "error")
         return redirect(url_for("permits.detail", permit_id=permit_id))
@@ -204,3 +211,86 @@ def delete(permit_id):
     db.delete("permits", permit_id)
     flash("Permit deleted.", "ok")
     return redirect(url_for("permits.index"))
+
+
+# --- Portal account registration tracker (Consolidation #4) ------------------
+# Tracks per-(platform/AHJ) contractor registration status so the team knows
+# which portals are ready for auto-submit vs. need one-time registration first.
+
+@bp.route("/portal-accounts")
+def portal_accounts():
+    from modules import ahj as ahj_mod
+    accounts = db.all_rows("portal_accounts", order="platform, ahj")
+    portals = ahj_mod._load_portals()
+    # Build a set of known (platform, ahj) pairs from ahj_portals.json for the "add missing" list
+    registered = {(a.get("platform", ""), k) for k, a in portals.items()
+                  for row in accounts if row.get("platform") == a.get("platform") and row.get("ahj") == k}
+    # All unique platforms and AHJs from portals.json that don't have an account record
+    missing = [(k, p) for k, p in portals.items()
+               if p.get("online") and (p.get("platform", ""), k) not in
+               {(r.get("platform", ""), r.get("ahj", "")) for r in accounts}]
+    return render_template("portal_accounts.html", accounts=accounts, missing=missing[:50])
+
+
+@bp.route("/portal-accounts/seed", methods=["POST"])
+def portal_accounts_seed():
+    """Seed the portal_accounts table from ahj_portals.json for all online AHJs."""
+    from modules import ahj as ahj_mod
+    portals = ahj_mod._load_portals()
+    existing = {(r.get("platform", ""), r.get("ahj", "")) for r in db.all_rows("portal_accounts")}
+    added = 0
+    for ahj_key, p in portals.items():
+        if not p.get("online"):
+            continue
+        key = (p.get("platform", ""), ahj_key)
+        if key in existing:
+            continue
+        db.insert("portal_accounts", {
+            "created": db.now(), "updated": db.now(),
+            "platform": p.get("platform", ""),
+            "ahj": ahj_key, "city": p.get("city", ""), "county": p.get("county", ""),
+            "registration_status": "pending",
+        })
+        added += 1
+    flash("Seeded %d portal account records." % added, "ok")
+    return redirect(url_for("permits.portal_accounts"))
+
+
+@bp.route("/portal-accounts/<int:account_id>/update", methods=["POST"])
+def portal_account_update(account_id):
+    status = request.form.get("registration_status", "pending")
+    notes = request.form.get("notes", "")
+    username = request.form.get("username", "")
+    db.update("portal_accounts", account_id,
+              registration_status=status, notes=notes, username=username,
+              updated=db.now(), last_checked=db.today())
+    flash("Portal account updated.", "ok")
+    return redirect(url_for("permits.portal_accounts"))
+
+
+# --- Contractor profile management -------------------------------------------
+
+@bp.route("/contractor-profile")
+def contractor_profile():
+    rows = db.all_rows("contractor_profiles")
+    return render_template("contractor_profile.html", profiles=rows)
+
+
+@bp.route("/contractor-profile/save", methods=["POST"])
+def contractor_profile_save():
+    pid = request.form.get("id", "").strip()
+    data = {f: request.form.get(f, "").strip() for f in
+            ["company_name", "license_number", "qualifier_name", "address", "city",
+             "state", "zip", "phone", "email", "contact_person", "notary_county"]}
+    data["is_default"] = 1 if request.form.get("is_default") else 0
+    if data["is_default"]:
+        db.execute("UPDATE contractor_profiles SET is_default=0")
+    if pid:
+        db.update("contractor_profiles", int(pid), **data)
+        flash("Profile updated.", "ok")
+    else:
+        data["created"] = db.now()
+        data["tenant_id"] = 1
+        db.insert("contractor_profiles", data)
+        flash("Profile saved.", "ok")
+    return redirect(url_for("permits.contractor_profile"))

@@ -358,6 +358,7 @@ def init_db():
     _ensure_column("company_settings", "labels", "TEXT")  # JSON map of phrase -> custom label
     _ensure_change_requests_table()
     _ensure_library_table()
+    _ensure_permit_api_tables()
     _seed_if_empty()
     _migrate_columns()  # idempotent; run unconditionally so renamed/added columns land
     _migrate_stages()
@@ -376,6 +377,42 @@ def _ensure_library_table():
         created TEXT, filename TEXT, original_name TEXT,
         category TEXT, ahj TEXT, system TEXT, tags TEXT,
         size INTEGER, notes TEXT)""")
+    conn.commit()
+    conn.close()
+
+
+def _ensure_permit_api_tables():
+    """White-label permit builder API tables:
+    contractor_profiles — per-tenant contractor branding (replaces hardcoded SB constants)
+    permit_api_keys — API keys for external software integrations
+    permit_build_jobs — async build job tracking (status, result path, webhook)
+    portal_accounts — per-(platform/AHJ) contractor registration status tracker
+    """
+    conn = connect()
+    conn.execute("""CREATE TABLE IF NOT EXISTS contractor_profiles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created TEXT, tenant_id INTEGER DEFAULT 1,
+        company_name TEXT, license_number TEXT, qualifier_name TEXT,
+        address TEXT, city TEXT, state TEXT DEFAULT 'FL', zip TEXT,
+        phone TEXT, email TEXT, contact_person TEXT, notary_county TEXT,
+        logo_path TEXT, is_default INTEGER DEFAULT 0)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS permit_api_keys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT, tenant_id INTEGER DEFAULT 1,
+        key_hash TEXT UNIQUE, label TEXT,
+        rate_limit_per_day INTEGER DEFAULT 100,
+        active INTEGER DEFAULT 1)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS permit_build_jobs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT, job_id TEXT UNIQUE,
+        api_key_id INTEGER, status TEXT DEFAULT 'queued',
+        result_path TEXT, webhook_url TEXT, notes TEXT)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS portal_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created TEXT, updated TEXT,
+        platform TEXT, ahj TEXT, city TEXT, county TEXT,
+        username TEXT, registration_status TEXT DEFAULT 'pending',
+        notes TEXT, last_checked TEXT)""")
     conn.commit()
     conn.close()
 
