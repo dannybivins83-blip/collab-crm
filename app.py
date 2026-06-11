@@ -100,20 +100,34 @@ from modules.acculynx_sync import start_auto_sync
 start_auto_sync(app)
 
 
+# Extensions we'll let render inline; everything else (e.g. .html/.svg/.js) downloads
+# instead of executing — closes the stored-XSS surface from served-back uploads (audit #12).
+_INLINE_OK = {"png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "pdf"}
+
+
+def _safe_upload_resp(resp, subpath):
+    ext = subpath.rsplit(".", 1)[-1].lower() if "." in subpath else ""
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    if ext not in _INLINE_OK:
+        resp.headers["Content-Disposition"] = "attachment"
+    return resp
+
+
 @app.route("/uploads/<path:subpath>")
 def uploads(subpath):
     """Serve uploaded files (photos, docs, logos, estimate/permit PDFs).
     Falls back to Google Drive when the local copy is missing (serverless hosts)."""
     full = os.path.normpath(os.path.join(config.UPLOAD_DIR, subpath))
     if full.startswith(config.UPLOAD_DIR) and os.path.exists(full):
-        return send_from_directory(os.path.dirname(full), os.path.basename(full))
+        return _safe_upload_resp(
+            send_from_directory(os.path.dirname(full), os.path.basename(full)), subpath)
     # Local miss → try Google Drive (if configured + this file was mirrored).
     try:
         from modules import gdrive
         got = gdrive.serve_fallback(subpath)
         if got:
             from flask import Response
-            return Response(got[0], mimetype=got[1])
+            return _safe_upload_resp(Response(got[0], mimetype=got[1]), subpath)
     except Exception:
         pass
     abort(404)
