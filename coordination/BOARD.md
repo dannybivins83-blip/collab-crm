@@ -31,7 +31,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | # | Task | Owner | State | Notes |
 |---|---|---|---|---|
 | P0 | **Close Critical #1 on the LIVE domain → via DNS cutover to Render** | Head Coach + owner | OPEN | Decision made: cut over to Render (not a Vercel redeploy). Needs Render fully configured+verified, then DNS repoint. Interim: hole is data-integrity only (no PII path), unadvertised domain — accepted briefly pending a prompt cutover. |
-| P1 | **Build secret provisioning script** | Head Coach | NEXT | `scripts/provision_secrets.py`: reads `secrets/keys.local.env`, pushes to Render + Vercel via env-var APIs (host API tokens from local env, never chat). Seed of tenant onboarding. |
+| P1 | **Build secret provisioning script** | Head Coach | ✅ DONE | `scripts/provision_secrets.py` built + dry-run-verified (masks values, reads token from env, --apply gated). Render env-var push; Vercel omitted by design (one-vendor). Tenant-onboarding seed. |
 | P1 | **Stand up scheduled Head Coach (cron)** | Head Coach | NEXT | Wakes every few hrs: pull, verify state, reconcile board, ping idle/blocked lanes, escalate owner-decisions. Autonomy = act-on-safe. |
 | P0 | **Set `CRM_SYNC_SECRET` + `CRM_SECRET` on Render** | owner (dashboard) | in progress | Render fail-closes without them. Reinstall bookmarklets after. |
 | P1 | **Rotate burned/leaked secrets** | owner | OPEN | `MEASURE` (chat-leak ×2), `SEABREEZE` (leaked), `GOOGLE_OAUTH_CLIENT_SECRET` (screenshot), roof-engine key. Fresh values → dashboards + `secrets/keys.local.env`. |
