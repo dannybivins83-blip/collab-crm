@@ -34,6 +34,21 @@ for _ddl in (
         db.execute(_ddl)
     except Exception:
         pass
+# Audit #9: UNIQUE partial index on idempotency_key so the insert-first claim
+# pattern below is atomic across concurrent requests. Empty/NULL keys are
+# excluded so envelopes without a key (legacy clients) still insert freely.
+# Falls back to a non-unique index if the live table already holds duplicate
+# keys — the app code still detects the race correctly via the claim row.
+try:
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_takeoffs_idempotency_key "
+               "ON takeoffs(idempotency_key) "
+               "WHERE idempotency_key IS NOT NULL AND idempotency_key != ''")
+except Exception:
+    try:
+        db.execute("CREATE INDEX IF NOT EXISTS ix_takeoffs_idempotency_key "
+                   "ON takeoffs(idempotency_key)")
+    except Exception:
+        pass
 # Wind/architect header fields on jobs (additive; the takeoff carries them).
 for _c in ("architect_firm", "engineer_firm", "wind_speed_mph", "asce_version",
            "risk_category", "plan_set_label"):
@@ -81,12 +96,38 @@ def create():
         return M._ingest_cors({"ok": False, "error_code": "VALIDATION_FAILED",
                                "field_errors": field_errors}, 422)
 
-    # --- idempotency -----------------------------------------------------
+    # --- idempotency (audit #9: insert-first claim, no TOCTOU) -----------
+    # Old path was an O(n) full-table scan followed by an unprotected INSERT at
+    # the end of the route, so two concurrent POSTs with the same key BOTH did
+    # the work and BOTH inserted (dup job + dup measurements). New path:
+    #   1. Indexed lookup — if a finished takeoff with this key exists, return it.
+    #   2. Otherwise INSERT a placeholder row (empty `result`). The UNIQUE index
+    #      makes this atomic; the loser of the race gets an IntegrityError.
+    #   3. Loser polls briefly for the winner's finished `result`, returns it.
+    # The placeholder row id is held in `claim_id` so we UPDATE it (not INSERT)
+    # once the work is committed.
     idem = (env.get("idempotency_key") or "").strip()
+    claim_id = None
     if idem:
-        prior = [t for t in db.all_rows("takeoffs") if (t.get("idempotency_key") or "") == idem]
-        if prior:
+        prior = db.all_rows("takeoffs", where="idempotency_key=?", params=(idem,),
+                            order="id DESC")
+        if prior and (prior[0].get("result") or ""):
             return M._ingest_cors(json.loads(prior[0].get("result") or "{}"))
+        try:
+            claim_id = db.insert("takeoffs", {
+                "idempotency_key": idem,
+                "schema_version": env.get("schema_version") or "",
+                "source": env.get("source") or "",
+                "result": ""})
+        except Exception:
+            import time
+            for _ in range(40):  # ~2s total — winner finishes work + UPDATE
+                again = db.all_rows("takeoffs", where="idempotency_key=?",
+                                    params=(idem,), order="id DESC")
+                if again and (again[0].get("result") or ""):
+                    return M._ingest_cors(json.loads(again[0].get("result") or "{}"))
+                time.sleep(0.05)
+            return M._ingest_cors({"ok": False, "error_code": "IDEMPOTENCY_BUSY"}, 409)
 
     # --- match or create the job ----------------------------------------
     wind = env.get("wind_design") or {}
@@ -122,7 +163,9 @@ def create():
 
     warnings, mids, liids, scids = [], [], [], []
 
-    # --- measurement -----------------------------------------------------
+    # --- measurements (audit #9: INSERT each — the prior upsert-by-job
+    # call to M.for_job() inside the loop meant the 2nd measurement
+    # OVERWROTE the 1st: same envelope, same job_id, same upsert target).
     for m in (env.get("measurements") or []):
         ss = m.get("steep_slope") or {}
         mdata = {"job_id": job_id, "source": "Estimator",
@@ -132,12 +175,7 @@ def create():
                  "valley_lf": _num(ss.get("valleys_lf")), "rake_lf": _num(ss.get("rakes_lf")),
                  "eave_lf": _num(ss.get("eaves_lf")), "step_flash_lf": _num(ss.get("step_flashing_lf")),
                  "notes": m.get("measurement_name") or ""}
-        existing = M.for_job(job_id)
-        if existing:
-            db.update("measurements", existing["id"], **mdata)
-            mids.append(existing["id"])
-        else:
-            mids.append(db.insert("measurements", mdata))
+        mids.append(db.insert("measurements", mdata))
 
     # --- estimate + line items ------------------------------------------
     lines = env.get("line_items") or []
@@ -189,7 +227,12 @@ def create():
     result = {"ok": True, "job_id": job_id, "measurement_ids": mids,
               "line_item_ids": liids, "submittal_component_ids": scids,
               "attachment_ids": [], "warnings": warnings}
-    db.insert("takeoffs", {"job_id": job_id, "idempotency_key": idem,
-                           "schema_version": env.get("schema_version") or "",
-                           "source": env.get("source") or "", "result": json.dumps(result)})
+    # Persist the result. If we claimed an idempotency row above, UPDATE it
+    # (unblocks waiting losers); otherwise INSERT a fresh row.
+    if claim_id is not None:
+        db.update("takeoffs", claim_id, job_id=job_id, result=json.dumps(result))
+    else:
+        db.insert("takeoffs", {"job_id": job_id, "idempotency_key": idem,
+                               "schema_version": env.get("schema_version") or "",
+                               "source": env.get("source") or "", "result": json.dumps(result)})
     return M._ingest_cors(result)
