@@ -24,6 +24,13 @@ The single source of truth is **`coordination/BOARD.md`** (git is the message bu
 5. **Owner decision needed?** Add it to the board's `## DECISIONS NEEDED (owner)` section.
    Don't block silently and don't guess on irreversible/spend/authority calls.
 
+## Cross-project comms — the OVERLORD bus
+To talk to agents in OTHER projects, use the shared message bus (NOT the owner as relay):
+`C:\Users\kjburnz\acculynx roofr reprot\_OVERLORD\bus\` — see `bus/PROTOCOL.md`, addresses in
+`bus/registry.json`. On start + each tick, check `inbox/<your-slug>/` for `status: new`; to reach
+another agent, drop a message file in `inbox/<their-slug>/`. The OVERLORD heartbeat routes +
+escalates. Never put secret values in a message.
+
 ## Secrets — never through chat
 - Real values live ONLY in `secrets/keys.local.env` (gitignored) + each host's dashboard.
 - Registry (names/purpose/status, NO values) = `docs/SECRETS.md`. Keep it current.

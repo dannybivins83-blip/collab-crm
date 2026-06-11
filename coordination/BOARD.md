@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-11 `git rev-parse`):** `093dfa2` on `origin/agent/gc-consolidation` (board's `b473c19` was stale — +6 commits since: migration parity + audit #8/#9); `origin/main` = `c612877` (behind, FF after permit work lands)
-- **Last board update:** 2026-06-11 — by crm-ui: logged owner-flagged Service+Warranty dept-import parity gap (`acculynx_sync.py:663`); reconciled tip `b473c19`→`093dfa2`
+- **Git tip (verified 2026-06-11 `git rev-parse`):** `f9cf05c` on `origin/agent/gc-consolidation` (latest: takeoff assigned db.insert leak fix)
+- **Last board update:** 2026-06-11 — by crm-ui: audit #10 DONE (billing cursor GUID seen-set dedup, `acculynx_sync.py`); #10 added to done list
 
 ---
 
@@ -41,7 +41,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | P2 | **Secret provisioning automation** | Head Coach | DESIGN | One-command push of `keys.local.env` → Render/Vercel APIs; seed of tenant onboarding. |
 | P3 | **SSO go-live** | SiteCam + owner | BLOCKED | Needs fresh `SEABREEZE` on both sides + sitecam-api `SEED_FORCE=true`. |
 | P3 | **QuickBooks integration (product)** | TBD | BACKLOG | Per-tenant OAuth design needed for white-label. |
-| P3 | **Audit #5–#12** | Security | BACKLOG | SECRET_KEY default, CSRF, SSRF, checklist gating, etc. (#8,#9,#11 now DONE) |
+| P3 | **Audit #5–#12** | Security | BACKLOG | SECRET_KEY default, CSRF, SSRF, checklist gating, etc. (#8,#9,#10,#11 now DONE) |
 | P2 | **`db.insert()` connection leak on IntegrityError** | Takeoff | ▶ IN PROGRESS | takeoff found + assigned to fix (confirmed db.py:495 no try/finally). Fix insert + update/execute consistently + test; db.py clean, guarded-push db.py + test only. |
 
 ---

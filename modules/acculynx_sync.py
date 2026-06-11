@@ -2533,34 +2533,49 @@ def bill_batch():
     """CORS-open: next batch of job GUIDs to pull BILLING/PAYMENTS for, walking ALL
     buckets UNCAPPED (its own cursor) — including the full Closed + Invoiced history,
     where payment records live. Annotates in_crm. `?reset=1` restarts the walk."""
+    import json as _json
     company = db.get_company()
     key = (company.get("acculynx_api_key") or "").strip()
     base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
     if not key:
         return _cors({"ok": False, "reason": "no_api_key",
                       "error": "Set an AccuLynx API key on the Sync page first."}, 400)
-    if request.args.get("reset"):
-        db.save_company({"acculynx_bill_group": 0, "acculynx_bill_cursor": 0})
+    is_reset = bool(request.args.get("reset"))
+    if is_reset:
+        db.save_company({"acculynx_bill_group": 0, "acculynx_bill_cursor": 0,
+                         "acculynx_bill_seen": "[]"})
     try:
         n = max(1, min(50, int(request.args.get("n") or 25)))
     except Exception:
         n = 25
+    # GUID seen-set: skip any GUID already returned in a prior batch so a job that
+    # appears in multiple AccuLynx pipeline groups isn't imported twice.
+    try:
+        seen = set(_json.loads("[]" if is_reset else (company.get("acculynx_bill_seen") or "[]")))
+    except Exception:
+        seen = set()
     try:
         batch, group, done = _pipeline_next_batch(base, key, n,
                                                   "acculynx_bill_group", "acculynx_bill_cursor",
                                                   caps={})  # walk every bucket in full
     except Exception as e:
         return _cors({"ok": False, "reason": "api_failed", "error": "%s: %s" % (type(e).__name__, e)})
-    for it in batch:
+    fresh = [it for it in batch if it["guid"] not in seen]
+    for it in fresh:
+        seen.add(it["guid"])
+    db.save_company({"acculynx_bill_seen": _json.dumps(list(seen))})
+    for it in fresh:
         kind, rec, how = _roofreport_record(it["guid"], it.get("name"))
         it["in_crm"] = bool(rec)
-    return _cors({"ok": True, "batch": batch, "count": len(batch), "group": group, "done": done})
+    return _cors({"ok": True, "batch": fresh, "count": len(fresh), "group": group, "done": done,
+                  "dupes_skipped": len(batch) - len(fresh)})
 
 
 @bp.route("/bill-reset", methods=["POST"])
 def bill_reset():
     """Reset the billing/payments sync cursor to the top of the pipeline."""
-    db.save_company({"acculynx_bill_group": 0, "acculynx_bill_cursor": 0})
+    db.save_company({"acculynx_bill_group": 0, "acculynx_bill_cursor": 0,
+                     "acculynx_bill_seen": "[]"})
     flash("Billing sync cursor reset — the next batch starts at the top of the pipeline.", "ok")
     return redirect(url_for("sync.index"))
 
