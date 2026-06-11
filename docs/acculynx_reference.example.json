@@ -12,9 +12,11 @@
     "photos": 0,
     "roof_reports": 0
   },
+  "_financials_note": "From AccuLynx reports: contract_value=Job Profitability/Sales Pipeline; invoiced+balance=Invoice Report; collected = invoiced - balance (do NOT use the 90-day Payments Received report). payments optional.",
   "financials": {
     "contract_value": 0.0,
     "invoiced": 0.0,
+    "balance": 0.0,
     "collected": 0.0,
     "payments": 0.0
   }

@@ -63,11 +63,12 @@ def crm_side(db):
     counts = {}
     for t in COUNT_TABLES:
         counts[t] = cur.execute("select count(*) from %s" % t).fetchone()[0] if t in tabs else None
-    fin = {"contract_value": 0.0, "collected": 0.0, "invoiced": 0.0, "payments": 0.0}
+    fin = {"contract_value": 0.0, "invoiced": 0.0, "balance": 0.0, "collected": 0.0, "payments": 0.0}
     if "jobs" in tabs:
-        for cv, co in cur.execute("select contract_value, collected from jobs"):
+        for cv, co, ba in cur.execute("select contract_value, collected, balance from jobs"):
             fin["contract_value"] += money(cv)
             fin["collected"] += money(co)
+            fin["balance"] += money(ba)
     if "invoices" in tabs:
         fin["invoiced"] = sum(money(r[0]) for r in cur.execute("select amount from invoices"))
     if "payments" in tabs:
@@ -108,7 +109,7 @@ def _render_md(crm, ref, tol):
         if m == "FAIL": fails.append("count:" + t)
         L.append("| %s | %s | %s | %s | %s |" % (t, counts.get(t), rc.get(t, "?"), g, m))
     L += ["", "## Financials", "", "| Metric | CRM | AccuLynx | gap | |", "|---|---|---|---|---|"]
-    for k in ["contract_value", "invoiced", "collected", "payments"]:
+    for k in ["contract_value", "invoiced", "balance", "collected", "payments"]:
         m, g = _vmark(fin.get(k), rf.get(k), tol, "money")
         if m == "FAIL": fails.append("money:" + k)
         rv = "$%s" % format(rf[k], ",.0f") if k in rf else "?"
@@ -188,7 +189,7 @@ def main():
             t, "-" if crmv is None else crmv, "?" if refv is None else refv, g, mark))
 
     print("\nFINANCIALS             CRM            AccuLynx       gap   verdict")
-    for k in ["contract_value", "invoiced", "collected", "payments"]:
+    for k in ["contract_value", "invoiced", "balance", "collected", "payments"]:
         crmv = fin.get(k, 0.0)
         refv = rf.get(k)
         ok, g = verdict(crmv, refv, tol, "money")
