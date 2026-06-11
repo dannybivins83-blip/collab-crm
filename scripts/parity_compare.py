@@ -37,12 +37,29 @@ def money(s):
     return -f if neg else f
 
 
+def _open(db_arg):
+    """Open SQLite (file path) OR Postgres/Neon (db_arg in pg/neon/postgres -> reads
+    DATABASE_URL from env, never chat). Returns (conn, tableset). Same SQL runs on both."""
+    if db_arg in ("pg", "neon", "postgres"):
+        url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+        if not url:
+            sys.exit("DATABASE_URL not set — needed to read Neon. Put it in your env (never chat).")
+        import psycopg
+        conn = psycopg.connect(url)
+        cur = conn.cursor()
+        cur.execute("select table_name from information_schema.tables where table_schema='public'")
+        return conn, {r[0] for r in cur.fetchall()}
+    if not os.path.exists(db_arg):
+        sys.exit("DB not found: %s" % db_arg)
+    conn = sqlite3.connect(db_arg)
+    cur = conn.cursor()
+    cur.execute("select name from sqlite_master where type='table'")
+    return conn, {r[0] for r in cur.fetchall()}
+
+
 def crm_side(db):
-    if not os.path.exists(db):
-        sys.exit("DB not found: %s" % db)
-    c = sqlite3.connect(db)
+    c, tabs = _open(db)
     cur = c.cursor()
-    tabs = {r[0] for r in cur.execute("select name from sqlite_master where type='table'")}
     counts = {}
     for t in COUNT_TABLES:
         counts[t] = cur.execute("select count(*) from %s" % t).fetchone()[0] if t in tabs else None
@@ -134,7 +151,7 @@ def main():
     tol = DEFAULT_TOL
 
     if a.json:
-        c2 = sqlite3.connect(a.db); cur2 = c2.cursor()
+        c2, _t2 = _open(a.db); cur2 = c2.cursor()
         jdept = {r[0]: (r[1] or "(none)") for r in cur2.execute(
             "select id, coalesce(nullif(department,''),'(none)') from jobs")}
         dept = {}
