@@ -85,6 +85,32 @@ def money_k(n):
     return "$" + str(int(round(n)))
 
 
+def money_abbr(n):
+    """Compact headline money for stat cards — keeps big totals inside the card.
+
+    $818,750 -> $818.8K, $6,288,855 -> $6.3M, $32,967,628.92 -> $33.0M, $1.2B.
+    One decimal of significance; pair with title=money(n) for the exact value.
+    """
+    try:
+        v = float(n or 0)
+    except Exception:
+        return "$0"
+    neg = v < 0
+    v = abs(v)
+    if v >= 1e12:
+        s = "$%.1fT" % (v / 1e12)
+    elif v >= 1e9:
+        s = "$%.1fB" % (v / 1e9)
+    elif v >= 1e6:
+        s = "$%.1fM" % (v / 1e6)
+    elif v >= 1e3:
+        s = "$%.1fK" % (v / 1e3)
+    else:
+        # Under $1K: show the plain value (cents only when present).
+        return ("-" if neg else "") + money(v)
+    return ("-" if neg else "") + s
+
+
 def paid_pct(payments):
     paid = 0.0
     for p in constants.DRAW_SCHEDULE:
@@ -130,7 +156,7 @@ def register(app):
         return {
             "company": company,
             "departments": depts, "current_department": current,
-            "money": money, "money_k": money_k, "est_num": est_num,
+            "money": money, "money_k": money_k, "money_abbr": money_abbr, "est_num": est_num,
             "days_since": days_since, "today": db.today,
             "constants": constants,
         }
