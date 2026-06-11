@@ -38,7 +38,10 @@ ESTIMATE_PDF_DIR = os.path.join(UPLOAD_DIR, "estimates")
 PERMIT_DIR = os.path.join(UPLOAD_DIR, "permits")
 MEAS_DIR = os.path.join(UPLOAD_DIR, "measurements")
 
-SECRET_KEY = os.environ.get("CRM_SECRET", "white-label-crm-dev-secret")
+_crm_secret = os.environ.get('CRM_SECRET', '')
+if not _crm_secret and os.environ.get('RENDER'):
+    raise RuntimeError('CRM_SECRET must be set in production')
+SECRET_KEY = _crm_secret or 'white-label-crm-dev-secret'
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 PORT = int(os.environ.get("CRM_PORT", "5050"))
 

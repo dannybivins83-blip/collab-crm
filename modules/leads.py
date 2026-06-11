@@ -2,7 +2,7 @@
 """Sales pipeline (leads) — Kanban board, detail, drag-to-advance, convert-to-job."""
 import re
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 
 import db
 import theme
@@ -221,8 +221,8 @@ def new():
                     db.add_activity("lead", lid, "email",
                                     "Homeowner portal invite emailed to %s" % data["email"])
                     notify_msg += " · portal invite sent to homeowner"
-        except Exception:
-            pass
+        except Exception as _e:
+            current_app.logger.warning("Portal invite email failed for lead %s: %s", lead_id, _e)
         flash("Lead created. AHJ: %s%s%s%s" % (
             resolved_ahj or "—", (" · " + system) if system else "", est_msg, notify_msg), "ok")
         return redirect(url_for("leads.detail", lead_id=lid))

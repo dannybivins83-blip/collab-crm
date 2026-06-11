@@ -14,28 +14,31 @@
     {% if mode=='new' %}
     <!-- 🎤 Voice-guided intake (Karla) -->
     <div class="card vintake">
-      <div class="vi-mic-wrap">
-        <button type="button" id="micBtn" class="vi-mic" aria-label="Tap to talk">🎤</button>
-        <div class="vi-state">
-          <div id="micState" class="vi-state-main">Tap the mic and just talk — I’ll fill the form as you go</div>
-          <div class="muted" style="font-size:12px">Works hands-free if the call is on speakerphone. Chrome will ask to allow the mic the first time.</div>
-        </div>
-      </div>
-      <div class="vi-guide">
-        <div class="vi-q-row">
-          <span class="vi-step-no" id="viStepNo">1/7</span>
-          <div>
-            <div class="vi-ask">Ask the customer:</div>
-            <div class="vi-q" id="viQ">What’s the customer’s full name?</div>
+      <div class="vi-split">
+        <div class="vi-left">
+          <button type="button" id="micBtn" class="vi-mic" aria-label="Tap to talk">🎤</button>
+          <div id="micState" class="vi-state-main" style="font-size:12px;margin-top:8px;text-align:center"></div>
+          <div class="field" style="margin-top:12px;margin-bottom:0">
+            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Notes</label>
+            <textarea name="notes" id="f_notes" style="min-height:100px;width:100%" placeholder="Notes...">{{ lead.notes or ‘’ }}</textarea>
           </div>
         </div>
-        <div id="viHeard" class="vi-heard"></div>
-        <div class="vi-nav">
-          <button type="button" class="btn" id="viPrev">← Back</button>
-          <button type="button" class="btn primary" id="viNext">Next question →</button>
-          <button type="button" class="btn ghost" id="viSkip">Skip</button>
+        <div class="vi-right vi-guide">
+          <div class="vi-q-row">
+            <span class="vi-step-no" id="viStepNo">1/7</span>
+            <div>
+              <div class="vi-ask">Ask the customer:</div>
+              <div class="vi-q" id="viQ">What’s the customer’s full name?</div>
+            </div>
+          </div>
+          <div id="viHeard" class="vi-heard"></div>
+          <div class="vi-nav">
+            <button type="button" class="btn" id="viPrev">← Back</button>
+            <button type="button" class="btn primary" id="viNext">Next question →</button>
+            <button type="button" class="btn ghost" id="viSkip">Skip</button>
+          </div>
+          <div class="vi-chips" id="viChips"></div>
         </div>
-        <div class="vi-chips" id="viChips"></div>
       </div>
     </div>
     {% endif %}
@@ -184,7 +187,6 @@
       <div class="field"><label>Priority Level</label>
         <select name="priority">{% for p in constants.PRIORITY_LEVELS %}<option {{ 'selected' if (lead.priority or 'Normal')==p }}>{{ p }}</option>{% endfor %}</select>
       </div>
-      <div class="field" style="margin-bottom:0"><label>Notes</label><textarea name="notes" id="f_notes" style="min-height:120px">{{ lead.notes or '' }}</textarea></div>
     </div>
     <div class="card">
       <button class="primary" type="submit" style="width:100%">{{ 'Create Lead' if mode=='new' else 'Save Changes' }}</button>
@@ -203,8 +205,11 @@
 </script>
 
 <style>
-  .vintake{border:2px solid var(--accent2);background:linear-gradient(180deg,#fff, #f4f9ff)}
+  .vintake{border:2px solid var(--accent2);background:linear-gradient(180deg,#fff, #f4f9ff);position:sticky;top:86px;z-index:30}
   .vi-mic-wrap{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+  .vi-split{display:flex;gap:20px;align-items:flex-start}
+  .vi-left{flex:0 0 38%;display:flex;flex-direction:column;align-items:center}
+  .vi-right{flex:1;border-top:none;padding-top:0}
   .vi-mic{flex:0 0 auto;width:84px;height:84px;min-height:84px;border-radius:50%;font-size:36px;
     background:var(--accent2);border:none;color:#fff;box-shadow:0 6px 18px rgba(20,60,120,.28);cursor:pointer;
     display:flex;align-items:center;justify-content:center;transition:transform .1s}
@@ -366,7 +371,26 @@
     if(isBlank('address')){
       var addr=t.match(/\d{1,6}\s+[A-Za-z0-9.\- ]+?(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|court|ct|circle|cir|boulevard|blvd|way|place|pl|terrace|ter|trail|trl|highway|hwy|pkwy|parkway)\b[A-Za-z0-9.,\- ]*?\d{5}\b/i)
             || t.match(/\d{1,6}\s+[A-Za-z0-9.,\- ]+?\b\d{5}\b/);
-      if(addr) setIf('address', addr[0].replace(/\s+/g,' ').trim());
+      if(addr) {
+        setIf('address', addr[0].replace(/\s+/g,' ').trim());
+        // After address is set, extract city and zip separately
+        (function extractCityZip(raw) {
+          var zipMatch = raw.match(/\b(\d{5})\b/);
+          var zip = zipMatch ? zipMatch[1] : '';
+          // Remove zip from string to find city
+          var noZip = raw.replace(/\b\d{5}\b/, '').trim();
+          // Remove common state names/abbreviations
+          var noState = noZip.replace(/\b(florida|fl|georgia|ga|alabama|al|south carolina|sc|north carolina|nc)\b/gi, '').trim();
+          // Street suffixes that mark end of street portion
+          var suffixMatch = noState.match(/\b(?:street|st|avenue|ave|road|rd|drive|dr|blvd|boulevard|lane|ln|way|court|ct|circle|cir|place|pl|terrace|ter|trail|trl)\b(.+)/i);
+          var city = '';
+          if (suffixMatch) {
+            city = suffixMatch[1].replace(/[,\.]/g, '').trim();
+          }
+          if (city) setIf('city', city);
+          if (zip) setIf('zip', zip);
+        })(addr[0] || t);
+      }
     }
     // --- work type by keyword (shingle/tile/metal/flat) ---
     if(isBlank('work_type') && /\b(shingle|tile|metal|flat|tpo|5v)\b/i.test(t)) selectMatch('work_type', t);
@@ -461,6 +485,21 @@
   try{ window.scrollTo(0,0); }catch(e){}
   micBtn.classList.add('hint');
   renderChips(); go(0);
+
+  // Live AHJ lookup when city is filled
+  var cityInput = document.querySelector('[name="city"]');
+  if (cityInput) {
+    cityInput.addEventListener('change', function() {
+      var c = this.value.trim();
+      if (!c) return;
+      fetch('/api/ahj?city=' + encodeURIComponent(c))
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(d){ if (d && d.ahj) {
+          var ahjEl = document.querySelector('[name="ahj"]');
+          if (ahjEl) ahjEl.value = d.ahj;
+        }});
+    });
+  }
 })();
 </script>
 <script>

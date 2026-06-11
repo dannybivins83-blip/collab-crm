@@ -95,7 +95,7 @@
         {% for l in s._lines %}
           {% set lc = (l.qty or 0) * (l.cost or 0) %}
           <tr><td>{{ l.description }}</td><td class="num col-qty">{{ l.qty }}</td><td class="col-qty">{{ l.unit }}</td>
-            <td class="num col-price">{{ money(lc/(1-m) if (1-m) else lc) }}</td></tr>
+            <td class="num col-price">{{ money(l.price if l.price else (lc/(1-m) if (1-m) else lc)) }}</td></tr>
         {% endfor %}
         </tbody>
       </table>

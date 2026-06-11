@@ -78,6 +78,10 @@ def money(n):
 
 def money_k(n):
     """Compact $K formatting for board column totals."""
+    if n >= 1_000_000:
+        v = n / 1_000_000.0
+        s = "%.1f" % v
+        return "$" + s.replace(".0", "") + "M"
     if n >= 1000:
         v = n / 1000.0
         s = ("%.0f" if n >= 10000 else "%.1f") % v

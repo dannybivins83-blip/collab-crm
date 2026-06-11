@@ -47,11 +47,7 @@
 <header class="masthead">
   <button class="hamburger" type="button" aria-label="Menu" title="Menu" onclick="document.querySelector('.mainnav').classList.toggle('open')">{{ icon('menu', size=22) }}</button>
   <a class="brand" href="{{ url_for('dashboard.home') }}">
-    {% if company.logo_path %}
-      <img src="{{ url_for('uploads', subpath=company.logo_path) }}" alt="logo" class="brand-logo" />
-    {% else %}
-      <span class="brand-mark">{{ icon('home') }}</span>
-    {% endif %}
+    <span class="brand-mark">{{ icon('home') }}</span>
     <span class="brand-name">{{ company.brand_short or company.name or 'White-Label CRM' }}</span>
   </a>
   <div class="navgroup dept-picker">
