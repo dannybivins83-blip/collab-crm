@@ -39,8 +39,12 @@ PERMIT_DIR = os.path.join(UPLOAD_DIR, "permits")
 MEAS_DIR = os.path.join(UPLOAD_DIR, "measurements")
 
 _crm_secret = os.environ.get('CRM_SECRET', '')
-if not _crm_secret and os.environ.get('RENDER'):
-    raise RuntimeError('CRM_SECRET must be set in production')
+_is_prod_env = bool(
+    os.environ.get('RENDER')
+    or os.environ.get('CRM_ENV', '').strip().lower() in ('prod', 'production')
+)
+if not _crm_secret and _is_prod_env:
+    raise RuntimeError('CRM_SECRET must be set in production (RENDER or CRM_ENV=production)')
 SECRET_KEY = _crm_secret or 'white-label-crm-dev-secret'
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 PORT = int(os.environ.get("CRM_PORT", "5050"))
