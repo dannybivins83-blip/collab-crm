@@ -483,6 +483,7 @@ def detail(lead_id):
         c = db.get("contacts", l["contact_id"])
         if c and c.get("is_gc"):
             gc_contact = c
+    takeoff_jobs = db.all_rows("takeoff_jobs", "lead_id=?", (lead_id,), order="id DESC")
     return render_template("lead_detail.html", l=l,
                            gc_contact=gc_contact,
                            activity=db.entity_activity("lead", lead_id),
@@ -490,6 +491,7 @@ def detail(lead_id):
                            measurement=meas.for_lead(lead_id),
                            quick_templates=quick_templates,
                            documents=db.all_rows("documents", "lead_id=?", (lead_id,)),
+                           takeoff_jobs=takeoff_jobs,
                            reps=[u["name"] for u in db.all_rows("users", "active=1", order="name")])
 
 
@@ -604,6 +606,46 @@ def touch(lead_id):
         return jsonify({"ok": True})
     flash("Touch logged.", "ok")
     return redirect(url_for("leads.detail", lead_id=lead_id))
+
+
+@bp.route("/<int:lead_id>/takeoff", methods=["POST"])
+def run_takeoff(lead_id):
+    """Accept a plan PDF or ZIP upload, spawn async AI takeoff, return job_token."""
+    import uuid as _uuid, threading as _threading, time as _time, re as _tre
+    from flask import current_app
+    from modules.takeoff import _run_takeoff_worker
+    l = db.get("leads", lead_id)
+    if not l:
+        return jsonify({"ok": False, "error": "Lead not found"}), 404
+    f = request.files.get("plans_file")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "error": "No file uploaded"}), 400
+    profile = request.form.get("bid_as_profile") or l.get("bid_as_profile") or "seabreeze"
+    if profile != l.get("bid_as_profile"):
+        db.update("leads", lead_id, bid_as_profile=profile)
+    fn = "%d_%s" % (int(_time.time() * 1000),
+                    _tre.sub(r"[^A-Za-z0-9._-]+", "_", f.filename))
+    file_path = os.path.join(config.DOC_DIR, fn)
+    f.save(file_path)
+    try:
+        db.insert("documents", {
+            "lead_id": lead_id, "filename": fn, "original_name": f.filename,
+            "category": "Drawing/Plans", "size": os.path.getsize(file_path),
+            "created": db.now()})
+    except Exception:
+        pass
+    token = str(_uuid.uuid4())
+    db.execute(
+        "INSERT INTO takeoff_jobs (token,lead_id,profile,status,progress,created,updated) "
+        "VALUES (?,?,?,?,?,?,?)",
+        (token, lead_id, profile, "queued", "Queued…", db.now(), db.now()))
+    t = _threading.Thread(
+        target=_run_takeoff_worker,
+        args=(token, file_path, f.filename, lead_id, profile,
+              current_app._get_current_object()),
+        daemon=True)
+    t.start()
+    return jsonify({"ok": True, "token": token})
 
 
 @bp.route("/<int:lead_id>/send-portal-invite", methods=["POST"])

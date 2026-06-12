@@ -117,6 +117,7 @@ function lcGate(form,pct){
   <a class="jtab" data-tab="doc">Documents <span class="jt-n">{{ documents|length }}</span></a>
   <a class="jtab" data-tab="meas">Measurements {% if measurement %}<span class="jt-n">✓</span>{% endif %}</a>
   <a class="jtab" data-tab="check">Checklist</a>
+  <a class="jtab" data-tab="plans">Plans ⚡</a>
 </div>
 
 <div class="detail">
@@ -228,7 +229,46 @@ function lcGate(form,pct){
         {% endfor %}
       </div>
     </div>
-  </div>
+
+    <!-- PLANS / ASYNC TAKEOFF -->
+    <div class="tabpane" data-pane="plans" style="display:none">
+      <div class="card">
+        <div class="panel-head"><span>⚡ AI Plans Takeoff</span></div>
+        <p class="muted" style="margin-bottom:12px">Upload a plan set (PDF or ZIP of PDFs) — AI extracts measurements, wind design, and system type, creates a draft estimate, and links everything to a new job. ~30–90 sec.</p>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+          <div class="field" style="flex:0 0 auto">
+            <label>Bid as</label>
+            <select id="tj-profile" name="bid_as_profile">
+              <option value="seabreeze" {{ 'selected' if (l.bid_as_profile or 'seabreeze')=='seabreeze' }}>SeaBreeze Roofing</option>
+              <option value="lagala" {{ 'selected' if l.bid_as_profile=='lagala' }}>La Gala (Tilt Patchers)</option>
+            </select>
+          </div>
+          <div class="field" style="flex:1 1 200px">
+            <label>Plan set (PDF or ZIP)</label>
+            <input type="file" id="tj-file" accept=".pdf,.zip" style="display:block">
+          </div>
+          <button class="btn primary" id="tj-run" onclick="tjRun()">Run takeoff ⚡</button>
+        </div>
+        <div id="tj-status-row" style="display:none;padding:10px;background:var(--panel2);border-radius:6px;margin-bottom:10px">
+          <div style="font-weight:600;margin-bottom:4px">Status: <span id="tj-status">—</span></div>
+          <pre id="tj-progress" style="font-size:11px;margin:0;white-space:pre-wrap;color:var(--muted)"></pre>
+        </div>
+        <div id="tj-result"></div>
+      </div>
+      {% if takeoff_jobs %}
+      <div class="card" style="margin-top:12px">
+        <div class="panel-head"><span>Previous runs</span></div>
+        {% for tj in takeoff_jobs %}
+        <div class="rowline">
+          <span class="badge {{ 'ok' if tj.status=='done' else ('warn' if tj.status in ('queued','running') else 'error') }}">{{ tj.status }}</span>
+          {{ tj.created[:16] }} — profile: {{ tj.profile or 'seabreeze' }}
+          {% if tj.job_id %}<a href="{{ url_for('jobs.detail', job_id=tj.job_id) }}" style="margin-left:8px">View job →</a>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    </div>
 
   <!-- Right rail -->
   <div>
@@ -279,5 +319,54 @@ document.querySelectorAll('.jtab').forEach(t=>t.onclick=()=>{
   t.classList.add('on');
   document.querySelector('.tabpane[data-pane="'+t.dataset.tab+'"]').style.display='';
 });
+
+// Plans / async takeoff
+var _tjPoll = null;
+function tjRun() {
+  var file = document.getElementById('tj-file').files[0];
+  if (!file) { alert('Pick a PDF or ZIP first.'); return; }
+  var profile = document.getElementById('tj-profile').value;
+  var btn = document.getElementById('tj-run');
+  btn.disabled = true; btn.textContent = 'Uploading…';
+  var fd = new FormData();
+  fd.append('plans_file', file);
+  fd.append('bid_as_profile', profile);
+  fetch('{{ url_for("leads.run_takeoff", lead_id=l.id) }}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': document.cookie.match(/csrf_token=([^;]+)/)?.[1] || ''},
+    body: fd
+  }).then(r=>r.json()).then(d=>{
+    if (!d.ok) { btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert(d.error||'Upload failed'); return; }
+    btn.textContent = 'Running…';
+    document.getElementById('tj-status-row').style.display = '';
+    document.getElementById('tj-status').textContent = 'queued';
+    document.getElementById('tj-result').innerHTML = '';
+    _tjPoll = setInterval(()=>tjPoll(d.token, btn), 5000);
+    tjPoll(d.token, btn);
+  }).catch(e=>{ btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert('Network error: '+e); });
+}
+function tjPoll(token, btn) {
+  fetch('/api/takeoff_jobs/'+token)
+    .then(r=>r.json()).then(d=>{
+      document.getElementById('tj-status').textContent = d.status;
+      document.getElementById('tj-progress').textContent = (d.progress||[]).join('\n');
+      if (d.status==='done' || d.status==='failed') {
+        clearInterval(_tjPoll);
+        btn.disabled = false; btn.textContent = 'Run takeoff ⚡';
+        if (d.status==='done' && d.job_id) {
+          document.getElementById('tj-result').innerHTML =
+            '<div style="padding:10px;background:#d4edda;border-radius:6px;margin-top:8px">'+
+            '✅ Takeoff complete! <a href="/jobs/'+d.job_id+'"><b>View job →</b></a>'+
+            (d.result&&d.result.warnings&&d.result.warnings.length ?
+              '<br><span style="color:#856404">⚠ '+d.result.warnings.join(' · ')+'</span>' : '')+
+            '</div>';
+        } else {
+          var err = (d.result&&d.result.error) || 'Takeoff failed';
+          document.getElementById('tj-result').innerHTML =
+            '<div style="padding:10px;background:#f8d7da;border-radius:6px;margin-top:8px">❌ '+err+'</div>';
+        }
+      }
+    }).catch(()=>{});
+}
 </script>
 {% endblock %}
