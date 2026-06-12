@@ -5,6 +5,10 @@
   <h1>🧩 Estimate Templates</h1>
   <span class="sub">Edit the line items + scope that load into new estimates</span>
   <div class="grow"></div>
+  <form method="post" action="{{ url_for('templates.sync_acculynx') }}" style="display:inline"
+        onsubmit="return confirm('Pull estimate templates from AccuLynx API and import any that are not already in the CRM?')">
+    <button class="btn" type="submit" title="Import templates from AccuLynx">⬇ Import from AccuLynx</button>
+  </form>
   <form method="post" action="{{ url_for('templates.refresh_builtins') }}" style="display:inline"
         onsubmit="return confirm('Refresh all built-in templates from the latest AccuLynx-mirror spec? Custom templates are not touched.')">
     <button class="btn" type="submit" title="Re-sync built-in templates (line items, costs, quantity formulas) from the latest spec">↻ Refresh built-ins</button>
@@ -15,11 +19,17 @@
   </form>
 </div>
 <table class="grid">
-  <tr><th>Name</th><th>Work type</th><th>Lines</th><th>Type</th><th></th></tr>
+  <tr><th>Name</th><th>Work type</th><th style="width:40%">Line items</th><th>Type</th><th></th></tr>
   {% for t in templates %}
   <tr>
     <td><a href="{{ url_for('templates.edit', tid=t.id) }}"><b>{{ t.name }}</b></a></td>
-    <td>{{ t.work_type }}</td><td>{{ t._lines|length }}</td>
+    <td>{{ t.work_type }}</td>
+    <td style="font-size:12px;color:var(--muted)">
+      {% if t._lines %}
+        {{ t._lines|length }} lines —
+        {% for l in t._lines[:3] %}{{ l.description }}{% if not loop.last %}, {% endif %}{% endfor %}{% if t._lines|length > 3 %} …{% endif %}
+      {% else %}<span style="color:var(--danger)">No line items — click to add</span>{% endif %}
+    </td>
     <td>{% if t.is_builtin %}<span class="badge">built-in</span>{% else %}<span class="tag">custom</span>{% endif %}</td>
     <td class="right"><form method="post" action="{{ url_for('templates.delete', tid=t.id) }}" onsubmit="return confirm('Delete template?')"><button class="btn sm danger" type="submit">Delete</button></form></td>
   </tr>

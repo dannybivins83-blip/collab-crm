@@ -47,10 +47,12 @@ function saveT(){
   const lines=[...document.querySelectorAll('#lines tbody tr')].map(tr=>({
     description:tr.querySelector('.l-desc').value,unit:tr.querySelector('.l-unit').value,
     qty:+tr.querySelector('.l-qty').value||0,cost:+tr.querySelector('.l-cost').value||0})).filter(l=>l.description);
-  fetch('{{ url_for("templates.save", tid=t.id) }}',{method:'POST',headers:{'Content-Type':'application/json'},
+  fetch('{{ url_for("templates.save", tid=t.id) }}',{method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
     body:JSON.stringify({name:document.getElementById('name').value,work_type:document.getElementById('work_type').value,
       scope_text:document.getElementById('scope').value,lines})})
-    .then(r=>r.json()).then(d=>{if(d.ok){const b=event.target;b.textContent='✓ Saved';setTimeout(()=>b.textContent='💾 Save',1200)}});
+    .then(r=>r.json()).then(d=>{if(d.ok){const b=event.target;b.textContent='✓ Saved';setTimeout(()=>b.textContent='💾 Save',1200)}})
+    .catch(()=>{alert('Save failed — please refresh and try again.');});
 }
 </script>
 {% endblock %}
