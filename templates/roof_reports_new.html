@@ -9,14 +9,19 @@
 <form method="post" style="max-width:640px">
   <p class="sub" style="margin-bottom:14px">Pick a job to use its address, or type one in.</p>
 
-  <label style="display:block;margin-bottom:12px">From a job
-    <select name="job_id" style="display:block;width:100%;margin-top:4px">
-      <option value="">— or enter an address below —</option>
-      {% for j in jobs %}
-      <option value="{{ j.id }}">{{ j.name or j.address or ('Job #' ~ j.id) }}{% if j.address %} — {{ j.address }}, {{ j.city }}{% endif %}</option>
-      {% endfor %}
-    </select>
-  </label>
+  <label style="display:block;margin-bottom:4px">From a job</label>
+  <div style="position:relative;margin-bottom:12px">
+    <input type="text" id="job_search" placeholder="Type job name to search…"
+           autocomplete="off"
+           style="display:block;width:100%;box-sizing:border-box">
+    <input type="hidden" name="job_id" id="job_id_val">
+    <div id="job_dropdown"
+         style="display:none;position:absolute;left:0;right:0;z-index:200;
+                border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;
+                max-height:260px;overflow-y:auto;background:var(--card-bg,var(--bg));
+                box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+    <div id="job_selected" style="display:none;font-size:12px;color:var(--ok);margin-top:4px"></div>
+  </div>
 
   <label style="display:block;margin-bottom:12px">Address
     <input name="address" placeholder="123 Main St" style="display:block;width:100%;margin-top:4px">
@@ -29,4 +34,71 @@
 
   <button class="btn primary" type="submit">Generate report</button>
 </form>
+<script>
+var JOBS=[{% for j in jobs %}{id:{{j.id}},name:{{(j.name or j.address or ('Job #'~j.id))|tojson}},addr:{{((j.address or '')~(', '~j.city if j.city else ''))|tojson}}}{% if not loop.last %},{% endif %}{% endfor %}];
+var srch=document.getElementById('job_search'),
+    dd=document.getElementById('job_dropdown'),
+    hid=document.getElementById('job_id_val'),
+    lbl=document.getElementById('job_selected');
+
+function renderDrop(q){
+  if(!q){dd.style.display='none';return;}
+  var m=JOBS.filter(function(j){return j.name.toLowerCase().includes(q)||j.addr.toLowerCase().includes(q);}).slice(0,25);
+  if(!m.length){dd.innerHTML='<div style="padding:8px 12px;color:var(--muted)">No matching jobs</div>';dd.style.display='block';return;}
+  dd.innerHTML=m.map(function(j){
+    return '<div class="jopt" data-id="'+j.id+'"'+
+      ' style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border-light,#eee)">'+
+      '<div style="font-weight:600">'+j.name+'</div>'+
+      (j.addr?'<div style="font-size:12px;color:var(--muted)">'+j.addr+'</div>':'')+
+      '</div>';
+  }).join('');
+  dd.style.display='block';
+}
+
+function highlight(opt){
+  dd.querySelectorAll('.jopt').forEach(function(x){x.style.background='';});
+  if(opt)opt.style.background='var(--hover,#f0f4ff)';
+}
+
+srch.addEventListener('input',function(){
+  var q=this.value.trim().toLowerCase();
+  if(!q){hid.value='';lbl.style.display='none';}
+  renderDrop(q);
+});
+
+dd.addEventListener('mouseover',function(e){highlight(e.target.closest('.jopt'));});
+dd.addEventListener('mouseout',function(){highlight(null);});
+
+dd.addEventListener('click',function(e){
+  var o=e.target.closest('.jopt');if(!o)return;
+  var id=parseInt(o.getAttribute('data-id'));
+  var job=JOBS.find(function(j){return j.id===id;});
+  if(!job)return;
+  hid.value=id;
+  srch.value=job.name;
+  lbl.textContent='✓ Job selected — address will be pulled automatically';
+  lbl.style.display='';
+  dd.style.display='none';
+});
+
+document.addEventListener('click',function(e){
+  if(!srch.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
+});
+
+srch.addEventListener('keydown',function(e){
+  var items=Array.from(dd.querySelectorAll('.jopt'));
+  var fi=items.findIndex(function(x){return x.style.background;});
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    var n=items[fi+1]||items[0];if(n){highlight(n);n.scrollIntoView({block:'nearest'});}
+  }else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    var p=fi>0?items[fi-1]:items[items.length-1];if(p){highlight(p);p.scrollIntoView({block:'nearest'});}
+  }else if(e.key==='Enter'&&fi>=0){
+    e.preventDefault();items[fi].click();
+  }else if(e.key==='Escape'){
+    dd.style.display='none';
+  }
+});
+</script>
 {% endblock %}
