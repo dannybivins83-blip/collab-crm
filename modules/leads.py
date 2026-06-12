@@ -227,13 +227,13 @@ def new():
                         "project page to follow your roof project and review your estimate "
                         "once it's ready:\n\n%s\n\nWe'll be in touch shortly to schedule "
                         "your inspection.\n\n— %s" % (cname, cn, link, cn))
-                if uid and _gm.send_message(uid, data["email"], subj, body):
+                if _gm.send_message(uid, data["email"], subj, body):
                     db.update("leads", lid, portal_invited=db.now())
                     db.add_activity("lead", lid, "email",
                                     "Homeowner portal invite emailed to %s" % data["email"])
                     notify_msg += " · portal invite sent to client"
                 else:
-                    notify_msg += " · portal link (Gmail not connected — use Send portal invite button)"
+                    notify_msg += " · portal link (no email transport — set SMTP_FROM+SMTP_PASSWORD on Render)"
         except Exception as _e:
             current_app.logger.warning("Portal invite email failed for lead %s: %s", lid, _e)
         # Handle intake file uploads (drawings, emails, measurement reports, etc.)
@@ -630,7 +630,7 @@ def send_portal_invite(lead_id):
     if email:
         uid = session.get("user_id")
         try:
-            sent = bool(uid and _gm.send_message(uid, email, subj, body))
+            sent = bool(_gm.send_message(uid, email, subj, body))
         except Exception:
             sent = False
     if sent:
