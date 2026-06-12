@@ -78,6 +78,38 @@ def configured():
     return bool(cid and sec)
 
 
+def smtp_configured():
+    """True if SMTP_FROM + SMTP_PASSWORD env vars are set (app-password path)."""
+    return bool(os.environ.get("SMTP_FROM", "").strip()
+                and os.environ.get("SMTP_PASSWORD", "").strip())
+
+
+def _smtp_send(to, subject, body):
+    """Send via SMTP (Gmail app password or any SMTP server). No OAuth required.
+    Set SMTP_FROM, SMTP_PASSWORD (and optionally SMTP_HOST, SMTP_PORT) on Render."""
+    import smtplib, ssl as _ssl
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    port = int(os.environ.get("SMTP_PORT", "587") or "587")
+    frm = os.environ.get("SMTP_FROM", "").strip()
+    pwd = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not frm or not pwd or not (to or "").strip():
+        return False
+    msg = MIMEText(body or "", "plain", "utf-8")
+    msg["To"] = to.strip()
+    msg["From"] = frm
+    msg["Subject"] = subject or ""
+    try:
+        ctx = _ssl.create_default_context()
+        with smtplib.SMTP(host, port, timeout=30) as s:
+            s.ehlo()
+            s.starttls(context=ctx)
+            s.login(frm, pwd)
+            s.sendmail(frm, [to.strip()], msg.as_bytes())
+        return True
+    except Exception:
+        return False
+
+
 def _redirect_uri():
     """Build this host's callback URL. Forces https off-localhost so it matches the
     redirect URI registered in the Google console (Vercel terminates TLS upstream)."""
@@ -424,17 +456,24 @@ def create_draft(uid, to, subject, body, in_reply_to=None, references=None, thre
 
 
 def send_message(uid, to, subject, body):
-    """SEND an email immediately from user `uid`'s connected Gmail (gmail.modify grant
-    permits send). Returns the sent message id, or None if not connected / failed.
-    Used only where the user has explicitly enabled an auto-send feature."""
-    if not (to or "").strip() or not account_for_user(uid):
+    """SEND an email immediately. Tries Gmail OAuth first (if user connected their
+    account), then falls back to SMTP (if SMTP_FROM + SMTP_PASSWORD are set on Render).
+    Returns the sent message id (OAuth), True (SMTP), or None if both fail."""
+    if not (to or "").strip():
         return None
-    msg = MIMEText(body or "", "plain", "utf-8")
-    msg["To"] = (to or "").strip()
-    msg["Subject"] = subject or ""
-    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    res = _api_post(uid, "/messages/send", {"raw": raw})
-    return res.get("id") if res else None
+    # Gmail OAuth path
+    if account_for_user(uid):
+        msg = MIMEText(body or "", "plain", "utf-8")
+        msg["To"] = (to or "").strip()
+        msg["Subject"] = subject or ""
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        res = _api_post(uid, "/messages/send", {"raw": raw})
+        if res and res.get("id"):
+            return res["id"]
+    # SMTP fallback — works without any OAuth setup
+    if _smtp_send(to, subject, body):
+        return True
+    return None
 
 
 @bp.route("/draft", methods=["POST"])

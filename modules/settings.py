@@ -41,6 +41,7 @@ def index():
     from modules import gmail
     return render_template("settings.html", c=db.get_company(), users=db.all_rows("users", order="id"),
                            google_configured=gmail.configured(),
+                           smtp_configured=gmail.smtp_configured(),
                            intake_enabled=bool(os.environ.get("CRM_INTAKE_TOKEN")))
 
 

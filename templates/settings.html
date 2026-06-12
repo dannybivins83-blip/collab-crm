@@ -65,14 +65,6 @@
   <div class="field"><label>Tutorials &amp; tips (one per line — “Title | https://link”, or just a tip with no link)</label>
     <textarea name="tutorials" placeholder="What to expect during your roof replacement | https://youtu.be/...&#10;How to prepare your home for installation | https://...">{{ c.tutorials or '' }}</textarea></div>
 
-  <div class="field" style="border-top:1px solid var(--line);padding-top:12px;margin-top:6px">
-    <label class="check" style="align-items:flex-start">
-      <input type="checkbox" name="auto_portal_invite" {{ 'checked' if c.auto_portal_invite }}>
-      <span><b>Auto-email homeowner portal invite on lead creation</b><br>
-      <span class="muted" style="font-weight:400">When ON, each new lead with an email is automatically sent their private portal link from your connected Gmail. Leave OFF to send manually. Tip: create one lead with your own email first to preview it.</span></span>
-    </label>
-  </div>
-
   <button class="primary" type="submit">💾 Save & apply branding</button>
   {% if c.logo_path %}<button class="btn" formaction="{{ url_for('settings.clear_logo') }}" formnovalidate>Clear logo</button>{% endif %}
 </form>
@@ -107,6 +99,25 @@
   <div class="field"><label>Authorized JavaScript origin</label>
     <input readonly onclick="this.select()" value="{{ _base }}"></div>
   <p class="muted" style="margin:4px 0 0">These are built from the address you're viewing right now ({{ request.host }}). Always sign in from your stable URL — not a one-off Vercel preview URL — or the redirect won't match.</p>
+
+  <h3 style="margin:18px 0 4px">SMTP email (rep + client auto-send)
+    <span class="badge" style="color:{{ 'var(--ok)' if smtp_configured else 'var(--danger)' }}">
+      {{ 'configured ✓' if smtp_configured else 'NOT SET — emails not sending' }}</span></h3>
+  <p class="muted" style="margin:2px 0 8px">
+    Enables automatic rep-notification and client portal-invite emails on every new lead — no OAuth required.
+    Set two env vars on Render, then emails send immediately:
+  </p>
+  <div class="field">
+    <label>Render env vars to set</label>
+    <input readonly onclick="this.select()" value="SMTP_FROM = dannyb@seabreezeroof.com  (or any Gmail you own)">
+    <input readonly onclick="this.select()" style="margin-top:6px" value="SMTP_PASSWORD = xxxx xxxx xxxx xxxx  (Gmail app password — myaccount.google.com/apppasswords)">
+  </div>
+  {% if not smtp_configured %}
+  <p style="margin:6px 0 0;color:var(--danger);font-size:13px">
+    ⚠ Neither Gmail OAuth nor SMTP is configured — all rep + client emails are silently failing.
+    Set SMTP_FROM + SMTP_PASSWORD on Render to fix immediately (2-min setup, no OAuth consent screen).
+  </p>
+  {% endif %}
 
   <h3 style="margin:18px 0 4px">Lead-intake webhooks
     <span class="badge" style="color:{{ 'var(--ok)' if intake_enabled else 'var(--warn)' }}">
