@@ -101,7 +101,7 @@ def _resolve_template(template_id, work_type):
     key = constants.template_for_work_type(work_type)
     tpl = constants.ESTIMATE_TEMPLATES.get(key, constants.ESTIMATE_TEMPLATES["blank"])
     lines = [{"description": l["desc"], "unit": l["unit"], "qty": l.get("qty", 0),
-              "cost": l["price"], "q": l.get("q")} for l in tpl["lines"]]
+              "cost": l["price"], "q": l.get("q"), "sec": l.get("sec")} for l in tpl["lines"]]
     return (tpl["name"], work_type, constants.scope_for_template(key), lines)
 
 
@@ -232,14 +232,32 @@ def build_estimate(lead_id=None, job_id=None, template_id=None, work_type="", ap
         "number": _next_number(), "title": title, "job_id": job_id, "lead_id": lead_id,
         "contact_id": contact_id, "work_type": work_type, "template_key": template_id or "",
         "status": "draft", "margin_pct": 30, "tax_pct": 0, "terms": db.get_company().get("terms", "")})
-    sid = db.insert("estimate_sections", {"estimate_id": eid, "sort": 0, "name": name,
-                                          "scope_text": scope, "margin_pct": 30})
-    for i, line in enumerate(lines):
-        db.insert("estimate_lines", {"estimate_id": eid, "section_id": sid, "sort": i,
-                                     "description": line.get("description", ""),
-                                     "unit": line.get("unit", "EA"), "qty": line.get("qty", 0),
-                                     "waste_pct": 0, "cost": line.get("cost", 0),
-                                     "qrule": db.dump_json(line["q"]) if line.get("q") else ""})
+    # Group template lines into named sections; fall back to a single section (template name)
+    # for templates with no "sec" keys (blank, repair, DB-loaded templates without sections).
+    sec_names = []
+    sec_line_map = {}
+    for line in lines:
+        sn = line.get("sec") or name
+        if sn not in sec_line_map:
+            sec_names.append(sn)
+            sec_line_map[sn] = []
+        sec_line_map[sn].append(line)
+    if not sec_names:
+        db.insert("estimate_sections", {"estimate_id": eid, "sort": 0, "name": name,
+                                        "scope_text": scope, "margin_pct": 30})
+        nsec = 1
+    else:
+        for si, sn in enumerate(sec_names):
+            sid = db.insert("estimate_sections", {
+                "estimate_id": eid, "sort": si, "name": sn,
+                "scope_text": scope if si == 0 else "", "margin_pct": 30})
+            for i, line in enumerate(sec_line_map[sn]):
+                db.insert("estimate_lines", {"estimate_id": eid, "section_id": sid, "sort": i,
+                                             "description": line.get("description", ""),
+                                             "unit": line.get("unit", "EA"), "qty": line.get("qty", 0),
+                                             "waste_pct": 0, "cost": line.get("cost", 0),
+                                             "qrule": db.dump_json(line["q"]) if line.get("q") else ""})
+        nsec = len(sec_names)
     # Upgrade OPTION GROUPS (AccuLynx-style): each upgrade is its own collapsible section
     # with a customer-facing scope + a Declined/Accepted line + its line items. Falls back
     # to the template's own work type (wt) so tile/metal/flat never get generic upgrades.
@@ -249,7 +267,7 @@ def build_estimate(lead_id=None, job_id=None, template_id=None, work_type="", ap
         if "Declined" not in scope_text:
             scope_text += constants._ACCEPT_LINE
         gsid = db.insert("estimate_sections", {
-            "estimate_id": eid, "sort": 1 + gi, "name": g["name"], "margin_pct": 30,
+            "estimate_id": eid, "sort": nsec + gi, "name": g["name"], "margin_pct": 30,
             "scope_text": scope_text})
         for i, u in enumerate(g.get("lines", [])):
             db.insert("estimate_lines", {"estimate_id": eid, "section_id": gsid, "sort": i,

@@ -97,19 +97,20 @@
     </div>
   </div>
   <a class="navitem {{ 'on' if seg=='/' }}" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+  <a class="navitem {{ 'on' if seg.startswith('/contacts') }}" href="{{ url_for('contacts.index') }}">Contacts</a>
+  <a class="navitem {{ 'on' if seg.startswith('/leads') }}" href="{{ url_for('leads.list_view') }}">Leads</a>
   <div class="navgroup">
-    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/pipeline') or seg.startswith('/jobs') or seg.startswith('/leads') }}" href="{{ url_for('pipeline.board') }}">Pipeline ▾</a>
+    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/pipeline') or seg.startswith('/jobs') }}" href="{{ url_for('jobs.list_view') }}">Jobs ▾</a>
     <div class="dropdown">
-      <a href="{{ url_for('pipeline.board') }}">{{ icon('columns') }}<span class="nlbl">Lifecycle Board (Leads → Jobs)</span></a>
-      <a href="{{ url_for('jobs.list_view') }}">{{ icon('grid') }}<span class="nlbl">Jobs — List</span></a>
-      <a href="{{ url_for('jobs.board') }}">{{ icon('columns') }}<span class="nlbl">Jobs — Production Board</span></a>
-      <a href="{{ url_for('leads.list_view') }}">{{ icon('user') }}<span class="nlbl">Leads — List</span></a>
-      <div style="border-top:1px solid var(--line);margin:4px 0"></div>
+      <a href="{{ url_for('leads.list_view') }}?stage=prospect">Prospects</a>
       <a href="{{ url_for('jobs.list_view') }}?bucket=approved">Approved</a>
       <a href="{{ url_for('jobs.list_view') }}?bucket=completed">Completed</a>
       <a href="{{ url_for('jobs.list_view') }}?bucket=invoiced">Invoiced</a>
       <a href="{{ url_for('jobs.list_view') }}?stage=closed">Closed</a>
       <a href="{{ url_for('jobs.list_view') }}?stage=canceled">Canceled</a>
+      <div style="border-top:1px solid var(--line);margin:4px 0"></div>
+      <a href="{{ url_for('pipeline.board') }}">{{ icon('columns') }}<span class="nlbl">Lifecycle Board</span></a>
+      <a href="{{ url_for('jobs.board') }}">{{ icon('columns') }}<span class="nlbl">Production Board</span></a>
     </div>
   </div>
   <div class="navgroup">
@@ -146,7 +147,6 @@
       <a href="{{ url_for('templates.index') }}">{{ icon('grid') }}<span class="nlbl">Estimate Templates</span></a>
       <a href="{{ url_for('sync.catalog_view') }}">{{ icon('box') }}<span class="nlbl">Material Catalog</span></a>
       <a href="{{ url_for('library.index') }}">{{ icon('book') }}<span class="nlbl">Document Library</span></a>
-      <a href="{{ url_for('contacts.index') }}">{{ icon('user') }}<span class="nlbl">Contacts</span></a>
       <a href="{{ url_for('contacts.gcs') }}">{{ icon('building') }}<span class="nlbl">General Contractors</span></a>
       <a href="{{ url_for('sync.index') }}">{{ icon('refresh') }}<span class="nlbl">Sync from AccuLynx</span></a>
       <a href="{{ url_for('calendar.index') }}">{{ icon('calendar') }}<span class="nlbl">Calendar</span></a>
