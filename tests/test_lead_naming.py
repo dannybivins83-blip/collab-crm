@@ -87,6 +87,25 @@ class TestSysLetter:
     def test_galvalume(self):
         assert _sys_letter(work_type="Galvalume") == "M"
 
+    def test_flat_tpo_work_type(self):
+        assert _sys_letter(work_type="Roofing - Flat (TPO)") == "F"
+
+    def test_flat_3ply_work_type(self):
+        assert _sys_letter(work_type="Roofing - Flat (3-ply SA)") == "F"
+
+    def test_flat_hotmop_work_type(self):
+        assert _sys_letter(work_type="Roofing - Flat (Hot-Mop)") == "F"
+
+    def test_tpo_only(self):
+        assert _sys_letter(work_type="TPO") == "F"
+
+    def test_flat_system(self):
+        assert _sys_letter(system="Flat") == "F"
+
+    def test_shingle_plus_flat(self):
+        # combo type — shingle wins (listed first in keyword check)
+        assert _sys_letter(work_type="Shingle + Flat") == "S"
+
     def test_empty(self):
         assert _sys_letter() == ""
 

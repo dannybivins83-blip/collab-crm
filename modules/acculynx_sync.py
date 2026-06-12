@@ -412,7 +412,7 @@ def _money_val(job):
 # ---- job-name decoding -----------------------------------------------------
 # Shop convention: "R-25179: Richard Reis (PBC) (T28) (SCOTT)" =
 #   R-YYNNN (Reroof / year / sequence) | client | (AHJ) | (system + squares) | (salesperson)
-_SYS_MAT = {"5V": "5V Metal", "T": "Tile", "S": "Shingle", "M": "Metal"}
+_SYS_MAT = {"5V": "5V Metal", "T": "Tile", "S": "Shingle", "M": "Metal", "F": "Flat"}
 _AHJ_MAP = {"PBC": "Palm Beach County", "BB": "Boynton Beach", "LWB": "Lake Worth Beach",
             "RPB": "Royal Palm Beach", "PBG": "Palm Beach Gardens", "WELL": "Wellington",
             "WPB": "West Palm Beach", "LAN": "Lantana", "GA": "Greenacres",
@@ -464,7 +464,7 @@ def _parse_job_name(name):
     if m:
         out["year"] = "20" + m.group(1)
         out["jobno"] = "R-" + m.group(1) + m.group(2)
-    sm = re.search(r"\b(5V|[TSM])\s?-?\s?(\d{1,3})\b", n)   # material + squares
+    sm = re.search(r"\b(5V|F|[TSM])\s?-?\s?(\d{1,3})\b", n)   # material + squares
     if sm:
         out["system"] = _SYS_MAT.get(sm.group(1).upper())
         out["squares"] = sm.group(2)
@@ -497,7 +497,7 @@ _REP_CODE = {"Danny Bivins": "DB", "Scott": "SCOTT", "Francis Ferrer": "FF",
 
 
 def _sys_letter(work_type="", system=""):
-    """Material letter (S/T/M/5V) from a work type or roof-system string."""
+    """Material letter (S/T/M/5V/F) from a work type or roof-system string."""
     s = ("%s %s" % (work_type or "", system or "")).lower()
     if "tile" in s:
         return "T"
@@ -507,6 +507,8 @@ def _sys_letter(work_type="", system=""):
         return "5V"
     if "metal" in s or "galvalume" in s:
         return "M"
+    if "flat" in s or "tpo" in s or "3-ply" in s or "3ply" in s or "hot-mop" in s or "hot mop" in s:
+        return "F"
     return ""
 
 
