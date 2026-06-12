@@ -797,4 +797,46 @@
   });
 })();
 </script>
+<script>
+// ---- Intake checklist: auto-check when fields/notes are filled ----------------
+(function(){
+  var cks = Array.from(document.querySelectorAll('.vi-ck input[type="checkbox"]'));
+  if (!cks.length) return;
+  // [0]Full name [1]Phone [2]Email [3]Address [4]City/ZIP [5]Work type [6]Lead source
+  // [7]Reason [8]Roof age [9]Insurance [10]HOA [11]Timeline [12]Other est
+  // [13]Financing [14]Budget [15]Decision maker [16]Inspection [17]Gate/access
+  // [18]Secondary contact [19]Confirm & next steps
+  var fieldMap = [
+    ['[name="name"]', 0], ['[name="phone"]', 1], ['[name="email"]', 2],
+    ['[name="address"]', 3], ['[name="city"]', 4],
+    ['[name="work_type"]', 5], ['[name="source"]', 6], ['[name="phone2"]', 18]
+  ];
+  var notesKw = [
+    ['reason:',7], ['roof age',8], ['roof condition',8],
+    ['insurance claim:',9], ['hoa / gated:',10], ['timeline:',11],
+    ['other estimates:',12], ['financing:',13], ['budget:',14],
+    ['decision-maker',15], ['inspection window:',16],
+    ['access notes:',17], ['secondary contact',18],
+    ['confirm:',19], ['next steps',19]
+  ];
+  function tick(idx){ if(cks[idx]) cks[idx].checked=true; }
+  function watchField(sel,idx){
+    var el=document.querySelector(sel); if(!el) return;
+    function chk(){
+      var v=(el.value||'').trim();
+      if(v && !(el.tagName==='SELECT' && el.selectedIndex===0)) tick(idx);
+    }
+    el.addEventListener('input',chk); el.addEventListener('change',chk); chk();
+  }
+  function scanNotes(){
+    var ne=document.getElementById('f_notes'); if(!ne) return;
+    var t=(ne.value||'').toLowerCase();
+    notesKw.forEach(function(p){ if(t.indexOf(p[0])>-1) tick(p[1]); });
+  }
+  fieldMap.forEach(function(p){ watchField(p[0],p[1]); });
+  var ne=document.getElementById('f_notes');
+  if(ne) ne.addEventListener('input',scanNotes);
+  setInterval(scanNotes,800);
+})();
+</script>
 {% endblock %}
