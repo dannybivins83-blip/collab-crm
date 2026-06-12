@@ -855,3 +855,123 @@ def intake_ringcentral():
     db.add_activity("lead", lid, "call", data["notes"])
     return _cors(jsonify({"ok": True, "linked": "new" if created else "existing",
                           "lead_id": lid, "created": created}))
+
+
+# ---------------------------------------------------------------------------
+# Gmail → AccuLynx lead sync
+# ---------------------------------------------------------------------------
+
+# Add the last-sync timestamp column to company_settings if it doesn't exist yet.
+for _col in ("acculynx_email_last_sync TEXT",):
+    try:
+        db.execute("ALTER TABLE company_settings ADD COLUMN %s" % _col)
+    except Exception:
+        pass
+
+
+@bp.route("/gmail-acculynx-sync", methods=["POST"])
+def gmail_acculynx_sync():
+    """Search the connected Gmail inbox for AccuLynx 'Lead Assigned' emails and
+    auto-create CRM leads for any new ones. Sends a confirmation to
+    dannybivins83@gmail.com for each new lead created."""
+    from modules import gmail as _gmail, lead_intake as _li
+    import re as _re
+
+    # Ensure processed-ID tracking table exists.
+    db.execute("""CREATE TABLE IF NOT EXISTS acculynx_email_sync (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        msg_id TEXT UNIQUE, processed_at TEXT)""")
+
+    # Find a Gmail-connected user (prefer current session user, then any user).
+    uid = session.get("user_id")
+    if not _gmail.account_for_user(uid):
+        for row in db.all_rows("gmail_accounts"):
+            uid = row.get("user_id")
+            if _gmail.account_for_user(uid):
+                break
+
+    if not _gmail.account_for_user(uid):
+        flash("Gmail not connected — connect your Gmail in Settings first.", "warn")
+        return redirect(url_for("leads.list_view"))
+
+    # Build search query: AccuLynx lead-assigned emails, optionally scoped to since last sync.
+    q = 'from:acculynx OR subject:"Lead Assigned" OR subject:"New Lead assigned"'
+    comp = db.get_company()
+    last_sync = (comp or {}).get("acculynx_email_last_sync", "")
+    if last_sync:
+        try:
+            import datetime
+            dt = datetime.datetime.fromisoformat(last_sync)
+            q += " after:%d" % int(dt.timestamp())
+        except Exception:
+            pass
+
+    msgs = _gmail._list_messages(uid, {"q": q, "maxResults": "50"}, limit=50)
+    if msgs is None:
+        flash("Gmail search failed — check Gmail connection in Settings.", "warn")
+        return redirect(url_for("leads.list_view"))
+
+    created_count = skipped_count = 0
+
+    for m in msgs:
+        mid = m.get("id")
+        if not mid:
+            continue
+        # Skip already-processed message IDs.
+        if db.all_rows("acculynx_email_sync", "msg_id=?", (mid,)):
+            skipped_count += 1
+            continue
+
+        # Fetch full message to get body.
+        full = _gmail._api_get(uid, "/messages/" + mid, {"format": "full"})
+        if not full:
+            continue
+
+        hs = full.get("payload", {}).get("headers", [])
+        frm = _gmail._hdr(hs, "From")
+        subj = _gmail._hdr(hs, "Subject")
+
+        # Filter: only AccuLynx lead notification emails.
+        sig = ("%s %s" % (frm, subj)).lower()
+        if "acculynx" not in sig and "lead assigned" not in sig and "new lead" not in sig:
+            db.execute("INSERT OR IGNORE INTO acculynx_email_sync (msg_id, processed_at) VALUES (?,?)",
+                       (mid, db.now()))
+            continue
+
+        # Extract plain-text body; strip any HTML tags.
+        html_body, text_body = _gmail._extract_body(full.get("payload", {}))
+        raw = text_body or _re.sub(r"<[^>]+>", " ", html_body or "")
+        raw = _re.sub(r"\s+", " ", raw).strip()
+
+        data = _li.parse_email(frm, subj, raw)
+        db.execute("INSERT OR IGNORE INTO acculynx_email_sync (msg_id, processed_at) VALUES (?,?)",
+                   (mid, db.now()))
+        if not data:
+            continue
+
+        lid, was_created = _create_lead_from_intake(data)
+        if was_created:
+            created_count += 1
+            # Notify Danny at dannybivins83@gmail.com.
+            try:
+                lead_url = url_for("leads.detail", lead_id=lid, _external=True)
+                body = (
+                    "New lead auto-created from AccuLynx email:\n\n"
+                    "Name: %s\nPhone: %s\nEmail: %s\nAddress: %s\nWork type: %s\n\n"
+                    "Open in CRM: %s\n\n(Auto-created by Gmail AccuLynx sync)"
+                ) % (data.get("name", "—"), data.get("phone", "—"),
+                     data.get("email", "—"), data.get("address", "—"),
+                     data.get("work_type", "—"), lead_url)
+                _gmail.send_message(uid, "dannybivins83@gmail.com",
+                                    "New CRM Lead: %s" % data.get("name", "Lead"), body)
+            except Exception:
+                pass
+        else:
+            skipped_count += 1
+
+    # Update last-sync timestamp so the next run only checks new emails.
+    db.save_company({"acculynx_email_last_sync": db.now()})
+
+    flash("AccuLynx email sync complete — %d new lead%s created, %d already existed." % (
+        created_count, "" if created_count == 1 else "s", skipped_count), "ok")
+    return redirect(url_for("leads.list_view"))

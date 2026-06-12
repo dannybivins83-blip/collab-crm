@@ -19,6 +19,10 @@
         onsubmit="return confirm('Strip the old \" L\" suffix from all lead names?')">
     <button class="btn" type="submit" title="Remove old lead-marker L from names">✂ Strip L suffix</button>
   </form>
+  <form method="post" action="{{ url_for('leads.gmail_acculynx_sync') }}" style="display:inline"
+        title="Search Gmail for AccuLynx 'Lead Assigned' emails and auto-create CRM leads">
+    <button class="btn" type="submit">📧 Sync AccuLynx Emails</button>
+  </form>
   <a class="btn primary" href="{{ url_for('leads.new') }}">+ New Lead</a>
 </div>
 
