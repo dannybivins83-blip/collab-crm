@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """Sales pipeline (leads) — Kanban board, detail, drag-to-advance, convert-to-job."""
+import os
 import re
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, session
 
+import config
 import db
 import theme
 import constants
@@ -234,8 +236,51 @@ def new():
                     notify_msg += " · portal link (Gmail not connected — use Send portal invite button)"
         except Exception as _e:
             current_app.logger.warning("Portal invite email failed for lead %s: %s", lid, _e)
-        flash("Lead created. AHJ: %s%s%s%s" % (
-            resolved_ahj or "—", (" · " + system) if system else "", est_msg, notify_msg), "ok")
+        # Handle intake file uploads (drawings, emails, measurement reports, etc.)
+        doc_msg = ""
+        has_drawings = False
+        intake_files = request.files.getlist("intake_files")
+        doc_type = request.form.get("intake_doc_type") or "Other"
+        for f in intake_files:
+            if not f or not f.filename:
+                continue
+            try:
+                import re as _re, time as _time
+                fn = "%d_%s" % (int(_time.time() * 1000),
+                                _re.sub(r"[^A-Za-z0-9._-]+", "_", f.filename))
+                path = os.path.join(config.DOC_DIR, fn)
+                f.save(path)
+                drive_id = None
+                try:
+                    from modules import gdrive as _gdrive
+                    if _gdrive.enabled():
+                        drive_id = _gdrive.mirror(path, fn)
+                except Exception:
+                    pass
+                db.insert("documents", {"lead_id": lid, "category": doc_type,
+                                        "filename": fn, "original_name": f.filename,
+                                        "size": os.path.getsize(path),
+                                        "notes": "Uploaded at intake",
+                                        "drive_id": drive_id})
+                db.add_activity("lead", lid, "note",
+                                "Intake document uploaded: %s (%s)" % (f.filename, doc_type))
+                if doc_type == "Drawing/Plans":
+                    has_drawings = True
+            except Exception:
+                pass
+        if has_drawings:
+            db.add_activity("lead", lid, "automation",
+                            "Drawing files uploaded at intake — estimator ready to auto-generate scope, estimate, and permit forms.")
+            doc_msg = " · drawings attached (estimator ready)"
+        elif intake_files and any(f and f.filename for f in intake_files):
+            doc_msg = " · %d file(s) attached" % sum(1 for f in intake_files if f and f.filename)
+        # Roof report request flag
+        if request.form.get("run_roof_report"):
+            db.add_activity("lead", lid, "note",
+                            "Roof report requested at intake — approve or skip from the lead page.")
+            doc_msg += " · roof report requested"
+        flash("Lead created. AHJ: %s%s%s%s%s" % (
+            resolved_ahj or "—", (" · " + system) if system else "", est_msg, notify_msg, doc_msg), "ok")
         return redirect(url_for("leads.detail", lead_id=lid))
     return render_template("lead_form.html", lead={}, contacts=db.all_rows("contacts", order="last_name"),
                            mode="new",

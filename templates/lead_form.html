@@ -7,7 +7,7 @@
   <h1>{{ 'Create New Lead' if mode=='new' else 'Edit Lead' }}</h1>
   <span class="muted" style="margin-left:8px">for {{ current_department }}</span>
 </div>
-<form method="post">
+<form method="post" enctype="multipart/form-data">
 {% if mode=='new' %}
 <!-- ── NEW LEAD: left = wizard checklist, right = client form ──── -->
 <div class="detail lf-new">
@@ -206,6 +206,36 @@
         <label class="sidebar-label">Priority Level</label>
         <select name="priority" class="sidebar-select">{% for p in constants.PRIORITY_LEVELS %}<option {{ 'selected' if (lead.priority or 'Normal')==p }}>{{ p }}</option>{% endfor %}</select>
       </div>
+    </div>
+
+    <!-- Documents & Files — attach at intake -->
+    <div class="card" id="intake-docs-card">
+      <h2 style="margin-bottom:6px">📎 Documents &amp; Files <span class="muted" style="font-weight:400;font-size:13px">(optional)</span></h2>
+      <p class="muted" style="margin:0 0 12px;font-size:12px">Attach drawings, emails, photos, or reports now. <strong>Drawing/Plans files auto-trigger the estimator</strong> — scope, estimate, and permit forms populate automatically.</p>
+      <div class="row" style="align-items:flex-end;margin-bottom:10px">
+        <div class="field" style="flex:0 0 auto;min-width:160px">
+          <label style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Document type</label>
+          <select name="intake_doc_type" id="intake_doc_type" style="font-size:14px;padding:8px 10px">
+            <option value="Drawing/Plans">📐 Drawing / Plans</option>
+            <option value="Measurement Report">📏 Measurement Report</option>
+            <option value="Email/Scope">✉️ Email / Scope</option>
+            <option value="Insurance Doc">🛡️ Insurance Doc</option>
+            <option value="Photo">📷 Photo</option>
+            <option value="Other">📄 Other</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1">
+          <label style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">File(s)</label>
+          <input type="file" name="intake_files" id="intake_files" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.heic,.doc,.docx,.xls,.xlsx,.csv,.txt" style="font-size:13px">
+        </div>
+      </div>
+      <div id="intake-doc-hint" style="display:none;padding:8px 12px;background:#e8f7f0;border:1px solid #8CC63F;border-radius:7px;font-size:12px;color:#2a6020;margin-bottom:10px">
+        ⚡ <strong>Drawing files detected</strong> — after saving, the estimator will read these to auto-generate the scope, estimate, and permit form.
+      </div>
+      <label class="check" style="margin-bottom:0">
+        <input type="checkbox" name="run_roof_report" value="1" id="run_roof_report_cb">
+        <span style="font-size:13px">Request roof report after saving <span class="muted">(adds to the lead checklist — approve or skip later)</span></span>
+      </label>
     </div>
 
     <!-- Create Lead / Cancel — bottom of form -->
@@ -751,6 +781,17 @@ document.querySelectorAll('[name="contact_id"]').forEach(function(s){ showGcBill
 })();
 </script>
 <script>
+// ---- intake doc-type hint ------------------------------------------------
+(function(){
+  var dt=document.getElementById('intake_doc_type');
+  var fi=document.getElementById('intake_files');
+  var hint=document.getElementById('intake-doc-hint');
+  if(!dt||!fi||!hint) return;
+  function upd(){
+    hint.style.display=(dt.value==='Drawing/Plans'&&fi.files&&fi.files.length)?'block':'none';
+  }
+  dt.addEventListener('change',upd); fi.addEventListener('change',upd);
+})();
 // ---- image scan → AI autofill ------------------------------------------------
 (function(){
   var input=document.getElementById('scanInput');

@@ -88,9 +88,8 @@
 <!-- Primary nav (blue) -->
 <nav class="mainnav">
   <div class="navgroup">
-    <a class="navitem dropdown-toggle">{{ icon('plus') }}<span class="nlbl">New</span></a>
+    <a class="navitem dropdown-toggle" href="{{ url_for('leads.new') }}">{{ icon('plus') }}<span class="nlbl">NEW LEAD</span></a>
     <div class="dropdown">
-      <a href="{{ url_for('leads.new') }}">New Lead</a>
       <a href="{{ url_for('contacts.new') }}">New Contact</a>
       <a href="{{ url_for('jobs.new') }}">New Job</a>
       <a href="{{ url_for('estimates.new') }}">New Estimate</a>
