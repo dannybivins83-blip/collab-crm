@@ -248,8 +248,8 @@ def parse_image():
     if not api_key:
         return jsonify({"error": "ANTHROPIC_API_KEY not set — add it to your .env or Render env"}), 503
 
-    img_b64 = base64.standard_b64encode(f.read()).decode()
     try:
+        img_b64 = base64.standard_b64encode(f.read()).decode()
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
         msg = client.messages.create(
