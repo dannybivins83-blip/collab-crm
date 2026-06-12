@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-11 `git rev-parse`):** `f9cf05c` on `origin/agent/gc-consolidation` (latest: takeoff assigned db.insert leak fix)
-- **Last board update:** 2026-06-12 — by overlord: db.insert conn-leak DONE, P3 backlog all DONE, all audits closed; 2× owner decisions added (ANTHROPIC_API_KEY + Vercel ROOF_ENGINE_API_KEY)
+- **Git tip (verified 2026-06-12 `git rev-parse`):** `df3b7a7` on `agent/gc-consolidation` (latest: CSRF fix for scan extract)
+- **Last board update:** 2026-06-12 — crm-ui: CRs 1516+1520 done (lead form layout), CR 1522 root-caused + fixed (CSRF + img_b64 placement). agent/gc-consolidation MERGE-READY to main.
 
 ---
 
