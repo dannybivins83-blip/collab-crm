@@ -49,7 +49,7 @@ def mask(v):
     return "set (%d chars)" % len(v) if v else "EMPTY"
 
 
-def render_put_env(service_id, token, kv, apply):
+def render_put_env(service_id, token, kv, delete_keys, apply):
     """Render: PUT /v1/services/{id}/env-vars replaces the whole env-var set, so we
     GET current, merge our keys, and PUT back. Dry-run prints the plan."""
     hdr = {"Authorization": "Bearer " + token, "Accept": "application/json",
@@ -64,15 +64,18 @@ def render_put_env(service_id, token, kv, apply):
     for row in cur:
         ev = row.get("envVar", row)
         existing[ev.get("key")] = ev.get("value")
-    merged = dict(existing)
+    merged = {k: v for k, v in existing.items() if k not in delete_keys}
     plan = []
     for k, v in kv.items():
         action = "update" if k in existing else "add"
         plan.append((k, action))
         merged[k] = v
+    deletes = [k for k in delete_keys if k in existing]
     print("  Render service %s — plan:" % service_id)
     for k, action in plan:
         print("    %-32s %-6s  %s" % (k, action, mask(kv[k])))
+    for k in deletes:
+        print("    %-32s DELETE" % k)
     if not apply:
         print("  (dry-run — pass --apply to push)")
         return
@@ -81,7 +84,8 @@ def render_put_env(service_id, token, kv, apply):
                                  data=body, headers=hdr, method="PUT")
     try:
         urllib.request.urlopen(req, timeout=30)
-        print("  ✓ Render env-vars updated (a deploy is triggered).")
+        action_summary = "updated %d, deleted %d" % (len(plan), len(deletes))
+        print("  OK Render env-vars %s (a deploy is triggered)." % action_summary)
     except urllib.error.HTTPError as e:
         sys.exit("Render PUT failed: %s %s" % (e.code, e.read().decode()[:200]))
 
@@ -101,6 +105,21 @@ def main():
     for k in kv:
         print("  - %-32s %s" % (k, mask(kv[k])))
 
+    # Keys to skip pushing (local-only or need manual rotation via external service).
+    SKIP_KEYS = {
+        "RENDER_API_KEY",           # local provisioning credential — never goes to Render
+    }
+    # Keys to DELETE from Render (one-shot tokens that should not persist).
+    DELETE_KEYS = {"DB_RESTORE_TOKEN"}
+    # Never push empty values — they would overwrite existing live secrets with blank strings.
+    kv_push = {k: v for k, v in kv.items() if v and k not in SKIP_KEYS and k not in DELETE_KEYS}
+    skipped = [k for k, v in kv.items() if not v or k in SKIP_KEYS]
+    if skipped:
+        print("\n  Skipped (empty or needs-manual-rotation): %s" % ", ".join(skipped))
+    delete_keys = [k for k in kv if k in DELETE_KEYS]
+    if delete_keys:
+        print("  Will DELETE from Render: %s" % ", ".join(delete_keys))
+
     token = os.environ.get("RENDER_API_KEY", "").strip()
     if not token:
         print("\n! RENDER_API_KEY not in env — cannot reach Render. Set it (never in chat) to push.")
@@ -109,7 +128,7 @@ def main():
         print("  (dry-run continues without it.)")
         return
     print("")
-    render_put_env(a.service, token, kv, a.apply)
+    render_put_env(a.service, token, kv_push, delete_keys, a.apply)
     # Vercel is being retired (DNS cutover to Render). Add a vercel_put_env() here only
     # if the tenant still runs on Vercel. Left out by design — one vendor is the goal.
 

@@ -5,7 +5,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
 - **Git tip (verified 2026-06-11 `git rev-parse`):** `f9cf05c` on `origin/agent/gc-consolidation` (latest: takeoff assigned db.insert leak fix)
-- **Last board update:** 2026-06-11 — by crm-ui: audit #10 DONE (billing cursor GUID seen-set dedup, `acculynx_sync.py`); #10 added to done list
+- **Last board update:** 2026-06-12 — by overlord: db.insert conn-leak DONE, P3 backlog all DONE, all audits closed; 2× owner decisions added (ANTHROPIC_API_KEY + Vercel ROOF_ENGINE_API_KEY)
 
 ---
 
@@ -41,11 +41,31 @@ update your row → push. One pusher at a time. Don't route status through the o
 | P2 | **Secret provisioning automation** | Head Coach | DESIGN | One-command push of `keys.local.env` → Render/Vercel APIs; seed of tenant onboarding. |
 | P3 | **SSO go-live** | SiteCam + owner | BLOCKED | Needs fresh `SEABREEZE` on both sides + sitecam-api `SEED_FORCE=true`. |
 | P3 | **QuickBooks integration (product)** | TBD | BACKLOG | Per-tenant OAuth design needed for white-label. |
-| P3 | **Audit #5–#12** | Security | BACKLOG | SECRET_KEY default, CSRF, SSRF, checklist gating, etc. (#8,#9,#10,#11 now DONE) |
-| P2 | **`db.insert()` connection leak on IntegrityError** | Takeoff | ▶ IN PROGRESS | takeoff found + assigned to fix (confirmed db.py:495 no try/finally). Fix insert + update/execute consistently + test; db.py clean, guarded-push db.py + test only. |
+| P3 | **Audit #5–#12** | Security/crm-ui | ✅ ALL CLOSED | #5 SECRET_KEY boot-guard `e8383fc`; #6 SSRF pre-existing; #7 CSRF tokens JS-auto-inject 51 templates `d739c97`. All 7 findings closed. |
+| P2 | **`db.insert()` connection leak on IntegrityError** | Takeoff/crm-ui | ✅ DONE | `edda6d8` (crm-ui): all 6 db.py helpers (insert/update/get/delete/execute/all_rows) wrapped in try/finally. |
 | P0 | **Owner-only System Map page (Danny-direct)** | crm-ui | ✅ DONE | `cfe1188` — /reports/system-map, owner-gated (is_owner seeded on id1; Karla 403; anon→login). Live: lead-flow SVG + disk tree + DB census w/ red flags. Verified via test client. |
 | P2 | **Nav: Site Photos + Roof Reports under Integrations dropdown (Danny-direct)** | crm-ui | ✅ DONE | `7d5ca01` — verified on local preview. |
-| P3 | **Backlog from data-trace (operations 1145)** | TBD | OPEN | (a) link 610 unregistered uploads/documents files into `documents` table; (b) payment-receipt email on `/invoices/<id>/pay` (no email today); (c) portal token TTL/expiry (`token_urlsafe(12)` never expires). |
+| P3 | **Backlog from data-trace (operations 1145)** | crm-ui | ✅ ALL DONE | (a) `/admin/reconcile-docs` registers ~610 orphaned files (job_id=NULL) `8e0f42a`; (b) payment-receipt email on invoice pay (draft-only) `4bcdcf9`; (c) portal token TTL 365-day sliding window + 410 expired page `c049674`. |
+
+---
+
+## DECISIONS NEEDED (owner) — 2026-06-12
+
+| # | Decision | Context | Source |
+|---|---|---|---|
+| **D1** | 🚨 **Rotate ANTHROPIC_API_KEY** at [console.anthropic.com](https://console.anthropic.com) | Key found in plain text in `Downloads/_INBOX/Untitled document.docx`. File secured to `_shared/keys/`. Key may be billing the account. Owner-only action. | operations 2026-06-11T1700 |
+| **D2** | **Update Vercel: ROOF_ENGINE_API_KEY + ROOF_ENGINE_URL** | Old `71tk...` key is dead (401). New key written to `whitelabel-crm/secrets/keys.local.env` by roofengine lane. Copy both values to Vercel project env + redeploy. Live "New Roof Report" page 401s until done. | roofengine 2026-06-11T1751 |
+| **D3** | **K5 Investment Group — nginx cert/SNI fix** | Fix nginx `listen` line in `/etc/nginx/conf.d/k5.conf`. No K5 agent in registry. Assign to K5 agent or handle directly. Directive came from owner dashboard (×2, 1330 + 1629). | owner 2026-06-11T1330/1629 |
+| **D4** | **legal-intake-agent — add auth to API routes** | PII currently exposed on API routes. No `legal-intake-agent` slug in registry. Assign or handle directly. | owner 2026-06-11T1333 |
+| **D5** | 🔴 **DeFi collateral near liquidation** | 0.30 BTC locked as Coinbase DeFi collateral, LTV ≈83%, liquidation at ~$60.5K (~3% below yesterday's spot). Price may have moved. Open Coinbase Borrow screen → check exact LTV → decide: add USDC/USDT, partial repay, or accept risk. Time-sensitive. | investments 2026-06-11T1450 |
+| **D6** | **Tastytrade wheel sleeve — keep or redeploy to debt?** | $3,139 sleeve earning ~$30–50/mo best-case wheel premium vs ~27% Coinbase card APR. Investments recommends redirecting to 27% debt first. No action needed until owner decides. | investments 2026-06-11T1432 |
+| **D7** | **Open coinbase-trader + tasty-trader sessions** | Both bots need Danny to open their sessions so they can ack pause/secrets/position questions. Heartbeat cannot trigger them. coinbase-trader: confirm live execution PAUSED, jackson `.env` secrets rotated. tasty-trader: confirm new live Wheel entries halted, kill-switch status. | investments 2026-06-11T1405 |
+| **D8** | **Repo-rename wave 1 sign-off** | Operations has a 5-wave repo-rename migration map draft at `C:\Users\kjburnz\operations\reference\REPO_RENAME_MIGRATION_MAP_DRAFT.md`. Needs OVERLORD/owner sign-off on: (1) wave 1 low-risk renames, (2) extract `_OVERLORD` to top level, (3) resolve `whitelabel-crm` vs `white-label-crm` naming collision. Breaking changes inventoried. Nothing executed until approved. | operations 2026-06-11T1635 |
+| **D9** | 🔴 **SSN exposed in Drive — restrict file** | Danny's 2023 Schedule C (filed tax return) with SSN in plain text is in Google Drive. Accounting flagged it. Restrict the file immediately. Also: confirm Danny's personal P&L components — bank …1338 statements (SeaBreeze income) + La Gala commission/cut docs — needed to close the personal P&L. | accounting 2026-06-11T1010 |
+| **D10** | **Candy's — logo pick A/B/C** | Open `C:\Users\kjburnz\candys-cake-pops\preview\logo-picker.html` and pick a logo. Unblocks logo finals prep (outlined SVG, PNG exports, brand.html update). | candys 2026-06-12 |
+| **D11** | **Candy's — Vercel prod promote** | Preview deploy being prepped by candys agent. Danny clicks "Promote to Production" in Vercel dashboard (or runs `vercel --prod` in `candys-cake-pops/site/`). Owner's chat directive ("send to overlord for execution") treated as preview-OK; prod promote still needs the click. | candys 2026-06-12 |
+| **D12** | **Candy's — "Run now" on scheduled task `dev-agent-dashboard-requests`** | One-time run in Claude app → Scheduled sidebar to pre-approve Gmail/Bash tools before the 30-min cron fires blind. | candys 2026-06-12 |
+| **D13** | **Candy's — Square checkout links** | Needs Candice's Square dashboard (client account). Interim cakepops.com CTAs stay until she provides. Swap points marked `SQUARE-CHECKOUT` in HTML. | candys 2026-06-12 |
 
 ---
 
@@ -67,9 +87,11 @@ features already merged; lanes VERIFY-don't-rebuild vs current tip, then session
 | Lane | Legacy sessions folded in | Status |
 |---|---|---|
 | **crm-ui** (me) | QA+mobile/UX+lead-intake · overdue-invoice 1-click · onboarding+comms/worksheet tabs · estimate templates (EST-0154 ✅) · dashboard · "resume sales CRM" | mine to verify — pending (voice-wizard worker active on intake; verify after it lands) |
-| **permit** | submittal packet · Broward folio+legal · NOC/form stamp · HVHZ cover · gov-portals signup | 📨 intake sent (inbox/permit, 2026-06-11T1743). Flagged likely-gap: gov-portals signup (no grep hit) |
+| **permit** | submittal packet · Broward folio+legal · NOC/form stamp · HVHZ cover · gov-portals signup | ✅ CONSOLIDATION DONE — 3 tasks shipped: packet_builder_handoff in repo (`dd4b21b`), nav links for Gov Portals + Contractor Profile (`65754f1`), embed widget `/permits/widget/embed` (`65754f1`) |
 | **roofengine** | Roof Report Engine v3 | 📨 intake sent (inbox/roofengine, 2026-06-11T1743) |
 Archive trigger: each lane replies "<LANE> consolidation clean" → crm-ui hands Danny the one-click archive list.
+
+**⚡ MERGE-READY:** `agent/gc-consolidation` is ready to merge to main. Lead-naming feature tested (61 unit tests, 76 total passing, `0771cbd`). AHJ map expansion done (`dd4b21b`). All audit findings closed. Prerequisite `agent/lead-onboarding` already in main (`625231e`). Owner or Head Coach can merge at any time.
 
 ## CRITICAL PATH → "SeaBreeze live + secure on ONE vendor"
 1. **Owner** sets/rotates all Render secrets (below) → 2. **Head Coach** verifies Render healthy on `collab-crm-bwsl.onrender.com` → 3. **Owner** DNS cutover in Cloudflare (CNAME `crm` → Render, grey-cloud) → 4. **Critical #1 closed on the live domain**, Vercel kept as rollback.

@@ -369,6 +369,7 @@ def delegate():
     url = (data.get("url") or "").strip()[:200]
     page_title = (data.get("page_title") or "").strip()[:120]
     context = (data.get("context") or "").strip()[:600]
+    screenshot_path = (data.get("screenshot_path") or "").strip()[:300]
     priority = (data.get("priority") or "P1").strip().upper()
     if priority not in ("P0", "P1", "P2", "P3"):
         priority = "P1"
@@ -390,6 +391,8 @@ def delegate():
         body += "**Page:** %s\n**URL:** %s\n\n" % (page_title or "(untitled)", url or "(none)")
     if context:
         body += "**Selected text:**\n> %s\n\n" % context
+    if screenshot_path:
+        body += "**Screenshot:** `%s`\n\n" % screenshot_path
     body += "**Priority:** %s | **From:** Danny (CRM dispatch widget %s)\n" % (priority, now.strftime("%Y-%m-%d %H:%M"))
     body += "\n---\nTO: %s\nFROM: danny\nSTATUS: new\nSUMMARY: in-CRM dispatch\nNEEDS: nothing" % lane
     try:
@@ -432,6 +435,42 @@ def delegate_log():
     except FileNotFoundError:
         pass
     return jsonify({"ok": True, "entries": entries[-10:][::-1]})
+
+
+@bp.route("/dispatch-screenshot", methods=["POST"])
+def dispatch_screenshot():
+    """Save a base64 PNG screenshot sent from the dispatch widget.
+    Body: {image: 'data:image/png;base64,...', task_id}
+    Saves to _OVERLORD/bus/attachments/ and returns the file path."""
+    import base64 as _b64, os as _os, datetime as _dt, re as _re
+    from modules.auth import current_user as _cu
+    if not _cu():
+        return jsonify({"ok": False, "error": "not logged in"}), 401
+    data = request.get_json(silent=True) or {}
+    img_data = (data.get("image") or "").strip()
+    if not img_data.startswith("data:image/"):
+        return jsonify({"ok": False, "error": "invalid image"}), 400
+    # Strip data URL header
+    try:
+        _, b64 = img_data.split(",", 1)
+        raw = _b64.b64decode(b64)
+    except Exception as e:
+        return jsonify({"ok": False, "error": "decode failed: %s" % e}), 400
+    if len(raw) > 8 * 1024 * 1024:  # 8 MB cap
+        return jsonify({"ok": False, "error": "image too large"}), 400
+    ts = _dt.datetime.now().strftime("%Y%m%dT%H%M%S")
+    task_id = _re.sub(r"[^A-Za-z0-9_-]", "", (data.get("task_id") or ts))[:40]
+    fname = "%s__%s.png" % (ts, task_id)
+    crm_root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    attach_dir = _os.path.normpath(_os.path.join(crm_root, "..", "_OVERLORD", "bus", "attachments"))
+    try:
+        _os.makedirs(attach_dir, exist_ok=True)
+        fpath = _os.path.join(attach_dir, fname)
+        with open(fpath, "wb") as f:
+            f.write(raw)
+    except Exception as e:
+        return jsonify({"ok": False, "error": "save failed: %s" % e}), 500
+    return jsonify({"ok": True, "path": fpath, "filename": fname, "size_kb": len(raw) // 1024})
 
 
 @bp.route("/team-messages", methods=["GET", "POST"])
