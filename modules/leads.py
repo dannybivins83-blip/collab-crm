@@ -176,37 +176,46 @@ def new():
             if extra and extra.strip():
                 summary += "\nNotes: %s" % extra.strip()
         db.add_activity("lead", lid, "note", summary)
-        # Auto-create a Gmail DRAFT notifying the team of the new lead. DRAFT ONLY —
-        # never auto-sent (house rule); Danny/Jacin review and send from Gmail.
+        # Auto-send a notification email to the assigned rep (and team fallback).
         notify_msg = ""
         try:
             from flask import session as _session
             from modules import gmail as _gmail
             uid = _session.get("user_id")
-            notify_to = (db.get_company().get("lead_notify_to")
-                         or "jacin@seabreezeroof.com, dannyb@seabreezeroof.com")
             if uid:
+                # Prefer the assigned rep's user email; fall back to company lead_notify_to.
+                rep_user = next((u for u in db.all_rows("users", "active=1")
+                                 if u.get("name") == data.get("rep")), None)
+                rep_email = (rep_user or {}).get("email") or ""
+                notify_to = (rep_email
+                             or db.get_company().get("lead_notify_to")
+                             or "jacin@seabreezeroof.com, dannyb@seabreezeroof.com")
                 link = url_for("leads.detail", lead_id=lid, _external=True)
                 subj = "New Lead: %s%s%s" % (
                     data.get("name") or "lead",
                     (" — " + data["work_type"]) if data.get("work_type") else "",
                     (" — " + data["address"]) if data.get("address") else "")
-                did = _gmail.create_draft(uid, notify_to, subj, summary + "\n\nOpen in CRM: " + link)
-                if did:
-                    db.add_activity("lead", lid, "draft",
-                                    "Team-notification draft created for %s — review & send in Gmail." % notify_to)
-                    notify_msg = " · team draft ready in Gmail"
+                sent = _gmail.send_message(uid, notify_to, subj, summary + "\n\nOpen in CRM: " + link)
+                if sent:
+                    db.add_activity("lead", lid, "email",
+                                    "Rep/team notification sent to %s" % notify_to)
+                    notify_msg = " · rep notified"
+                else:
+                    # Fall back to draft if send fails (e.g. Gmail not fully connected).
+                    did = _gmail.create_draft(uid, notify_to, subj, summary + "\n\nOpen in CRM: " + link)
+                    if did:
+                        db.add_activity("lead", lid, "draft",
+                                        "Rep-notification draft created for %s — send from Gmail." % notify_to)
+                        notify_msg = " · rep draft in Gmail"
         except Exception:
             pass
-        # Optional homeowner-portal invite — auto-SEND the magic link to the customer.
-        # OFF by default (enable in Settings). Safeguards: only when enabled + the lead
-        # has an email + the rep's Gmail is connected; deduped via portal_invited.
+        # Homeowner portal invite — always send the magic link when the lead has an email
+        # and Gmail is connected. Deduped via portal_invited timestamp.
         try:
-            comp = db.get_company()
-            if (str(comp.get("auto_portal_invite") or "0") in ("1", "true", "True", "on")
-                    and (data.get("email") or "").strip()):
+            if (data.get("email") or "").strip():
                 from flask import session as _ps
                 from modules import portal as _portal, gmail as _gm
+                comp = db.get_company()
                 uid = _ps.get("user_id")
                 link = _portal.lead_portal_link(lid)
                 cname = (data.get("name") or "there").split("(")[0].strip()
@@ -220,9 +229,11 @@ def new():
                     db.update("leads", lid, portal_invited=db.now())
                     db.add_activity("lead", lid, "email",
                                     "Homeowner portal invite emailed to %s" % data["email"])
-                    notify_msg += " · portal invite sent to homeowner"
+                    notify_msg += " · portal invite sent to client"
+                else:
+                    notify_msg += " · portal link (Gmail not connected — use Send portal invite button)"
         except Exception as _e:
-            current_app.logger.warning("Portal invite email failed for lead %s: %s", lead_id, _e)
+            current_app.logger.warning("Portal invite email failed for lead %s: %s", lid, _e)
         flash("Lead created. AHJ: %s%s%s%s" % (
             resolved_ahj or "—", (" · " + system) if system else "", est_msg, notify_msg), "ok")
         return redirect(url_for("leads.detail", lead_id=lid))
@@ -375,6 +386,20 @@ def backfill_ahj():
             db.update("leads", l["id"], **changed)
             updated += 1
     flash("AHJ backfill complete: %d leads updated (%d cities set)." % (updated, cities), "ok")
+    return redirect(url_for("leads.list_view"))
+
+
+@bp.route("/strip-lead-marker", methods=["POST"])
+def strip_lead_marker():
+    """One-time backfill: remove the old ' L' suffix from any lead names that have it.
+    Idempotent — safe to run multiple times."""
+    fixed = 0
+    for l in db.all_rows("leads"):
+        name = (l.get("name") or "")
+        if name.endswith(" L"):
+            db.update("leads", l["id"], name=name[:-2])
+            fixed += 1
+    flash("Stripped ' L' suffix from %d lead name(s)." % fixed, "ok")
     return redirect(url_for("leads.list_view"))
 
 

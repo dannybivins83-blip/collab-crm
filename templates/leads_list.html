@@ -15,6 +15,10 @@
         onsubmit="return confirm('Scan lead addresses for a city and re-resolve the permit office (AHJ)? Only fills blanks/county fallbacks — never overrides a hand-set AHJ.')">
     <button class="btn" type="submit" title="Backfill cities + permit offices from addresses">↻ Backfill AHJs</button>
   </form>
+  <form method="post" action="{{ url_for('leads.strip_lead_marker') }}" style="display:inline"
+        onsubmit="return confirm('Strip the old \" L\" suffix from all lead names?')">
+    <button class="btn" type="submit" title="Remove old lead-marker L from names">✂ Strip L suffix</button>
+  </form>
   <a class="btn primary" href="{{ url_for('leads.new') }}">+ New Lead</a>
 </div>
 

@@ -260,10 +260,10 @@ class TestComposeJobName:
         result = compose_job_name("Smith", rep="")
         assert result == "Smith"
 
-    # --- Lead marker ---
-    def test_lead_marker_appended(self):
+    # --- Lead marker (L suffix removed — was confusing, is_lead now a no-op) ---
+    def test_lead_marker_not_appended(self):
         result = compose_job_name("Smith", is_lead=True)
-        assert result.endswith(" L")
+        assert not result.endswith(" L")
 
     def test_no_lead_marker_default(self):
         result = compose_job_name("Smith")
@@ -294,7 +294,7 @@ class TestComposeJobName:
             work_type="Shingle", squares=17,
             rep="Danny Bivins", is_lead=True
         )
-        assert result == "Jane Doe (BB) (S17) (DB) L"
+        assert result == "Jane Doe (BB) (S17) (DB)"
 
     def test_full_name_shingle_lantana(self):
         result = compose_job_name(

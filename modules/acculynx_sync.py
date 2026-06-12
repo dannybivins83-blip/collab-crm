@@ -539,7 +539,7 @@ def _rep_code(rep=""):
 def compose_job_name(client, ahj="", work_type="", system="", squares="",
                      rep="", rid="", is_lead=False):
     """Build a canonical name. squares optional (added to the roof code once known).
-    is_lead=True appends an 'L' marker (pre-job lifecycle)."""
+    is_lead param accepted for backwards-compat but no longer appends an 'L' suffix."""
     client = (client or "").strip() or "New Customer"
     letter = _sys_letter(work_type, system)
     sq = re.sub(r"[^0-9.]", "", str(squares or "")).split(".")[0]
@@ -553,8 +553,6 @@ def compose_job_name(client, ahj="", work_type="", system="", squares="",
     rc = _rep_code(rep)
     if rc:
         bits.append("(%s)" % rc)
-    if is_lead:
-        bits.append("L")
     name = " ".join(bits)
     return ("%s: %s" % (rid, name)) if rid else name
 
