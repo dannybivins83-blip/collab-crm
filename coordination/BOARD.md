@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-12 `git rev-parse`):** `a3f3928` on `agent/gc-consolidation`
-- **Last board update:** 2026-06-12 — crm-ui: CR-1615 done (typeahead job search on New Roof Report page, `a3f3928`). Prior: CRs 1612+1613 done. 82/82 tests pass. agent/gc-consolidation MERGE-READY to main.
+- **Git tip (verified 2026-06-12 `git rev-parse`):** `c5a076e` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-12 22:30 ET — crm-ui: portal invite fix + estimate BOM update (`c5a076e`). takeoff spec green-lit. Prior: CRs 1743/1742/1745/1820 done. 82/82 tests pass. agent/gc-consolidation MERGE-READY to main.
 
 ---
 
@@ -68,6 +68,8 @@ update your row → push. One pusher at a time. Don't route status through the o
 | **D13** | **Candy's — Square checkout links** | Needs Candice's Square dashboard (client account). Interim cakepops.com CTAs stay until she provides. Swap points marked `SQUARE-CHECKOUT` in HTML. | candys 2026-06-12 |
 | **D14** | 🔴 **Merge `agent/gc-consolidation` → main** | 82/82 tests pass. All CRs since `agent/lead-onboarding` are on this branch. QA Cycle 2 confirms MERGE-READY. Owner or Head Coach: approve the PR or run `git checkout main && git merge agent/gc-consolidation && git push`. Every day of drift makes the next merge harder. | qa-roofr-reprot 2026-06-12T1946 |
 | **D15** | 🔴 **sitecam + roofengine agents offline 41+ hrs** | 4 messages unread since 2026-06-10: sitecam SSO go-live, SEABREEZE rotation coord, roofengine takeoff integration, measure-ready VM push. Either restart those agents and point them at the inbox, or delegate the work to crm-ui / appconnect. No action = SiteCam SSO and Roof Engine push stay blocked indefinitely. | qa-roofr-reprot 2026-06-12T1946 |
+| **D16** | **Set SMTP_FROM + SMTP_PASSWORD on Render** | Portal invite emails + rep notifications now fall through to SMTP when Gmail OAuth is absent. Two env vars needed on Render (SMTP_FROM = Gmail address, SMTP_PASSWORD = Gmail app-password from Google Account → Security → App passwords). 2-min setup. All client portal invites + lead notifications will fire automatically once set. | crm-ui 2026-06-12T2230 |
+| **D17** | **La Gala profile — when to activate takeoff for La Gala** | takeoff lane building SeaBreeze-only v1. La Gala activation needs: second CRM tenant stand-up + LAGALA_CRM_WEBHOOK_SECRET on Render + lgc-bid-form handoff. No urgency until La Gala jobs come in — Danny confirms timing. | crm-ui / takeoff 2026-06-12T2230 |
 
 ---
 
