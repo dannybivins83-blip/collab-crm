@@ -23,12 +23,13 @@ import constants
 bp = Blueprint("portal", __name__, url_prefix="/portal")
 
 # Ensure the token column + portal config columns exist (module-load convention).
-try:
-    db.execute("ALTER TABLE jobs ADD COLUMN portal_token TEXT")
-except Exception:
-    pass
+for _c in ("portal_token TEXT", "portal_token_expires TEXT"):
+    try:
+        db.execute("ALTER TABLE jobs ADD COLUMN %s" % _c)
+    except Exception:
+        pass
 # Leads get their own portal token + an "invited" flag (dedupe the auto-invite email).
-for _lc in ("portal_token TEXT", "portal_invited TEXT"):
+for _lc in ("portal_token TEXT", "portal_invited TEXT", "portal_token_expires TEXT"):
     try:
         db.execute("ALTER TABLE leads ADD COLUMN %s" % _lc)
     except Exception:
@@ -522,6 +523,36 @@ _STAGE_TO_PHASE = {
 }
 
 
+_TOKEN_TTL_DAYS = 365   # full project lifespan
+_TOKEN_SLIDE_DAYS = 90  # extend by this much when within 60 days of expiry
+
+
+def _token_expires_str(days=_TOKEN_TTL_DAYS):
+    import datetime
+    return (datetime.date.today() + datetime.timedelta(days=days)).isoformat()
+
+
+def _token_is_expired(expires_str):
+    """True if expires_str is set AND today is past it."""
+    if not expires_str:
+        return False  # legacy tokens (NULL expiry) remain valid
+    import datetime
+    try:
+        return datetime.date.today().isoformat() > expires_str[:10]
+    except Exception:
+        return False
+
+
+def _maybe_slide(table, row_id, expires_str):
+    """Extend the token TTL if it expires within 60 days."""
+    if not expires_str:
+        return
+    import datetime
+    threshold = (datetime.date.today() + datetime.timedelta(days=60)).isoformat()
+    if expires_str[:10] <= threshold:
+        db.update(table, row_id, portal_token_expires=_token_expires_str())
+
+
 def ensure_token(job_id):
     """Return the job's portal token, generating + saving one if needed."""
     j = db.get("jobs", job_id)
@@ -530,7 +561,8 @@ def ensure_token(job_id):
     tok = j.get("portal_token")
     if not tok:
         tok = secrets.token_urlsafe(12)
-        db.update("jobs", job_id, portal_token=tok)
+        db.update("jobs", job_id, portal_token=tok,
+                  portal_token_expires=_token_expires_str())
     return tok
 
 
@@ -538,7 +570,13 @@ def _job_by_token(token):
     if not token:
         return None
     rows = db.all_rows("jobs", "portal_token=?", (token,))
-    return rows[0] if rows else None
+    if not rows:
+        return None
+    j = rows[0]
+    if _token_is_expired(j.get("portal_token_expires")):
+        return None
+    _maybe_slide("jobs", j["id"], j.get("portal_token_expires"))
+    return j
 
 
 @bp.app_template_global()
@@ -556,7 +594,8 @@ def ensure_lead_token(lead_id):
     tok = l.get("portal_token")
     if not tok:
         tok = secrets.token_urlsafe(12)
-        db.update("leads", lead_id, portal_token=tok)
+        db.update("leads", lead_id, portal_token=tok,
+                  portal_token_expires=_token_expires_str())
     return tok
 
 
@@ -564,7 +603,13 @@ def _lead_by_token(token):
     if not token:
         return None
     rows = db.all_rows("leads", "portal_token=?", (token,))
-    return rows[0] if rows else None
+    if not rows:
+        return None
+    l = rows[0]
+    if _token_is_expired(l.get("portal_token_expires")):
+        return None
+    _maybe_slide("leads", l["id"], l.get("portal_token_expires"))
+    return l
 
 
 def lead_portal_link(lead_id):
@@ -639,6 +684,15 @@ def _decorate(j):
     return j
 
 
+def _token_is_expired_in_db(token):
+    """True if the token exists in jobs or leads but is past its expiry date."""
+    for table in ("jobs", "leads"):
+        rows = db.all_rows(table, "portal_token=?", (token,))
+        if rows and _token_is_expired(rows[0].get("portal_token_expires")):
+            return True
+    return False
+
+
 @bp.route("/<token>")
 def home(token):
     j = _job_by_token(token)
@@ -652,6 +706,9 @@ def home(token):
             rep = next((u for u in db.all_rows("users") if u.get("name") == l.get("rep")), None)
             return render_template("lead_portal.html", l=l, client=nm or "there",
                                    rep=rep, company=db.get_company(), token=token)
+        if _token_is_expired_in_db(token):
+            company = db.get_company()
+            return render_template("portal_expired.html", company=company), 410
         abort(404)
     _decorate(j)
     estimates = db.all_rows("estimates", "job_id=?", (j["id"],), "id DESC")

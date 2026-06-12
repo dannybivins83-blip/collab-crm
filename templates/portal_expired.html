@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{{ company.name or 'Portal' }} — Link Expired</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#eef2f7;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border-radius:16px;box-shadow:0 6px 24px -8px rgba(16,34,64,.18);padding:48px 40px;max-width:440px;width:100%;text-align:center}
+  .icon{font-size:48px;margin-bottom:20px}
+  h1{font-size:22px;font-weight:700;color:#16223b;margin-bottom:10px}
+  p{font-size:15px;color:#5a6880;line-height:1.6;margin-bottom:20px}
+  .company{font-size:13px;color:#8a93a6;margin-top:28px;border-top:1px solid #e7ecf3;padding-top:18px}
+  a.btn{display:inline-block;margin-top:8px;padding:11px 28px;background:#24476C;color:#fff;border-radius:9px;text-decoration:none;font-weight:600;font-size:15px}
+  a.btn:hover{opacity:.9}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🔗</div>
+  <h1>This link has expired</h1>
+  <p>Your project portal link is no longer active. This can happen when a link is very old or a new one has been issued.</p>
+  <p>Contact {{ company.name or 'your contractor' }} and they'll send you a fresh link right away.</p>
+  {% if company.phone %}<a class="btn" href="tel:{{ company.phone }}">Call {{ company.phone }}</a>{% endif %}
+  {% if company.email %}<p style="margin-top:14px;font-size:14px;color:#5a6880">or email <a href="mailto:{{ company.email }}" style="color:#24476C">{{ company.email }}</a></p>{% endif %}
+  <div class="company">{{ company.name }}{% if company.license %} &nbsp;·&nbsp; Lic. {{ company.license }}{% endif %}</div>
+</div>
+</body>
+</html>
