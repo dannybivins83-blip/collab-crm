@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Job' if mode=='edit' else 'New Job' }} — SeaBreeze{% endblock %}
+{% block body %}
+
+<div class="crumb">
+  <a href="{{ url_for('dashboard') }}">&larr; Board</a>
+  {% if mode == 'edit' %} / <a href="{{ url_for('job_detail', job_id=job.id) }}">Job #{{ job.id }}</a> / Edit{% else %} / New Job{% endif %}
+</div>
+
+<form class="jobform" method="post"
+      action="{{ url_for('job_edit', job_id=job.id) if mode=='edit' else url_for('job_new') }}">
+  <h2 style="margin-top:0;color:var(--navy)">{{ 'Edit Job' if mode=='edit' else 'New Job — starts in Lead' }}</h2>
+  <div class="grid">
+    <div class="field"><label>Owner</label><input name="owner" value="{{ job.owner or '' }}" required></div>
+    <div class="field"><label>Phone</label><input name="phone" value="{{ job.phone or '' }}"></div>
+    <div class="field"><label>Email</label><input name="email" value="{{ job.email or '' }}"></div>
+    <div class="field"><label>Property Address</label><input name="address" value="{{ job.address or '' }}"></div>
+    <div class="field"><label>City</label><input name="city" value="{{ job.city or '' }}"></div>
+    <div class="field"><label>ZIP</label><input name="zip" value="{{ job.zip or '' }}"></div>
+
+    <div class="field"><label>AHJ (jurisdiction)</label>
+      <select name="ahj">
+        <option value="">— select AHJ —</option>
+        {% for a in ahjs %}<option value="{{ a }}" {% if job.ahj==a %}selected{% endif %}>{{ a.replace('_',' ') }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>Roof System</label>
+      <select name="system">
+        <option value="">— select system —</option>
+        {% for s in systems %}<option value="{{ s }}" {% if job.system==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+
+    <div class="field"><label>PCN</label><input name="pcn" value="{{ job.pcn or '' }}"></div>
+    <div class="field"><label>County</label><input name="county" value="{{ job.county or 'Palm Beach County' }}"></div>
+    <div class="field full"><label>Legal Description</label><input name="legal" value="{{ job.legal or '' }}"></div>
+
+    <div class="field"><label>Existing Roof</label><input name="existing" value="{{ job.existing or '' }}" placeholder="Asphalt Shingle"></div>
+    <div class="field"><label>Roof Area (sf)</label><input name="area" value="{{ job.area or '' }}"></div>
+    <div class="field"><label>Slope</label><input name="slope" value="{{ job.slope or '' }}" placeholder="4:12"></div>
+    <div class="field"><label>Mean Roof Height (ft)</label><input name="mrh" value="{{ job.mrh or '' }}" placeholder="15"></div>
+    <div class="field"><label>Exposure Category</label>
+      <select name="exposure">
+        {% for e in ['','B','C','D'] %}<option value="{{ e }}" {% if job.exposure==e %}selected{% endif %}>{{ e or '—' }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>Est. Value ($)</label><input name="value" value="{{ job.value or '' }}"></div>
+
+    <div class="field full"><label>Notes</label><textarea name="notes">{{ job.notes or '' }}</textarea></div>
+  </div>
+  <div class="formfoot">
+    <button class="btn go" type="submit">{{ 'Save Changes' if mode=='edit' else 'Create Job' }}</button>
+    <a class="btn ghost" href="{{ url_for('job_detail', job_id=job.id) if mode=='edit' else url_for('dashboard') }}">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

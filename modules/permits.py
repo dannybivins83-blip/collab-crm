@@ -23,8 +23,15 @@ FIELDS = ["job_id", "ahj", "county", "system", "permit_number", "submitted_date"
           "approved_date", "notes"]
 
 # Make the permit-packet builder importable (engine + SeaBreeze_Permit_Library).
+# packet_builder_handoff/ is now inside the repo (whitelabel-crm/packet_builder_handoff/)
+# so Render can reach it.  Fall back to the legacy sibling-dir location for local
+# installs that haven't pulled the new copy yet.
 _BUILDER_DIR = os.path.normpath(os.path.join(
-    config.HERE, "..", "packet_builder_handoff", "permit_packet_builder"))
+    config.HERE, "packet_builder_handoff", "permit_packet_builder"))
+if not os.path.isdir(_BUILDER_DIR):
+    # Legacy: sibling directory outside the repo root (pre-copy fallback)
+    _BUILDER_DIR = os.path.normpath(os.path.join(
+        config.HERE, "..", "packet_builder_handoff", "permit_packet_builder"))
 if _BUILDER_DIR not in sys.path and os.path.isdir(_BUILDER_DIR):
     sys.path.insert(0, _BUILDER_DIR)
 

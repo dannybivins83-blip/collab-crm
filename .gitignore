@@ -45,3 +45,19 @@ scripts/_ws_seed.json
 static/_wsg.json
 dev_notes.txt
 scripts/_ws_guids.json
+
+# ---- packet_builder_handoff: exclude the 1.1 GB SeaBreeze permit library (PDFs,
+#      images, calibration files) and compiled Python.  The Python source files
+#      (build.py, stamp_maps.py, etc.) ARE committed so Render can import them.
+#      Keep ONLY *.py and *.md; exclude everything else inside the library. ----
+packet_builder_handoff/SeaBreeze_Permit_Library/
+packet_builder_handoff/SeaBreeze_Ops/__pycache__/
+packet_builder_handoff/permit_packet_builder/__pycache__/
+packet_builder_handoff/permit_packet_builder/_speccheck/
+packet_builder_handoff/__pycache__/
+packet_builder_handoff/**/*.pyc
+packet_builder_handoff/**/__pycache__/
+packet_builder_handoff/SeaBreeze_Ops/data/
+packet_builder_handoff/SeaBreeze_Ops/output/
+packet_builder_handoff/SeaBreeze_Ops/uploads/
+packet_builder_handoff/run_builder_hidden.vbs

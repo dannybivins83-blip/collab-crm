@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}SeaBreeze Job Management{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="app">
+  <div class="brand">
+    <h1>SeaBreeze Job Management <span style="color:#bcd5e6;font-weight:400">— Lead to Approved</span></h1>
+    <div class="sub">SeaBreeze Roofing &amp; Sheet Metal, Inc. &nbsp;|&nbsp; CCC-1328689 &nbsp;|&nbsp; Palm Beach County</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('builder') }}">↺ New Packet</a>
+    <a href="#" onclick="window.close();return false;">✕ Close (back to dashboard)</a>
+  </div>
+</header>
+<div class="wrap">
+{% block body %}{% endblock %}
+</div>
+</body>
+</html>

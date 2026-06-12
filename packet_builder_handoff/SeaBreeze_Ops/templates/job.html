@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{{ job.owner or 'Job' }} — SeaBreeze{% endblock %}
+{% block body %}
+
+<div class="crumb"><a href="{{ url_for('dashboard') }}">&larr; Board</a> / Job #{{ job.id }}</div>
+
+<div class="stagebar">
+  {% set ci = stages.index(job.stage) if job.stage in stages else 0 %}
+  {% for s in stages %}
+    {% set i = loop.index0 %}
+    <span class="pill {% if i == ci %}cur{% elif i < ci %}done{% endif %}">{{ s }}</span>
+    {% if not loop.last %}<span style="color:var(--muted)">&rsaquo;</span>{% endif %}
+  {% endfor %}
+</div>
+
+<div class="detail">
+  <!-- LEFT -->
+  <div>
+    <div class="panel">
+      <h2>{{ job.owner or 'Unnamed Job' }}</h2>
+      <div class="btnrow" style="margin-bottom:14px">
+        {% if job.stage != 'Completed' %}
+        <form method="post" action="{{ url_for('job_advance', job_id=job.id) }}">
+          <button class="btn go">&rarr; Advance to {{ stages[ci+1] }}</button>
+        </form>
+        {% else %}
+        <span class="pill done">Job Completed</span>
+        {% endif %}
+        <a class="btn ghost" href="{{ url_for('job_edit', job_id=job.id) }}">Edit</a>
+        <form method="post" action="{{ url_for('job_build', job_id=job.id) }}">
+          <button class="btn dark">Quick Build Packet</button>
+        </form>
+        <a class="btn ghost" href="{{ url_for('builder', job_id=job.id) }}">Open in Packet Builder</a>
+        {% if job.packet %}
+        <a class="btn" href="{{ url_for('download', file=job.packet) }}">Download Packet</a>
+        {% endif %}
+      </div>
+      {% if job.next_action %}
+      <div class="flash" style="background:{% if overdue(job) %}#fbe3e1;border-color:#f3c4be;color:var(--danger){% endif %}">
+        Next: <strong>{{ job.next_action }}</strong>{% if job.next_due %} — due {{ job.next_due }}{% if overdue(job) %} (OVERDUE){% endif %}{% endif %}
+      </div>
+      {% endif %}
+
+      <table class="fields">
+        <tr><td class="k">Stage</td><td>{{ job.stage }}</td></tr>
+        <tr><td class="k">Phone</td><td>{{ job.phone or '—' }}</td></tr>
+        <tr><td class="k">Email</td><td>{{ job.email or '—' }}</td></tr>
+        <tr><td class="k">Address</td><td>{{ job.address or '—' }}{% if job.city %}, {{ job.city }}{% endif %}{% if job.zip %} {{ job.zip }}{% endif %}</td></tr>
+        <tr><td class="k">County</td><td>{{ job.county or '—' }}</td></tr>
+        <tr><td class="k">AHJ</td><td>{{ job.ahj or '—' }}</td></tr>
+        <tr><td class="k">PCN</td><td>{{ job.pcn or '—' }}</td></tr>
+        <tr><td class="k">Legal</td><td>{{ job.legal or '—' }}</td></tr>
+        <tr><td class="k">System</td><td>{{ job.system or '—' }}</td></tr>
+        <tr><td class="k">Existing roof</td><td>{{ job.existing or '—' }}</td></tr>
+        <tr><td class="k">Area / Slope / MRH</td><td>{{ job.area or '—' }} sf / {{ job.slope or '—' }} / {{ job.mrh or '—' }}'</td></tr>
+        <tr><td class="k">Exposure</td><td>{{ job.exposure or '—' }}</td></tr>
+        <tr><td class="k">Est. Value</td><td>{% if job.value %}<strong style="color:var(--success)">${{ job.value }}</strong>{% else %}—{% endif %}</td></tr>
+        <tr><td class="k">Packet</td><td>{{ job.packet or 'not built yet' }}</td></tr>
+        <tr><td class="k">Notes</td><td>{{ job.notes or '—' }}</td></tr>
+        <tr><td class="k">Created / Updated</td><td>{{ job.created }} / {{ job.updated }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div>
+    <div class="panel">
+      <h2>Open Tasks ({{ tasks|length }})</h2>
+      {% if tasks %}
+      <ul class="tasklist">
+        {% for t in tasks %}
+        {% set tov = t.due and t.due <= today() %}
+        <li class="{% if tov %}over{% endif %}">
+          <span>{{ t.text }}<br><span class="due {% if tov %}over{% endif %}">{% if t.due %}due {{ t.due }}{% if tov %} — OVERDUE{% endif %}{% else %}no due date{% endif %}</span></span>
+          <form method="post" action="{{ url_for('task_done', task_id=t.id) }}">
+            <input type="hidden" name="job_id" value="{{ job.id }}">
+            <button class="btn go" style="padding:7px 13px">Done</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="empty">No open tasks.</div>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2>Add Note</h2>
+      <form method="post" action="{{ url_for('job_note', job_id=job.id) }}">
+        <textarea class="note" name="text" placeholder="Log a call, site note, etc." required></textarea>
+        <div style="margin-top:10px"><button class="btn">Add Note</button></div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>Activity Timeline</h2>
+      {% if activity %}
+      <ul class="timeline">
+        {% for a in activity %}
+        <li class="kind-{{ a.kind }}">
+          <span class="badge {{ a.kind }}">{{ a.kind }}</span>{{ a.text }}
+          {% if a.kind == 'task' %}{% if a.done %} <span style="color:var(--success)">&#10003; done</span>{% elif a.due %} <em>(due {{ a.due }})</em>{% endif %}{% endif %}
+          <div class="t">{{ a.created }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="empty">No activity yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}

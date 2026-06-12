@@ -66,9 +66,45 @@ def city_from(address, city):
     return ""
 
 
+# Explicit city-name → AHJ-key overrides for South Florida municipalities whose
+# common name differs from the permit-library directory name, or whose county
+# building dept handles permits (unincorporated areas).
+# Format: lowercase city name → exact AHJ key matching the permit library.
+CITY_AHJ_OVERRIDES = {
+    # Palm Beach County incorporated cities
+    "wellington":        "Wellington",
+    "mangonia park":     "Mangonia_Park",
+    "royal palm beach":  "Royal_Palm_Beach",
+    "greenacres":        "Greenacres",
+    "lantana":           "Lantana",
+    # "Lake Worth" is a common shorthand — the official AHJ is Lake Worth Beach
+    "lake worth":        "Lake_Worth_Beach",
+    "lake worth beach":  "Lake_Worth_Beach",
+    # Unincorporated Loxahatchee → Palm Beach County (no city building dept);
+    # Loxahatchee Groves is incorporated and has its own AHJ
+    "loxahatchee":       "Palm_Beach_County",
+    "loxahatchee groves": "Loxahatchee_Groves",
+    # Generic unincorporated PBC areas
+    "the acreage":       "Palm_Beach_County",
+    "unincorporated":    "Palm_Beach_County",
+}
+
+
 def resolve_ahj(address="", city="", county=""):
-    """Return the best AHJ (permit office) label for an address."""
+    """Return the best AHJ (permit office) label for an address.
+
+    Resolution order:
+    1. CITY_AHJ_OVERRIDES — exact match on lowercase city name (handles aliases
+       like 'Lake Worth' → 'Lake_Worth_Beach' and unincorporated areas).
+    2. Permit-library keys (exact, contains, first-token) — dynamic from build.
+    3. Fall back to city-as-typed, else the county building dept.
+    """
     cand = city_from(address, city)
+    # 1. Explicit override map (case-insensitive)
+    if cand:
+        override = CITY_AHJ_OVERRIDES.get(cand.strip().lower())
+        if override:
+            return override
     keys = _ahj_keys()
     if cand and keys:
         norm = re.sub(r"\s+", "_", cand.strip()).lower()

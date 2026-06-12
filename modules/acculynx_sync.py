@@ -417,7 +417,10 @@ _AHJ_MAP = {"PBC": "Palm Beach County", "BB": "Boynton Beach", "LWB": "Lake Wort
             "RPB": "Royal Palm Beach", "PBG": "Palm Beach Gardens", "WELL": "Wellington",
             "WPB": "West Palm Beach", "LAN": "Lantana", "GA": "Greenacres",
             "DEL": "Delray Beach", "BOCA": "Boca Raton", "JUP": "Jupiter",
-            "LW": "Lake Worth", "MAN": "Manalapan", "HYP": "Hypoluxo", "ATL": "Atlantis"}
+            "LW": "Lake Worth", "MAN": "Manalapan", "HYP": "Hypoluxo", "ATL": "Atlantis",
+            # South Florida expansions
+            "MANG": "Mangonia Park", "LOX": "Loxahatchee", "LOXG": "Loxahatchee Groves",
+            "LKW": "Lake Worth", "RPALM": "Royal Palm Beach"}
 _REP_MAP = {"SCOTT": "Scott", "DB": "Danny Bivins", "FF": "Francis Ferrer",
             "FERRER": "Francis Ferrer", "JHC": "Johnny Cagle", "JAC": "Jacin Carreiro", "MK": "MK"}
 # Florida service-area cities -> matched as the AHJ when a name spells the jurisdiction
@@ -429,6 +432,8 @@ _FL_CITIES = {
     "juno beach", "lake park", "palm springs", "hypoluxo", "riviera beach", "highland beach",
     "ocean ridge", "manalapan", "atlantis", "haverhill", "loxahatchee groves", "loxahatchee",
     "gulf stream", "hobe sound", "tequesta", "lake clarke shores", "the acreage", "westlake",
+    # South Florida expansions
+    "mangonia park",
     "pahokee", "belle glade", "south bay", "fort lauderdale", "hollywood", "pompano beach",
     "coral springs", "deerfield beach", "davie", "plantation", "sunrise", "tamarac", "margate",
     "coconut creek", "parkland", "lighthouse point", "lauderdale-by-the-sea", "lauderhill",

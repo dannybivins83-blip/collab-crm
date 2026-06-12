@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+{% block title %}Permit Packet Builder — SeaBreeze{% endblock %}
+{% block body %}
+
+<style>
+/* Scoped to .pb so it never collides with the dashboard's style.css */
+.pb{max-width:980px;margin:0 auto}
+.pb .crumb{font-size:13px;color:var(--muted);margin-bottom:14px}
+.pb .steps{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}
+.pb .step{flex:1;min-width:120px;background:#fff;border:2px solid #dde3ea;border-radius:10px;
+  padding:10px 12px;font-size:13px;font-weight:600;color:#7b8794;cursor:pointer;transition:.15s}
+.pb .step .n{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;
+  border-radius:50%;background:#dde3ea;color:#fff;margin-right:8px;font-size:12px}
+.pb .step.active{border-color:#4a90b8;color:#1a3a5c}
+.pb .step.active .n{background:#4a90b8}
+.pb .step.done{border-color:#1a7f37;color:#1a7f37}
+.pb .step.done .n{background:#1a7f37}
+.pb .panel{background:#fff;border-radius:14px;box-shadow:0 2px 14px rgba(26,58,92,.08);
+  padding:26px 30px;display:none}
+.pb .panel.show{display:block}
+.pb .panel h2{margin:0 0 4px;color:#1a3a5c;font-size:22px;border:none;padding:0}
+.pb .panel p.lead{margin:0 0 18px;color:#6b7785}
+.pb .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pb label{display:block;font-size:12px;font-weight:700;color:#1a3a5c;margin-bottom:4px;
+  text-transform:uppercase;letter-spacing:.3px}
+.pb input,.pb select{width:100%;padding:11px 12px;border:1.5px solid #cdd6e0;border-radius:8px;
+  font-size:15px;background:#fff}
+.pb input:focus,.pb select:focus{outline:none;border-color:#4a90b8}
+.pb .full{grid-column:1/3}
+.pb .btnrow{display:flex;justify-content:space-between;margin-top:24px;gap:12px}
+.pb .big{background:#4a90b8;color:#fff;border:none;border-radius:10px;padding:15px 30px;
+  font-size:17px;font-weight:700;cursor:pointer;transition:.15s}
+.pb .big:hover{filter:brightness(1.08);text-decoration:none}
+.pb .big.navy{background:#1a3a5c}
+.pb .big.ghost{background:#eef2f6;color:#1a3a5c}
+.pb .big:disabled{opacity:.5;cursor:not-allowed}
+.pb .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pb .card{border:2.5px solid #dde3ea;border-radius:14px;padding:26px 20px;text-align:center;
+  cursor:pointer;font-size:20px;font-weight:800;color:#1a3a5c;transition:.15s;background:#fff}
+.pb .card .ic{font-size:38px;display:block;margin-bottom:8px}
+.pb .card small{display:block;font-weight:500;color:#7b8794;font-size:13px;margin-top:6px}
+.pb .card:hover{border-color:#4a90b8;transform:translateY(-2px)}
+.pb .card.sel{border-color:#1a7f37;background:#f1faf3}
+.pb .drop{border:2.5px dashed #b7c4d4;border-radius:14px;padding:34px;text-align:center;
+  color:#6b7785;cursor:pointer;background:#fafcfe}
+.pb .drop:hover{border-color:#4a90b8}
+.pb .filelist{margin-top:12px;font-size:14px}
+.pb .filelist div{background:var(--tint);padding:8px 12px;border-radius:8px;margin-top:6px}
+.pb #result{display:none;text-align:center}
+.pb #result .ok{font-size:48px;color:#1a7f37}
+.pb .muted{color:#90a0b0;font-size:12px;margin-top:8px}
+.pb .req:after{content:" *";color:#c00}
+.pb .jobtag{display:inline-block;background:#eef2f6;border:1px solid var(--line);border-radius:20px;
+  padding:4px 12px;font-size:12.5px;color:#1a3a5c;margin-bottom:14px}
+</style>
+
+<div class="pb">
+  <div class="crumb">
+    <a href="{{ url_for('dashboard') }}">&larr; Board</a>
+    {% if job_id and pf %} / <a href="{{ url_for('job_detail', job_id=job_id) }}">Job #{{ job_id }}</a>{% endif %}
+    / Permit Packet Builder
+  </div>
+
+  {% if job_id and pf %}
+  <div class="jobtag">Building for job #{{ job_id }} — <strong>{{ pf.owner }}</strong>. The packet will be attached to this job.</div>
+  {% endif %}
+
+  <div class="steps">
+    <div class="step active" data-s="1"><span class="n">1</span>Client Info</div>
+    <div class="step" data-s="2"><span class="n">2</span>Attach Docs</div>
+    <div class="step" data-s="3"><span class="n">3</span>County</div>
+    <div class="step" data-s="4"><span class="n">4</span>AHJ</div>
+    <div class="step" data-s="5"><span class="n">5</span>System</div>
+    <div class="step" data-s="6"><span class="n">6</span>Build</div>
+  </div>
+
+  <!-- 1 client -->
+  <div class="panel show" id="p1">
+    <h2>Verify Client Info</h2><p class="lead">Job-specific details for this client. SeaBreeze contractor info is filled automatically.</p>
+    <div class="full" style="margin-bottom:14px;padding:12px 14px;background:#eef6ff;border:1px solid #bcd9f5;border-radius:8px">
+      <label style="font-weight:700">&#11015; Load a client from your board</label>
+      <select id="clientpick" onchange="loadClient(this.value)" style="width:100%;padding:9px;margin-top:4px">
+        <option value="">&mdash; pick a job or prospect to auto-fill &mdash;</option>
+      </select>
+    </div>
+    <script>
+      (function(){
+        fetch('/clients').then(function(r){return r.json();}).then(function(d){
+          window.__clients = d;
+          var sel = document.getElementById('clientpick');
+          function grp(label, arr){
+            if(!arr || !arr.length) return;
+            var og = document.createElement('optgroup'); og.label = label + ' ('+arr.length+')';
+            arr.forEach(function(c,i){ var o=document.createElement('option'); o.value=label+'|'+i; o.textContent=c.label; og.appendChild(o); });
+            sel.appendChild(og);
+          }
+          grp('Job Process', d.jobs); grp('Prospects', d.prospects);
+        }).catch(function(){});
+      })();
+      function setAhjFromCity(city){
+        if(!city) return false;
+        var sel=document.getElementById('ahj'); if(!sel) return false;
+        var want=city.trim().toLowerCase().replace(/\s+/g,'_');
+        for(var i=0;i<sel.options.length;i++){
+          if(sel.options[i].value && sel.options[i].value.toLowerCase()===want){
+            sel.value=sel.options[i].value;
+            var go=document.getElementById('ahjGo'); if(go) go.disabled=false;
+            return true;
+          }
+        }
+        return false;
+      }
+      function loadClient(v){
+        if(!v || !window.__clients) return;
+        var p=v.split('|'), arr=(p[0]==='Job Process'?window.__clients.jobs:window.__clients.prospects), c=arr[+p[1]];
+        if(!c) return;
+        ['owner','phone','address','city','zip','value'].forEach(function(k){
+          var el=document.getElementById(k); if(el && c[k]!=null && c[k]!=='') el.value=c[k];
+        });
+        setAhjFromCity(c.city);   // auto-select the municipality from the address
+        try{ if(typeof lookupPCN==='function') lookupPCN(true); }catch(e){}  // auto-fill PCN from county
+      }
+      // On load, auto-select AHJ + auto-fill PCN from a pre-filled address (dashboard launch)
+      window.addEventListener('DOMContentLoaded', function(){
+        var ci=document.getElementById('city');
+        var aj=document.getElementById('ahj');
+        if(ci && ci.value && aj && !aj.value) setAhjFromCity(ci.value);
+        var ad=document.getElementById('address'), pc=document.getElementById('pcn');
+        if(ad && ad.value && pc && !pc.value && typeof lookupPCN==='function'){ try{ lookupPCN(true); }catch(e){} }
+      });
+    </script>
+    <div class="grid">
+      <div><label class="req">Owner Name</label><input id="owner" value="{{ pf.owner or '' }}" placeholder="John &amp; Gina Iconomou"></div>
+      <div><label>Phone</label><input id="phone" value="{{ pf.phone or '' }}" placeholder="(561) 756-5945"></div>
+      <div class="full"><label class="req">Property Address</label><input id="address" value="{{ pf.address or '' }}" placeholder="297 NW 64th Street"></div>
+      <div><label>City</label><input id="city" value="{{ pf.city or '' }}" placeholder="(defaults to AHJ)"></div>
+      <div><label>Zip</label><input id="zip" value="{{ pf.zip or '' }}" placeholder="33487"></div>
+      <div><label>PCN / Parcel #</label><input id="pcn" value="{{ pf.pcn or '' }}" placeholder="06-43-47-05-18-006-0070">
+        <a href="#" id="pcnlink" onclick="lookupPCN(false);return false" style="font-size:12px;color:#2f6df6;font-weight:600">&#128269; look up PCN &amp; legal (county appraiser)</a></div>
+      <div><label>Legal Description</label><input id="legal" value="{{ pf.legal or '' }}" placeholder="BOCA TEECA SEC 5 LT 7 BLK 6" oninput="legalEdited()"><div class="muted" style="font-size:11px">Needed to fully complete the NOC &amp; permit app</div><div id="legalWarn" style="display:none;font-size:11px;color:#b45309;font-weight:700;margin-top:3px">&#9888; Auto-derived from county GIS &mdash; APPROXIMATE. Verify &amp; paste the exact recorded legal from PBCPA (incl. plat book, e.g. &ldquo;IN PB49P179&rdquo;) before building.</div></div>
+      <div><label>Existing Roof</label><input id="existing" value="{{ pf.existing or '' }}" placeholder="Asphalt Shingle"></div>
+      <div><label>Est. Value $</label><input id="value" value="{{ pf.value or '' }}" placeholder="67,734.00"></div>
+      <div><label>Total Roof Area (sf)</label><input id="area" value="{{ pf.area or '' }}" placeholder="from RoofGraf"></div>
+      <div><label>Roof Slope (x/12)</label><input id="slope" value="{{ pf.slope or '' }}" placeholder="6"></div>
+      <div><label>Mean Roof Height (ft)</label><input id="mrh" value="{{ pf.mrh or '' }}" placeholder="15"></div>
+      <div><label>Exposure</label><select id="exposure">
+        {% for e in ['','B','C','D'] %}<option value="{{ e }}" {% if pf.exposure==e and e %}selected{% endif %}>{{ e or '—' }}</option>{% endfor %}
+      </select></div>
+    </div>
+    <div class="btnrow"><span></span><button class="big" onclick="go(2)">Next: Attach Docs &rarr;</button></div>
+  </div>
+
+  <!-- 2 attach -->
+  <div class="panel" id="p2">
+    <h2>Attach Documents</h2><p class="lead">RoofGraf report, photos-PDF, signed proposal, or anything else to bundle into the packet (PDF).</p>
+    <div class="drop" id="drop" onclick="document.getElementById('files').click()">
+      &#128206; <b>Click to attach PDFs</b><div class="muted">RoofGraf, measurement report, signed estimate…</div>
+    </div>
+    <input type="file" id="files" multiple accept="application/pdf" style="display:none" onchange="addFiles(this.files)">
+    <div class="filelist" id="filelist"></div>
+    <div id="measNote" class="muted" style="display:none;color:#0f9e82;font-weight:700;margin-top:8px"></div>
+    <div class="btnrow"><button class="big ghost" onclick="go(1)">&larr; Back</button><button class="big" onclick="go(3)">Next: County &rarr;</button></div>
+  </div>
+
+  <!-- 3 county -->
+  <div class="panel" id="p3">
+    <h2>Select County</h2><p class="lead">Choose the county jurisdiction.</p>
+    <div class="cards">
+      <div class="card sel county" data-county="pbc" onclick="pickCounty(this)"><span class="ic">&#127963;</span>Palm Beach County<small><span id="cntPbc">0</span> AHJs loaded</small></div>
+      <div class="card county" data-county="broward" onclick="pickCounty(this)"><span class="ic">&#127963;</span>Broward County<small><span id="cntBrd">0</span> AHJs loaded · HVHZ</small></div>
+    </div>
+    <div class="btnrow"><button class="big ghost" onclick="go(2)">&larr; Back</button><button class="big" onclick="go(4)">Next: AHJ &rarr;</button></div>
+  </div>
+
+  <!-- 4 ahj -->
+  <div class="panel" id="p4">
+    <h2>Select AHJ</h2><p class="lead">The building department that issues this permit.</p>
+    <label class="req">Authority Having Jurisdiction</label>
+    <select id="ahj" onchange="document.getElementById('ahjGo').disabled=!this.value">
+      <option value="">— choose municipality —</option>
+      {% for a in ahjs %}<option value="{{a}}" {% if pf.ahj==a %}selected{% endif %}>{{ a.replace('_',' ') }}</option>{% endfor %}
+    </select>
+    <div class="muted">City forms are fullest for Boca Raton; all AHJs get the Universal application, NOC, system approvals &amp; spec sheet.</div>
+    <div class="btnrow"><button class="big ghost" onclick="go(3)">&larr; Back</button><button class="big" id="ahjGo" onclick="go(5)">Next: System &rarr;</button></div>
+  </div>
+
+  <!-- 5 system -->
+  <div class="panel" id="p5">
+    <h2>Select Roof System</h2><p class="lead">Pulls the matching product approvals &amp; pre-fills the roofing form.</p>
+    <div class="cards">
+      <div class="card" data-sys="Shingle" onclick="pickSys(this)"><span class="ic">&#127968;</span>Shingle<small>OC TruDefinition · IR-XE</small></div>
+      <div class="card" data-sys="Tile" onclick="pickSys(this)"><span class="ic">&#129521;</span>Tile<small>Saxony 900 · AH-160 · TU&nbsp;Plus</small></div>
+      <div class="card" data-sys="Metal" onclick="pickSys(this)"><span class="ic">&#11036;</span>Metal<small>DM Class 1500 · MTS</small></div>
+      <div class="card" data-sys="Flat" onclick="pickSys(this)"><span class="ic">&#9644;</span>Flat / Mod-Bit<small>Polyglass SA 2-ply</small></div>
+    </div>
+    <div style="margin-top:16px;max-width:520px" id="prodWrap">
+      <label style="font-weight:700">Manufacturer / Product</label>
+      <select id="product" style="width:100%;padding:9px;margin-top:4px"></select>
+      <div class="muted">Shingle: Owens Corning or GAF &middot; Tile: Westlake or Eagle &mdash; pulls the matching product approval.</div>
+    </div>
+    <div style="margin-top:16px;max-width:520px">
+      <label style="font-weight:700">Underlayment</label>
+      <select id="underlayment" style="width:100%;padding:9px;margin-top:4px"></select>
+      <div class="muted">Tile &amp; Metal can be 1-ply or 2-ply &mdash; pulls the matching product approval. Pick a system first.</div>
+    </div>
+    <div class="btnrow"><button class="big ghost" onclick="go(4)">&larr; Back</button><button class="big" id="sysGo" disabled onclick="go(6)">Next: Build &rarr;</button></div>
+  </div>
+
+  <!-- 6 build -->
+  <div class="panel" id="p6">
+    <h2>Build Permit Packet</h2><p class="lead" id="summary"></p>
+    <div id="buildView">
+      <button class="big navy" style="width:100%;padding:22px;font-size:20px" id="buildBtn" onclick="buildIt()">&#9881; BUILD PERMIT PACKET</button>
+    </div>
+    <div id="result">
+      <div class="ok">&#10003;</div>
+      <h2>Packet ready</h2>
+      <a id="dl" class="big" style="display:inline-block;text-decoration:none" download>&#11015; Download PDF</a>
+      <div class="muted" id="resname"></div>
+      <div style="margin-top:18px">
+        {% if job_id and pf %}<a class="big ghost" href="{{ url_for('job_detail', job_id=job_id) }}">Back to Job #{{ job_id }}</a>{% else %}<button class="big ghost" onclick="resetAll()">Build another</button>{% endif %}
+      </div>
+    </div>
+    <div class="btnrow"><button class="big ghost" onclick="go(5)">&larr; Back</button><span></span></div>
+  </div>
+</div>
+
+<script>
+let step=1, system='{{ pf.system or "" }}', files=[];
+const JOB_ID='{{ job_id }}';
+function go(s){
+  step=s;
+  document.querySelectorAll('.pb .panel').forEach(p=>p.classList.remove('show'));
+  document.getElementById('p'+s).classList.add('show');
+  document.querySelectorAll('.pb .step').forEach(e=>{const n=+e.dataset.s;e.classList.toggle('active',n==s);e.classList.toggle('done',n<s);});
+  if(s==6) summary();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('.pb .step').forEach(e=>e.onclick=()=>go(+e.dataset.s));
+function addFiles(fl){for(const f of fl) files.push(f); render(); for(const f of fl){ if(/\.pdf$/i.test(f.name)) autoMeasure(f); }}
+// Auto-pull roof area + pitch from an attached RoofGraf report into Step 1.
+function autoMeasure(f){
+  const fd=new FormData(); fd.append('file',f);
+  fetch('/builder/measure',{method:'POST',body:fd}).then(r=>r.json()).then(function(d){
+    if(!d||(!d.area&&!d.pitch))return;
+    const a=document.getElementById('area'), s=document.getElementById('slope'); let got=[];
+    if(d.area && a && !a.value){a.value=d.area; got.push(d.area+' sf'+(d.squares?(' / '+d.squares+' sq'):''));}
+    if(d.pitch && s && !s.value){s.value=d.pitch; got.push(d.pitch+'/12 pitch');}
+    const n=document.getElementById('measNote');
+    if(n && got.length){n.textContent='✓ Pulled from RoofGraf: '+got.join(' · ')+' (Step 1)'; n.style.display='block';}
+  }).catch(function(){});
+}
+function render(){document.getElementById('filelist').innerHTML=files.map((f,i)=>`<div>&#128196; ${f.name} <a href="#" onclick="rm(${i});return false" style="float:right;color:#c00">remove</a></div>`).join('');}
+function rm(i){files.splice(i,1);render();}
+// County → AHJ filtering. ahjs are loaded combined (PBC + Broward); classify each
+// municipality and show only the chosen county's AHJs in the Step-4 dropdown.
+// Authoritative Broward County municipality set (folders under Broward Municipalities).
+// Exact match on the AHJ slug — a fuzzy regex would miss Lauderhill / Lazy_Lake / West_Park etc.
+const BROWARD_AHJS=new Set(['coconut_creek','cooper_city','coral_springs','dania_beach','davie',
+  'deerfield_beach','fort_lauderdale','hallandale_beach','hillsboro_beach','hollywood',
+  'lauderdale_by_the_sea','lauderdale_lakes','lauderhill','lazy_lake','lighthouse_point',
+  'margate','miramar','north_lauderdale','oakland_park','parkland','pembroke_park',
+  'pembroke_pines','plantation','pompano_beach','sea_ranch_lakes','southwest_ranches',
+  'sunrise','tamarac','west_park','weston','wilton_manors']);
+function isBrowardSlug(s){return BROWARD_AHJS.has((s||'').toLowerCase());}
+function classifyAhjs(){
+  const sel=document.getElementById('ahj'); if(!sel)return;
+  const opts=[...sel.options].filter(o=>o.value);
+  opts.forEach(o=>o.dataset.county=isBrowardSlug(o.value)?'broward':'pbc');
+  const p=document.getElementById('cntPbc'), b=document.getElementById('cntBrd');
+  if(p)p.textContent=opts.filter(o=>o.dataset.county==='pbc').length;
+  if(b)b.textContent=opts.filter(o=>o.dataset.county==='broward').length;
+}
+function filterAhjByCounty(county){
+  const sel=document.getElementById('ahj'); if(!sel)return;
+  [...sel.options].forEach(o=>{if(o.value)o.hidden=(o.dataset.county!==county);});
+  if(sel.selectedOptions[0]&&sel.selectedOptions[0].hidden)sel.value='';
+  const g=document.getElementById('ahjGo'); if(g)g.disabled=!sel.value;
+}
+function pickCounty(el){document.querySelectorAll('.pb .county').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');filterAhjByCounty(el.dataset.county);}
+const UL_OPTS={Shingle:[['single','Polystick IR-XE (standard)']],
+  Tile:[['single','Polystick TU Plus — 1-ply (standard)'],['2ply','Polystick TU-Plus + MTS — 2-ply']],
+  Metal:[['2ply','Polystick MTS — 2-ply (standard)'],['single','Polystick MTS — 1-ply']],
+  Flat:[['single','Polystick MTS Plus / SA mod-bit']]};
+// Primary product / manufacturer options per system (only Shingle & Tile have a choice).
+const PROD_OPTS={Shingle:[['oc','Owens Corning — TruDefinition Duration (standard)'],['gaf','GAF — Timberline HDZ']],
+  Tile:[['westlake','Westlake Royal — Saxony 900 (standard)'],['eagle','Eagle — Concrete Tile']]};
+function fillUL(){var sel=document.getElementById('underlayment');if(!sel)return;var o=UL_OPTS[system]||[];sel.innerHTML=o.map(function(x){return '<option value="'+x[0]+'">'+x[1]+'</option>';}).join('');sel.disabled=o.length<2;}
+function fillProd(){var sel=document.getElementById('product');if(!sel)return;var o=PROD_OPTS[system]||[];sel.innerHTML=o.map(function(x){return '<option value="'+x[0]+'">'+x[1]+'</option>';}).join('');var wrap=document.getElementById('prodWrap');if(wrap)wrap.style.display=o.length?'block':'none';}
+function pickSys(el){document.querySelectorAll('.pb [data-sys]').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');system=el.dataset.sys;document.getElementById('sysGo').disabled=false;fillUL();fillProd();}
+function val(id){return document.getElementById(id).value.trim();}
+function _parseAddr(){
+  var m=(val('address')||'').match(/^\s*(\d+)\s+(.+)$/); if(!m) return null;
+  var name=m[2].replace(/\b(dr|drive|rd|road|ln|lane|ave|avenue|st|street|blvd|boulevard|ct|court|cir|circle|way|pl|place|ter|terrace|trl|trail|hwy|highway|pkwy|parkway|pt|point|sq|square|loop|run|cv|cove|walk|row|bnd|bend|harbor|harbour)\b\.?\s*$/i,'').trim();
+  return {no:m[1], name:name};
+}
+function _isBroward(){return /deerfield|fort_lauderdale|pompano|margate|coral_springs|hollywood|davie|plantation|sunrise|tamarac|lauderdale|miramar|weston|parkland|coconut_creek|oakland_park|wilton|hallandale|cooper_city|pembroke|dania/.test((val('ahj')||'').toLowerCase());}
+// The county lookup can only APPROXIMATE the legal from GIS parts (lot/block codes differ from the
+// recorded plat; plat book/page missing). Flag it so a fabricated legal never lands on a recorded NOC.
+function markLegalVerify(){var w=document.getElementById('legalWarn'),l=document.getElementById('legal');if(w)w.style.display='';if(l)l.style.background='#fff8e1';}
+function legalEdited(){var w=document.getElementById('legalWarn'),l=document.getElementById('legal');if(w)w.style.display='none';if(l)l.style.background='';}
+function lookupPCN(silent){
+  var p=_parseAddr();
+  if(!p){ if(!silent)alert('Enter the property address first (Step 1).'); return; }
+  var broward=_isBroward(), url;
+  if(broward){
+    // BCPA needs the raw street (un-stripped) so the directional + type survive for disambiguation.
+    var rawm=(val('address')||'').match(/^\s*\d+\s+(.+)$/);
+    var street=rawm?rawm[1]:p.name;
+    url='/pcn?county=broward&street_no='+encodeURIComponent(p.no)+'&street='+encodeURIComponent(street)+'&zip='+encodeURIComponent(val('zip')||'');
+  } else {
+    url='/pcn?street_no='+encodeURIComponent(p.no)+'&street_name='+encodeURIComponent(p.name);
+  }
+  var link=document.getElementById('pcnlink'); if(link&&!silent)link.textContent='\u{1F50D} looking up…';
+  fetch(url).then(function(r){return r.json();}).then(function(d){
+    if(link)link.innerHTML='&#128269; look up PCN &amp; legal (county appraiser)';
+    var el=document.getElementById('pcn'), lg=document.getElementById('legal');
+    if(d.legal && lg && (!lg.value || !silent)){ lg.value=d.legal; markLegalVerify(); }
+    if(d.pcn){ if(el && (!el.value || !silent)) el.value=d.pcn; if(!silent)alert('Found '+(broward?'Folio':'PCN')+': '+d.pcn+(d.legal?('\nLegal: '+d.legal):'')+'\n'+(d.matched||'')); }
+    else if(!silent){ var site=broward?'site:bcpa.net':'site:pbcpao.gov'; var q=encodeURIComponent(site+' "'+val('address')+'" '+(val('city')||'')+' folio legal'); window.open('https://www.google.com/search?q='+q,'_blank'); }
+  }).catch(function(){ if(link)link.innerHTML='&#128269; look up PCN &amp; legal (county appraiser)'; });
+}
+function summary(){
+  const a=val('ahj')||'(none)';
+  document.getElementById('summary').innerHTML=`<b>${val('owner')||'(owner)'}</b> · ${val('address')||'(address)'} · <b>${a.replace(/_/g,' ')}</b> · <b>${system||'(system)'}</b> · ${files.length} attachment(s)`;
+}
+// Pre-select the system card if pre-filled from a job.
+if(system){const c=document.querySelector('.pb [data-sys="'+system+'"]');if(c){c.classList.add('sel');document.getElementById('sysGo').disabled=false;}}
+fillUL();fillProd();
+// Classify AHJs by county and default the county card to match any pre-filled AHJ.
+classifyAhjs();
+(function(){
+  const sel=document.getElementById('ahj');
+  const startCounty=(sel&&sel.value&&isBrowardSlug(sel.value))?'broward':'pbc';
+  const card=document.querySelector('.pb .county[data-county="'+startCounty+'"]');
+  if(card){document.querySelectorAll('.pb .county').forEach(c=>c.classList.remove('sel'));card.classList.add('sel');}
+  filterAhjByCounty(startCounty);
+})();
+async function buildIt(){
+  if(!val('ahj')||!system){alert('Pick an AHJ and a system first.');return;}
+  if(!val('owner')||!val('address')){alert('Owner name and property address are required (Step 1).');go(1);return;}
+  const b=document.getElementById('buildBtn'); b.disabled=true; b.textContent='⏳ Building…';
+  const fd=new FormData();
+  ['owner','address','city','zip','phone','pcn','legal','existing','area','slope','mrh','exposure','value'].forEach(k=>fd.append(k,val(k)));
+  fd.append('ahj',val('ahj')); fd.append('system',system);
+  fd.append('underlayment',(document.getElementById('underlayment')||{}).value||'');
+  fd.append('product',(document.getElementById('product')||{}).value||'');
+  if(JOB_ID) fd.append('job_id',JOB_ID);
+  files.forEach(f=>fd.append('attachments',f));
+  try{
+    const r=await fetch('{{ url_for("builder_build") }}',{method:'POST',body:fd}); const j=await r.json();
+    if(!r.ok){alert(j.error||'Build failed');b.disabled=false;b.innerHTML='&#9881; BUILD PERMIT PACKET';return;}
+    document.getElementById('buildView').style.display='none';
+    const dl=document.getElementById('dl'); dl.href='/download/'+encodeURIComponent(j.file); dl.setAttribute('download',j.file);
+    document.getElementById('resname').textContent=j.file;
+    document.getElementById('result').style.display='block';
+  }catch(e){alert('Error: '+e);b.disabled=false;b.innerHTML='&#9881; BUILD PERMIT PACKET';}
+}
+function resetAll(){location.reload();}
+</script>
+
+{% endblock %}

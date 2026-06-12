@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SeaBreeze Roofing — Job & Prospect Manager</title>
+<style>
+  :root{
+    --bg:#eef2f8; --panel:#ffffff; --panel2:#f1f4fa; --line:#dde4ef;
+    --txt:#1d2a44; --mut:#64748b; --accent:#2f6df6; --accent2:#0f9e82;
+    --warn:#d98200; --danger:#d93a36; --ok:#0f9e82;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--txt);font-size:14px}
+  header{position:sticky;top:0;z-index:30;background:linear-gradient(180deg,#ffffff,#eef2f9);
+    border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    box-shadow:0 1px 4px rgba(20,40,80,.05)}
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+  header .sub{color:var(--mut);font-size:12px}
+  .grow{flex:1}
+  button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--txt);
+    padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.ghost{background:transparent}
+  input,select,textarea{background:#fff;border:1px solid var(--line);color:var(--txt);
+    border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit}
+  .wrap{padding:16px 20px 60px}
+
+  /* tabs */
+  .tabs{display:flex;gap:8px;margin-bottom:16px}
+  .tab{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);font-weight:700;font-size:14px;cursor:pointer}
+  .tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .tab .tcnt{font-size:11px;background:var(--panel2);color:var(--mut);padding:1px 8px;border-radius:999px}
+  .tab.on .tcnt{background:rgba(255,255,255,.25);color:#fff}
+  .tab .talert{font-size:11px;background:var(--danger);color:#fff;padding:1px 8px;border-radius:999px}
+
+  /* follow-up banner */
+  .followups{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px;
+    box-shadow:0 1px 3px rgba(20,40,80,.04)}
+  .followups h2{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
+  .fu-list{max-height:260px;overflow-y:auto}
+  .fu-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:var(--panel2);margin-bottom:6px}
+  .fu-row:last-child{margin-bottom:0}
+  .fu-dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .fu-meta{flex:1;min-width:0}
+  .fu-meta .nm{font-weight:600}
+  .fu-meta .ds{color:var(--mut);font-size:12px}
+  .pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+
+  /* board — responsive grid, wraps to fit page width (no horizontal scroll) */
+  .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;align-items:start}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;max-height:calc(100vh - 290px);box-shadow:0 1px 3px rgba(20,40,80,.04)}
+  .col h3{margin:0;padding:12px 14px;font-size:13px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);border-radius:12px 12px 0 0}
+  .col .cnt{margin-left:auto;background:var(--panel2);color:var(--mut);font-size:11px;padding:1px 8px;border-radius:999px}
+  .col .cards{padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;cursor:pointer;position:relative}
+  .card:hover{border-color:var(--accent)}
+  .card .rid{font-size:11px;color:var(--mut);font-weight:700}
+  .card .nm{font-weight:700;margin:2px 0 4px;font-size:14px}
+  .card .wt{font-size:11px;color:var(--mut)}
+  .card .foot{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .age{font-size:11px;color:var(--mut)}
+  .flag{position:absolute;top:10px;right:10px;font-size:14px}
+  .stalled{border-left:3px solid var(--warn)}
+  .hot{border-left:3px solid var(--danger)}
+  .prog{height:4px;border-radius:4px;background:#e3e9f2;margin-top:8px;overflow:hidden}
+  .prog i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+  /* modal */
+  .scrim{position:fixed;inset:0;background:rgba(20,35,65,.45);display:none;align-items:flex-start;justify-content:center;z-index:50;padding:40px 16px;overflow-y:auto}
+  .scrim.on{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:640px;max-width:100%}
+  .modal .mh{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:12px}
+  .modal .mh .nm{font-size:18px;font-weight:700}
+  .modal .mh .rid{color:var(--mut);font-size:12px;font-weight:700}
+  .modal .mb{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
+  .contact{display:flex;gap:14px;flex-wrap:wrap;font-size:13px}
+  .contact a{color:var(--accent);text-decoration:none}
+  .field label{display:block;color:var(--mut);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+  .stagebtns{display:flex;flex-wrap:wrap;gap:6px}
+  .stagebtns button{font-size:11px;padding:6px 9px}
+  .stagebtns button.cur{background:var(--accent);border-color:var(--accent);color:#fff}
+  .check{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;background:var(--panel2);margin-bottom:6px;cursor:pointer}
+  .check input{width:16px;height:16px;accent-color:var(--accent2)}
+  .check.done span{text-decoration:line-through;color:var(--mut)}
+  .row2{display:flex;gap:12px}.row2>*{flex:1}
+  .mf{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center}
+  textarea{width:100%;min-height:70px;resize:vertical}
+  .muted{color:var(--mut);font-size:12px}
+  .badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--mut)}
+  @media(max-width:680px){.board{grid-template-columns:1fr}.col{max-height:none}}
+
+  /* export dropdown */
+  .menuwrap{position:relative;display:inline-block}
+  .menu{display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line);
+    border-radius:10px;box-shadow:0 6px 24px rgba(20,40,80,.16);z-index:40;min-width:180px;overflow:hidden}
+  .menu.on{display:block}
+  .menu button{display:block;width:100%;text-align:left;border:0;border-radius:0;background:#fff;padding:10px 14px}
+  .menu button:hover{background:var(--panel2)}
+
+  /* ===== call sheet (print) ===== */
+  #printArea{display:none}
+  @media print{
+    @page{margin:0.5in}
+    body{background:#fff}
+    header,.wrap,.scrim{display:none !important}
+    #printArea{display:block}
+    .cs-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1d2a44;padding-bottom:8px;margin-bottom:14px}
+    .cs-head h1{font-size:18px;margin:0}
+    .cs-head .meta{font-size:12px;color:#444;text-align:right}
+    .cs-card{border:1px solid #b9c4d6;border-radius:8px;padding:12px 14px;margin-bottom:12px;page-break-inside:avoid}
+    .cs-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .cs-name{font-size:16px;font-weight:700}
+    .cs-rid{font-size:11px;color:#555;font-weight:700}
+    .cs-stage{font-size:12px;font-weight:700;border:1px solid #1d2a44;border-radius:999px;padding:2px 10px;white-space:nowrap}
+    .cs-flag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid #d93a36;color:#d93a36;white-space:nowrap}
+    .cs-grid{display:flex;flex-wrap:wrap;gap:4px 22px;font-size:12.5px;margin:7px 0}
+    .cs-grid b{font-weight:700}
+    .cs-phone{font-size:15px;font-weight:700}
+    .cs-narr{font-size:12.5px;margin:6px 0;line-height:1.35}
+    .cs-narr .lbl{font-weight:700;text-transform:uppercase;font-size:10.5px;letter-spacing:.4px;color:#444}
+    .cs-todo{font-size:13px;margin:6px 0;padding:6px 9px;background:#fff7e6;border:1px solid #f0c97a;border-radius:5px;line-height:1.35}
+    .cs-todo .lbl{font-weight:800;color:#a86400}
+    .cs-steps{font-size:12px;margin:6px 0}
+    .cs-steps .lbl{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#444}
+    .cs-step{display:inline-block;border:1px solid #888;border-radius:5px;padding:1px 7px;margin:2px 4px 0 0;font-size:11.5px}
+    .cs-price{font-size:13px;margin:6px 0;font-weight:700}
+    .cs-price .blank{display:inline-block;border-bottom:1px solid #333;min-width:120px}
+    .cs-pay{font-size:12px;margin:5px 0}
+    .cs-pay .lbl{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#444}
+    .cs-paychip{display:inline-block;border:1px solid #888;border-radius:5px;padding:1px 7px;margin:2px 4px 0 0;font-size:11.5px;white-space:nowrap}
+    .cs-notes{margin-top:6px}
+    .cs-notes .lbl{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#444}
+    .cs-lines{margin-top:3px}
+    .cs-lines div{border-bottom:1px solid #ccc;height:18px}
+    .cs-outcome{margin-top:7px;font-size:12px}
+    .cs-outcome span{margin-right:14px;white-space:nowrap}
+    .cs-existing{font-size:11.5px;color:#333;white-space:pre-wrap;background:#f4f6fa;border-radius:5px;padding:5px 8px;margin-top:5px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🌊 SeaBreeze Roofing — Job &amp; Prospect Manager</h1>
+    <div class="sub" id="subtitle"></div>
+  </div>
+  <div class="grow"></div>
+  <span id="syncbadge" class="badge" title="Last sync">not synced</span>
+  <input id="search" placeholder="Search name / address / R-#" style="width:220px" />
+  <button class="ghost" onclick="addItem()">+ Add</button>
+  <span class="menuwrap">
+    <button class="ghost" onclick="toggleMenu(event)">Export ▾</button>
+    <div class="menu" id="exportMenu">
+      <button onclick="exportCSV()">CSV (.csv)</button>
+      <button onclick="exportXLS()">Excel (.xls)</button>
+      <button onclick="exportPDF()">PDF — call sheet</button>
+      <button onclick="exportJSON()">JSON — full backup</button>
+    </div>
+  </span>
+  <button class="ghost" onclick="importData()">Import</button>
+  <button class="ghost primary" onclick="doPrint()">🖨 Call Sheet</button>
+</header>
+
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <div class="followups" id="followups"></div>
+  <div class="board" id="board"></div>
+</div>
+
+<div class="scrim" id="scrim" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- call sheet (only visible when printing) -->
+<div id="printArea"></div>
+
+<!-- Live feeds written by the watcher tasks (safe if absent) -->
+<script src="jobs-data.js" onerror="window.__noJobs=1"></script>
+<script src="prospects-data.js" onerror="window.__noPros=1"></script>
+<script>
+/* ============ pipeline definitions ============ */
+const JOB_STAGES = [
+  {key:"approved",   name:"Approved / Signed",  color:"#7d8cff", followAfter:2,
+    checklist:["Signed contract on file","Deposit collected","Job folder created in AccuLynx"]},
+  {key:"docs",       name:"Sign-Up Docs",       color:"#4ea3ff", followAfter:3,
+    checklist:["Signed proposal","Color/material selection confirmed","Insurance/scope docs","Photos uploaded (CompanyCam)","Measurement report (Roofr) attached"]},
+  {key:"hoa",        name:"HOA Approval",        color:"#b06bff", followAfter:7,
+    checklist:["HOA application submitted","Color sample sent to HOA","HOA approval received","N/A — no HOA"]},
+  {key:"permit_sub", name:"Permit Submitted",    color:"#d98200", followAfter:10,
+    checklist:["NOC recorded","Permit package submitted","Permit # received","Fees paid"]},
+  {key:"permit_app", name:"Permit Approved",     color:"#0f9e82", followAfter:5,
+    checklist:["Permit approved","Permit posted at job site","Customer notified of start date","Permit box installed at job site"]},
+  {key:"precon",     name:"Pre-Con / Schedule",  color:"#2fb0f6", followAfter:3,
+    checklist:["Pre-con walkthrough done","Crew scheduled","Material ordered/delivered","Dumpster scheduled","Yard sign installed at property"]},
+  {key:"started",    name:"Job Started",         color:"#ef8a3c", followAfter:2,
+    checklist:["Tear-off complete","Dry-in complete","Dry-in inspection passed","Install complete","Permit box on site for inspections"]},
+  {key:"final",      name:"Final Inspection",    color:"#28b487", followAfter:4,
+    checklist:["Final inspection passed","Cleanup / magnet sweep","Final photos uploaded","Yard sign left up 2 weeks"]},
+  {key:"closed",     name:"Closed / Paid",       color:"#5cbf9a", followAfter:0,
+    checklist:["Final invoice sent","Final payment received","Warranty issued","Review requested","Asked customer for 3 referrals (names + numbers)"]},
+];
+const PROSPECT_STAGES = [
+  {key:"new",        name:"New Lead",            color:"#4ea3ff", followAfter:2,
+    checklist:["Called","Texted","Emailed","Left voicemail"]},
+  {key:"contacted",  name:"Contacted",           color:"#7d8cff", followAfter:4,
+    checklist:["Spoke with customer","Qualified the lead","Set next step"]},
+  {key:"appt",       name:"Appt / Inspection Set",color:"#b06bff", followAfter:3,
+    checklist:["Appointment confirmed","Inspection completed","Photos / measurements taken"]},
+  {key:"quoted",     name:"Estimate Sent",       color:"#d98200", followAfter:5,
+    checklist:["Roofr measurement ordered","Estimate sent","Reviewed estimate with customer"]},
+  {key:"negotiating",name:"Follow-Up / Deciding",color:"#2fb0f6", followAfter:4,
+    checklist:["Follow-up call made","Addressed objections","Asked for the sale"]},
+  {key:"won",        name:"Won → Job",           color:"#28b487", followAfter:0,
+    checklist:["Contract signed","Deposit collected","Moved to Job Process board"]},
+  {key:"lost",       name:"Lost / Dead",         color:"#9aa6bb", followAfter:0,
+    checklist:["Reason logged","Added to long-term nurture list"]},
+];
+
+const PIPES = {
+  jobs: {
+    key:"jobs", label:"🔨 Job Process", stages:JOB_STAGES, ls:"seabreeze_jobs_v1",
+    clockField:"stageSince", clockLabel:"In stage since", ageWord:"in stage",
+    stageResetsClock:true, touchResetsClock:false,
+    syncVar:"SYNC_JOBS", syncAtVar:"SYNC_AT", defStage:"docs",
+  },
+  prospects: {
+    key:"prospects", label:"🎯 Prospects", stages:PROSPECT_STAGES, ls:"seabreeze_prospects_v1",
+    clockField:"lastContact", clockLabel:"Last contacted", ageWord:"since contact",
+    stageResetsClock:false, touchResetsClock:true,
+    syncVar:"SYNC_PROSPECTS", syncAtVar:"SYNC_PROSPECTS_AT", defStage:"new",
+  },
+};
+const sidx = pipe => Object.fromEntries(pipe.stages.map((s,i)=>[s.key,i]));
+
+/* built-in fallback for jobs if jobs-data.js is missing */
+const JOB_BUILTIN = (window.SYNC_JOBS||[]);
+
+/* ============ state ============ */
+let MODE="jobs";
+const DATA={};
+function uid(){return 'x'+Math.random().toString(36).slice(2,9)}
+function todayStr(){return new Date().toISOString().slice(0,10)}
+function daysBetween(a,b){return Math.floor((new Date(b)-new Date(a))/864e5)}
+
+function loadPipe(pipe){
+  const raw=localStorage.getItem(pipe.ls);
+  if(raw){try{return JSON.parse(raw)}catch(e){}}
+  const feed=window[pipe.syncVar];
+  const src=(feed&&feed.length)?feed:[];
+  const today=todayStr();
+  const arr=src.map(s=>({
+    id:uid(), rid:s.rid||"", name:s.name||"", phone:s.phone||"", email:s.email||"",
+    addr:s.addr||"", type:s.type||"Roofing", rep:s.rep||"Danny Bivins", source:s.source||"",
+    al:s.al||"", stage:s.stage||pipe.defStage,
+    stageSince:s.stageSince||today, lastContact:s.lastContact||today,
+    created:today, checks:{}, notes:"", nextFollow:"", estimate:s.estimate||"", estimateSource:s.estimate?"synced":"",
+    narrative:s.narrative||"", todo:s.todo||""
+  }));
+  localStorage.setItem(pipe.ls,JSON.stringify(arr));
+  return arr;
+}
+function savePipe(pipe){localStorage.setItem(pipe.ls,JSON.stringify(DATA[pipe.key]))}
+function save(){savePipe(PIPES[MODE]);render()}
+
+/* merge a sync feed (AccuLynx-authoritative on stage + clock; keeps checks/notes) */
+function mergeSync(pipe){
+  const feed=window[pipe.syncVar]; if(!feed||!Array.isArray(feed))return;
+  const stamp=window[pipe.syncAtVar]||"";
+  const seen=localStorage.getItem(pipe.ls+"_sync");
+  if(seen===stamp)return;
+  const arr=DATA[pipe.key];
+  feed.forEach(s=>{
+    const keyMatch=j=> (s.rid&&j.rid===s.rid) || (!s.rid&&j.name===s.name&&j.addr===s.addr);
+    let j=arr.find(keyMatch);
+    if(j){
+      j.al=s.al!==undefined?s.al:j.al; j.phone=s.phone||j.phone; j.email=s.email||j.email;
+      j.addr=s.addr||j.addr; j.rep=s.rep||j.rep; j.type=s.type||j.type; j.source=s.source||j.source;
+      if(s.estimate&&j.estimateSource!=="manual"){j.estimate=s.estimate;j.estimateSource="synced"} // real quote/ballpark from feed; a typed price always wins
+      if(s.narrative)j.narrative=s.narrative; if(s.todo)j.todo=s.todo;
+      if(s.stage)j.stage=s.stage;
+      if(s[pipe.clockField])j[pipe.clockField]=s[pipe.clockField];
+    }else{
+      const today=todayStr();
+      arr.push({id:uid(),rid:s.rid||"",name:s.name,phone:s.phone||"",email:s.email||"",
+        addr:s.addr||"",type:s.type||"Roofing",rep:s.rep||"Danny Bivins",source:s.source||"",
+        al:s.al||"",stage:s.stage||pipe.defStage,stageSince:s.stageSince||today,
+        lastContact:s.lastContact||today,created:today,checks:{},notes:"",nextFollow:"",estimate:s.estimate||"",estimateSource:s.estimate?"synced":"",narrative:s.narrative||"",todo:s.todo||""});
+    }
+  });
+  localStorage.setItem(pipe.ls+"_sync",stamp);
+  savePipe(pipe);
+}
+
+/* ============ follow-up engine ============ */
+const LV={hot:"#d93a36",stalled:"#d98200",ok:"#0f9e82"};
+function followStatus(pipe,j){
+  const st=pipe.stages[sidx(pipe)[j.stage]];
+  if(!st||st.followAfter===0)return{level:"ok",label:"—",days:daysBetween(j[pipe.clockField],todayStr())};
+  const d=daysBetween(j[pipe.clockField],todayStr());
+  if(d>=st.followAfter*2)return{level:"hot",label:"OVERDUE",days:d};
+  if(d>=st.followAfter)return{level:"stalled",label:"Follow up",days:d};
+  return{level:"ok",label:"On track",days:d};
+}
+
+/* ============ payment draw schedule (jobs only) ============ */
+const PAYMENTS=[
+  {key:"p1",   label:"1st draw — 25% (deposit)", pct:0.25},
+  {key:"wood", label:"Wood bill",                pct:null},
+  {key:"p2",   label:"2nd draw — 25%",           pct:0.25},
+  {key:"p3",   label:"3rd draw — 40%",           pct:0.40},
+  {key:"p4",   label:"Final — 10%",              pct:0.10},
+];
+function estNum(j){return parseFloat((j.estimate||'').replace(/[^0-9.]/g,''))||0}
+function money(n){return n?'$'+Math.round(n).toLocaleString():''}
+function paidPct(j){return PAYMENTS.filter(p=>p.pct&&j.payments&&j.payments[p.key]).reduce((s,p)=>s+p.pct,0)}
+function payAmt(j,p){return p.pct?money(estNum(j)*p.pct):(j.payments&&j.payments.woodAmt?money(parseFloat((''+j.payments.woodAmt).replace(/[^0-9.]/g,''))):"")}
+
+/* ============ narrative + to-do (call sheet) ============ */
+const JOB_TODO={docs:"Collect signed sign-up docs, color selection & COI/NOA; then submit for permit.",
+  hoa:"Submit/chase HOA-ARC approval; send color sample. Cannot pull permit until approved.",
+  permit_sub:"Track permit with the county; update customer on timeline.",
+  permit_app:"Notify customer of start date; schedule crew, order material, install permit box.",
+  precon:"Run pre-con walkthrough, order material, set crew & start date, put up yard sign.",
+  started:"Confirm material delivery; schedule dry-in inspection; keep customer updated.",
+  final:"Pass final inspection, magnet sweep, send final invoice & warranty.",
+  closed:"Collect final payment, issue warranty, request review & 3 referrals."};
+const PROS_TODO={new:"Call to set the inspection appointment (try text + email too).",
+  contacted:"Lock in inspection date; qualify scope & budget.",
+  appt:"Run the inspection, take photos/measurements, build the estimate.",
+  quoted:"Follow up on the estimate — answer questions, offer financing, ask for the sale.",
+  negotiating:"Close it: handle objections, offer financing/warranty, get the signature.",
+  won:"Sign contract, collect deposit, move to Job Process board.",
+  lost:"Log the reason; add to long-term nurture list."};
+function autoNarr(pipe,j,fs){
+  if(j.narrative)return j.narrative;
+  if(pipe.key==="prospects"){
+    const src=j.source?("("+j.source+")"):"";
+    return `${j.type} lead ${src}. Estimate & intro emailed; ${fs.days}d since last contact`+
+      (fs.level==="hot"?" — cold, needs revival.":fs.level==="stalled"?" — going quiet.":".");
+  }
+  const st=pipe.stages[sidx(pipe)[j.stage]];
+  return `${j.type} — signed at ${j.estimate||"TBD"}. Currently in ${st.name}, ${fs.days}d in stage.`;
+}
+function autoTodo(pipe,j){
+  if(j.todo)return j.todo;
+  return (pipe.key==="prospects"?PROS_TODO:JOB_TODO)[j.stage]||"Follow up.";
+}
+
+/* ============ render ============ */
+const q=s=>document.querySelector(s);
+function matches(j,term){if(!term)return true;return (j.name+j.addr+j.rid+j.type+(j.source||"")).toLowerCase().includes(term)}
+
+function render(){
+  const pipe=PIPES[MODE];
+  const arr=DATA[pipe.key];
+  const term=(q("#search").value||"").toLowerCase();
+  q("#subtitle").textContent = MODE==="jobs"
+    ? "Approved jobs → docs → HOA → permit → build → final · auto follow-up tracking"
+    : "Sales funnel · stale leads flagged by days since last contact";
+  renderTabs();
+  const board=q("#board");board.innerHTML="";
+  pipe.stages.forEach(st=>{
+    const col=document.createElement("div");col.className="col";
+    const items=arr.filter(j=>j.stage===st.key).filter(j=>matches(j,term))
+      .sort((a,b)=>followStatus(pipe,b).days-followStatus(pipe,a).days);
+    col.innerHTML=`<h3><span class="fu-dot" style="background:${st.color}"></span>${st.name}<span class="cnt">${items.length}</span></h3>`;
+    const cards=document.createElement("div");cards.className="cards";
+    items.forEach(j=>cards.appendChild(cardEl(pipe,j)));
+    if(!items.length)cards.innerHTML='<div class="muted" style="padding:6px">—</div>';
+    col.appendChild(cards);board.appendChild(col);
+  });
+  renderFollowups(pipe,term);
+}
+function renderTabs(){
+  const t=q("#tabs");t.innerHTML="";
+  Object.values(PIPES).forEach(pipe=>{
+    const arr=DATA[pipe.key]||[];
+    const over=arr.filter(j=>followStatus(pipe,j).level!=="ok").length;
+    const el=document.createElement("div");
+    el.className="tab"+(pipe.key===MODE?" on":"");
+    el.onclick=()=>{MODE=pipe.key;render()};
+    el.innerHTML=`${pipe.label}<span class="tcnt">${arr.length}</span>`+
+      (over?`<span class="talert">${over} ⏰</span>`:"");
+    t.appendChild(el);
+  });
+}
+function cardEl(pipe,j){
+  const fs=followStatus(pipe,j);
+  const st=pipe.stages[sidx(pipe)[j.stage]];
+  const total=st.checklist.length;
+  const done=st.checklist.filter((_,i)=>j.checks[st.key+":"+i]).length;
+  const pct=total?Math.round(done/total*100):0;
+  const sub = pipe.key==="jobs" ? `${done}/${total} done` : (j.source||"");
+  const el=document.createElement("div");
+  el.className="card"+(fs.level==="stalled"?" stalled":fs.level==="hot"?" hot":"");
+  el.onclick=()=>openModal(j.id);
+  el.innerHTML=`
+    ${fs.level!=="ok"?`<div class="flag">${fs.level==="hot"?"🔴":"🟠"}</div>`:""}
+    ${j.rid?`<div class="rid">${j.rid}</div>`:""}
+    <div class="nm">${j.name}</div>
+    <div class="wt">${j.type}</div>
+    <div class="prog"><i style="width:${pct}%"></i></div>
+    <div class="foot"><span class="age">${fs.days}d ${pipe.ageWord} · ${sub}</span>${pipe.key==="jobs"&&j.estimate?`<span class="age">· 💵 ${Math.round(paidPct(j)*100)}% paid</span>`:""}</div>`;
+  return el;
+}
+function renderFollowups(pipe,term){
+  const box=q("#followups");
+  const due=DATA[pipe.key].map(j=>({j,fs:followStatus(pipe,j)}))
+    .filter(x=>x.fs.level!=="ok").filter(x=>matches(x.j,term))
+    .sort((a,b)=>(a.fs.level==="hot"?-1:1)-(b.fs.level==="hot"?-1:1)||b.fs.days-a.fs.days);
+  const what = pipe.key==="jobs" ? "jobs" : "prospects";
+  if(!due.length){box.innerHTML=`<h2>✅ Follow-Ups — all clear</h2><div class="muted">No ${what} past their follow-up window today.</div>`;return}
+  box.innerHTML=`<h2>⏰ Today's Follow-Ups <span class="badge">${due.length} ${what}</span></h2><div class="fu-list">`+
+    due.map(({j,fs})=>{
+      const st=pipe.stages[sidx(pipe)[j.stage]];
+      return `<div class="fu-row">
+        <span class="fu-dot" style="background:${LV[fs.level]}"></span>
+        <div class="fu-meta">
+          <div class="nm">${j.name}${j.rid?` <span class="muted">· ${j.rid}</span>`:""}</div>
+          <div class="ds">${st.name} · ${fs.days}d ${pipe.ageWord} · ${j.phone}${j.source?` · ${j.source}`:""}</div>
+        </div>
+        <span class="pill" style="background:${LV[fs.level]}22;color:${LV[fs.level]}">${fs.label}</span>
+        <button class="ghost" onclick="event.stopPropagation();openModal('${j.id}')">Open</button>
+        <a href="tel:${j.phone.replace(/[^0-9]/g,'')}"><button class="ghost">Call</button></a>
+      </div>`;
+    }).join("")+`</div>`;
+}
+
+/* ============ modal ============ */
+function findItem(id){for(const k in DATA){const j=DATA[k].find(x=>x.id===id);if(j)return{j,pipe:PIPES[k]}}return null}
+function openModal(id){
+  const f=findItem(id);if(!f)return;const {j,pipe}=f;
+  const idx=sidx(pipe);const cur=idx[j.stage];const st=pipe.stages[cur];
+  const m=q("#modal");
+  m.innerHTML=`
+    <div class="mh">
+      <div style="flex:1">
+        <div class="rid">${j.rid?j.rid+" · ":""}${j.rep}${j.al?` · AccuLynx: ${j.al}`:""}${j.source&&pipe.key==="prospects"?` · ${j.source}`:""}</div>
+        <div class="nm">${j.name}</div>
+        <div class="muted">${j.type}</div>
+      </div>
+      <button class="ghost" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mb">
+      <div class="contact">
+        <span>📍 ${j.addr}</span>
+        <a href="tel:${j.phone.replace(/[^0-9]/g,'')}">📞 ${j.phone}</a>
+        <a href="mailto:${j.email}">✉️ ${j.email}</a>
+      </div>
+      <div class="field"><label>Where it stands (from communications)</label>
+        <textarea onchange="setField('${j.id}','narrative',this.value)" placeholder="${htmlEsc(autoNarr(pipe,j,followStatus(pipe,j)))}">${j.narrative||""}</textarea></div>
+      <div class="field"><label>▶ To-do / next action</label>
+        <input type="text" value="${(j.todo||'').replace(/"/g,'&quot;')}" placeholder="${htmlEsc(autoTodo(pipe,j))}" onchange="setField('${j.id}','todo',this.value)"/></div>
+      <div class="field">
+        <label>Stage — ${daysBetween(j[pipe.clockField],todayStr())} days ${pipe.ageWord}</label>
+        <div class="stagebtns">
+          ${pipe.stages.map((s,i)=>`<button class="${i===cur?'cur':''}" onclick="setStage('${j.id}','${s.key}')">${i+1}. ${s.name}</button>`).join("")}
+        </div>
+      </div>
+      <div class="field">
+        <label>Checklist — ${st.name}</label>
+        ${st.checklist.map((c,i)=>{const k=st.key+":"+i;const done=!!j.checks[k];
+          return `<label class="check ${done?'done':''}"><input type="checkbox" ${done?'checked':''} onchange="toggleCheck('${j.id}','${k}')"/><span>${c}</span></label>`;}).join("")}
+      </div>
+      ${pipe.key==="jobs"?`<div class="field">
+        <label>Payments — contract ${j.estimate||'(set price)'} · ${Math.round(paidPct(j)*100)}% collected</label>
+        ${PAYMENTS.map(p=>{const done=j.payments&&j.payments[p.key];const amt=payAmt(j,p);
+          return `<label class="check ${done?'done':''}"><input type="checkbox" ${done?'checked':''} onchange="togglePay('${j.id}','${p.key}')"/>
+            <span style="flex:1">${p.label}${amt?` — <b>${amt}</b>`:''}</span>
+            ${p.key==='wood'?`<input type="text" onclick="event.preventDefault()" value="${(j.payments&&j.payments.woodAmt||'').replace(/"/g,'&quot;')}" placeholder="wood $" style="width:90px;padding:4px 6px" onchange="setWood('${j.id}',this.value)"/>`:''}</label>`;}).join("")}
+      </div>`:""}
+      <div class="row2">
+        <div class="field"><label>Estimate price</label>
+          <input type="text" value="${(j.estimate||'').replace(/"/g,'&quot;')}" placeholder="$ e.g. 14,500" onchange="setField('${j.id}','estimate',this.value)"/></div>
+        <div class="field"><label>Next follow-up date</label>
+          <input type="date" value="${j.nextFollow||''}" onchange="setField('${j.id}','nextFollow',this.value)"/></div>
+        <div class="field"><label>${pipe.clockLabel}</label>
+          <input type="date" value="${j[pipe.clockField]||''}" onchange="setField('${j.id}','${pipe.clockField}',this.value)"/></div>
+      </div>
+      <div class="field"><label>Notes / activity log</label>
+        <textarea onchange="setField('${j.id}','notes',this.value)" placeholder="Log calls, texts, what's blocking...">${j.notes||""}</textarea></div>
+    </div>
+    <div class="mf">
+      <button class="ghost" onclick="logTouch('${j.id}')">＋ Log touch (today)</button>
+      <div class="grow" style="flex:1"></div>
+      <button class="ghost" style="border-color:#d93a36;color:#d93a36" onclick="delItem('${j.id}')">Delete</button>
+      <button class="primary" onclick="closeModal()">Done</button>
+    </div>`;
+  q("#scrim").classList.add("on");
+}
+function closeModal(){q("#scrim").classList.remove("on")}
+function setStage(id,key){const {j,pipe}=findItem(id);j.stage=key;if(pipe.stageResetsClock)j[pipe.clockField]=todayStr();savePipe(pipe);render();openModal(id)}
+function toggleCheck(id,k){const {j,pipe}=findItem(id);j.checks[k]=!j.checks[k];savePipe(pipe);render();openModal(id)}
+function togglePay(id,key){const {j,pipe}=findItem(id);j.payments=j.payments||{};j.payments[key]=!j.payments[key];savePipe(pipe);render();openModal(id)}
+function setWood(id,v){const {j,pipe}=findItem(id);j.payments=j.payments||{};j.payments.woodAmt=v;savePipe(pipe);render()}
+function setField(id,f,v){const {j,pipe}=findItem(id);j[f]=v;if(f==="estimate")j.estimateSource="manual";savePipe(pipe);render()}
+function logTouch(id){const {j,pipe}=findItem(id);const stamp=todayStr()+": ";
+  j.notes=(j.notes?j.notes+"\n":"")+stamp+"Touched (call/text).";
+  if(pipe.touchResetsClock)j[pipe.clockField]=todayStr();
+  savePipe(pipe);render();openModal(id)}
+function delItem(id){if(!confirm("Delete this record?"))return;const {j,pipe}=findItem(id);
+  DATA[pipe.key]=DATA[pipe.key].filter(x=>x.id!==id);savePipe(pipe);closeModal();render()}
+
+/* ============ add / import / export ============ */
+function addItem(){
+  const pipe=PIPES[MODE];const name=prompt("Name?");if(!name)return;
+  const today=todayStr();
+  DATA[pipe.key].push({id:uid(),rid:"",name,phone:"",email:"",addr:"",type:"Roofing",
+    rep:"Danny Bivins",source:"",al:"",stage:pipe.defStage,stageSince:today,lastContact:today,
+    created:today,checks:{},notes:"",nextFollow:"",estimate:"",estimateSource:"",narrative:"",todo:""});
+  savePipe(pipe);render();openModal(DATA[pipe.key][DATA[pipe.key].length-1].id);
+}
+/* ----- export menu ----- */
+function toggleMenu(e){e.stopPropagation();q("#exportMenu").classList.toggle("on")}
+function closeMenu(){const m=q("#exportMenu");if(m)m.classList.remove("on")}
+function download(name,content,mime){
+  const blob=new Blob([content],{type:mime+";charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+function rank(fs){return fs.level==="hot"?2:fs.level==="stalled"?1:0}
+/* active pipeline's rows, honoring the search filter, sorted worst-first */
+function activeRows(){
+  const pipe=PIPES[MODE];const idx=sidx(pipe);
+  const term=(q("#search").value||"").toLowerCase();
+  return DATA[pipe.key].filter(j=>matches(j,term))
+    .map(j=>({j,fs:followStatus(pipe,j),st:pipe.stages[idx[j.stage]]}))
+    .sort((a,b)=>(rank(b.fs)-rank(a.fs))||b.fs.days-a.fs.days);
+}
+function tableHead(pipe){return ["RID","Name","Phone","Email","Address","Type","Source","Stage","AccuLynx","Days "+pipe.ageWord,"Follow-up","Estimate","Next follow-up","Notes"]}
+function tableRow(j,fs,st){return [j.rid,j.name,j.phone,j.email,j.addr,j.type,j.source,st.name,j.al,fs.days,fs.label,j.estimate,j.nextFollow,(j.notes||"").replace(/\n/g,' / ')]}
+function csvEsc(v){v=(v==null?"":""+v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function htmlEsc(v){return (v==null?"":""+v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function exportCSV(){
+  const pipe=PIPES[MODE];const rows=activeRows();
+  const lines=[tableHead(pipe).map(csvEsc).join(",")];
+  rows.forEach(({j,fs,st})=>lines.push(tableRow(j,fs,st).map(csvEsc).join(",")));
+  download(pipe.key+"-"+todayStr()+".csv",lines.join("\r\n"),"text/csv");closeMenu();
+}
+function exportXLS(){
+  const pipe=PIPES[MODE];const rows=activeRows();
+  let t='<table border="1"><tr>'+tableHead(pipe).map(h=>`<th>${htmlEsc(h)}</th>`).join("")+'</tr>';
+  rows.forEach(({j,fs,st})=>t+='<tr>'+tableRow(j,fs,st).map(v=>`<td>${htmlEsc(v)}</td>`).join("")+'</tr>');
+  t+='</table>';
+  const doc='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+t+'</body></html>';
+  download(pipe.key+"-"+todayStr()+".xls",doc,"application/vnd.ms-excel");closeMenu();
+}
+function exportJSON(){
+  download("seabreeze-board-"+todayStr()+".json",
+    JSON.stringify({jobs:DATA.jobs,prospects:DATA.prospects,exportedAt:todayStr()},null,2),
+    "application/json");closeMenu();
+}
+function exportPDF(){closeMenu();buildCallSheet();window.print()}
+
+/* ----- call sheet (print / PDF) ----- */
+function buildCallSheet(){
+  const pipe=PIPES[MODE];const rows=activeRows();
+  const title=MODE==="jobs"?"Job Process Call Sheet":"Prospect Call Sheet";
+  let h=`<div class="cs-head"><h1>🌊 SeaBreeze Roofing — ${title}</h1>
+    <div class="meta">${new Date().toLocaleDateString()}<br>${rows.length} records · Danny Bivins · (561) 735-1062</div></div>`;
+  rows.forEach(({j,fs,st})=>{
+    const open=st.checklist.filter((c,i)=>!j.checks[st.key+":"+i] && !/^N\/A/i.test(c));
+    h+=`<div class="cs-card">
+      <div class="cs-top">
+        <div><div class="cs-name">${htmlEsc(j.name)}</div>${j.rid?`<div class="cs-rid">${htmlEsc(j.rid)}</div>`:""}</div>
+        <div style="text-align:right">
+          <div class="cs-stage">${htmlEsc(st.name)}</div>
+          ${fs.level!=="ok"?`<div class="cs-flag">${fs.label} · ${fs.days}d</div>`:""}
+        </div>
+      </div>
+      <div class="cs-grid"><span class="cs-phone">📞 ${htmlEsc(j.phone)}</span><span>✉️ ${htmlEsc(j.email)}</span><span><b>${htmlEsc(j.type)}</b></span></div>
+      <div class="cs-grid"><span>📍 ${htmlEsc(j.addr)}</span>${j.source?`<span>Source: ${htmlEsc(j.source)}</span>`:""}${j.al?`<span>AccuLynx: ${htmlEsc(j.al)}</span>`:""}<span>${fs.days}d ${pipe.ageWord}</span></div>
+      <div class="cs-narr"><span class="lbl">Where it stands:</span> ${htmlEsc(autoNarr(pipe,j,fs))}</div>
+      <div class="cs-todo"><span class="lbl">▶ To-do:</span> ${htmlEsc(autoTodo(pipe,j))}</div>
+      ${open.length?`<div class="cs-steps"><span class="lbl">Checklist:</span> ${open.map(c=>`<span class="cs-step">☐ ${htmlEsc(c)}</span>`).join("")}</div>`:""}
+      <div class="cs-price">Estimate $: ${j.estimate?htmlEsc(j.estimate):'<span class="blank">&nbsp;</span>'} &nbsp;&nbsp;&nbsp; Quoted / Sold $: <span class="blank">&nbsp;</span></div>
+      ${pipe.key==="jobs"?`<div class="cs-pay"><span class="lbl">Payments (${Math.round(paidPct(j)*100)}% collected):</span> ${PAYMENTS.map(p=>{const done=j.payments&&j.payments[p.key];const amt=payAmt(j,p);return `<span class="cs-paychip">${done?'☑':'☐'} ${p.pct?Math.round(p.pct*100)+'%':'Wood'}${amt?' '+amt:''}</span>`;}).join("")}</div>`:""}
+      ${j.notes?`<div class="cs-existing">${htmlEsc(j.notes)}</div>`:""}
+      <div class="cs-notes"><span class="lbl">Call notes:</span><div class="cs-lines"><div></div><div></div><div></div></div></div>
+      <div class="cs-outcome"><span>☐ Reached</span><span>☐ Left VM</span><span>☐ Call back ____</span><span>☐ Not interested</span><span>☐ Appt set</span><span>☐ Sold</span></div>
+    </div>`;
+  });
+  if(!rows.length)h+='<div class="cs-card">No records to call.</div>';
+  q("#printArea").innerHTML=h;
+}
+function doPrint(){buildCallSheet();window.print()}
+function importData(){
+  const i=document.createElement("input");i.type="file";i.accept=".json";
+  i.onchange=e=>{const f=e.target.files[0];const r=new FileReader();
+    r.onload=()=>{try{const d=JSON.parse(r.result);
+      if(d.jobs){DATA.jobs=d.jobs;savePipe(PIPES.jobs)}
+      if(d.prospects){DATA.prospects=d.prospects;savePipe(PIPES.prospects)}
+      if(Array.isArray(d)){DATA.jobs=d;savePipe(PIPES.jobs)} // legacy jobs-only export
+      render();alert("Imported.")}catch(err){alert("Bad file")}};
+    r.readAsText(f)};i.click();
+}
+function syncBadge(){
+  const b=q("#syncbadge");const at=window.SYNC_AT||window.SYNC_PROSPECTS_AT;
+  if(at){const d=new Date(at);b.textContent="synced "+d.toLocaleDateString();b.style.color="#0f9e82"}
+  else b.textContent="standalone";
+}
+
+/* ============ init ============ */
+DATA.jobs=loadPipe(PIPES.jobs);
+DATA.prospects=loadPipe(PIPES.prospects);
+mergeSync(PIPES.jobs);
+mergeSync(PIPES.prospects);
+q("#search").addEventListener("input",render);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeMenu()}});
+document.addEventListener("click",closeMenu);
+syncBadge();
+render();
+</script>
+</body>
+</html>

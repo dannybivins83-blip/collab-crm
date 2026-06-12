@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block body %}
+
+<div class="summary">
+  <div class="stat"><div class="n">{{ total }}</div><div class="l">Total Jobs</div></div>
+  {% for s in stages %}
+  <div class="stat"><div class="n">{{ counts[s] }}</div><div class="l">{{ s }}</div></div>
+  {% endfor %}
+</div>
+
+<div class="followups">
+  <h2>Follow-ups due ({{ followups|length }})</h2>
+  {% if followups %}
+  <ul>
+    {% for j in followups %}
+    <li>
+      <span><a href="{{ url_for('job_detail', job_id=j.id) }}">{{ j.owner or 'Job #' ~ j.id }}</a>
+        — {{ j.next_action or 'Follow up' }} <span class="ok">({{ j.stage }})</span></span>
+      <span class="due">due {{ j.next_due }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="ok">Nothing overdue. All caught up.</div>
+  {% endif %}
+</div>
+
+<div class="board">
+  {% for s in stages %}
+  <div class="col">
+    <h3>{{ s }} <span class="badge">{{ counts[s] }}</span></h3>
+    <div class="cards">
+      {% for j in columns[s] %}
+      {% set od = overdue(j) %}
+      <div class="card {% if od %}flag{% endif %}">
+        <div class="owner"><a href="{{ url_for('job_detail', job_id=j.id) }}">{{ j.owner or 'Job #' ~ j.id }}</a>
+          {% if od %}<span class="flagdot" title="Overdue follow-up">&#9873;</span>{% endif %}</div>
+        <div class="meta">{{ j.address or 'No address' }}{% if j.city %}, {{ j.city }}{% endif %}</div>
+        {% if j.system %}<span class="sys">{{ j.system }}</span>{% endif %}
+        {% if j.value %}<span class="sys val">${{ j.value }}</span>{% endif %}
+        <div class="foot">
+          <span class="dis">{{ days_in_stage(j) }}d in stage</span>
+          {% if s != 'Completed' %}
+          <form method="post" action="{{ url_for('job_advance', job_id=j.id) }}">
+            <input type="hidden" name="next" value="dashboard">
+            <button class="adv" title="Advance to next stage">&rarr; advance</button>
+          </form>
+          {% endif %}
+        </div>
+        {% if od and j.next_action %}<div class="meta" style="color:var(--danger);margin-top:6px">{{ j.next_action }} (due {{ j.next_due }})</div>{% endif %}
+      </div>
+      {% else %}
+      <div class="empty">—</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}
