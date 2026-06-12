@@ -542,7 +542,7 @@ document.querySelectorAll('table.grid').forEach(function(t){
           shotLbl.textContent='Uploading…';
           var tsId=(new Date()).toISOString().replace(/[:.]/g,'').slice(0,15);
           return fetch('{{ url_for("tools.dispatch_screenshot") }}',{method:'POST',
-            headers:{'Content-Type':'application/json'},
+            headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
             body:JSON.stringify({image:dataUrl, task_id:tsId})});
         })
         .then(function(r){return r.json();})
@@ -572,8 +572,8 @@ document.querySelectorAll('table.grid').forEach(function(t){
                  context:savedSelFull, lane:laneEl.value, priority:priEl.value,
                  screenshot_path:shotPath||''};
     fetch('{{ url_for("tools.delegate") }}',{method:'POST',
-      headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
-      .then(function(r){return r.json();})
+      headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'}, body:JSON.stringify(payload)})
+      .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+(t?': '+t.slice(0,80):''));});return r.json();})
       .then(function(d){
         sendBtn.disabled=false;
         if(d.ok){
@@ -586,7 +586,7 @@ document.querySelectorAll('table.grid').forEach(function(t){
           fb.className='dsp-fb err'; fb.textContent='Error: '+(d.error||'unknown');
         }
       })
-      .catch(function(){ sendBtn.disabled=false; fb.className='dsp-fb err'; fb.textContent='Network error.'; });
+      .catch(function(err){ sendBtn.disabled=false; fb.className='dsp-fb err'; fb.textContent='Error: '+(err.message||'network error'); });
   });
   msg.addEventListener('keydown', function(e){
     if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){sendBtn.click();}
@@ -627,16 +627,16 @@ document.querySelectorAll('table.grid').forEach(function(t){
     var t=(titleEl.value||'').trim(), b=(bodyEl.value||'').trim();
     if(!t&&!b){ fb.textContent='Add a title or note first.'; return; }
     submit.disabled=true; fb.textContent='Saving...';
-    fetch('/tools/dev-note',{method:'POST',headers:{'Content-Type':'application/json'},
+    fetch('/tools/dev-note',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
       body:JSON.stringify({title:t,body:b,page:location.pathname+location.search})})
-      .then(function(r){return r.json();})
+      .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});return r.json();})
       .then(function(d){
         submit.disabled=false;
         if(d.ok){ fb.textContent='Saved'; titleEl.value=''; bodyEl.value='';
           setTimeout(function(){ open=false; card.style.display='none'; fb.textContent=''; },1200); }
         else{ fb.textContent='Error: '+(d.error||'unknown'); }
       })
-      .catch(function(){ submit.disabled=false; fb.textContent='Network error.'; });
+      .catch(function(err){ submit.disabled=false; fb.textContent='Error: '+(err.message||'network error'); });
   });
 })();
 </script>
