@@ -216,3 +216,67 @@ def _safe_unlink(path):
             os.remove(path)
     except Exception:
         pass
+
+
+@bp.route("/reconcile-docs", methods=["GET", "POST"])
+def reconcile_docs():
+    """Admin-only: scan DOC_DIR for files with no documents table row and fix them.
+
+    - Files < 100 bytes (corrupt stubs from failed chunked uploads) are deleted.
+    - Real files get a stub documents row (job_id=NULL, category="Unassigned") so
+      they appear in the UI and can be manually linked.
+
+    Returns a JSON summary of deleted, registered, and already-ok counts.
+    Requires: logged-in admin session. GET /admin/reconcile-docs for a dry-run count.
+    """
+    from flask import session, jsonify as _json
+    if session.get("user_role") != "admin":
+        return _json({"ok": False, "error": "admin only"}), 403
+    if db.IS_PG:
+        return _json({"ok": False, "error": "not applicable on Postgres host"}), 400
+
+    doc_dir = config.DOC_DIR
+    if not os.path.exists(doc_dir):
+        return _json({"ok": True, "deleted": 0, "registered": 0, "already_ok": 0,
+                      "note": "DOC_DIR does not exist"})
+
+    # Build set of filenames already in DB.
+    conn = db.connect()
+    try:
+        db_filenames = {r[0] for r in conn.execute(
+            "SELECT filename FROM documents WHERE filename IS NOT NULL").fetchall()}
+    finally:
+        conn.close()
+
+    STUB_MAX = 100  # bytes — anything smaller is a failed chunk leftover
+    deleted = registered = already_ok = 0
+    dry = request.method == "GET"
+
+    for fname in os.listdir(doc_dir):
+        fpath = os.path.join(doc_dir, fname)
+        if not os.path.isfile(fpath) or fname.startswith("_"):
+            continue
+        if fname in db_filenames:
+            already_ok += 1
+            continue
+        sz = os.path.getsize(fpath)
+        if sz < STUB_MAX:
+            if not dry:
+                _safe_unlink(fpath)
+            deleted += 1
+        else:
+            if not dry:
+                db.insert("documents", {
+                    "job_id": None, "lead_id": None,
+                    "category": "Unassigned",
+                    "filename": fname,
+                    "original_name": fname,
+                    "size": sz,
+                    "notes": "Orphaned — reconciled by admin tool",
+                })
+            registered += 1
+
+    return _json({"ok": True, "dry_run": dry,
+                  "deleted_stubs": deleted,
+                  "registered_orphans": registered,
+                  "already_ok": already_ok})
