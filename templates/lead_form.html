@@ -667,6 +667,8 @@
         pendingFills.push({stepIdx:step, text:fin.trim()});
         transcript.push(fin.trim());
         viHeard.textContent='”'+fin.trim()+'”';
+        // Append raw spoken text to Notes in real time
+        if(notesEl){ notesEl.value=(notesEl.value&&notesEl.value.trim())? notesEl.value.trimEnd()+'\n'+fin.trim() : fin.trim(); }
       }
     };
     rec.onend=function(){ if(listening){ try{rec.start();}catch(e){} } };
