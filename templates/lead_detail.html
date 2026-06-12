@@ -247,6 +247,9 @@ function lcGate(form,pct){
       <form method="post" action="{{ url_for('leads.touch', lead_id=l.id) }}"><button class="primary" style="width:100%" type="submit">✓ Log touch (today)</button></form>
       <a class="btn" style="width:100%;margin-top:8px;text-align:center" href="{{ followup_email('lead', l) }}" target="_blank">✉️ Draft follow-up email</a>
       <a class="btn" style="width:100%;margin-top:8px;text-align:center" href="{{ url_for('estimates.new') }}?lead_id={{ l.id }}">📝 New Estimate</a>
+      <form method="post" action="{{ url_for('leads.send_portal_invite', lead_id=l.id) }}" style="margin-top:8px">
+        <button class="btn" style="width:100%" type="submit">📨 Send portal invite{% if l.portal_invited %} (resend){% endif %}</button>
+      </form>
       <form method="post" action="{{ url_for('leads.delete', lead_id=l.id) }}" onsubmit="return confirm('Delete this lead?')" style="margin-top:8px">
         <button class="danger" style="width:100%" type="submit">Delete lead</button>
       </form>

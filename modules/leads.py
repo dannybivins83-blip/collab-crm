@@ -2,7 +2,7 @@
 """Sales pipeline (leads) — Kanban board, detail, drag-to-advance, convert-to-job."""
 import re
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, session
 
 import db
 import theme
@@ -401,6 +401,45 @@ def touch(lead_id):
     if request.form.get("ajax"):
         return jsonify({"ok": True})
     flash("Touch logged.", "ok")
+    return redirect(url_for("leads.detail", lead_id=lead_id))
+
+
+@bp.route("/<int:lead_id>/send-portal-invite", methods=["POST"])
+def send_portal_invite(lead_id):
+    """Manually send (or resend) the homeowner portal magic-link email."""
+    l = db.get("leads", lead_id)
+    if not l:
+        flash("Lead not found.", "error")
+        return redirect(url_for("leads.list_view"))
+    from modules import portal as _portal, gmail as _gm
+    link = _portal.lead_portal_link(lead_id)
+    if not link:
+        flash("Could not generate portal link.", "error")
+        return redirect(url_for("leads.detail", lead_id=lead_id))
+    email = (l.get("email") or "").strip()
+    comp = db.get_company()
+    cn = comp.get("name") or "our team"
+    cname = (l.get("name") or "there").split("(")[0].strip()
+    subj = "Your private project page — %s" % cn
+    body = ("Hi %s,\n\nHere is your private project page to follow your roof "
+            "project and review your estimate once it's ready:\n\n%s\n\nWe'll "
+            "be in touch shortly.\n\n— %s" % (cname, link, cn))
+    sent = False
+    if email:
+        uid = session.get("user_id")
+        try:
+            sent = bool(uid and _gm.send_message(uid, email, subj, body))
+        except Exception:
+            sent = False
+    if sent:
+        db.update("leads", lead_id, portal_invited=db.now())
+        db.add_activity("lead", lead_id, "email",
+                        "Portal invite (re)sent to %s" % email)
+        flash("Portal invite sent to %s" % email, "ok")
+    else:
+        # Gmail not connected or no email — surface the link so staff can share it
+        flash("Gmail not connected%s — copy this link and share manually: %s"
+              % (" (no email on lead)" if not email else "", link), "warn")
     return redirect(url_for("leads.detail", lead_id=lead_id))
 
 
