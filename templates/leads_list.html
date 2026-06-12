@@ -3,7 +3,7 @@
 {% block body %}
 <div class="page-head">
   <h1>Assigned Leads &amp; Jobs</h1>
-  <span class="sub">{{ rows|length }} of {{ total }}</span>
+  <span class="sub">{{ rows|length }} of {{ total - counts.get('lost',0) if not show_lost else total }}</span>
   <div class="grow"></div>
   <div class="viewtoggle">
     <a href="{{ url_for('pipeline.board') }}">⬚ Pipeline</a>
@@ -30,12 +30,17 @@
   <aside class="filters">
     <form method="get"><input name="q" value="{{ q }}" placeholder="Search results…" style="margin-bottom:12px"></form>
     <div class="filt-head">Milestone Pipeline {% if stage_f %}<a href="{{ url_for('leads.list_view') }}" class="muted">clear</a>{% endif %}</div>
-    <a class="filt {{ 'on' if not stage_f }}" href="{{ url_for('leads.list_view') }}">All <span>{{ total }}</span></a>
-    {% for s in constants.LEAD_STAGES %}
+    <a class="filt {{ 'on' if not stage_f and not show_lost }}" href="{{ url_for('leads.list_view') }}">All <span>{{ total - counts.get('lost',0) }}</span></a>
+    {% for s in constants.LEAD_STAGES %}{% if s.key != 'lost' %}
     <a class="filt {{ 'on' if stage_f==s.key }}" href="{{ url_for('leads.list_view') }}?stage={{ s.key }}">
       <span class="fdot" style="background:{{ s.color }}"></span>{{ s.name }} <span>{{ counts[s.key] }}</span>
     </a>
-    {% endfor %}
+    {% endif %}{% endfor %}
+    {% if counts.get('lost') %}
+    <a class="filt {{ 'on' if show_lost and not stage_f }}" href="{{ url_for('leads.list_view') }}?show_lost=1" style="opacity:.65">
+      <span class="fdot" style="background:#9aa6bb"></span>Dead / Lost <span>{{ counts.get('lost',0) }}</span>
+    </a>
+    {% endif %}
   </aside>
 
   <div class="results">

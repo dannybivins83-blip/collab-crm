@@ -22,6 +22,11 @@
   <span class="total">
     {% if overdue %}<span class="od">🔴 {{ overdue }} overdue</span>{% endif %}
     <span>{{ money_k(grand) }} <small>open pipeline</small></span>
+    {% if show_lost %}
+    <a class="muted" href="?" style="margin-left:10px;font-size:13px">Hide Dead ({{ lost_count }})</a>
+    {% elif lost_count %}
+    <a class="muted" href="?show_lost=1" style="margin-left:10px;font-size:13px">+ Show Dead ({{ lost_count }})</a>
+    {% endif %}
   </span>
 </div>
 

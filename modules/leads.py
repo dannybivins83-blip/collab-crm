@@ -64,17 +64,24 @@ def board():
         leads.sort(key=lambda l: (l.get("name") or "").lower())
     else:
         leads.sort(key=lambda l: -l["_fs"]["days"])
+    show_lost = request.args.get("show_lost") == "1"
     cols = []
     grand = 0
     overdue = 0
+    lost_count = 0
     for s in constants.LEAD_STAGES:
         items = [l for l in leads if l["stage"] == s["key"]]
         tot = sum(theme.est_num(l.get("estimate")) for l in items)
+        if s["key"] == "lost":
+            lost_count = len(items)
+            if not show_lost:
+                continue
         if s["key"] not in ("won", "lost"):
             grand += tot
             overdue += sum(1 for l in items if l["_fs"]["level"] == "hot")
         cols.append({"stage": s, "cards": items, "total": tot})
-    return render_template("leads_board.html", cols=cols, grand=grand, overdue=overdue, sort=sort)
+    return render_template("leads_board.html", cols=cols, grand=grand, overdue=overdue, sort=sort,
+                           show_lost=show_lost, lost_count=lost_count)
 
 
 @bp.route("/list")
@@ -87,9 +94,12 @@ def list_view():
     counts = {s["key"]: 0 for s in constants.LEAD_STAGES}
     for l in leads:
         counts[l["stage"]] = counts.get(l["stage"], 0) + 1
+    show_lost = request.args.get("show_lost") == "1"
     rows = leads
     if stage_f:
         rows = [l for l in rows if l["stage"] == stage_f]
+    elif not show_lost:
+        rows = [l for l in rows if l["stage"] != "lost"]
     if bucket:
         rows = [l for l in rows if l["_stage"].get("bucket") == bucket]
     if q:
@@ -97,7 +107,7 @@ def list_view():
                                          (l.get("rid") or "")).lower()]
     rows.sort(key=lambda l: -l["_fs"]["days"])
     return render_template("leads_list.html", rows=rows, counts=counts, stage_f=stage_f, q=q,
-                           total=len(leads))
+                           total=len(leads), show_lost=show_lost)
 
 
 @bp.route("/new", methods=["GET", "POST"])
