@@ -186,6 +186,19 @@
         </span>
       </div>
       <div id="scBody">
+        {% if active_job_list %}
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+          {% for j in active_job_list %}
+          <a href="{{ url_for('jobs.detail', job_id=j.id) }}"
+             style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;
+                    background:var(--panel2);border:1px solid var(--line,#dde3ec);font-size:12px;
+                    color:var(--fg);text-decoration:none;white-space:nowrap"
+             title="{{ j.name }}">
+            {{ (j.rid ~ ' ·') if j.rid }} {{ j.name | truncate(28, true, '…') }}
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
         <iframe src="{{ sitecam }}" id="scFrame"
                 style="width:118%;height:300px;border:1px solid var(--line,#dde3ec);border-radius:8px;background:#fff;zoom:0.85;transform-origin:top left"
                 allow="camera; geolocation; clipboard-read; clipboard-write" referrerpolicy="origin" loading="lazy"></iframe>

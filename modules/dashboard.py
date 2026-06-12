@@ -101,12 +101,17 @@ def home():
     invmod.sweep_overdue_automations(outstanding)
     outstanding_total = sum(i.get("amount") or 0 for i in outstanding)
 
+    active_job_list = sorted(
+        [j for j in jobs if j["stage"] not in constants.JOB_INACTIVE],
+        key=lambda j: (j.get("name") or "").lower()
+    )
     return render_template("dashboard.html", pipeline=pipeline, active_jobs=active_jobs,
                            overdue=overdue, feed=feed, win_rate=win_rate, won=won, lost=lost,
                            outstanding=outstanding, outstanding_total=outstanding_total,
                            qbo_connected=qb.is_connected(),
                            gp_dollars=gp_dollars, gp_margin=gp_margin,
-                           gp_contract=gp_contract)
+                           gp_contract=gp_contract,
+                           active_job_list=active_job_list)
 
 
 def _activity_name(a):
