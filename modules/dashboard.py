@@ -83,8 +83,8 @@ def home():
         """, (dept,)).fetchone()
     finally:
         conn.close()
-    gp_contract = float(gp_row[0]) if gp_row else 0.0
-    gp_cost     = float(gp_row[1]) if gp_row else 0.0
+    gp_contract = float(gp_row["total_contract"]) if gp_row else 0.0
+    gp_cost     = float(gp_row["total_cost"])     if gp_row else 0.0
     gp_dollars  = gp_contract - gp_cost
     gp_margin   = round(100 * gp_dollars / gp_contract, 1) if gp_contract else 0.0
 
