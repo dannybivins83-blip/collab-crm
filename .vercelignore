@@ -12,3 +12,7 @@ docs/
 _blob_rescue/
 _*.json
 .git/
+packet_builder_handoff/
+tests/
+coordination/
+secrets/
