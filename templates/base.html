@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>{% block title %}{{ company.name or 'CRM' }}{% endblock %} · {{ company.name or 'CRM' }}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <style>
   :root{
     --masthead: {{ company.color_masthead or '#24476C' }};
@@ -337,6 +338,260 @@ document.querySelectorAll('table.grid').forEach(function(t){
 {% block scripts %}{% endblock %}
 
 {% if current_user and (current_user.is_owner or current_user.role == 'admin') %}
+<!-- ⚡ Agent Dispatch Widget — type a change, hit send, agent picks it up via OVERLORD bus -->
+<style>
+#dspBtn{position:fixed;bottom:20px;right:74px;z-index:9999;width:44px;height:44px;border-radius:50%;
+  background:var(--accent,#4680BF);color:#fff;font-size:18px;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);user-select:none;
+  transition:transform .15s}
+#dspBtn:hover{transform:scale(1.1)}
+#dspBtn.open{background:#2a5fa8}
+#dspPanel{display:none;position:fixed;bottom:72px;right:74px;z-index:9999;width:340px;
+  background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.28);
+  border:1px solid var(--line,#dde3ec);font-size:13px;overflow:hidden}
+#dspPanel.open{display:block}
+.dsp-head{background:var(--accent,#4680BF);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px}
+.dsp-head .dsp-title{font-weight:700;font-size:13px;flex:1}
+.dsp-head .dsp-page{font-size:10px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.dsp-head .dsp-close{background:none;border:none;color:#fff;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;opacity:.8}
+.dsp-head .dsp-close:hover{opacity:1}
+.dsp-ctx{padding:6px 14px;background:#f4f8ff;border-bottom:1px solid #e0e8f4;font-size:11px;color:#4a6080;display:flex;align-items:center;gap:6px;min-height:28px}
+.dsp-ctx .dsp-sel{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:italic}
+.dsp-ctx .dsp-grab{font-size:10px;background:var(--accent,#4680BF)18;border:1px solid var(--accent,#4680BF)44;
+  color:var(--accent,#4680BF);border-radius:4px;padding:2px 6px;cursor:pointer;white-space:nowrap;flex:none}
+.dsp-ctx .dsp-grab:hover{background:var(--accent,#4680BF)28}
+.dsp-body{padding:12px 14px 8px}
+#dspMsg{width:100%;height:80px;resize:vertical;padding:8px 10px;border:1px solid #c7d0de;
+  border-radius:8px;font:inherit;font-size:13px;box-sizing:border-box;line-height:1.4}
+#dspMsg:focus{outline:none;border-color:var(--accent,#4680BF);box-shadow:0 0 0 2px var(--accent,#4680BF)22}
+.dsp-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.dsp-row select{flex:1;padding:5px 8px;border:1px solid #c7d0de;border-radius:6px;font:inherit;font-size:12px;background:#fff}
+#dspSend{padding:6px 14px;font-size:13px;font-weight:700;background:var(--accent,#4680BF);
+  color:#fff;border:none;border-radius:7px;cursor:pointer;white-space:nowrap;flex:none}
+#dspSend:hover{background:#2a5fa8}
+#dspSend:disabled{opacity:.5;cursor:not-allowed}
+.dsp-fb{font-size:11px;color:var(--ok,#2e7d32);padding:4px 14px 0;min-height:18px}
+.dsp-fb.err{color:var(--danger,#e25050)}
+.dsp-hist{border-top:1px solid #eef1f6;padding:8px 14px;max-height:130px;overflow-y:auto}
+.dsp-hist-head{font-size:10px;font-weight:700;color:#8a93a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.dsp-hrow{padding:4px 0;border-bottom:1px solid #f4f6fa;font-size:11px;display:flex;gap:6px;align-items:baseline}
+.dsp-hrow:last-child{border-bottom:none}
+.dsp-htag{font-size:10px;font-weight:700;color:var(--accent,#4680BF);background:var(--accent,#4680BF)14;
+  border-radius:4px;padding:1px 5px;flex:none}
+.dsp-hmsg{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#3a4a5e}
+.dsp-hts{color:#a0aab8;flex:none;font-size:10px}
+.dsp-empty{color:#a0aab8;font-size:11px;font-style:italic}
+.dsp-shot-wrap{padding:0 14px 6px;display:none}
+.dsp-shot-wrap.on{display:block}
+.dsp-shot-row{display:flex;align-items:center;gap:8px}
+.dsp-shot-thumb{width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #c7d0de;cursor:pointer;flex:none}
+.dsp-shot-lbl{font-size:11px;color:#4a6080;flex:1;line-height:1.35}
+.dsp-shot-rm{background:none;border:none;color:#a0aab8;cursor:pointer;font-size:14px;padding:0 3px}
+.dsp-shot-rm:hover{color:var(--danger,#e25050)}
+.dsp-snap{font-size:12px;background:#f4f8ff;border:1px solid var(--accent,#4680BF)44;
+  color:var(--accent,#4680BF);border-radius:5px;padding:3px 8px;cursor:pointer;flex:none;white-space:nowrap}
+.dsp-snap:hover{background:var(--accent,#4680BF)18}
+.dsp-snap:disabled{opacity:.5;cursor:not-allowed}
+</style>
+<div id="dspBtn" title="⚡ Dispatch to agent  (Alt+D)">⚡</div>
+<div id="dspPanel">
+  <div class="dsp-head">
+    <span class="dsp-title">⚡ Dispatch</span>
+    <span class="dsp-page" id="dspPageLbl"></span>
+    <button class="dsp-close" id="dspClose">✕</button>
+  </div>
+  <div class="dsp-ctx">
+    <span class="dsp-sel" id="dspSelLbl">No text selected</span>
+    <button class="dsp-grab" id="dspGrab">✂ Grab selection</button>
+  </div>
+  <div class="dsp-body">
+    <textarea id="dspMsg" placeholder="What should change? Be specific — the agent reads this cold." data-nomic></textarea>
+    <div class="dsp-row" style="margin-top:6px;margin-bottom:0">
+      <button class="dsp-snap" id="dspSnap">📸 Screenshot</button>
+    </div>
+  </div>
+  <div class="dsp-shot-wrap" id="dspShotWrap">
+    <div class="dsp-shot-row">
+      <img id="dspShotThumb" class="dsp-shot-thumb" src="" alt="screenshot" title="Click to enlarge">
+      <span class="dsp-shot-lbl" id="dspShotLbl">Capturing…</span>
+      <button class="dsp-shot-rm" id="dspShotRm" title="Remove screenshot">✕</button>
+    </div>
+  </div>
+  <div class="dsp-body" style="padding-top:4px">
+    <div class="dsp-row">
+      <select id="dspLane" title="Route to lane">
+        <option value="crm-coord">→ Head Coach (auto-route)</option>
+        <option value="crm-ui">→ CRM UI lane</option>
+        <option value="security">→ Security lane</option>
+        <option value="takeoff">→ Takeoff lane</option>
+        <option value="permit">→ Permit lane</option>
+        <option value="sitecam">→ SiteCam lane</option>
+        <option value="roofengine">→ Roof Engine lane</option>
+        <option value="overlord">→ OVERLORD (boss)</option>
+      </select>
+      <select id="dspPri" style="width:64px;flex:none">
+        <option value="P0">🔴 P0</option>
+        <option value="P1" selected>🟡 P1</option>
+        <option value="P2">🟢 P2</option>
+      </select>
+      <button id="dspSend">⚡ Send</button>
+    </div>
+    <div id="dspFb" class="dsp-fb"></div>
+  </div>
+  <div class="dsp-hist">
+    <div class="dsp-hist-head">Recent dispatches</div>
+    <div id="dspHistBody"><div class="dsp-empty">Loading…</div></div>
+  </div>
+</div>
+<script>
+(function(){
+  var btn=document.getElementById('dspBtn'),
+      panel=document.getElementById('dspPanel'),
+      closeBtn=document.getElementById('dspClose'),
+      pageLbl=document.getElementById('dspPageLbl'),
+      selLbl=document.getElementById('dspSelLbl'),
+      grabBtn=document.getElementById('dspGrab'),
+      msg=document.getElementById('dspMsg'),
+      laneEl=document.getElementById('dspLane'),
+      priEl=document.getElementById('dspPri'),
+      sendBtn=document.getElementById('dspSend'),
+      fb=document.getElementById('dspFb'),
+      histBody=document.getElementById('dspHistBody'),
+      snapBtn=document.getElementById('dspSnap'),
+      shotWrap=document.getElementById('dspShotWrap'),
+      shotThumb=document.getElementById('dspShotThumb'),
+      shotLbl=document.getElementById('dspShotLbl'),
+      shotRm=document.getElementById('dspShotRm');
+  var isOpen=false, savedSel='', savedSelFull='', shotPath='';
+  var esc=function(s){return (s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+
+  function grabSel(){
+    var s=window.getSelection();
+    savedSelFull = s ? s.toString().trim() : '';
+    savedSel = savedSelFull.slice(0,120);
+    selLbl.textContent = savedSel ? ('✂ "' + savedSel + (savedSelFull.length>120?'…':'') + '"') : 'No text selected';
+  }
+
+  function open(){
+    isOpen=true;
+    btn.classList.add('open');
+    panel.classList.add('open');
+    pageLbl.textContent = document.title ? document.title.split(' · ')[0].slice(0,40) : location.pathname;
+    grabSel();
+    loadHist();
+    msg.focus();
+  }
+  function close(){
+    isOpen=false;
+    btn.classList.remove('open');
+    panel.classList.remove('open');
+  }
+
+  btn.addEventListener('click', function(){ isOpen?close():open(); });
+  closeBtn.addEventListener('click', close);
+  grabBtn.addEventListener('click', function(){ grabSel(); });
+  document.addEventListener('keydown', function(e){
+    if(e.altKey && e.key==='d'){ e.preventDefault(); isOpen?close():open(); }
+    if(e.key==='Escape' && isOpen){ close(); }
+  });
+  document.addEventListener('click', function(e){
+    if(isOpen && !panel.contains(e.target) && e.target!==btn) close();
+  });
+
+  function loadHist(){
+    histBody.innerHTML='<div class="dsp-empty">Loading…</div>';
+    fetch('{{ url_for("tools.delegate_log") }}')
+      .then(function(r){return r.ok?r.json():{ok:false};})
+      .then(function(d){
+        if(!d.ok||!d.entries||!d.entries.length){
+          histBody.innerHTML='<div class="dsp-empty">No dispatches yet.</div>'; return;
+        }
+        histBody.innerHTML=d.entries.map(function(e){
+          var t=e.ts?e.ts.slice(11,16):'--:--';
+          return '<div class="dsp-hrow">'
+            +'<span class="dsp-htag">'+esc(e.lane||'?')+'</span>'
+            +'<span class="dsp-hmsg">'+esc((e.message||'').slice(0,60))+'</span>'
+            +'<span class="dsp-hts">'+esc(t)+'</span>'
+            +'</div>';
+        }).join('');
+      }).catch(function(){ histBody.innerHTML='<div class="dsp-empty">Couldn\'t load history.</div>'; });
+  }
+
+  function clearShot(){
+    shotPath=''; shotWrap.classList.remove('on');
+    shotThumb.src=''; shotLbl.textContent='';
+  }
+  shotRm.addEventListener('click', clearShot);
+  shotThumb.addEventListener('click', function(){ if(shotThumb.src) window.open(shotThumb.src,'_blank'); });
+
+  snapBtn.addEventListener('click', function(){
+    if(!window.html2canvas){ fb.className='dsp-fb err'; fb.textContent='html2canvas not loaded yet — try again in a moment.'; return; }
+    snapBtn.disabled=true; snapBtn.textContent='📸 Capturing…';
+    // Hide the panel momentarily so it doesn't appear in the screenshot
+    panel.style.visibility='hidden'; btn.style.visibility='hidden';
+    setTimeout(function(){
+      html2canvas(document.body, {useCORS:true, allowTaint:true, scale:0.6,
+          ignoreElements:function(el){ return el===panel||el===btn; }})
+        .then(function(canvas){
+          panel.style.visibility=''; btn.style.visibility='';
+          var dataUrl=canvas.toDataURL('image/png');
+          shotThumb.src=dataUrl;
+          shotWrap.classList.add('on');
+          shotLbl.textContent='Uploading…';
+          var tsId=(new Date()).toISOString().replace(/[:.]/g,'').slice(0,15);
+          return fetch('{{ url_for("tools.dispatch_screenshot") }}',{method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({image:dataUrl, task_id:tsId})});
+        })
+        .then(function(r){return r.json();})
+        .then(function(d){
+          snapBtn.disabled=false; snapBtn.textContent='📸 Screenshot';
+          if(d.ok){
+            shotPath=d.path;
+            shotLbl.innerHTML='<b>Screenshot attached</b> (' + (d.size_kb||'?') + ' KB)<br><span style="font-size:10px;color:#8a93a6">'+esc(d.filename||'')+'</span>';
+          } else {
+            shotWrap.classList.remove('on');
+            fb.className='dsp-fb err'; fb.textContent='Screenshot save failed: '+(d.error||'unknown');
+          }
+        })
+        .catch(function(err){
+          panel.style.visibility=''; btn.style.visibility='';
+          snapBtn.disabled=false; snapBtn.textContent='📸 Screenshot';
+          fb.className='dsp-fb err'; fb.textContent='Screenshot error: '+err.message;
+        });
+    }, 80);
+  });
+
+  sendBtn.addEventListener('click', function(){
+    var m=(msg.value||'').trim();
+    if(!m){fb.className='dsp-fb err';fb.textContent='Type an instruction first.';return;}
+    sendBtn.disabled=true; fb.className='dsp-fb'; fb.textContent='Sending…';
+    var payload={message:m, url:location.href, page_title:document.title,
+                 context:savedSelFull, lane:laneEl.value, priority:priEl.value,
+                 screenshot_path:shotPath||''};
+    fetch('{{ url_for("tools.delegate") }}',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        sendBtn.disabled=false;
+        if(d.ok){
+          fb.className='dsp-fb'; fb.textContent='✓ Dispatched to '+d.lane+' — agent picks up on next tick.';
+          msg.value=''; savedSel=''; savedSelFull=''; selLbl.textContent='No text selected';
+          clearShot();
+          loadHist();
+          setTimeout(function(){fb.textContent='';},4000);
+        } else {
+          fb.className='dsp-fb err'; fb.textContent='Error: '+(d.error||'unknown');
+        }
+      })
+      .catch(function(){ sendBtn.disabled=false; fb.className='dsp-fb err'; fb.textContent='Network error.'; });
+  });
+  msg.addEventListener('keydown', function(e){
+    if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){sendBtn.click();}
+  });
+})();
+</script>
+
 <div id="devNoteBtn" title="Leave a dev note" style="position:fixed;bottom:20px;right:20px;z-index:9999;
   width:44px;height:44px;border-radius:50%;background:var(--accent2);color:#fff;font-size:20px;
   display:flex;align-items:center;justify-content:center;cursor:pointer;
@@ -380,6 +635,21 @@ document.querySelectorAll('table.grid').forEach(function(t){
         else{ fb.textContent='Error: '+(d.error||'unknown'); }
       })
       .catch(function(){ submit.disabled=false; fb.textContent='Network error.'; });
+  });
+})();
+</script>
+{% endif %}
+{% if current_user %}
+<script>
+(function(){
+  var tok = {{ csrf_token|tojson }};
+  document.querySelectorAll('form').forEach(function(f){
+    var m = (f.getAttribute('method') || '').toUpperCase();
+    if (m !== 'POST' && m !== 'PUT' && m !== 'PATCH' && m !== 'DELETE') return;
+    if (f.querySelector('input[name="_csrf"]')) return;
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = '_csrf'; inp.value = tok;
+    f.appendChild(inp);
   });
 })();
 </script>

@@ -194,6 +194,22 @@ def set_password(user_id, password):
     db.update("users", user_id, password_hash=generate_password_hash(password or DEFAULT_PASSWORD))
 
 
+def _get_csrf_token():
+    """Return the per-session CSRF token, generating one if needed."""
+    if "_csrf" not in session:
+        session["_csrf"] = secrets.token_hex(24)
+    return session["_csrf"]
+
+
+# Endpoints exempt from CSRF validation (cross-origin bookmarklets / HMAC-signed APIs /
+# public portal magic-link routes / the DB-restore which has its own X-Restore-Token gate).
+_CSRF_EXEMPT = PUBLIC | {
+    "sync.index",       # sync dashboard page (GET-only in practice)
+    "dbadmin.reconcile_docs",  # token-gated admin tool, supports GET
+    "auth.logout",      # GET link, not a state-changing form
+}
+
+
 def init_auth(app):
     _ensure_schema()
     app.register_blueprint(bp)
@@ -208,7 +224,20 @@ def init_auth(app):
         if session.get("user_role") != "admin" and request.path.startswith(ADMIN_ONLY_PATHS):
             flash("Admins only.", "error")
             return redirect(url_for("dashboard.home"))
+        # CSRF validation on all state-changing requests for authenticated sessions.
+        # SameSite=Lax (app.py) is the primary guard; tokens add defense-in-depth.
+        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            if request.endpoint not in _CSRF_EXEMPT:
+                expected = session.get("_csrf")
+                presented = (request.form.get("_csrf")
+                             or request.headers.get("X-CSRFToken")
+                             or request.headers.get("X-CSRF-Token"))
+                if not expected or not presented or not secrets.compare_digest(
+                        str(expected), str(presented)):
+                    flash("Request expired or invalid — please try again.", "error")
+                    return redirect(request.referrer or url_for("dashboard.home"))
 
     @app.context_processor
     def _inject_user():
-        return {"current_user": current_user()}
+        tok = _get_csrf_token()
+        return {"current_user": current_user(), "csrf_token": tok}
