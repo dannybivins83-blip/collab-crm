@@ -153,10 +153,19 @@
         <div class="field"><label>Stage</label>
           <select name="stage">{% for s in constants.LEAD_STAGES %}<option value="{{ s.key }}" {{ 'selected' if s.key==constants.LEAD_DEFAULT_STAGE }}>{{ s.name }}</option>{% endfor %}</select>
         </div>
-        <div class="field"><label>Link to contact</label>
-          <select name="contact_id"><option value="">— none —</option>
-            {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if lead.contact_id==c.id }}>{{ c.first_name }} {{ c.last_name }}{{ ' · ' ~ c.company if c.company }}</option>{% endfor %}
+        <div class="field"><label>GC / Contractor <span class="muted" style="font-weight:400">(for permit docs)</span></label>
+          <select name="contact_id" id="gc_select" onchange="showGcBilling(this)">
+            <option value="">— none / homeowner job —</option>
+            {% set gc_contacts = contacts|selectattr('is_gc')|list %}
+            {% set other_contacts = contacts|rejectattr('is_gc')|list %}
+            {% if gc_contacts %}<optgroup label="General Contractors">
+              {% for c in gc_contacts %}<option value="{{ c.id }}" {{ 'selected' if lead.contact_id==c.id }} data-addr="{{ (c.address or '') }}{{ ', ' ~ c.city if c.city }}" data-company="{{ c.company or '' }}">🏗️ {{ c.company or (c.first_name ~ ' ' ~ c.last_name)|trim }}{{ (' · ' ~ c.first_name ~ ' ' ~ c.last_name)|trim if c.company }}</option>{% endfor %}
+            </optgroup>{% endif %}
+            {% if other_contacts %}<optgroup label="Other contacts">
+              {% for c in other_contacts %}<option value="{{ c.id }}" {{ 'selected' if lead.contact_id==c.id }}>{{ c.first_name }} {{ c.last_name }}{{ ' · ' ~ c.company if c.company }}</option>{% endfor %}
+            </optgroup>{% endif %}
           </select>
+          <div id="gc_billing_preview" style="display:none;margin-top:4px;font-size:12px;color:var(--muted)">🏢 Billing: <span id="gc_billing_addr"></span></div>
         </div>
       </div>
       <p class="muted" style="margin:4px 0 0">Permit office (AHJ) + roof system auto-resolve from the address &amp; work type.</p>
@@ -282,10 +291,19 @@
       </div>
       <div class="row">
         <div class="field"><label>Estimate ($)</label><input name="estimate" value="{{ lead.estimate or '' }}" placeholder="$14,500"></div>
-        <div class="field"><label>Link to contact</label>
-          <select name="contact_id"><option value="">— none —</option>
-            {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if lead.contact_id==c.id }}>{{ c.first_name }} {{ c.last_name }}{{ ' · ' ~ c.company if c.company }}</option>{% endfor %}
+        <div class="field"><label>GC / Contractor <span class="muted" style="font-weight:400">(for permit docs)</span></label>
+          <select name="contact_id" onchange="showGcBilling(this)">
+            <option value="">— none / homeowner job —</option>
+            {% set gc_contacts = contacts|selectattr('is_gc')|list %}
+            {% set other_contacts = contacts|rejectattr('is_gc')|list %}
+            {% if gc_contacts %}<optgroup label="General Contractors">
+              {% for c in gc_contacts %}<option value="{{ c.id }}" {{ 'selected' if lead.contact_id==c.id }} data-addr="{{ (c.address or '') }}{{ ', ' ~ c.city if c.city }}" data-company="{{ c.company or '' }}">🏗️ {{ c.company or (c.first_name ~ ' ' ~ c.last_name)|trim }}{{ (' · ' ~ c.first_name ~ ' ' ~ c.last_name)|trim if c.company }}</option>{% endfor %}
+            </optgroup>{% endif %}
+            {% if other_contacts %}<optgroup label="Other contacts">
+              {% for c in other_contacts %}<option value="{{ c.id }}" {{ 'selected' if lead.contact_id==c.id }}>{{ c.first_name }} {{ c.last_name }}{{ ' · ' ~ c.company if c.company }}</option>{% endfor %}
+            </optgroup>{% endif %}
           </select>
+          <div id="gc_billing_preview2" style="display:none;margin-top:4px;font-size:12px;color:var(--muted)">🏢 Billing: <span id="gc_billing_addr2"></span></div>
         </div>
       </div>
       <p class="muted" style="margin:4px 0 0">Permit office (AHJ) + roof system auto-resolve from the address &amp; work type, and a starter estimate is drafted for the tagged system on save.</p>
@@ -344,6 +362,23 @@
   function sync(){ box.style.display = cb.checked ? 'none' : ''; }
   cb.addEventListener('change', sync); sync();
 })();
+</script>
+<script>
+function showGcBilling(sel) {
+  var opt = sel.options[sel.selectedIndex];
+  var addr = opt ? (opt.getAttribute('data-addr') || '') : '';
+  // Update any billing preview divs on the page.
+  ['gc_billing_preview','gc_billing_preview2'].forEach(function(id) {
+    var d = document.getElementById(id);
+    if (d) { d.style.display = addr ? '' : 'none'; }
+  });
+  ['gc_billing_addr','gc_billing_addr2'].forEach(function(id) {
+    var s = document.getElementById(id);
+    if (s) s.textContent = addr;
+  });
+}
+// Trigger on load if a GC is already selected.
+document.querySelectorAll('[name="contact_id"]').forEach(function(s){ showGcBilling(s); });
 </script>
 
 <style>

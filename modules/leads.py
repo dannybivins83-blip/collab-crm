@@ -296,7 +296,14 @@ def detail(lead_id):
     quick_templates = [t for t in db.all_rows("templates", order="name")
                        if constants.template_for_work_type(t.get("work_type") or "") == key
                        and key not in ("blank",)]
+    # Load GC contact when contact_id points to an is_gc record.
+    gc_contact = None
+    if l.get("contact_id"):
+        c = db.get("contacts", l["contact_id"])
+        if c and c.get("is_gc"):
+            gc_contact = c
     return render_template("lead_detail.html", l=l,
+                           gc_contact=gc_contact,
                            activity=db.entity_activity("lead", lead_id),
                            estimates=db.all_rows("estimates", "lead_id=?", (lead_id,)),
                            measurement=meas.for_lead(lead_id),

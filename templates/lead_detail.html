@@ -92,6 +92,21 @@ function lcGate(form,pct){
   </div>
 </div>
 
+{% if gc_contact %}
+<div class="card" style="margin-bottom:18px;border-left:4px solid var(--accent)">
+  <h2 style="margin-bottom:6px">🏗️ GC / Permit Client</h2>
+  <div class="muted" style="line-height:2">
+    <div><b style="color:var(--txt)">{{ gc_contact.company or ((gc_contact.first_name or '') ~ ' ' ~ (gc_contact.last_name or ''))|trim }}</b>
+      {% if gc_contact.company and (gc_contact.first_name or gc_contact.last_name) %} · {{ gc_contact.first_name }} {{ gc_contact.last_name }}{% endif %}
+    </div>
+    {% if gc_contact.phone %}<div><a href="tel:{{ gc_contact.phone }}">📞 {{ gc_contact.phone }}</a></div>{% endif %}
+    {% if gc_contact.email %}<div>✉️ <a href="mailto:{{ gc_contact.email }}">{{ gc_contact.email }}</a></div>{% endif %}
+    {% if gc_contact.address %}<div>🏢 Billing: {{ gc_contact.address }}{% if gc_contact.city %}, {{ gc_contact.city }}{% endif %} {{ gc_contact.state or '' }} {{ gc_contact.zip or '' }}</div>{% endif %}
+    <div style="margin-top:4px"><a href="{{ url_for('contacts.detail', cid=gc_contact.id) }}" class="btn sm">View GC profile &rarr;</a></div>
+  </div>
+</div>
+{% endif %}
+
 {% if l.narrative %}<div class="card" style="margin-bottom:18px"><span class="muted">Where it stands:</span> {{ l.narrative }}</div>{% endif %}
 
 <!-- Lead Activity tabs (mirrors Job detail) -->
