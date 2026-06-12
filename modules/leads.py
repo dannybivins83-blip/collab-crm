@@ -287,6 +287,131 @@ def new():
                            onboarding_questions=getattr(constants, "ONBOARDING_QUESTIONS", []))
 
 
+@bp.route("/parse-zip", methods=["POST"])
+def parse_zip():
+    """Accept an uploaded ZIP, walk every file inside, parse each for lead data with
+    Claude + pypdf + lead_intake, merge the results, and return extracted fields as JSON.
+    Used by the intake form to auto-complete lead fields from a ZIP of drawings/emails/docs."""
+    import zipfile, io, base64, json as _json
+    from modules import lead_intake as _li
+
+    f = request.files.get("zip")
+    if not f:
+        return jsonify({"error": "no file"}), 400
+
+    api_key = config.ANTHROPIC_API_KEY
+    if not api_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY not set — add it to Render env"}), 503
+
+    import anthropic
+    client = anthropic.Anthropic(api_key=api_key)
+    PROMPT = (
+        "Extract lead/customer information from this document. "
+        "Return ONLY valid JSON (no markdown, no code fences, no explanation). "
+        "Include only fields you are confident about: "
+        "name (full name), phone, email, address (street only), city, zip, "
+        "work_type (one of: Shingle Reroof, Tile Reroof, Metal Reroof, "
+        "Flat/TPO Reroof, Roof Repair, Other), source, notes. Omit uncertain fields."
+    )
+
+    def _try_claude_text(text):
+        try:
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001", max_tokens=512,
+                messages=[{"role": "user", "content": PROMPT + "\n\nDocument text:\n" + text[:3000]}])
+            raw = msg.content[0].text.strip()
+            if raw.startswith("```"):
+                raw = "\n".join(raw.split("\n")[1:])
+                if raw.endswith("```"):
+                    raw = raw[:-3].strip()
+            return _json.loads(raw)
+        except Exception:
+            return {}
+
+    def _try_claude_image(data, ct):
+        try:
+            b64 = base64.standard_b64encode(data).decode()
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001", max_tokens=512,
+                messages=[{"role": "user", "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": ct, "data": b64}},
+                    {"type": "text", "text": PROMPT}
+                ]}])
+            raw = msg.content[0].text.strip()
+            if raw.startswith("```"):
+                raw = "\n".join(raw.split("\n")[1:])
+                if raw.endswith("```"):
+                    raw = raw[:-3].strip()
+            return _json.loads(raw)
+        except Exception:
+            return {}
+
+    merged = {}
+
+    def merge(d):
+        if not d:
+            return
+        for k, v in (d or {}).items():
+            if v and not merged.get(k):
+                merged[k] = v
+
+    try:
+        zdata = f.read()
+        zf = zipfile.ZipFile(io.BytesIO(zdata))
+    except zipfile.BadZipFile:
+        return jsonify({"error": "Not a valid ZIP file — please upload a .zip archive."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    names = [n for n in zf.namelist()
+             if not n.endswith("/") and not n.startswith("__MACOSX") and "/." not in n]
+    files_processed = []
+
+    CT_MAP = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+              "gif": "image/gif", "webp": "image/webp"}
+    IMG_EXTS = set(CT_MAP.keys())
+    TEXT_EXTS = {"txt", "eml", "msg", "html", "htm", "csv"}
+
+    for name in names[:20]:
+        ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+        try:
+            data = zf.read(name)
+        except Exception:
+            continue
+
+        files_processed.append(name)
+
+        if ext in IMG_EXTS:
+            merge(_try_claude_image(data, CT_MAP[ext]))
+
+        elif ext == "pdf":
+            text = ""
+            try:
+                from pypdf import PdfReader
+                reader = PdfReader(io.BytesIO(data))
+                text = " ".join((p.extract_text() or "") for p in reader.pages[:6]).strip()
+            except Exception:
+                pass
+            if text:
+                merge(_li.parse_email("", name, text))
+                merge(_try_claude_text(text))
+
+        elif ext in TEXT_EXTS:
+            try:
+                import re as _re2
+                text = data.decode("utf-8", "replace")
+                text = _re2.sub(r"<[^>]+>", " ", text)
+                text = _re2.sub(r"\s+", " ", text).strip()
+                merge(_li.parse_email("", name, text))
+                if len(text) > 80:
+                    merge(_try_claude_text(text))
+            except Exception:
+                pass
+
+    return jsonify({"ok": True, "fields": merged,
+                    "files": files_processed, "count": len(files_processed)})
+
+
 @bp.route("/parse-image", methods=["POST"])
 def parse_image():
     """Accept an uploaded image, send to Claude vision, return extracted lead fields as JSON."""

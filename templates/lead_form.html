@@ -226,12 +226,14 @@
         </div>
         <div class="field" style="flex:1">
           <label style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">File(s)</label>
-          <input type="file" name="intake_files" id="intake_files" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.heic,.doc,.docx,.xls,.xlsx,.csv,.txt" style="font-size:13px">
+          <input type="file" name="intake_files" id="intake_files" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.heic,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" style="font-size:13px">
         </div>
       </div>
       <div id="intake-doc-hint" style="display:none;padding:8px 12px;background:#e8f7f0;border:1px solid #8CC63F;border-radius:7px;font-size:12px;color:#2a6020;margin-bottom:10px">
         ⚡ <strong>Drawing files detected</strong> — after saving, the estimator will read these to auto-generate the scope, estimate, and permit form.
       </div>
+      <div id="zip-extract-status" style="display:none;padding:8px 12px;border-radius:7px;font-size:12px;margin-bottom:10px"></div>
+      <div id="zip-extract-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
       <label class="check" style="margin-bottom:0">
         <input type="checkbox" name="run_roof_report" value="1" id="run_roof_report_cb">
         <span style="font-size:13px">Request roof report after saving <span class="muted">(adds to the lead checklist — approve or skip later)</span></span>
@@ -791,6 +793,95 @@ document.querySelectorAll('[name="contact_id"]').forEach(function(s){ showGcBill
     hint.style.display=(dt.value==='Drawing/Plans'&&fi.files&&fi.files.length)?'block':'none';
   }
   dt.addEventListener('change',upd); fi.addEventListener('change',upd);
+})();
+
+// ---- ZIP auto-extract: detect .zip selection, call /leads/parse-zip, fill fields ----
+(function(){
+  var fi=document.getElementById('intake_files');
+  var st=document.getElementById('zip-extract-status');
+  var chips=document.getElementById('zip-extract-chips');
+  if(!fi||!st||!chips) return;
+
+  function fieldEl(n){ return document.querySelector('[name="'+n+'"]'); }
+  function setIfBlank(n,v){
+    if(!v) return false;
+    var el=fieldEl(n);
+    if(el && !(''+el.value).trim()){ el.value=v; return true; } return false;
+  }
+  function selectIfBlank(n,v){
+    if(!v) return false;
+    var el=fieldEl(n);
+    if(!el||el.tagName!=='SELECT'||el.value) return false;
+    var lv=(v||'').toLowerCase();
+    for(var i=0;i<el.options.length;i++){
+      var ot=(el.options[i].text||'').toLowerCase();
+      if(ot&&(ot.indexOf(lv)>-1||lv.indexOf(ot)>-1)&&el.options[i].value){ el.selectedIndex=i; return true; }
+    }
+    return false;
+  }
+  function appendNote(v){
+    if(!v) return;
+    var ne=document.getElementById('f_notes')||fieldEl('notes');
+    if(ne){ ne.value=ne.value.trim()? ne.value.trim()+'\n'+v : v; }
+  }
+  function chip(label,ok){
+    var c=document.createElement('span');
+    c.className='vi-chip'+(ok?' done':'');
+    c.textContent=(ok?'✓ ':'')+label;
+    chips.appendChild(c);
+  }
+
+  fi.addEventListener('change',function(){
+    chips.innerHTML='';
+    st.style.display='none';
+    if(!fi.files||!fi.files.length) return;
+    var zipFile=null;
+    for(var i=0;i<fi.files.length;i++){
+      if((fi.files[i].name||'').toLowerCase().endsWith('.zip')){ zipFile=fi.files[i]; break; }
+    }
+    if(!zipFile) return;
+
+    st.style.cssText='display:block;padding:8px 12px;border-radius:7px;font-size:12px;margin-bottom:10px;background:#f0f4ff;border:1px solid var(--accent2);color:var(--accent2)';
+    st.textContent='📦 Extracting ZIP and reading files with AI…';
+
+    var fd=new FormData();
+    fd.append('zip', zipFile);
+    fd.append('_csrf', {{ csrf_token|tojson }});
+
+    fetch('/leads/parse-zip',{method:'POST',
+      headers:{'X-CSRFToken': {{ csrf_token|tojson }} },
+      body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.ok){
+        st.style.cssText='display:block;padding:8px 12px;border-radius:7px;font-size:12px;margin-bottom:10px;background:#fdf0f0;border:1px solid var(--danger);color:var(--danger)';
+        st.textContent='⚠ '+(d.error||'ZIP extraction failed');
+        return;
+      }
+      var f=d.fields||{}, filled=[];
+      if(setIfBlank('name',f.name))          filled.push('Name');
+      if(setIfBlank('phone',f.phone))         filled.push('Phone');
+      if(setIfBlank('email',f.email))         filled.push('Email');
+      if(setIfBlank('address',f.address))     filled.push('Address');
+      if(setIfBlank('city',f.city))           filled.push('City');
+      if(selectIfBlank('work_type',f.work_type)) filled.push('Work type');
+      if(selectIfBlank('source',f.source))    filled.push('Source');
+      if(f.notes){ appendNote(f.notes); filled.push('Notes'); }
+      chips.innerHTML='';
+      if(filled.length){
+        st.style.cssText='display:block;padding:8px 12px;border-radius:7px;font-size:12px;margin-bottom:10px;background:#e8f7f0;border:1px solid #8CC63F;color:#2a6020';
+        st.textContent='✅ ZIP extracted '+d.count+' file'+(d.count===1?'':'s')+' — '+filled.length+' field'+(filled.length===1?'':' s')+' filled';
+        filled.forEach(function(n){ chip(n,true); });
+      } else {
+        st.style.cssText='display:block;padding:8px 12px;border-radius:7px;font-size:12px;margin-bottom:10px;background:#f8f9fb;border:1px solid var(--line);color:var(--muted)';
+        st.textContent='ZIP extracted '+d.count+' file'+(d.count===1?'':'s')+' — no new fields found (already filled or nothing recognized).';
+      }
+    })
+    .catch(function(err){
+      st.style.cssText='display:block;padding:8px 12px;border-radius:7px;font-size:12px;margin-bottom:10px;background:#fdf0f0;border:1px solid var(--danger);color:var(--danger)';
+      st.textContent='Error: '+(err.message||'network error');
+    });
+  });
 })();
 // ---- image scan → AI autofill ------------------------------------------------
 (function(){
