@@ -68,6 +68,26 @@ def home():
     decided = won + lost
     win_rate = round(100 * won / decided) if decided else 0
 
+    # Gross profit across active jobs with worksheets (SQLite + Postgres compatible).
+    conn = db.connect()
+    try:
+        gp_row = conn.execute("""
+            SELECT
+                COALESCE(SUM(w.contract_value), 0)  AS total_contract,
+                COALESCE(SUM(wl.budget_cost), 0)    AS total_cost
+            FROM worksheets w
+            JOIN jobs j ON j.id = w.job_id
+            LEFT JOIN worksheet_lines wl ON wl.worksheet_id = w.id
+            WHERE j.department = ?
+              AND j.stage NOT IN ('closed','canceled')
+        """, (dept,)).fetchone()
+    finally:
+        conn.close()
+    gp_contract = float(gp_row[0]) if gp_row else 0.0
+    gp_cost     = float(gp_row[1]) if gp_row else 0.0
+    gp_dollars  = gp_contract - gp_cost
+    gp_margin   = round(100 * gp_dollars / gp_contract, 1) if gp_contract else 0.0
+
     # Outstanding invoices (department-scoped) for the dashboard Send panel.
     from modules import quickbooks as qb
     from modules import invoices as invmod
@@ -84,7 +104,9 @@ def home():
     return render_template("dashboard.html", pipeline=pipeline, active_jobs=active_jobs,
                            overdue=overdue, feed=feed, win_rate=win_rate, won=won, lost=lost,
                            outstanding=outstanding, outstanding_total=outstanding_total,
-                           qbo_connected=qb.is_connected())
+                           qbo_connected=qb.is_connected(),
+                           gp_dollars=gp_dollars, gp_margin=gp_margin,
+                           gp_contract=gp_contract)
 
 
 def _activity_name(a):

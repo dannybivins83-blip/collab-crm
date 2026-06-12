@@ -128,6 +128,16 @@
     <div class="kpis">
       <div class="kpi"><div class="v">{{ win_rate }}%</div><div class="l">Win rate ({{ won }}W / {{ lost }}L)</div></div>
       <div class="kpi"><div class="v">{{ active_jobs }}</div><div class="l">Active jobs</div></div>
+      {% if gp_contract %}
+      <div class="kpi" style="border-left:3px solid var(--ok,#22c55e)">
+        <div class="v" style="color:{{ 'var(--ok,#22c55e)' if gp_dollars >= 0 else 'var(--danger,#ef4444)' }}">{{ money_k(gp_dollars) }}</div>
+        <div class="l">Gross profit (active jobs)</div>
+      </div>
+      <div class="kpi">
+        <div class="v" style="color:{{ 'var(--ok,#22c55e)' if gp_margin >= 20 else ('var(--warn,#f59e0b)' if gp_margin >= 10 else 'var(--danger,#ef4444)') }}">{{ gp_margin }}%</div>
+        <div class="l">GP margin · {{ money_k(gp_contract) }} contract</div>
+      </div>
+      {% endif %}
     </div>
   </div>
 
