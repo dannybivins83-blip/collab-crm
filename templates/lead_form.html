@@ -682,6 +682,13 @@
     if(rec){ try{rec.stop();}catch(e){} }
     stopAudioRec();
     batchFill();
+    // Append raw transcript to Notes so Karla (and Danny) can read back everything spoken
+    if(transcript.length && notesEl){
+      var raw=transcript.join(' ');
+      notesEl.value=(notesEl.value&&notesEl.value.trim())
+        ? notesEl.value.replace(/\s*$/,'')+'\n\n'+raw
+        : raw;
+    }
     micState.textContent='Done — review the filled fields and save the lead.';
   }
   micBtn.onclick=function(){ listening? stop() : start(); };
