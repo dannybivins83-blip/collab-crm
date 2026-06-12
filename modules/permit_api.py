@@ -63,8 +63,14 @@ def _require_key():
 # --- Background builder -------------------------------------------------------
 
 def _builder():
+    # Prefer the in-repo copy (packet_builder_handoff/ inside whitelabel-crm/).
+    # Fall back to the legacy sibling-dir location for local installs that haven't
+    # pulled the new copy yet.
     _builder_dir = os.path.normpath(os.path.join(
-        config.HERE, "..", "packet_builder_handoff", "permit_packet_builder"))
+        config.HERE, "packet_builder_handoff", "permit_packet_builder"))
+    if not os.path.isdir(_builder_dir):
+        _builder_dir = os.path.normpath(os.path.join(
+            config.HERE, "..", "packet_builder_handoff", "permit_packet_builder"))
     if _builder_dir not in sys.path and os.path.isdir(_builder_dir):
         sys.path.insert(0, _builder_dir)
     try:

@@ -283,6 +283,225 @@ def contractor_profile():
     return render_template("contractor_profile.html", profiles=rows)
 
 
+@bp.route("/widget/embed")
+def widget_embed():
+    """Phase 4 — self-contained iframe embed widget.
+
+    GET /permits/widget/embed?api_key=pk_live_...
+
+    Returns a standalone HTML page (no Flask session required) that any contractor
+    can drop into their own site with one line:
+      <iframe src="https://crm.collaborativeconceptsfl.com/permits/widget/embed?api_key=pk_live_..."
+              width="600" height="500"></iframe>
+
+    The widget:
+      - Collects address, AHJ (auto-suggest from /api/v1/permits/ahjs), system type
+      - Posts to /api/v1/permits/build (async), polls /api/v1/permits/build/<id>/status
+      - Shows progress bar; offers download when complete
+    """
+    from modules import permit_api as _papi
+    api_key = request.args.get("api_key", "").strip()
+    if not api_key:
+        return ("<html><body style='font-family:sans-serif;padding:20px'>"
+                "<b>Missing api_key parameter.</b><br>"
+                "Usage: <code>/permits/widget/embed?api_key=pk_live_...</code>"
+                "</body></html>"), 400
+
+    key_row = _papi._validate_key(api_key)
+    if not key_row:
+        return ("<html><body style='font-family:sans-serif;padding:20px'>"
+                "<b>Invalid API key.</b>"
+                "</body></html>"), 401
+
+    base_url = request.host_url.rstrip("/")
+    html = _WIDGET_HTML.replace("__API_KEY__", api_key).replace("__BASE_URL__", base_url)
+    return html, 200, {"Content-Type": "text/html; charset=utf-8",
+                       "X-Frame-Options": "ALLOWALL",
+                       "Content-Security-Policy": "frame-ancestors *"}
+
+
+# ---------------------------------------------------------------------------
+# Self-contained embed widget HTML (no Jinja — must work cross-origin).
+# __API_KEY__ and __BASE_URL__ are replaced at serve time.
+# ---------------------------------------------------------------------------
+_WIDGET_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Permit Packet Builder</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+       font-size:14px;background:#f5f7fa;color:#1a2a40;padding:16px}
+  h2{font-size:16px;font-weight:700;margin-bottom:14px;color:#0d47a1}
+  label{display:block;font-size:12px;font-weight:600;color:#4a5568;margin-bottom:2px;margin-top:10px}
+  input,select{width:100%;padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;
+               font-size:13px;background:#fff;color:#1a2a40}
+  input:focus,select:focus{outline:none;border-color:#1565c0;box-shadow:0 0 0 2px rgba(21,101,192,.15)}
+  button#build-btn{margin-top:16px;width:100%;padding:10px;background:#1565c0;color:#fff;
+                   border:none;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer}
+  button#build-btn:disabled{background:#90a4ae;cursor:not-allowed}
+  #progress-wrap{margin-top:14px;display:none}
+  #progress-bar-bg{background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden}
+  #progress-bar{height:8px;background:#1565c0;border-radius:99px;width:0%;transition:width .4s}
+  #status-msg{font-size:12px;color:#555;margin-top:6px}
+  #download-btn{display:none;margin-top:12px;width:100%;padding:10px;background:#2e7d32;
+                color:#fff;border:none;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer}
+  #error-msg{display:none;margin-top:10px;padding:8px 12px;background:#fdecea;
+             border:1px solid #f5c6cb;border-radius:6px;color:#b71c1c;font-size:12px}
+  #ahj-suggestions{position:absolute;background:#fff;border:1px solid #cbd5e0;border-radius:6px;
+                    box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:150px;overflow-y:auto;
+                    z-index:99;width:100%}
+  #ahj-suggestions div{padding:7px 12px;cursor:pointer;font-size:13px}
+  #ahj-suggestions div:hover{background:#e8f0fe}
+  .ahj-wrap{position:relative}
+  .powered{margin-top:14px;font-size:10px;color:#aaa;text-align:center}
+</style>
+</head>
+<body>
+<h2>Build Permit Packet</h2>
+<form id="widget-form" autocomplete="off">
+  <label for="w-address">Property Address</label>
+  <input id="w-address" type="text" placeholder="123 Main St, City, FL 33400" required>
+
+  <label for="w-ahj">Jurisdiction (AHJ)</label>
+  <div class="ahj-wrap">
+    <input id="w-ahj" type="text" placeholder="Start typing a city or county..." autocomplete="off" required>
+    <input id="w-ahj-key" type="hidden">
+    <div id="ahj-suggestions" style="display:none"></div>
+  </div>
+
+  <label for="w-system">Roof System</label>
+  <select id="w-system" required>
+    <option value="">-- Select system --</option>
+    <option value="shingle">Shingle</option>
+    <option value="metal">Metal</option>
+    <option value="tile">Tile</option>
+    <option value="flat">Flat</option>
+  </select>
+
+  <button type="submit" id="build-btn">Build Permit Packet</button>
+  <div id="error-msg"></div>
+  <div id="progress-wrap">
+    <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+    <div id="status-msg">Starting build...</div>
+  </div>
+  <button type="button" id="download-btn">Download Permit Packet (PDF)</button>
+</form>
+<div class="powered">Powered by Collaborative Concepts CRM</div>
+
+<script>
+(function(){
+  var BASE = "__BASE_URL__";
+  var KEY  = "__API_KEY__";
+  var _ahjs = [];
+  var _poll = null;
+
+  // Pre-load AHJ list (best-effort; widget still works if unavailable).
+  fetch(BASE + "/api/v1/permits/ahjs", {
+    headers: {"X-Permit-API-Key": KEY}
+  }).then(function(r){return r.json()}).then(function(d){
+    if(d.ok && d.ahjs) _ahjs = d.ahjs;
+  }).catch(function(){});
+
+  // AHJ auto-suggest
+  var ahjIn = document.getElementById("w-ahj");
+  var ahjKey = document.getElementById("w-ahj-key");
+  var sug = document.getElementById("ahj-suggestions");
+
+  ahjIn.addEventListener("input", function(){
+    var q = ahjIn.value.toLowerCase().replace(/_/g," ");
+    if(!q || q.length < 2){ sug.style.display="none"; return; }
+    var matches = _ahjs.filter(function(a){
+      return a.toLowerCase().replace(/_/g," ").indexOf(q) !== -1;
+    }).slice(0,10);
+    if(!matches.length){ sug.style.display="none"; return; }
+    sug.innerHTML = "";
+    matches.forEach(function(a){
+      var d = document.createElement("div");
+      d.textContent = a.replace(/_/g," ");
+      d.addEventListener("mousedown", function(e){ e.preventDefault(); });
+      d.addEventListener("click", function(){
+        ahjIn.value = a.replace(/_/g," ");
+        ahjKey.value = a;
+        sug.style.display = "none";
+      });
+      sug.appendChild(d);
+    });
+    sug.style.display = "block";
+  });
+  ahjIn.addEventListener("blur", function(){ setTimeout(function(){ sug.style.display="none"; }, 150); });
+
+  // Progress helpers
+  function setProgress(pct, msg){
+    document.getElementById("progress-bar").style.width = pct + "%";
+    document.getElementById("status-msg").textContent = msg;
+  }
+  function showError(msg){
+    var el = document.getElementById("error-msg");
+    el.textContent = msg; el.style.display = "block";
+  }
+
+  // Form submit
+  document.getElementById("widget-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var address = document.getElementById("w-address").value.trim();
+    var ahjVal  = (ahjKey.value || ahjIn.value).trim().replace(/ /g,"_");
+    var system  = document.getElementById("w-system").value;
+    if(!address || !ahjVal || !system){ showError("Please fill in all fields."); return; }
+
+    document.getElementById("error-msg").style.display = "none";
+    document.getElementById("build-btn").disabled = true;
+    document.getElementById("progress-wrap").style.display = "block";
+    document.getElementById("download-btn").style.display = "none";
+    setProgress(10, "Submitting build request...");
+
+    fetch(BASE + "/api/v1/permits/build", {
+      method: "POST",
+      headers: {"Content-Type":"application/json","X-Permit-API-Key": KEY},
+      body: JSON.stringify({
+        job: {address: address, ahj: ahjVal, system: system},
+        api_key: KEY
+      })
+    }).then(function(r){return r.json()}).then(function(d){
+      if(!d.ok){ showError(d.error || "Build submission failed."); document.getElementById("build-btn").disabled=false; return; }
+      setProgress(25, "Build queued — polling for status...");
+      pollStatus(d.job_id, d.download_url);
+    }).catch(function(err){ showError("Network error: " + err); document.getElementById("build-btn").disabled=false; });
+  });
+
+  function pollStatus(jobId, dlUrl){
+    var attempts = 0;
+    _poll = setInterval(function(){
+      attempts++;
+      var pct = Math.min(25 + attempts * 5, 90);
+      setProgress(pct, "Building packet... (" + attempts + "s)");
+      fetch(BASE + "/api/v1/permits/build/" + jobId + "/status", {
+        headers: {"X-Permit-API-Key": KEY}
+      }).then(function(r){return r.json()}).then(function(d){
+        if(d.status === "complete"){
+          clearInterval(_poll);
+          setProgress(100, "Complete! Your permit packet is ready.");
+          var btn = document.getElementById("download-btn");
+          btn.style.display = "block";
+          btn.onclick = function(){ window.open(BASE + dlUrl + "?api_key=" + encodeURIComponent(KEY), "_blank"); };
+          document.getElementById("build-btn").disabled = false;
+        } else if(d.status === "error"){
+          clearInterval(_poll);
+          showError("Build failed: " + (d.error || "Unknown error"));
+          document.getElementById("build-btn").disabled = false;
+        }
+        if(attempts > 120){ clearInterval(_poll); showError("Timed out waiting for build. Try again."); document.getElementById("build-btn").disabled = false; }
+      }).catch(function(){ /* keep polling */ });
+    }, 2000);
+  }
+})();
+</script>
+</body>
+</html>"""
+
+
 @bp.route("/contractor-profile/save", methods=["POST"])
 def contractor_profile_save():
     pid = request.form.get("id", "").strip()
