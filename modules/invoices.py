@@ -102,6 +102,41 @@ def _draft_reminder(inv, job, email):
     return did
 
 
+def _receipt_text(inv, job):
+    """Build a payment-received thank-you (subject, body)."""
+    company = db.get_company()
+    name, _ = _customer(inv, job)
+    first = name.split(" ")[0] if name else "there"
+    amt = theme.money(inv.get("amount"))
+    cname = company.get("name") or "our team"
+    lines = ["Hi %s," % first, "",
+             "Thank you! We've received your payment of %s for invoice %s."
+             % (amt, inv.get("number", "")), "",
+             "It was a pleasure working with you. If you have any questions or need "
+             "anything in the future, don't hesitate to reach out.", ""]
+    if company.get("phone"):
+        lines += ["Phone: %s" % company["phone"], ""]
+    lines += ["Thanks again,", cname]
+    if company.get("license"):
+        lines.append("Lic. %s" % company["license"])
+    subject = "Payment received — invoice %s (%s)" % (inv.get("number", ""), amt)
+    return subject, "\n".join(lines)
+
+
+def _draft_receipt(inv, job, email):
+    """Draft a payment-received thank-you in the current user's Gmail. Returns draft id or None."""
+    from flask import session
+    from modules import gmail
+    subject, body = _receipt_text(inv, job)
+    did = gmail.create_draft(session.get("user_id"), email, subject, body)
+    if did:
+        if inv.get("job_id"):
+            db.add_activity("job", inv["job_id"], "email",
+                            "Payment receipt for %s drafted to %s (review & send in Gmail)"
+                            % (inv.get("number", ""), email))
+    return did
+
+
 @bp.route("/")
 def index():
     rows = db.all_rows("invoices", order="id DESC")
@@ -212,9 +247,14 @@ def send(inv_id):
 def pay(inv_id):
     db.update("invoices", inv_id, status="paid", paid_date=db.today())
     inv = db.get("invoices", inv_id)
+    job = db.get("jobs", inv["job_id"]) if inv.get("job_id") else None
     if inv.get("job_id"):
         db.add_activity("job", inv["job_id"], "automation", "Invoice %s marked paid" % inv["number"])
-    flash("Marked paid.", "ok")
+    _, email = _customer(inv, job)
+    if email and _draft_receipt(inv, job, email):
+        flash("Marked paid — receipt drafted in your Gmail to %s (review & send)." % email, "ok")
+    else:
+        flash("Marked paid.", "ok")
     return redirect(url_for("invoices.detail", inv_id=inv_id))
 
 
