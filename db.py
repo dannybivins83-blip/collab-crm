@@ -551,14 +551,16 @@ def insert(table, data):
     conn = connect()
     sql = "INSERT INTO %s (%s) VALUES (%s)" % (table, ",".join(keys), ",".join("?" * len(keys)))
     vals = [_adapt(data[k]) for k in keys]
-    if IS_PG:
-        cur = conn.execute(sql + " RETURNING id", vals)
-        rid = cur.fetchone()["id"]
-    else:
-        cur = conn.execute(sql, vals)
-        rid = cur.lastrowid
-    conn.commit()
-    conn.close()
+    try:
+        if IS_PG:
+            cur = conn.execute(sql + " RETURNING id", vals)
+            rid = cur.fetchone()["id"]
+        else:
+            cur = conn.execute(sql, vals)
+            rid = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
     return rid
 
 
@@ -571,16 +573,20 @@ def update(table, row_id, **fields):
     if not fields:
         return
     conn = connect()
-    conn.execute("UPDATE %s SET %s WHERE id=?" % (table, ",".join("%s=?" % k for k in fields)),
-                 [_adapt(v) for v in fields.values()] + [row_id])
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("UPDATE %s SET %s WHERE id=?" % (table, ",".join("%s=?" % k for k in fields)),
+                     [_adapt(v) for v in fields.values()] + [row_id])
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get(table, row_id):
     conn = connect()
-    row = conn.execute("SELECT * FROM %s WHERE id=?" % table, (row_id,)).fetchone()
-    conn.close()
+    try:
+        row = conn.execute("SELECT * FROM %s WHERE id=?" % table, (row_id,)).fetchone()
+    finally:
+        conn.close()
     return dict(row) if row else None
 
 
@@ -591,24 +597,30 @@ def all_rows(table, where="", params=(), order="id DESC"):
         sql += " WHERE " + where
     if order:
         sql += " ORDER BY " + order
-    rows = conn.execute(sql, params).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(sql, params).fetchall()
+    finally:
+        conn.close()
     return [dict(r) for r in rows]
 
 
 def delete(table, row_id):
     conn = connect()
-    conn.execute("DELETE FROM %s WHERE id=?" % table, (row_id,))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("DELETE FROM %s WHERE id=?" % table, (row_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def execute(sql, params=()):
     """Run an arbitrary write statement (DELETE/UPDATE) and commit."""
     conn = connect()
-    conn.execute(sql, params)
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(sql, params)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 _COLCACHE = {}
