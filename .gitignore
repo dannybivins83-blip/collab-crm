@@ -45,6 +45,9 @@ scripts/_ws_seed.json
 static/_wsg.json
 dev_notes.txt
 scripts/_ws_guids.json
+dispatch_log.jsonl
+TEST_REPORT.md
+migration/
 
 # ---- packet_builder_handoff: exclude the 1.1 GB SeaBreeze permit library (PDFs,
 #      images, calibration files) and compiled Python.  The Python source files
