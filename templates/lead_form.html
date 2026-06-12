@@ -638,14 +638,13 @@
   }
 
   // ---- batch fill on Stop ----
+  // In batch mode all utterances land at stepIdx=0 (name step), so step-based
+  // applyAnswer would overwrite the name field with every utterance (e.g. "Lantana Florida").
+  // Instead: run only smartParse per utterance for structured extraction, then finalPass
+  // for name inference on the consolidated transcript.
   var pendingFills=[];  // [{stepIdx, text}] accumulated during recording
   function batchFill(){
-    var savedStep=step;
-    pendingFills.forEach(function(item){
-      step=item.stepIdx;
-      applyAnswer(item.text);
-    });
-    step=savedStep;
+    pendingFills.forEach(function(item){ smartParse(item.text); });
     pendingFills=[];
     finalPass();
     renderChips();
