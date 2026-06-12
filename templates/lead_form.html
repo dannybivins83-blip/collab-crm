@@ -762,7 +762,7 @@
   scanBtn.addEventListener('click',function(){
     if(!pendingFile){ scanStatus.textContent='Pick an image first.'; return; }
     scanBtn.disabled=true; scanStatus.textContent='Reading with AI…';
-    var fd=new FormData(); fd.append('image',pendingFile);
+    var fd=new FormData(); fd.append('image',pendingFile); fd.append('_csrf', {{ csrf_token|tojson }});
     fetch('/leads/parse-image',{method:'POST',body:fd})
       .then(function(r){
         return r.json().catch(function(){ return {error:'Server error ('+r.status+') — AI extraction not configured on this host.'}; });
