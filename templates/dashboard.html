@@ -34,7 +34,7 @@
 <div class="detail dash-cols">
   <div>
     <div class="card panel">
-      <div class="panel-head"><span>Current Pipeline</span><span class="muted">Active Jobs: {{ active_jobs }}</span></div>
+      <div class="panel-head"><span>Current Pipeline</span><span class="muted">Active Jobs: {{ active_jobs }}{% if company.acculynx_last_sync %} · Last synced: {{ company.acculynx_last_sync[:16] }}{% endif %}</span></div>
       <div class="pipeline">
         {% for b in pipeline %}
         {% if b.def.key in ('lead','prospect') %}
