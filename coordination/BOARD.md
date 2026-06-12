@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-12 `git rev-parse`):** `40b5161` on `agent/gc-consolidation` (latest: merge add-roof-reports)
-- **Last board update:** 2026-06-12 — crm-ui: CRs 1516+1520+1522 done; add-roof-reports merged (76/76 tests pass); .gitignore already covered migration/+dispatch_log. agent/gc-consolidation MERGE-READY to main.
+- **Git tip (verified 2026-06-12 `git rev-parse`):** `a3f3928` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-12 — crm-ui: CR-1615 done (typeahead job search on New Roof Report page, `a3f3928`). Prior: CRs 1612+1613 done. 82/82 tests pass. agent/gc-consolidation MERGE-READY to main.
 
 ---
 
@@ -66,6 +66,8 @@ update your row → push. One pusher at a time. Don't route status through the o
 | **D11** | **Candy's — Vercel prod promote** | Preview deploy being prepped by candys agent. Danny clicks "Promote to Production" in Vercel dashboard (or runs `vercel --prod` in `candys-cake-pops/site/`). Owner's chat directive ("send to overlord for execution") treated as preview-OK; prod promote still needs the click. | candys 2026-06-12 |
 | **D12** | **Candy's — "Run now" on scheduled task `dev-agent-dashboard-requests`** | One-time run in Claude app → Scheduled sidebar to pre-approve Gmail/Bash tools before the 30-min cron fires blind. | candys 2026-06-12 |
 | **D13** | **Candy's — Square checkout links** | Needs Candice's Square dashboard (client account). Interim cakepops.com CTAs stay until she provides. Swap points marked `SQUARE-CHECKOUT` in HTML. | candys 2026-06-12 |
+| **D14** | 🔴 **Merge `agent/gc-consolidation` → main** | 82/82 tests pass. All CRs since `agent/lead-onboarding` are on this branch. QA Cycle 2 confirms MERGE-READY. Owner or Head Coach: approve the PR or run `git checkout main && git merge agent/gc-consolidation && git push`. Every day of drift makes the next merge harder. | qa-roofr-reprot 2026-06-12T1946 |
+| **D15** | 🔴 **sitecam + roofengine agents offline 41+ hrs** | 4 messages unread since 2026-06-10: sitecam SSO go-live, SEABREEZE rotation coord, roofengine takeoff integration, measure-ready VM push. Either restart those agents and point them at the inbox, or delegate the work to crm-ui / appconnect. No action = SiteCam SSO and Roof Engine push stay blocked indefinitely. | qa-roofr-reprot 2026-06-12T1946 |
 
 ---
 
