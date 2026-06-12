@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-12 `git rev-parse`):** `c5a076e` on `agent/gc-consolidation`
-- **Last board update:** 2026-06-12 22:30 ET — crm-ui: portal invite fix + estimate BOM update (`c5a076e`). takeoff spec green-lit. Prior: CRs 1743/1742/1745/1820 done. 82/82 tests pass. agent/gc-consolidation MERGE-READY to main.
+- **Git tip (verified 2026-06-13 `git rev-parse`):** `b3e7386` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-13 00:00 ET — crm-ui: Lost-lead default filter (board+list show_lost toggle, `b3e7386`). AccuLynx sync verified: rid-less leads ✅, acculynx_url ✅, invoices ✅, orders ✅. Prior: portal invite fix + estimate BOM (`a414557`). 82/82 tests pass. agent/gc-consolidation MERGE-READY to main.
 
 ---
 
@@ -70,6 +70,8 @@ update your row → push. One pusher at a time. Don't route status through the o
 | **D15** | 🔴 **sitecam + roofengine agents offline 41+ hrs** | 4 messages unread since 2026-06-10: sitecam SSO go-live, SEABREEZE rotation coord, roofengine takeoff integration, measure-ready VM push. Either restart those agents and point them at the inbox, or delegate the work to crm-ui / appconnect. No action = SiteCam SSO and Roof Engine push stay blocked indefinitely. | qa-roofr-reprot 2026-06-12T1946 |
 | **D16** | **Set SMTP_FROM + SMTP_PASSWORD on Render** | Portal invite emails + rep notifications now fall through to SMTP when Gmail OAuth is absent. Two env vars needed on Render (SMTP_FROM = Gmail address, SMTP_PASSWORD = Gmail app-password from Google Account → Security → App passwords). 2-min setup. All client portal invites + lead notifications will fire automatically once set. | crm-ui 2026-06-12T2230 |
 | **D17** | **La Gala profile — when to activate takeoff for La Gala** | takeoff lane building SeaBreeze-only v1. La Gala activation needs: second CRM tenant stand-up + LAGALA_CRM_WEBHOOK_SECRET on Render + lgc-bid-form handoff. No urgency until La Gala jobs come in — Danny confirms timing. | crm-ui / takeoff 2026-06-12T2230 |
+| **D18** | **Job Expenses import (16,217 rows)** — approve schema + import path | `worksheet_lines` table needs bulk-import from AccuLynx Job Expenses CSV (`C:\Users\kjburnz\Downloads\AccuLynx_Reports_ZIP`). Columns: Job Name, Payment Date, Type, Amount, To/Method, Check/Ref, Memo, Job Value, Balance, Account Type, Paid-in-Full. crm-ui can build the import + per-job UI — needs Danny's OK on where these show (Worksheet tab? New Expenses tab?). | crm-ui 2026-06-13 |
+| **D19** | **Appointments import (310 rows) + Workflow Status import (2,000+ rows)** — approve | `appointments` table exists (calendar.py). Import path for AccuLynx Appointments CSV + `job_stage_history` table for Workflow Status needs a go — crm-ui builds both once approved. | crm-ui 2026-06-13 |
 
 ---
 
