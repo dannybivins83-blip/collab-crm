@@ -96,11 +96,12 @@
     </div>
   </div>
   <a class="navitem {{ 'on' if seg=='/' }}" href="{{ url_for('dashboard.home') }}">Dashboard</a>
-  <a class="navitem {{ 'on' if seg.startswith('/contacts') }}" href="{{ url_for('contacts.index') }}">Contacts</a>
-  <a class="navitem {{ 'on' if seg.startswith('/leads') }}" href="{{ url_for('leads.list_view') }}">Leads</a>
   <div class="navgroup">
-    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/pipeline') or seg.startswith('/jobs') }}" href="{{ url_for('jobs.list_view') }}">Jobs ▾</a>
+    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/pipeline') or seg.startswith('/jobs') or seg.startswith('/leads') or seg.startswith('/contacts') }}" href="{{ url_for('jobs.list_view') }}">Jobs ▾</a>
     <div class="dropdown">
+      <a href="{{ url_for('contacts.index') }}">{{ icon('user') }}<span class="nlbl">Contacts</span></a>
+      <a href="{{ url_for('leads.list_view') }}">{{ icon('list') }}<span class="nlbl">Leads</span></a>
+      <div style="border-top:1px solid var(--line);margin:4px 0"></div>
       <a href="{{ url_for('leads.list_view') }}?stage=prospect">Prospects</a>
       <a href="{{ url_for('jobs.list_view') }}?bucket=approved">Approved</a>
       <a href="{{ url_for('jobs.list_view') }}?bucket=completed">Completed</a>
