@@ -446,8 +446,10 @@ def _ensure_integrations_table():
 
 def get_integrations():
     conn = connect()
-    row = conn.execute("SELECT * FROM integrations WHERE id=1").fetchone()
-    conn.close()
+    try:
+        row = conn.execute("SELECT * FROM integrations WHERE id=1").fetchone()
+    finally:
+        conn.close()
     return dict(row) if row else {}
 
 
@@ -458,10 +460,12 @@ def save_integrations(data):
         return
     data["updated"] = now()
     conn = connect()
-    conn.execute("UPDATE integrations SET %s WHERE id=1" % ",".join("%s=?" % k for k in data),
-                 list(data.values()))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("UPDATE integrations SET %s WHERE id=1" % ",".join("%s=?" % k for k in data),
+                     list(data.values()))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _ensure_column(table, col, decl):
@@ -629,13 +633,15 @@ _COLCACHE = {}
 def _columns(table):
     if table not in _COLCACHE:
         conn = connect()
-        if IS_PG:
-            cols = [r["column_name"] for r in conn.execute(
-                "SELECT column_name FROM information_schema.columns WHERE table_name=?",
-                (table,)).fetchall()]
-        else:
-            cols = [r[1] for r in conn.execute("PRAGMA table_info(%s)" % table).fetchall()]
-        conn.close()
+        try:
+            if IS_PG:
+                cols = [r["column_name"] for r in conn.execute(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name=?",
+                    (table,)).fetchall()]
+            else:
+                cols = [r[1] for r in conn.execute("PRAGMA table_info(%s)" % table).fetchall()]
+        finally:
+            conn.close()
         _COLCACHE[table] = cols
     return _COLCACHE[table]
 
@@ -653,10 +659,12 @@ def _numeric_cols(table):
         return set()
     if table not in _NUMCACHE:
         conn = connect()
-        rows = conn.execute(
-            "SELECT column_name, data_type FROM information_schema.columns WHERE table_name=?",
-            (table,)).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                "SELECT column_name, data_type FROM information_schema.columns WHERE table_name=?",
+                (table,)).fetchall()
+        finally:
+            conn.close()
         _NUMCACHE[table] = {r["column_name"] for r in rows
                             if r["data_type"] in _PG_NUMERIC_TYPES}
     return _NUMCACHE[table]
@@ -722,8 +730,10 @@ def open_tasks(entity_type=None, entity_id=None):
 
 def get_company():
     conn = connect()
-    row = conn.execute("SELECT * FROM company_settings WHERE id=1").fetchone()
-    conn.close()
+    try:
+        row = conn.execute("SELECT * FROM company_settings WHERE id=1").fetchone()
+    finally:
+        conn.close()
     return dict(row) if row else {}
 
 
@@ -732,17 +742,19 @@ def save_company(data):
     data = {k: v for k, v in data.items() if k in cols and k != "id"}
     data["updated"] = now()
     conn = connect()
-    exists = conn.execute("SELECT 1 FROM company_settings WHERE id=1").fetchone()
-    if exists:
-        conn.execute("UPDATE company_settings SET %s WHERE id=1" % ",".join("%s=?" % k for k in data),
-                     list(data.values()))
-    else:
-        data["id"] = 1
-        keys = list(data.keys())
-        conn.execute("INSERT INTO company_settings (%s) VALUES (%s)" % (
-            ",".join(keys), ",".join("?" * len(keys))), [data[k] for k in keys])
-    conn.commit()
-    conn.close()
+    try:
+        exists = conn.execute("SELECT 1 FROM company_settings WHERE id=1").fetchone()
+        if exists:
+            conn.execute("UPDATE company_settings SET %s WHERE id=1" % ",".join("%s=?" % k for k in data),
+                         list(data.values()))
+        else:
+            data["id"] = 1
+            keys = list(data.keys())
+            conn.execute("INSERT INTO company_settings (%s) VALUES (%s)" % (
+                ",".join(keys), ",".join("?" * len(keys))), [data[k] for k in keys])
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------------------------
