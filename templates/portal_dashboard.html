@@ -336,8 +336,8 @@
       <div class="who"><b>{{ j.rep or company.qualifier or company.name }}</b>
         <div class="muted">{{ company.name }} · Lic. {{ company.license }}</div></div>
       <div class="row" style="gap:8px">
-        {% if company.phone %}<a class="btn ghost sm" href="tel:{{ company.phone }}">📞 Call</a>{% endif %}
-        {% if company.email %}<a class="btn ghost sm" href="mailto:{{ company.email }}">✉️ Email</a>{% endif %}
+        {% if company.phone %}<a class="btn ghost sm" href="tel:{{ company.phone }}">{{ pic('phone',16) }} Call</a>{% endif %}
+        {% if company.email %}<a class="btn ghost sm" href="mailto:{{ company.email }}">{{ pic('mail',16) }} Email</a>{% endif %}
       </div>
     </div>
   </div>
@@ -502,15 +502,15 @@
     <textarea id="refMsg" rows="3">{{ referral.msg or "I'm getting my roof done by " ~ company.name ~ " and they've been great! Get a free quote 👉 " }}{{ referral.link }}</textarea>
     <div class="refbtns">
       <button class="btn green" type="button" onclick="sendRef('copy')">{{ pic('clipboard',16) }} Copy &amp; Send</button>
-      <a class="btn share" id="refSms" href="sms:?&body=" onclick="bumpShare()">💬 Text it</a>
-      <button class="btn ghost" type="button" onclick="saveRefMsg(this)">💾 Save my message</button>
+      <a class="btn share" id="refSms" href="sms:?&body=" onclick="bumpShare()">{{ pic('chat',16) }} Text it</a>
+      <button class="btn ghost" type="button" onclick="saveRefMsg(this)">{{ pic('save',16) }} Save my message</button>
     </div>
 
     <div class="h" style="margin:18px 0 8px">🏆 Rewards you can unlock <span class="muted" style="text-transform:none;font-weight:600">({{ referral.signed }} signed so far)</span></div>
     <div class="ladder">
       {% for t in referral.tiers %}
       <div class="rung {{ 'won' if t.unlocked }}">
-        <span class="ic">{{ t.ic if t.unlocked else '🔒' }}</span>
+        <span class="ic">{{ t.ic if t.unlocked else pic('lock',14) }}</span>
         <span class="rw"><b>{{ t.n }} referral{{ 's' if t.n>1 }}</b> — {{ t.reward }}</span>
         {% if t.unlocked %}<span class="tag">UNLOCKED ✓</span>{% endif %}
       </div>
@@ -551,9 +551,9 @@
     else {copyRefText();bumpShare();} }
   function copyRefText(){var t=document.getElementById('refMsg');t.select();try{document.execCommand('copy');}catch(e){}
     if(navigator.clipboard)navigator.clipboard.writeText(t.value); }
-  function saveRefMsg(b){var fd=new URLSearchParams();fd.append('msg',refBody());
+  function saveRefMsg(b){var orig=b.innerHTML;var fd=new URLSearchParams();fd.append('msg',refBody());
     fetch('/portal/'+REFTOK+'/refer/msg',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
-      .then(function(){b.textContent='✓ Saved';setTimeout(function(){b.textContent='💾 Save my message';},1500);});}
+      .then(function(){b.textContent='✓ Saved';setTimeout(function(){b.innerHTML=orig;},1500);});}
   // keep the SMS link body current
   document.getElementById('refSms').addEventListener('click',function(){this.href='sms:?&body='+encodeURIComponent(refBody());});
   function refConfetti(){for(var i=0;i<60;i++){(function(){var c=document.createElement('div');
@@ -719,10 +719,10 @@
     </div>
     {% endif %}
     {% for inv in invoices %}{% if inv.status != 'paid' and inv.payment_link %}
-      <a class="btn green block" style="margin-top:14px" href="{{ url_for('portal.pay', token=token, inv_id=inv.id) }}">💳 Pay {{ money(inv.amount) }} now</a>
+      <a class="btn green block" style="margin-top:14px" href="{{ url_for('portal.pay', token=token, inv_id=inv.id) }}">{{ pic('card',16) }} Pay {{ money(inv.amount) }} now</a>
     {% endif %}{% endfor %}
     {% if pay_url and j._balance > 0 %}
-      <a class="btn green block" style="margin-top:14px" href="{{ url_for('portal.pay', token=token) }}">💳 Pay your balance ({{ money(j._balance) }}) online</a>
+      <a class="btn green block" style="margin-top:14px" href="{{ url_for('portal.pay', token=token) }}">{{ pic('card',16) }} Pay your balance ({{ money(j._balance) }}) online</a>
     {% elif not pay_url and j._balance > 0 %}
       <div class="muted" style="margin-top:12px">To make a payment, contact us at {{ company.phone }} — online payment link coming soon.</div>
     {% endif %}
@@ -734,7 +734,7 @@
     <iframe src="{{ j.sitecam_url }}" loading="lazy" referrerpolicy="origin" title="Your job site photos"
             style="width:100%;height:520px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:10px"></iframe>
     <a class="btn ghost block sm" style="margin-bottom:14px" href="{{ j.sitecam_url }}" target="_blank" rel="noopener">⛶ Open your photos full-screen →</a>
-    {% elif photo_app_url %}<a class="btn ghost block" style="margin-bottom:14px" href="{{ photo_app_url }}" target="_blank" rel="noopener">📸 View all job photos in our photo app</a>{% endif %}
+    {% elif photo_app_url %}<a class="btn ghost block" style="margin-bottom:14px" href="{{ photo_app_url }}" target="_blank" rel="noopener">{{ pic('camera',16) }} View all job photos in our photo app</a>{% endif %}
     {% if photos %}
     <div class="gallery" style="margin-bottom:14px">{% for ph in photos %}<a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" title="{{ ph.caption }}"></a>{% endfor %}</div>
     {% else %}<div class="muted" style="margin-bottom:14px">Project photos will appear here as work progresses.</div>{% endif %}
@@ -749,7 +749,7 @@
   <div class="card" id="documents"><div class="h">Documents</div>
     {% if contract %}<a class="btn green block" style="margin-bottom:14px" href="{{ url_for('uploads', subpath='documents/' ~ contract.filename) }}" target="_blank">⬇ Download your signed contract</a>{% endif %}
     {% if documents %}
-    {% for d in documents %}<div class="doc"><span class="di">📄</span>
+    {% for d in documents %}<div class="doc"><span class="di">{{ pic('doc',14) }}</span>
       <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>{% endfor %}
     {% else %}<div class="muted">Your contract, permit, and warranty documents will appear here.</div>{% endif %}
     <form method="post" action="{{ url_for('portal.upload_doc', token=token) }}" enctype="multipart/form-data" class="stack" style="margin-top:16px">
@@ -764,18 +764,18 @@
   <div class="card"><div class="h">Your Roof — Product Info{% if sysk %} ({{ sysk|capitalize }}){% endif %}</div>
     {% if product_docs %}
     <div class="muted" style="margin-bottom:10px">Data sheets, color charts &amp; warranties for the products going on your roof:</div>
-    {% for d in product_docs %}<div class="doc"><span class="di">📄</span><a href="{{ url_for('uploads', subpath='library/' ~ d.filename) }}" target="_blank">{{ d.original_name.rsplit('.',1)[0].replace('_',' ').replace('-',' ')|title }}</a><span class="pill">{{ d.category.split(' ')[0] }}</span></div>{% endfor %}
+    {% for d in product_docs %}<div class="doc"><span class="di">{{ pic('doc',14) }}</span><a href="{{ url_for('uploads', subpath='library/' ~ d.filename) }}" target="_blank">{{ d.original_name.rsplit('.',1)[0].replace('_',' ').replace('-',' ')|title }}</a><span class="pill">{{ d.category.split(' ')[0] }}</span></div>{% endfor %}
     {% else %}<div class="muted">Product data sheets for your roof will appear here.</div>{% endif %}
 
     {% if tutorials %}
     <div class="h" style="margin-top:20px">Videos &amp; Guides</div>
-    {% for t, u in tutorials %}{% if u %}<div class="doc"><span class="di">▶️</span><a href="{{ u }}" target="_blank">{{ t }}</a></div>{% else %}<div class="doc"><span class="di">💡</span><span>{{ t }}</span></div>{% endif %}{% endfor %}
+    {% for t, u in tutorials %}{% if u %}<div class="doc"><span class="di">{{ pic('play',14) }}</span><a href="{{ u }}" target="_blank">{{ t }}</a></div>{% else %}<div class="doc"><span class="di">{{ pic('bulb',14) }}</span><span>{{ t }}</span></div>{% endif %}{% endfor %}
     {% endif %}
 
     <div class="h" style="margin-top:20px">Preparing for Your Installation</div>
-    <div class="tip"><span class="ti">💡</span><span>Please move vehicles out of the driveway on install day and keep pets indoors.</span></div>
-    <div class="tip"><span class="ti">💡</span><span>Expect noise and vibration during tear-off — wall hangings may need to come down.</span></div>
-    <div class="tip"><span class="ti">💡</span><span>We'll do a magnet sweep for nails, but a quick check of the yard afterward is always smart.</span></div>
+    <div class="tip"><span class="ti">{{ pic('bulb',16) }}</span><span>Please move vehicles out of the driveway on install day and keep pets indoors.</span></div>
+    <div class="tip"><span class="ti">{{ pic('bulb',16) }}</span><span>Expect noise and vibration during tear-off — wall hangings may need to come down.</span></div>
+    <div class="tip"><span class="ti">{{ pic('bulb',16) }}</span><span>We'll do a magnet sweep for nails, but a quick check of the yard afterward is always smart.</span></div>
   </div>
 
   <!-- TIMELINE -->
@@ -804,7 +804,7 @@
 </div></div>
 {% elif pay_url and j._balance > 0 %}
 <div class="cta-bar"><div class="inner">
-  <a class="btn green block" href="{{ url_for('portal.pay', token=token) }}">💳 Pay Your Balance · {{ money(j._balance) }}</a>
+  <a class="btn green block" href="{{ url_for('portal.pay', token=token) }}">{{ pic('card',16) }} Pay Your Balance · {{ money(j._balance) }}</a>
 </div></div>
 {% endif %}
 
