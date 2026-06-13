@@ -77,6 +77,10 @@
       <a class="notif-all" href="{{ url_for('notifications.index') }}">View all →</a>
     </div>
   </div>
+  {% if current_user and (current_user.is_owner or current_user.role == 'admin') %}
+  <button id="dspBtn" class="mh-bell" title="⚡ Dispatch to agent (Alt+D)">⚡</button>
+  <button id="devNoteBtn" class="mh-bell" title="💬 Dev note">💬</button>
+  {% endif %}
   <span class="mh-user">
     {{ current_user.name if current_user else (company.qualifier or 'Admin') }}
     <a href="{{ url_for('auth.account') }}" style="color:#cdd9e8" title="My account">{{ icon('user') }}</a>
@@ -338,13 +342,8 @@ document.querySelectorAll('table.grid').forEach(function(t){
 {% if current_user and (current_user.is_owner or current_user.role == 'admin') %}
 <!-- ⚡ Agent Dispatch Widget — type a change, hit send, agent picks it up via OVERLORD bus -->
 <style>
-#dspBtn{position:fixed;bottom:20px;right:74px;z-index:9999;width:44px;height:44px;border-radius:50%;
-  background:var(--accent,#4680BF);color:#fff;font-size:18px;display:flex;align-items:center;
-  justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);user-select:none;
-  transition:transform .15s}
-#dspBtn:hover{transform:scale(1.1)}
-#dspBtn.open{background:#2a5fa8}
-#dspPanel{display:none;position:fixed;bottom:72px;right:74px;z-index:9999;width:340px;
+#dspBtn.open{background:rgba(255,255,255,.2)}
+#dspPanel{display:none;position:fixed;top:58px;right:4px;z-index:9999;width:340px;
   background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.28);
   border:1px solid var(--line,#dde3ec);font-size:13px;overflow:hidden}
 #dspPanel.open{display:block}
@@ -391,15 +390,10 @@ document.querySelectorAll('table.grid').forEach(function(t){
 .dsp-snap:hover{background:var(--accent,#4680BF)18}
 .dsp-snap:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:600px){
-  /* Stack dispatch above devNote; fit panel inside viewport */
-  #dspBtn{right:16px !important;bottom:68px !important;width:38px !important;height:38px !important;font-size:15px !important}
-  #dspPanel{right:8px !important;width:calc(100vw - 16px) !important;bottom:114px !important}
-  /* Shrink devNote button; keep bottom-right corner */
-  #devNoteBtn{right:16px !important;bottom:16px !important;width:38px !important;height:38px !important;font-size:17px !important}
-  #devNoteCard{right:8px !important;width:calc(100vw - 16px) !important}
+  #dspPanel{right:4px !important;width:calc(100vw - 16px) !important}
+  #devNoteCard{right:4px !important;width:calc(100vw - 16px) !important}
 }
 </style>
-<div id="dspBtn" title="⚡ Dispatch to agent  (Alt+D)">⚡</div>
 <div id="dspPanel">
   <div class="dsp-head">
     <span class="dsp-title">⚡ Dispatch</span>
@@ -598,11 +592,7 @@ document.querySelectorAll('table.grid').forEach(function(t){
 })();
 </script>
 
-<div id="devNoteBtn" title="Leave a dev note" style="position:fixed;bottom:20px;right:20px;z-index:9999;
-  width:44px;height:44px;border-radius:50%;background:var(--accent2);color:#fff;font-size:20px;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;
-  box-shadow:0 4px 14px rgba(0,0,0,.3);user-select:none">💬</div>
-<div id="devNoteCard" style="display:none;position:fixed;bottom:72px;right:20px;z-index:9999;
+<div id="devNoteCard" style="display:none;position:fixed;top:58px;right:4px;z-index:9999;
   width:300px;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);
   padding:16px;border:1px solid var(--line)">
   <div style="font-weight:700;font-size:13px;margin-bottom:10px;color:var(--accent2)">📝 Dev note</div>
