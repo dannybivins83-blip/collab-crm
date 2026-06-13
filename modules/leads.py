@@ -629,7 +629,18 @@ def run_takeoff(lead_id):
     """Accept a plan PDF or ZIP upload, spawn async AI takeoff, return job_token."""
     import uuid as _uuid, threading as _threading, time as _time, re as _tre
     from flask import current_app
-    from modules.takeoff import _run_takeoff_worker
+    try:
+        from modules.takeoff import _run_takeoff_worker
+    except Exception as _ie:
+        return jsonify({"ok": False, "error": "Takeoff module unavailable: %s" % _ie}), 503
+    try:
+        return _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre,
+                                  current_app, _run_takeoff_worker)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": "Server error: %s" % str(exc)}), 500
+
+
+def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _run_takeoff_worker):
     l = db.get("leads", lead_id)
     if not l:
         return jsonify({"ok": False, "error": "Lead not found"}), 404
@@ -643,6 +654,7 @@ def run_takeoff(lead_id):
         db.update("leads", lead_id, bid_as_profile=profile)
     fn = "%d_%s" % (int(_time.time() * 1000),
                     _tre.sub(r"[^A-Za-z0-9._-]+", "_", f.filename))
+    os.makedirs(config.DOC_DIR, exist_ok=True)
     file_path = os.path.join(config.DOC_DIR, fn)
     f.save(file_path)
     try:

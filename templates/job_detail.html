@@ -198,7 +198,10 @@ function lcGate(form,pct){
     <div class="tabpane" data-pane="meas" id="meas" style="display:none">
       <div class="card">
         <div class="panel-head"><span>📐 Roof Measurements (RoofGraf)</span>
-          {% if measurement and measurement.report_file %}<a class="btn sm" href="{{ url_for('uploads', subpath=measurement.report_file) }}" target="_blank">View report</a>{% endif %}
+          <div style="display:flex;gap:6px">
+            {% if measurement and measurement.report_file %}<a class="btn sm" href="{{ url_for('uploads', subpath=measurement.report_file) }}" target="_blank">View report</a>{% endif %}
+            <a class="btn sm primary" href="{{ url_for('roof_reports.new') }}?job_id={{ j.id }}&address={{ (j.address or '')|urlencode }}&city={{ (j.city or '')|urlencode }}&zip={{ (j.zip or '')|urlencode }}">🏠 Order aerial report</a>
+          </div>
         </div>
         <form method="post" action="{{ url_for('measurements.upload_job', job_id=j.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
           <div style="flex:1"><label>Upload RoofGraf / EagleView report (PDF — auto-parses squares & pitch)</label><input type="file" name="file" accept="application/pdf" required></div>
