@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-13 `git rev-parse`):** `b3e7386` on `agent/gc-consolidation`
-- **Last board update:** 2026-06-13 00:00 ET — crm-ui: Lost-lead default filter (board+list show_lost toggle, `b3e7386`). AccuLynx sync verified: rid-less leads ✅, acculynx_url ✅, invoices ✅, orders ✅. Prior: portal invite fix + estimate BOM (`a414557`). 82/82 tests pass. agent/gc-consolidation MERGE-READY to main.
+- **Git tip (verified 2026-06-13 `git rev-parse`):** `654c658` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-13 ET — crm-ui: CR batch 2020/2022/2024/2025/2028 shipped. Design studio: brush fix (source-over+alpha, was broken on dark colors), manufacturer tab grouping (GAF/OC/Westlake/Boral/etc), custom color input. Lead form: checklist above notes, notes 80px. Roof reports: assign-to-lead/job modal. Job dashboard: aerial report btn. Takeoff route: JSON-safe error handling + mkdir fix.
 
 ---
 
