@@ -305,8 +305,8 @@
   <!-- HERO + PROGRESS -->
   <div class="card flush">
     <div class="hero-band">
-      <h1>Hi{{ ' ' ~ j._first if j._first }} 👋</h1>
-      <div class="addr">📍 {{ j.address }}{{ ', ' ~ j.city if j.city }} {{ j.state }} {{ j.zip }}</div>
+      <h1>Hi{{ ' ' ~ j._first if j._first }}</h1>
+      <div class="addr">{{ pic('pin',14) }} {{ j.address }}{{ ', ' ~ j.city if j.city }} {{ j.state }} {{ j.zip }}</div>
       <div class="badges">
         <span class="pill green">{{ j._stage_name }}</span>
         {% if j.work_type %}<span class="pill">{{ j.work_type }}</span>{% endif %}
@@ -315,12 +315,17 @@
     <div class="track-wrap">
       <div class="track-head">
         <span class="t">Project progress</span>
-        <span class="c">Step {{ j._phase + 1 }} of {{ phases|length }}</span>
+        <span class="c">Step {{ [j._phase + 2, 1]|max }} of {{ phases|length + 1 }}</span>
       </div>
       <div class="track">
+        <!-- Proposal step — active for pre-approval stages, done once approved -->
+        <div class="step {{ 'done' if j._phase >= 0 else 'cur' }}">
+          <div class="dot">{{ '✓' if j._phase >= 0 else 1 }}</div>
+          <div class="lbl">Proposal</div>
+        </div>
         {% for p in phases %}
         <div class="step {{ 'done' if loop.index0 < j._phase else ('cur' if loop.index0 == j._phase else '') }}">
-          <div class="dot">{{ '✓' if loop.index0 < j._phase else loop.index }}</div>
+          <div class="dot">{{ '✓' if loop.index0 < j._phase else loop.index + 1 }}</div>
           <div class="lbl">{{ p }}</div>
         </div>
         {% endfor %}
@@ -343,18 +348,19 @@
   </div>
 
   <!-- LIVE STATUS (Domino's-style "your roof is HERE") -->
-  {% set _ph = phases[j._phase] if j._phase < phases|length else phases[-1] %}
+  {% set _ph = 'Proposal' if j._phase < 0 else (phases[j._phase] if j._phase < phases|length else phases[-1]) %}
   {% set _fun = {
-    "Approved":["🎉","Welcome aboard! Your project is officially a GO — here's everything that happens next."],
-    "Permitting":["📝","We're at the city pulling your permit. This stretch runs on their clock — we'll ping you the moment it's issued."],
-    "Scheduling":["📅","Permit's in hand! We're ordering your materials and locking in an install date with you."],
-    "Installation":["🔨","It's happening! Our crew is bringing your new roof to life — watch it on your Roof Cam below. 📸"],
-    "Final Inspection":["🔎","Final inspection time — the finish line is in sight!"],
-    "Complete":["🏡","All done — enjoy your beautiful new roof! Mind leaving us a quick review?"]
+    "Proposal":["pencil","We're reviewing your proposal and putting your project together — we'll be in touch very soon!"],
+    "Approved":["party","Welcome aboard! Your project is officially a GO — here's everything that happens next."],
+    "Permitting":["pencil","We're at the city pulling your permit. This stretch runs on their clock — we'll ping you the moment it's issued."],
+    "Scheduling":["calendar","Permit's in hand! We're ordering your materials and locking in an install date with you."],
+    "Installation":["hammer","It's happening! Our crew is bringing your new roof to life — watch it on your Roof Cam below."],
+    "Final Inspection":["search","Final inspection time — the finish line is in sight!"],
+    "Complete":["house","All done — enjoy your beautiful new roof! Mind leaving us a quick review?"]
   } %}
-  {% set _fe = _fun.get(_ph, ["🏗️","Your project is moving right along — here's exactly what's next."]) %}
+  {% set _fe = _fun.get(_ph, ["building","Your project is moving right along — here's exactly what's next."]) %}
   <div class="livebar" style="margin:0 0 15px">
-    <div class="lb-em">{{ _fe[0] }}</div>
+    <div class="lb-em">{{ pic(_fe[0], 28) }}</div>
     <div style="min-width:0">
       <div class="lb-stage"><span class="livedot"></span>Live now · {{ _ph }}</div>
       <div class="lb-msg">{{ _fe[1] }}</div>
@@ -370,7 +376,7 @@
         {{ pic('clipboard',18) }} Go to my project page →
       </a>
       <a class="btn" style="flex:1;min-width:180px;text-align:center;font-weight:700;padding:12px 18px;border-radius:10px;font-size:15px;background:var(--accent-tint);color:var(--accent);border:1.5px solid var(--accent)" href="#message" onclick="setTimeout(function(){var k=document.querySelector('[name=kind]');if(k)k.value='sample';var t=document.querySelector('[name=text]');if(t)t.focus();},100)">
-        🎨 Request a Sample
+        {{ pic('palette',16) }} Request a Sample
       </a>
     </div>
   </div>
@@ -398,7 +404,7 @@
   <!-- MILESTONE CELEBRATION (confetti once per new step) -->
   {% if celebrate %}
   <div class="celebrate">
-    <div class="cel-em">🎉</div>
+    <div class="cel-em">{{ pic('party',26) }}</div>
     <div style="min-width:0">
       <div class="cel-t">Great news — new progress on your roof!</div>
       <div class="cel-s">We just completed: <b>{{ celebrate }}</b></div>
@@ -415,7 +421,7 @@
   <!-- PROJECT UPDATES FEED -->
   {% if updates %}
   <div class="card">
-    <div class="h act">🎉 Your Project Updates</div>
+    <div class="h act">{{ pic('party',16) }} Your Project Updates</div>
     {% for u in updates %}
     <div class="upd">
       <div class="upd-dot"></div>
@@ -494,19 +500,19 @@
       <div class="reflvl"><span id="refIcon">{{ referral.level.ic }}</span>
         <span><b id="refLvlName">{{ referral.level.name }}</b><br><span class="muted" id="refShares">{{ referral.shares }} sent</span></span></div>
       <div class="refnext muted" id="refNext">
-        {% if referral.next_level %}{{ referral.next_level.n - referral.shares }} more to <b>{{ referral.next_level.name }}</b> {{ referral.next_level.ic }}{% else %}Max level — you're a legend! 👑{% endif %}</div>
+        {% if referral.next_level %}{{ referral.next_level.n - referral.shares }} more to <b>{{ referral.next_level.name }}</b> {{ referral.next_level.ic }}{% else %}Max level — you're a legend!{% endif %}</div>
     </div>
     <div class="refbar"><div id="refFill" style="width:{{ ((referral.shares / (referral.next_level.n if referral.next_level else referral.shares or 1)) * 100)|round|int if referral.next_level else 100 }}%"></div></div>
 
     <div class="muted" style="margin:12px 0 6px">Your personal invite — edit it, then send it to neighbors. Every send levels you up:</div>
-    <textarea id="refMsg" rows="3">{{ referral.msg or "I'm getting my roof done by " ~ company.name ~ " and they've been great! Get a free quote 👉 " }}{{ referral.link }}</textarea>
+    <textarea id="refMsg" rows="3">{{ referral.msg or "I'm getting my roof done by " ~ company.name ~ " and they've been great! Get a free quote: " }}{{ referral.link }}</textarea>
     <div class="refbtns">
       <button class="btn green" type="button" onclick="sendRef('copy')">{{ pic('clipboard',16) }} Copy &amp; Send</button>
       <a class="btn share" id="refSms" href="sms:?&body=" onclick="bumpShare()">{{ pic('chat',16) }} Text it</a>
       <button class="btn ghost" type="button" onclick="saveRefMsg(this)">{{ pic('save',16) }} Save my message</button>
     </div>
 
-    <div class="h" style="margin:18px 0 8px">🏆 Rewards you can unlock <span class="muted" style="text-transform:none;font-weight:600">({{ referral.signed }} signed so far)</span></div>
+    <div class="h" style="margin:18px 0 8px">{{ pic('trophy',16) }} Rewards you can unlock <span class="muted" style="text-transform:none;font-weight:600">({{ referral.signed }} signed so far)</span></div>
     <div class="ladder">
       {% for t in referral.tiers %}
       <div class="rung {{ 'won' if t.unlocked }}">
@@ -516,7 +522,7 @@
       </div>
       {% endfor %}
     </div>
-    {% if referral.next_tier %}<div class="muted" style="margin-top:10px;font-size:12.5px">🎯 <b>{{ referral.next_tier.n - referral.signed }}</b> more signed referral{{ 's' if (referral.next_tier.n - referral.signed)>1 }} to win <b>{{ referral.next_tier.reward }}</b>.</div>{% endif %}
+    {% if referral.next_tier %}<div class="muted" style="margin-top:10px;font-size:12.5px">{{ pic('target',14) }} <b>{{ referral.next_tier.n - referral.signed }}</b> more signed referral{{ 's' if (referral.next_tier.n - referral.signed)>1 }} to win <b>{{ referral.next_tier.reward }}</b>.</div>{% endif %}
   </div>
   <style>
     #refGame textarea{width:100%;border:1px solid var(--line,#e7ecf3);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;resize:vertical}
@@ -542,7 +548,7 @@
       document.getElementById('refShares').textContent=d.shares+' sent';
       document.getElementById('refIcon').textContent=d.icon;
       document.getElementById('refLvlName').textContent=d.level;
-      document.getElementById('refNext').innerHTML=d.next?((d.nextAt-d.shares)+' more to <b>'+d.next+'</b>'):"Max level — you're a legend! 👑";
+      document.getElementById('refNext').innerHTML=d.next?((d.nextAt-d.shares)+' more to <b>'+d.next+'</b>'):"Max level — you're a legend!";
       var pct=d.next?Math.round(d.shares/d.nextAt*100):100; document.getElementById('refFill').style.width=pct+'%';
       if(d.level!==prev) refConfetti();
     });
@@ -566,7 +572,7 @@
   <!-- PERKS, GIVEAWAYS & EVENTS (company-configured) -->
   {% if company.portal_perks %}
   <div class="card">
-    <div class="h">🎉 Perks, Giveaways &amp; Events</div>
+    <div class="h">{{ pic('party',16) }} Perks, Giveaways &amp; Events</div>
     <div style="line-height:1.6">{{ company.portal_perks|safe }}</div>
   </div>
   {% endif %}
@@ -637,7 +643,7 @@
     <!-- 3. Documents that need a signature -->
     {% if docs_to_sign %}
     <div class="pkt-sec">
-      <div class="pkt-h">3 · Documents to sign ✍️</div>
+      <div class="pkt-h">3 · Documents to sign {{ pic('pencil',14) }}</div>
       {% for d in docs_to_sign %}
       <div style="padding:6px 0 14px;{{ 'border-bottom:1px solid var(--line);margin-bottom:10px' if not loop.last }}">
         <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -665,7 +671,7 @@
     {% set permit_docs = documents|selectattr('category','in',['Permit','NOA','NOC'])|list %}
     {% if permit_docs %}
     <div class="pkt-sec">
-      <div class="pkt-h">4 · Permit Documents 📑</div>
+      <div class="pkt-h">4 · Permit Documents {{ pic('doc',14) }}</div>
       {% for d in permit_docs %}
       <div class="doc"><span class="di">{{ pic('doc',15) }}</span><a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>
       <details><summary>Preview {{ d.original_name }}</summary>
@@ -733,7 +739,7 @@
     {% if j.sitecam_url %}
     <iframe src="{{ j.sitecam_url }}" loading="lazy" referrerpolicy="origin" title="Your job site photos"
             style="width:100%;height:520px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:10px"></iframe>
-    <a class="btn ghost block sm" style="margin-bottom:14px" href="{{ j.sitecam_url }}" target="_blank" rel="noopener">⛶ Open your photos full-screen →</a>
+    <a class="btn ghost block sm" style="margin-bottom:14px" href="{{ j.sitecam_url }}" target="_blank" rel="noopener">{{ pic('maximize',15) }} Open your photos full-screen</a>
     {% elif photo_app_url %}<a class="btn ghost block" style="margin-bottom:14px" href="{{ photo_app_url }}" target="_blank" rel="noopener">{{ pic('camera',16) }} View all job photos in our photo app</a>{% endif %}
     {% if photos %}
     <div class="gallery" style="margin-bottom:14px">{% for ph in photos %}<a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" title="{{ ph.caption }}"></a>{% endfor %}</div>
@@ -747,7 +753,7 @@
 
   <!-- DOCUMENTS -->
   <div class="card" id="documents"><div class="h">Documents</div>
-    {% if contract %}<a class="btn green block" style="margin-bottom:14px" href="{{ url_for('uploads', subpath='documents/' ~ contract.filename) }}" target="_blank">⬇ Download your signed contract</a>{% endif %}
+    {% if contract %}<a class="btn green block" style="margin-bottom:14px" href="{{ url_for('uploads', subpath='documents/' ~ contract.filename) }}" target="_blank">{{ pic('download',15) }} Download your signed contract</a>{% endif %}
     {% if documents %}
     {% for d in documents %}<div class="doc"><span class="di">{{ pic('doc',14) }}</span>
       <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>{% endfor %}

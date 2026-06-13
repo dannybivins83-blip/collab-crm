@@ -528,6 +528,10 @@ FEATURES = [
 
 
 _STAGE_TO_PHASE = {
+    # pre-approval (-1 = Proposal phase visible in portal tracker)
+    "prospect": -1, "new_lead": -1, "lead": -1, "contacted": -1,
+    "estimate_sent": -1, "proposal": -1,
+    # active pipeline
     "approved": 0, "finance_ntp": 0, "documentation": 0,
     "permit_applied": 1, "permit_approved": 1,
     "precon_needed": 2, "precon_complete": 2, "ready_teardown": 2,
@@ -634,7 +638,9 @@ def lead_portal_link(lead_id):
 
 
 def _phase_index(stage):
-    return _STAGE_TO_PHASE.get(stage, 0)
+    # Default to -1 (Proposal) — safer than showing "Approved" for
+    # jobs that haven't been approved yet.
+    return _STAGE_TO_PHASE.get(stage, -1)
 
 
 # Celebratory per-phase message for the homeowner milestone email.
@@ -708,6 +714,43 @@ def _token_is_expired_in_db(token):
     return False
 
 
+# ---------------------------------------------------------------------------
+# Servable-file guard — never show the homeowner a link to a file that 404s.
+# A subset of legacy rows reference uploads whose bytes were lost in the old
+# serverless (ephemeral-disk) window and were never mirrored to Drive. The
+# /uploads route falls back to Drive, so "servable" = local file exists OR Drive
+# has it. Result is cached per-process (Drive lookups are a network call); a new
+# upload writes to the persistent disk so os.path.exists() catches it with no
+# cache or Drive round-trip.
+# ---------------------------------------------------------------------------
+_SERVE_CACHE = {}
+
+
+def _servable(subpath):
+    if not subpath:
+        return False
+    subpath = str(subpath).lstrip("/")
+    local = os.path.join(config.UPLOAD_DIR, *subpath.split("/"))
+    if os.path.exists(local):
+        return True
+    base = os.path.basename(subpath)
+    if base in _SERVE_CACHE:
+        return _SERVE_CACHE[base]
+    ok = False
+    try:
+        from modules import gdrive
+        if gdrive.enabled():
+            ok = bool(gdrive.find_drive_id(base))
+    except Exception:
+        ok = False
+    _SERVE_CACHE[base] = ok
+    return ok
+
+
+def _doc_servable(d, folder):
+    return _servable("%s/%s" % (folder, d.get("filename") or ""))
+
+
 @bp.route("/<token>")
 def home(token):
     j = _job_by_token(token)
@@ -727,13 +770,16 @@ def home(token):
         abort(404)
     _decorate(j)
     estimates = db.all_rows("estimates", "job_id=?", (j["id"],), "id DESC")
-    photos = db.all_rows("photos", "job_id=?", (j["id"],), "id DESC")
+    photos = [p for p in db.all_rows("photos", "job_id=?", (j["id"],), "id DESC")
+              if _doc_servable(p, "photos")]
     all_docs = db.all_rows("documents", "job_id=?", (j["id"],), "id DESC")
     # Documents the company has requested the homeowner to e-sign (not yet signed).
-    docs_to_sign = [d for d in all_docs if d.get("needs_sign") and not d.get("signed_at")]
+    docs_to_sign = [d for d in all_docs if d.get("needs_sign") and not d.get("signed_at")
+                    and _doc_servable(d, "documents")]
     # Only show customer-appropriate documents (contracts, permits, warranties, COI).
     show_cats = {"Contract", "Permit", "Warranty", "COI", "NOA", "Measurement", "HOA"}
-    documents = [d for d in all_docs if (d.get("category") or "") in show_cats]
+    documents = [d for d in all_docs if (d.get("category") or "") in show_cats
+                 and _doc_servable(d, "documents")]
     invoices = db.all_rows("invoices", "job_id=?", (j["id"],), "id DESC")
     payments = db.all_rows("payments", "job_id=?", (j["id"],), "id DESC")
     # When real billing was synced from AccuLynx (invoices/payments exist), drive the
@@ -788,7 +834,7 @@ def home(token):
             return False
         ds = _doc_systems(d.get("original_name"))
         return (sysk in ds) if ds else True  # match system, or generic (no system keyword)
-    product_docs = [d for d in lib if _relevant(d)]
+    product_docs = [d for d in lib if _relevant(d) and _doc_servable(d, "library")]
     # system-specific first, generic after
     product_docs.sort(key=lambda d: 0 if _doc_systems(d.get("original_name")) else 1)
     product_docs = product_docs[:16]
@@ -845,9 +891,12 @@ def design(token):
     sysk = (rec.get("system") or ahj_mod.work_type_to_system(rec.get("work_type", "")) or "shingle").lower()
     if sysk not in ROOF_COLORS:
         sysk = "shingle"
+    dphoto = rec.get("design_photo")
+    if dphoto and not _servable(dphoto if "/" in str(dphoto) else "photos/%s" % dphoto):
+        dphoto = None  # original upload lost (legacy ephemeral-disk) — don't show a broken image
     return render_template("design_studio.html", token=token, rec=rec, kind=kind,
                            company=db.get_company(), colors=ROOF_COLORS, options=ROOF_OPTIONS,
-                           start_system=sysk, design_photo=rec.get("design_photo"))
+                           start_system=sysk, design_photo=dphoto)
 
 
 @bp.route("/<token>/design/photo", methods=["POST"])
