@@ -53,13 +53,15 @@ def board():
         jobs = [j for j in jobs if j["_stage"].get("bucket") == bucket]
     if stage_f:
         jobs = [j for j in jobs if j["stage"] == stage_f]
-    sort = request.args.get("sort", "clock")
+    sort = request.args.get("sort", "date")
     if sort == "est":
         jobs.sort(key=lambda j: -theme.est_num(j.get("contract_value")))
     elif sort == "name":
         jobs.sort(key=lambda j: (j.get("name") or "").lower())
-    else:
+    elif sort == "clock":
         jobs.sort(key=lambda j: -j["_fs"]["days"])
+    else:  # date — newest first
+        jobs.sort(key=lambda j: -(j.get("id") or 0))
     cols = []
     grand = 0
     overdue = 0
@@ -100,18 +102,19 @@ def list_view():
     if rep_f:
         rows = [j for j in rows if (j.get("rep") or "") == rep_f]
     # Sort options for the bucket views.
-    sort = request.args.get("sort", "days")
-    keys = {
-        "days":  (lambda j: -j["_fs"]["days"]),                       # most overdue first
-        "value": (lambda j: -theme.est_num(j.get("contract_value"))), # biggest $ first
-        "name":  (lambda j: (j.get("name") or "").lower()),
-        "rid":   (lambda j: (j.get("rid") or "").lower()),
-        "recent":(lambda j: (j.get("stage_since") or j.get("created") or ""),),
-    }
+    sort = request.args.get("sort", "date")
     if sort == "recent":
         rows.sort(key=lambda j: (j.get("stage_since") or j.get("created") or ""), reverse=True)
-    else:
-        rows.sort(key=keys.get(sort, keys["days"]))
+    elif sort == "days":
+        rows.sort(key=lambda j: -j["_fs"]["days"])
+    elif sort == "value":
+        rows.sort(key=lambda j: -theme.est_num(j.get("contract_value")))
+    elif sort == "name":
+        rows.sort(key=lambda j: (j.get("name") or "").lower())
+    elif sort == "rid":
+        rows.sort(key=lambda j: (j.get("rid") or "").lower())
+    else:  # date — newest first
+        rows.sort(key=lambda j: -(j.get("id") or 0))
     reps = sorted({(j.get("rep") or "").strip() for j in jobs if (j.get("rep") or "").strip()})
     return render_template("jobs_list.html", rows=rows, counts=counts, stage_f=stage_f,
                            bucket=bucket, q=q, total=len(jobs), sort=sort, rep_f=rep_f, reps=reps,

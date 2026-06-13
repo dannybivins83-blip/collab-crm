@@ -114,23 +114,19 @@
     </div>
   </div>
   <div class="navgroup">
-    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/reports') }}">Reports ▾</a>
-    <div class="dropdown">
-      <a href="{{ url_for('reports.index') }}">{{ icon('grid') }}<span class="nlbl">Analytics</span></a>
-      {% if current_user and current_user.is_owner %}<a href="{{ url_for('reports.system_map') }}">{{ icon('grid') }}<span class="nlbl">System Map 🔒</span></a>{% endif %}
-    </div>
-  </div>
-  <div class="navgroup">
-    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/integrations') or seg.startswith('/sitecam') or seg.startswith('/roof-reports') }}">Integrations ▾</a>
+    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/integrations') or seg.startswith('/sitecam') }}">Integrations ▾</a>
     <div class="dropdown">
       <a href="{{ url_for('integrations.index') }}">{{ icon('grid') }}<span class="nlbl">Integrations Hub</span></a>
       <a href="{{ url_for('sitecam.index') }}">{{ icon('camera') }}<span class="nlbl">Site Photos</span></a>
-      <a href="{{ url_for('roof_reports.index') }}">{{ icon('grid') }}<span class="nlbl">Roof Reports</span></a>
     </div>
   </div>
   <div class="navgroup">
-    <a class="navitem dropdown-toggle">Tools ▾</a>
+    <a class="navitem dropdown-toggle {{ 'on' if seg.startswith('/reports') or seg.startswith('/roof-reports') or seg.startswith('/tools') or seg.startswith('/estimates') or seg.startswith('/invoices') or seg.startswith('/permits') }}">Tools ▾</a>
     <div class="dropdown">
+      <a href="{{ url_for('reports.index') }}">{{ icon('grid') }}<span class="nlbl">Analytics</span></a>
+      <a href="{{ url_for('roof_reports.index') }}">{{ icon('grid') }}<span class="nlbl">Roof Reports</span></a>
+      {% if current_user and current_user.is_owner %}<a href="{{ url_for('reports.system_map') }}">{{ icon('grid') }}<span class="nlbl">System Map 🔒</span></a>{% endif %}
+      <div style="border-top:1px solid var(--line);margin:4px 0"></div>
       <a href="{{ url_for('estimates.index') }}">{{ icon('grid') }}<span class="nlbl">Estimates &amp; Proposals</span></a>
       <a href="{{ url_for('tools.mass_email') }}">{{ icon('mail') }}<span class="nlbl">Mass Email</span></a>
       <a href="{{ url_for('tools.callsheet') }}">{{ icon('printer') }}<span class="nlbl">Call Sheet</span></a>
