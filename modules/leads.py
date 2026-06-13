@@ -627,6 +627,8 @@ def run_takeoff(lead_id):
     l = db.get("leads", lead_id)
     if not l:
         return jsonify({"ok": False, "error": "Lead not found"}), 404
+    if not config.ANTHROPIC_API_KEY:
+        return jsonify({"ok": False, "error": "ANTHROPIC_API_KEY not set — add it to Render env vars"}), 503
     f = request.files.get("plans_file")
     if not f or not f.filename:
         return jsonify({"ok": False, "error": "No file uploaded"}), 400

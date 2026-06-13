@@ -258,7 +258,8 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app):
         _progress("AI extracting project data…")
 
         import anthropic
-        client = anthropic.Anthropic()
+        import config as _config
+        client = anthropic.Anthropic(api_key=_config.ANTHROPIC_API_KEY or None)
         resp = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=1500,
