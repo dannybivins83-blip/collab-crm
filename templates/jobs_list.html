@@ -29,6 +29,7 @@
       {% if bucket %}<input type="hidden" name="bucket" value="{{ bucket }}">{% endif %}
       <input name="q" value="{{ q }}" placeholder="Search name, job #, address, phone…" class="lb-q">
       <select name="sort" onchange="this.form.submit()" title="Sort">
+        <option value="date"   {{ 'selected' if sort=='date' or not sort }}>Newest first</option>
         <option value="days"   {{ 'selected' if sort=='days' }}>Most overdue</option>
         <option value="value"  {{ 'selected' if sort=='value' }}>Value (high→low)</option>
         <option value="name"   {{ 'selected' if sort=='name' }}>Name A–Z</option>
@@ -40,7 +41,7 @@
         {% for r in reps %}<option value="{{ r }}" {{ 'selected' if rep_f==r }}>{{ r }}</option>{% endfor %}
       </select>
       <button class="btn sm primary" type="submit">Search</button>
-      {% if q or rep_f or sort!='days' %}<a class="btn sm ghost" href="{{ url_for('jobs.list_view') }}{{ ('?stage='+stage_f) if stage_f else (('?bucket='+bucket) if bucket else '') }}">Reset</a>{% endif %}
+      {% if q or rep_f or (sort and sort!='date') %}<a class="btn sm ghost" href="{{ url_for('jobs.list_view') }}{{ ('?stage='+stage_f) if stage_f else (('?bucket='+bucket) if bucket else '') }}">Reset</a>{% endif %}
     </form>
     <style>
       .listbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}

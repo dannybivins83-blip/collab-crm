@@ -15,9 +15,10 @@
 <div class="toolbar">
   <span class="tlabel">Sort</span>
   <select onchange="location.href='?sort='+this.value">
+    <option value="date"  {{ 'selected' if sort=='date'  or not sort }}>Newest first</option>
     <option value="clock" {{ 'selected' if sort=='clock' }}>Days in stage (worst first)</option>
-    <option value="est" {{ 'selected' if sort=='est' }}>Contract value (high→low)</option>
-    <option value="name" {{ 'selected' if sort=='name' }}>Name (A→Z)</option>
+    <option value="est"   {{ 'selected' if sort=='est'   }}>Contract value (high→low)</option>
+    <option value="name"  {{ 'selected' if sort=='name'  }}>Name (A→Z)</option>
   </select>
   <span class="total">
     {% if overdue %}<span class="od">🔴 {{ overdue }} overdue</span>{% endif %}
