@@ -325,9 +325,11 @@ CREATE TABLE IF NOT EXISTS team_messages (
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = connect()
-    conn.executescript(SCHEMA)
-    conn.commit()
-    conn.close()
+    try:
+        conn.executescript(SCHEMA)
+        conn.commit()
+    finally:
+        conn.close()
     _ensure_column("company_settings", "departments", "TEXT")
     _ensure_column("company_settings", "color_masthead", "TEXT DEFAULT '#24476C'")
     _ensure_column("company_settings", "brand_short", "TEXT")  # masthead short name (e.g. SRSMI); falls back to full name
@@ -372,13 +374,15 @@ def _ensure_library_table():
     """Company Document Library — reusable docs (warranties, brochures, licenses,
     permit packages, sign-up packages, cheat sheets) with category + AHJ/system tags."""
     conn = connect()
-    conn.execute("""CREATE TABLE IF NOT EXISTS library_docs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created TEXT, filename TEXT, original_name TEXT,
-        category TEXT, ahj TEXT, system TEXT, tags TEXT,
-        size INTEGER, notes TEXT)""")
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("""CREATE TABLE IF NOT EXISTS library_docs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created TEXT, filename TEXT, original_name TEXT,
+            category TEXT, ahj TEXT, system TEXT, tags TEXT,
+            size INTEGER, notes TEXT)""")
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _ensure_permit_api_tables():
@@ -389,59 +393,65 @@ def _ensure_permit_api_tables():
     portal_accounts — per-(platform/AHJ) contractor registration status tracker
     """
     conn = connect()
-    conn.execute("""CREATE TABLE IF NOT EXISTS contractor_profiles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created TEXT, tenant_id INTEGER DEFAULT 1,
-        company_name TEXT, license_number TEXT, qualifier_name TEXT,
-        address TEXT, city TEXT, state TEXT DEFAULT 'FL', zip TEXT,
-        phone TEXT, email TEXT, contact_person TEXT, notary_county TEXT,
-        logo_path TEXT, is_default INTEGER DEFAULT 0)""")
-    conn.execute("""CREATE TABLE IF NOT EXISTS permit_api_keys (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at TEXT, tenant_id INTEGER DEFAULT 1,
-        key_hash TEXT UNIQUE, label TEXT,
-        rate_limit_per_day INTEGER DEFAULT 100,
-        active INTEGER DEFAULT 1)""")
-    conn.execute("""CREATE TABLE IF NOT EXISTS permit_build_jobs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at TEXT, job_id TEXT UNIQUE,
-        api_key_id INTEGER, status TEXT DEFAULT 'queued',
-        result_path TEXT, webhook_url TEXT, notes TEXT)""")
-    conn.execute("""CREATE TABLE IF NOT EXISTS portal_accounts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created TEXT, updated TEXT,
-        platform TEXT, ahj TEXT, city TEXT, county TEXT,
-        username TEXT, registration_status TEXT DEFAULT 'pending',
-        notes TEXT, last_checked TEXT)""")
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("""CREATE TABLE IF NOT EXISTS contractor_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created TEXT, tenant_id INTEGER DEFAULT 1,
+            company_name TEXT, license_number TEXT, qualifier_name TEXT,
+            address TEXT, city TEXT, state TEXT DEFAULT 'FL', zip TEXT,
+            phone TEXT, email TEXT, contact_person TEXT, notary_county TEXT,
+            logo_path TEXT, is_default INTEGER DEFAULT 0)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS permit_api_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT, tenant_id INTEGER DEFAULT 1,
+            key_hash TEXT UNIQUE, label TEXT,
+            rate_limit_per_day INTEGER DEFAULT 100,
+            active INTEGER DEFAULT 1)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS permit_build_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT, job_id TEXT UNIQUE,
+            api_key_id INTEGER, status TEXT DEFAULT 'queued',
+            result_path TEXT, webhook_url TEXT, notes TEXT)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS portal_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created TEXT, updated TEXT,
+            platform TEXT, ahj TEXT, city TEXT, county TEXT,
+            username TEXT, registration_status TEXT DEFAULT 'pending',
+            notes TEXT, last_checked TEXT)""")
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _ensure_change_requests_table():
     """Log of white-label customization requests typed in the Customize box."""
     conn = connect()
-    conn.execute("""CREATE TABLE IF NOT EXISTS change_requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created TEXT, requested_by TEXT, raw_text TEXT,
-        status TEXT DEFAULT 'queued',   -- applied | partial | queued
-        result TEXT)""")
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("""CREATE TABLE IF NOT EXISTS change_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created TEXT, requested_by TEXT, raw_text TEXT,
+            status TEXT DEFAULT 'queued',   -- applied | partial | queued
+            result TEXT)""")
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _ensure_integrations_table():
     """Single-row table holding QuickBooks Online OAuth config + tokens."""
     conn = connect()
-    conn.execute("""CREATE TABLE IF NOT EXISTS integrations (
-        id INTEGER PRIMARY KEY CHECK (id=1),
-        qbo_client_id TEXT, qbo_client_secret TEXT, qbo_environment TEXT DEFAULT 'production',
-        qbo_realm_id TEXT, qbo_access_token TEXT, qbo_refresh_token TEXT,
-        qbo_token_expiry TEXT, qbo_connected_at TEXT, qbo_redirect_uri TEXT,
-        updated TEXT)""")
-    conn.execute("INSERT INTO integrations (id) VALUES (1) ON CONFLICT (id) DO NOTHING"
-                 if IS_PG else "INSERT OR IGNORE INTO integrations (id) VALUES (1)")
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("""CREATE TABLE IF NOT EXISTS integrations (
+            id INTEGER PRIMARY KEY CHECK (id=1),
+            qbo_client_id TEXT, qbo_client_secret TEXT, qbo_environment TEXT DEFAULT 'production',
+            qbo_realm_id TEXT, qbo_access_token TEXT, qbo_refresh_token TEXT,
+            qbo_token_expiry TEXT, qbo_connected_at TEXT, qbo_redirect_uri TEXT,
+            updated TEXT)""")
+        conn.execute("INSERT INTO integrations (id) VALUES (1) ON CONFLICT (id) DO NOTHING"
+                     if IS_PG else "INSERT OR IGNORE INTO integrations (id) VALUES (1)")
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_integrations():
@@ -473,9 +483,11 @@ def _ensure_column(table, col, decl):
     if col in _columns(table):
         return
     conn = connect()
-    conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, col, _pg_ddl(decl) if IS_PG else decl))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, col, _pg_ddl(decl) if IS_PG else decl))
+        conn.commit()
+    finally:
+        conn.close()
     _COLCACHE.pop(table, None); _NUMCACHE.pop(table, None)
     _migrate_columns()
 
@@ -497,23 +509,25 @@ def _migrate_columns():
         ("appointments", "end_at TEXT"),
     ]
     conn = connect()
-    for table, coldef in adds:
-        try:
-            conn.execute("ALTER TABLE %s ADD COLUMN %s" % (table, coldef))
-        except Exception:
-            pass  # already exists
-    # Backfill renamed appointment columns from the legacy start/end (reserved
-    # words, so quoted) where present and the new columns are still empty.
-    legacy = {"start": "start_at", "end": "end_at"}
-    for old, new in legacy.items():
-        try:
-            conn.execute('UPDATE appointments SET %s="%s" '
-                         'WHERE (%s IS NULL OR %s="") AND "%s" IS NOT NULL'
-                         % (new, old, new, new, old))
-        except Exception:
-            pass  # legacy column doesn't exist (fresh schema) — nothing to copy
-    conn.commit()
-    conn.close()
+    try:
+        for table, coldef in adds:
+            try:
+                conn.execute("ALTER TABLE %s ADD COLUMN %s" % (table, coldef))
+            except Exception:
+                pass  # already exists
+        # Backfill renamed appointment columns from the legacy start/end (reserved
+        # words, so quoted) where present and the new columns are still empty.
+        legacy = {"start": "start_at", "end": "end_at"}
+        for old, new in legacy.items():
+            try:
+                conn.execute('UPDATE appointments SET %s="%s" '
+                             'WHERE (%s IS NULL OR %s="") AND "%s" IS NOT NULL'
+                             % (new, old, new, new, old))
+            except Exception:
+                pass  # legacy column doesn't exist (fresh schema) — nothing to copy
+        conn.commit()
+    finally:
+        conn.close()
     _COLCACHE.clear(); _NUMCACHE.clear()
 
 
@@ -521,12 +535,14 @@ def _migrate_stages():
     """Remap any legacy stage keys to the AccuLynx milestone model."""
     import constants
     conn = connect()
-    for old, new in constants._OLD_JOB_STAGE_MAP.items():
-        conn.execute("UPDATE jobs SET stage=? WHERE stage=?", (new, old))
-    for old, new in constants._OLD_LEAD_STAGE_MAP.items():
-        conn.execute("UPDATE leads SET stage=? WHERE stage=?", (new, old))
-    conn.commit()
-    conn.close()
+    try:
+        for old, new in constants._OLD_JOB_STAGE_MAP.items():
+            conn.execute("UPDATE jobs SET stage=? WHERE stage=?", (new, old))
+        for old, new in constants._OLD_LEAD_STAGE_MAP.items():
+            conn.execute("UPDATE leads SET stage=? WHERE stage=?", (new, old))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------------------------
