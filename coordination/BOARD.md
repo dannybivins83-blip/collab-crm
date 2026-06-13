@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-13 `git rev-parse`):** `654c658` on `agent/gc-consolidation`
-- **Last board update:** 2026-06-13 ET — crm-ui: CR batch 2020/2022/2024/2025/2028 shipped. Design studio: brush fix (source-over+alpha, was broken on dark colors), manufacturer tab grouping (GAF/OC/Westlake/Boral/etc), custom color input. Lead form: checklist above notes, notes 80px. Roof reports: assign-to-lead/job modal. Job dashboard: aerial report btn. Takeoff route: JSON-safe error handling + mkdir fix.
+- **Git tip (verified 2026-06-12 `git rev-parse`):** `3517461` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-12 ET — crm-ui: CR 2046 (jobs default newest-to-oldest, id DESC) + CR 2048 (Reports nav removed; Analytics/Roof Reports/System Map moved under Tools ▾). Committed + pushed 3517461.
 
 ---
 
