@@ -361,6 +361,20 @@
     </div>
   </div>
 
+  <!-- WELCOME PACKET & SAMPLE REQUEST — top-of-page quick-access -->
+  <div class="card" style="padding:18px 20px">
+    <div class="h" style="margin-bottom:10px">{{ pic('clipboard',16) }} Your Welcome Packet &amp; Documents to Sign</div>
+    <div class="muted" style="margin-bottom:14px;font-size:14px">Your welcome packet and the documents to sign will appear on your project page — your contact will guide you.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <a class="btn green" style="flex:1;min-width:200px;text-align:center;font-weight:700;padding:12px 18px;border-radius:10px;font-size:15px" href="#estimate">
+        {{ pic('clipboard',18) }} Go to my project page →
+      </a>
+      <a class="btn" style="flex:1;min-width:180px;text-align:center;font-weight:700;padding:12px 18px;border-radius:10px;font-size:15px;background:var(--accent-tint);color:var(--accent);border:1.5px solid var(--accent)" href="#message" onclick="setTimeout(function(){var k=document.querySelector('[name=kind]');if(k)k.value='sample';var t=document.querySelector('[name=text]');if(t)t.focus();},100)">
+        🎨 Request a Sample
+      </a>
+    </div>
+  </div>
+
   <!-- NEXT STEPS (guided, off the welcome banner) -->
   <div class="card">
     <div class="h">Your next steps</div>
@@ -774,7 +788,7 @@
   <div class="card" id="message">
     <div class="h">Message Us / Request a Change</div>
     <form method="post" action="{{ url_for('portal.message', token=token) }}" class="stack">
-      <div><label>Type</label><select name="kind"><option value="message">Question / Message</option><option value="request">Request a change</option></select></div>
+      <div><label>Type</label><select name="kind"><option value="message">Question / Message</option><option value="request">Request a change</option><option value="sample">Request a sample</option></select></div>
       <textarea name="text" rows="3" placeholder="Type your message or change request…" required></textarea>
       <button class="btn block green" type="submit">Send to {{ company.name }}</button>
     </form>
