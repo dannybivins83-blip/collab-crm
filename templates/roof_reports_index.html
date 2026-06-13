@@ -14,7 +14,7 @@
 </div>
 {% endif %}
 <table class="grid">
-  <tr><th>Address</th><th>Squares</th><th>Pitch</th><th>Building</th><th>Status</th><th>Created</th></tr>
+  <tr><th>Address</th><th>Squares</th><th>Pitch</th><th>Building</th><th>Status</th><th>Assigned</th><th>Created</th><th></th></tr>
   {% for r in reports %}
   <tr onclick="location.href='{{ url_for('roof_reports.detail', report_id=r.id) }}'" style="cursor:pointer">
     <td><b>{{ r.address }}</b></td>
@@ -22,8 +22,79 @@
     <td>{{ r.pitch or '—' }}</td>
     <td>{% if r.confidence %}<span class="tag">{{ r.confidence }}</span>{% endif %}</td>
     <td>{{ r.status }}</td>
+    <td>
+      {% if r.get('job_id') %}
+        <a href="{{ url_for('jobs.detail', job_id=r.job_id) }}" onclick="event.stopPropagation()" class="tag" style="background:#e8f4ee;color:#1a5a34">Job #{{ r.job_id }}</a>
+      {% elif r.get('lead_id') %}
+        <a href="{{ url_for('leads.detail', lead_id=r.lead_id) }}" onclick="event.stopPropagation()" class="tag" style="background:#e8f0fc;color:#1a3a7a">Lead #{{ r.lead_id }}</a>
+      {% else %}
+        <span class="muted">—</span>
+      {% endif %}
+    </td>
     <td>{{ r.created }}</td>
+    <td onclick="event.stopPropagation()">
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px"
+        onclick="openAssign({{ r.id }}, '{{ r.address|replace("'","\\x27") }}')">Assign →</button>
+    </td>
   </tr>
-  {% else %}<tr><td colspan="6" class="empty">No reports yet.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="8" class="empty">No reports yet.</td></tr>{% endfor %}
 </table>
+
+<!-- Assign modal -->
+<div id="assignModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:24px;max-width:440px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-weight:800;font-size:16px;margin-bottom:4px">Assign Roof Report</div>
+    <div id="assignAddr" class="muted" style="font-size:13px;margin-bottom:16px"></div>
+    <form id="assignForm" method="post" action="">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button type="button" class="btn" id="tabLead" onclick="setKind('lead')" style="flex:1;font-weight:800">Lead</button>
+        <button type="button" class="btn" id="tabJob" onclick="setKind('job')" style="flex:1;font-weight:800">Job</button>
+      </div>
+      <input type="hidden" name="kind" id="assignKind" value="lead">
+      <div id="assignLeadWrap">
+        <label style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Select Lead</label>
+        <select name="target_id" id="assignLeadSel" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid #d0d7e3;font-size:14px">
+          <option value="">— pick a lead —</option>
+          {% for l in leads %}<option value="{{ l.id }}">{{ l.name }}{% if l.address %} · {{ l.address[:40] }}{% endif %}</option>{% endfor %}
+        </select>
+      </div>
+      <div id="assignJobWrap" style="display:none">
+        <label style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Select Job</label>
+        <select name="target_id" id="assignJobSel" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid #d0d7e3;font-size:14px" disabled>
+          <option value="">— pick a job —</option>
+          {% for j in jobs %}<option value="{{ j.id }}">{% if j.rid %}{{ j.rid }} · {% endif %}{{ j.name }}{% if j.address %} · {{ j.address[:40] }}{% endif %}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button type="submit" class="btn primary" style="flex:1">Assign</button>
+        <button type="button" class="btn ghost" onclick="closeAssign()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openAssign(id, addr) {
+  document.getElementById('assignAddr').textContent = addr;
+  document.getElementById('assignForm').action = '/roof-reports/' + id + '/assign';
+  document.getElementById('assignModal').style.display = 'flex';
+  setKind('lead');
+}
+function closeAssign() { document.getElementById('assignModal').style.display = 'none'; }
+function setKind(k) {
+  document.getElementById('assignKind').value = k;
+  var isLead = k === 'lead';
+  document.getElementById('assignLeadWrap').style.display = isLead ? '' : 'none';
+  document.getElementById('assignJobWrap').style.display = isLead ? 'none' : '';
+  document.getElementById('assignLeadSel').disabled = !isLead;
+  document.getElementById('assignJobSel').disabled = isLead;
+  document.getElementById('tabLead').style.background = isLead ? 'var(--accent2,#29ABE2)' : '';
+  document.getElementById('tabLead').style.color = isLead ? '#fff' : '';
+  document.getElementById('tabJob').style.background = isLead ? '' : 'var(--accent2,#29ABE2)';
+  document.getElementById('tabJob').style.color = isLead ? '' : '#fff';
+}
+document.getElementById('assignModal').addEventListener('click', function(e) {
+  if (e.target === this) closeAssign();
+});
+</script>
 {% endblock %}

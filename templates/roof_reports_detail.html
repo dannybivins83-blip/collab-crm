@@ -63,4 +63,31 @@ if (INIT_STATUS === "done" && STORED && STORED.totals) render(STORED);
 else if (INIT_STATUS === "failed") document.getElementById("msg").textContent = "Report failed.";
 else poll();
 </script>
+
+<div style="max-width:680px;margin-top:14px;border:1px solid #e3e6ea;border-radius:10px;padding:16px;background:#fff">
+  <div style="font-weight:700;margin-bottom:10px">Assign to lead or job</div>
+  {% if rr.lead_id %}
+  <div style="font-size:13px;color:#2a9d5c;margin-bottom:10px">✓ Assigned to lead #{{ rr.lead_id }}
+    <a href="{{ url_for('leads.detail', lead_id=rr.lead_id) }}" style="margin-left:8px">Open lead →</a>
+  </div>
+  {% elif rr.job_id %}
+  <div style="font-size:13px;color:#2a9d5c;margin-bottom:10px">✓ Assigned to job #{{ rr.job_id }}
+    <a href="{{ url_for('jobs.detail', job_id=rr.job_id) }}" style="margin-left:8px">Open job →</a>
+  </div>
+  {% endif %}
+  <form method="post" action="{{ url_for('roof_reports.assign', report_id=rr.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+    <div style="flex:0 0 auto">
+      <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Type</label>
+      <select name="kind" style="padding:7px 10px;border:1px solid #d0d7e2;border-radius:6px">
+        <option value="lead">Lead</option>
+        <option value="job">Job</option>
+      </select>
+    </div>
+    <div style="flex:1;min-width:160px">
+      <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">ID #</label>
+      <input type="number" name="target_id" placeholder="e.g. 350" style="width:100%;padding:7px 10px;border:1px solid #d0d7e2;border-radius:6px">
+    </div>
+    <button type="submit" class="btn primary" style="height:36px;padding:0 14px">Assign</button>
+  </form>
+</div>
 {% endblock %}

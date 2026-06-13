@@ -61,8 +61,10 @@ def _job_address(job):
 @bp.route("/")
 def index():
     reports = db.all_rows("roof_reports", order="created DESC")
+    leads = db.all_rows("leads", order="name ASC")
+    jobs = db.all_rows("jobs", order="name ASC")
     return render_template("roof_reports_index.html", reports=reports,
-                           configured=_configured())
+                           configured=_configured(), leads=leads, jobs=jobs)
 
 
 @bp.route("/new", methods=["GET", "POST"])
@@ -74,9 +76,18 @@ def new():
 
     if request.method == "POST":
         job_id = request.form.get("job_id") or None
+        lead_id = request.form.get("lead_id") or None
         if job_id:
             job = db.get("jobs", int(job_id))
             address = _job_address(job) if job else ""
+        elif lead_id:
+            lead = db.get("leads", int(lead_id))
+            if lead:
+                address = ", ".join(x for x in (
+                    lead.get("address", ""), lead.get("city", ""),
+                    lead.get("state", "FL"), lead.get("zip", "")) if x)
+            else:
+                address = ""
         else:
             address = ", ".join(
                 x for x in (request.form.get("address", "").strip(),
@@ -84,22 +95,31 @@ def new():
                             request.form.get("state", "").strip(),
                             request.form.get("zip", "").strip()) if x)
         if not address:
-            flash("Enter an address or pick a job with one.", "error")
+            flash("Enter an address or pick a job/lead with one.", "error")
             return redirect(url_for("roof_reports.new"))
         try:
             ej = _engine("/reports", "POST", {"address": address, "brand_id": BRAND})
         except Exception as e:  # noqa: BLE001
             flash(f"Could not reach the roof engine: {e}", "error")
             return redirect(url_for("roof_reports.new"))
+        db._ensure_column("roof_reports", "lead_id", "INTEGER")
         rid = db.insert("roof_reports", {
-            "job_id": job_id, "address": address,
+            "job_id": job_id, "lead_id": lead_id, "address": address,
             "engine_job": ej.get("id"), "status": ej.get("status", "queued"),
             "api_result": "",
         })
+        if lead_id:
+            db.add_activity("lead", int(lead_id), "note",
+                            f"Aerial roof report ordered for {address} (report #{rid}).")
         return redirect(url_for("roof_reports.detail", report_id=rid))
 
+    pre = {k: request.args.get(k, "") for k in ("address", "city", "zip", "lead_id", "job_id")}
+    pre["state"] = request.args.get("state", "FL")
     return render_template("roof_reports_new.html",
-                           jobs=db.all_rows("jobs", order="created DESC"))
+                           jobs=db.all_rows("jobs", order="created DESC"),
+                           leads=db.all_rows("leads", "stage NOT IN ('lost','canceled')",
+                                             order="created DESC"),
+                           pre=pre)
 
 
 @bp.route("/<int:report_id>")
@@ -160,3 +180,29 @@ def pdf(report_id):
         return redirect(url_for("roof_reports.detail", report_id=report_id))
     return Response(data, mimetype="application/pdf", headers={
         "Content-Disposition": f"inline; filename=roof-report-{report_id}.pdf"})
+
+
+@bp.route("/<int:report_id>/assign", methods=["POST"])
+def assign(report_id):
+    """Link a roof report to a lead or job."""
+    rr = db.get("roof_reports", report_id)
+    if not rr:
+        return jsonify({"ok": False, "error": "not found"}), 404
+    kind = request.form.get("kind")
+    target_id = request.form.get("target_id") or ""
+    if kind not in ("lead", "job") or not target_id.isdigit():
+        flash("Pick a lead or job to assign this report to.", "error")
+        return redirect(url_for("roof_reports.index"))
+    tid = int(target_id)
+    if kind == "job":
+        db._ensure_column("roof_reports", "job_id", "INTEGER")
+        db.update("roof_reports", report_id, job_id=tid, lead_id=None)
+        db.add_activity("job", tid, "note",
+                        f"Roof report (ID {report_id}, {rr.get('address','')}) assigned.")
+    else:
+        db._ensure_column("roof_reports", "lead_id", "INTEGER")
+        db.update("roof_reports", report_id, lead_id=tid, job_id=None)
+        db.add_activity("lead", tid, "note",
+                        f"Roof report (ID {report_id}, {rr.get('address','')}) assigned.")
+    flash("Report assigned.", "ok")
+    return redirect(url_for("roof_reports.index"))

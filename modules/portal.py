@@ -142,30 +142,45 @@ VALUE_STEPS = [
 ]
 # Roof "Design Studio" — curated color palettes + engagement options per system, so a
 # lead can mock up their roof (system + color + choices) and request samples online.
+# Each color entry: {name, hex, mfr}  — mfr groups the picker by manufacturer.
 ROOF_COLORS = {
     "shingle": [
-        {"name": "Charcoal", "hex": "#36393d"}, {"name": "Weathered Wood", "hex": "#6c5b46"},
-        {"name": "Pewter Gray", "hex": "#7e828a"}, {"name": "Barkwood", "hex": "#5b4a3a"},
-        {"name": "Hickory", "hex": "#8a6e4b"}, {"name": "Slate", "hex": "#495663"},
-        {"name": "Shakewood", "hex": "#9c7d57"}, {"name": "Hunter Green", "hex": "#2e4031"},
-        {"name": "Driftwood", "hex": "#8b8175"}, {"name": "Patriot Red", "hex": "#6e2e2b"},
+        {"name": "Charcoal",        "hex": "#36393d", "mfr": "GAF Timberline HDZ"},
+        {"name": "Weathered Wood",  "hex": "#6c5b46", "mfr": "GAF Timberline HDZ"},
+        {"name": "Pewter Gray",     "hex": "#7e828a", "mfr": "GAF Timberline HDZ"},
+        {"name": "Barkwood",        "hex": "#5b4a3a", "mfr": "GAF Timberline HDZ"},
+        {"name": "Hickory",         "hex": "#8a6e4b", "mfr": "GAF Timberline HDZ"},
+        {"name": "Hunter Green",    "hex": "#2e4031", "mfr": "GAF Timberline HDZ"},
+        {"name": "Driftwood",       "hex": "#8b8175", "mfr": "Owens Corning Duration"},
+        {"name": "Patriot Red",     "hex": "#6e2e2b", "mfr": "Owens Corning Duration"},
+        {"name": "Shakewood",       "hex": "#9c7d57", "mfr": "Owens Corning Duration"},
+        {"name": "Slate",           "hex": "#495663", "mfr": "Owens Corning Duration"},
     ],
     "tile": [
-        {"name": "Terracotta", "hex": "#b14b2c"}, {"name": "Sandcastle", "hex": "#c8a979"},
-        {"name": "Charcoal Blend", "hex": "#41434a"}, {"name": "Espresso", "hex": "#4b3a2f"},
-        {"name": "Slate Blend", "hex": "#5a6470"}, {"name": "Sierra Madre", "hex": "#8a5a3c"},
-        {"name": "Capistrano", "hex": "#a9603c"}, {"name": "Sahara", "hex": "#c79a5e"},
+        {"name": "Terracotta",      "hex": "#b14b2c", "mfr": "Westlake Royal"},
+        {"name": "Sandcastle",      "hex": "#c8a979", "mfr": "Westlake Royal"},
+        {"name": "Sierra Madre",    "hex": "#8a5a3c", "mfr": "Westlake Royal"},
+        {"name": "Capistrano",      "hex": "#a9603c", "mfr": "Westlake Royal"},
+        {"name": "Charcoal Blend",  "hex": "#41434a", "mfr": "Boral"},
+        {"name": "Espresso",        "hex": "#4b3a2f", "mfr": "Boral"},
+        {"name": "Slate Blend",     "hex": "#5a6470", "mfr": "Boral"},
+        {"name": "Sahara",          "hex": "#c79a5e", "mfr": "Boral"},
     ],
     "metal": [
-        {"name": "Galvalume", "hex": "#b8bcc0"}, {"name": "Charcoal", "hex": "#3a3d42"},
-        {"name": "Slate Gray", "hex": "#5d666f"}, {"name": "Forest Green", "hex": "#2c4733"},
-        {"name": "Regal Blue", "hex": "#28465f"}, {"name": "Copper Penny", "hex": "#a9622f"},
-        {"name": "Bone White", "hex": "#ece7da"}, {"name": "Matte Black", "hex": "#232427"},
-        {"name": "Burgundy", "hex": "#5e2730"},
+        {"name": "Galvalume",       "hex": "#b8bcc0", "mfr": "ABC Supply / McElroy"},
+        {"name": "Charcoal",        "hex": "#3a3d42", "mfr": "ABC Supply / McElroy"},
+        {"name": "Slate Gray",      "hex": "#5d666f", "mfr": "ABC Supply / McElroy"},
+        {"name": "Matte Black",     "hex": "#232427", "mfr": "ABC Supply / McElroy"},
+        {"name": "Forest Green",    "hex": "#2c4733", "mfr": "Fabral"},
+        {"name": "Regal Blue",      "hex": "#28465f", "mfr": "Fabral"},
+        {"name": "Copper Penny",    "hex": "#a9622f", "mfr": "Fabral"},
+        {"name": "Bone White",      "hex": "#ece7da", "mfr": "Fabral"},
+        {"name": "Burgundy",        "hex": "#5e2730", "mfr": "Fabral"},
     ],
     "flat": [
-        {"name": "Energy White", "hex": "#f0f1ee"}, {"name": "Light Gray", "hex": "#c9cdcf"},
-        {"name": "Tan", "hex": "#c9b79a"},
+        {"name": "Energy White",    "hex": "#f0f1ee", "mfr": "Firestone"},
+        {"name": "Light Gray",      "hex": "#c9cdcf", "mfr": "Firestone"},
+        {"name": "Tan",             "hex": "#c9b79a", "mfr": "GAF EverGuard"},
     ],
 }
 ROOF_OPTIONS = {

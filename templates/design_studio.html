@@ -36,6 +36,12 @@
   .sw .nm{font-size:11.5px;font-weight:700;margin-top:6px;line-height:1.2}
   .sw.on{border-color:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 22%,#fff)}
   .sysblock,.optblock{display:none} .sysblock.on,.optblock.on{display:block}
+  /* manufacturer tabs */
+  .mfr-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+  .mfr-tab{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:7px 14px;
+    font-weight:700;font-size:12.5px;cursor:pointer;color:var(--ink);transition:all .15s}
+  .mfr-tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .mfr-colors{display:none} .mfr-colors.on{display:block}
   /* options */
   .opt{display:flex;gap:11px;align-items:center;border:1.5px solid var(--line);border-radius:12px;
     padding:11px 13px;margin-bottom:9px;cursor:pointer;background:#fff}
@@ -101,15 +107,36 @@
         <div class="tab {{ 'on' if s==start_system }}" data-sys="{{ s }}" onclick="pickSys('{{ s }}')">{{ {'shingle':'🏠 Shingle','tile':'🧱 Tile','metal':'⬜ Metal','flat':'🟦 Flat'}[s] }}</div>
         {% endif %}{% endfor %}
       </div>
-      <div class="h">2 · Pick a color</div>
+      <div class="h" style="margin-top:14px">2 · Pick a manufacturer</div>
       {% for s in ['shingle','tile','metal','flat'] %}{% if colors[s] %}
       <div class="sysblock {{ 'on' if s==start_system }}" id="sys-{{ s }}">
-        <div class="grid">
-          {% for c in colors[s] %}
-          <div class="sw" data-hex="{{ c.hex }}" data-name="{{ c.name }}" onclick="pickColor(this)">
-            <div class="chip" style="background:{{ c.hex }}"></div><div class="nm">{{ c.name }}</div>
-          </div>
+        {# Group by manufacturer #}
+        {% set mfr_groups = colors[s]|groupby('mfr') %}
+        <div class="mfr-tabs" id="mfrtabs-{{ s }}">
+          {% for mfr, _ in mfr_groups %}
+          <button type="button" class="mfr-tab {{ 'on' if loop.first }}" data-sys="{{ s }}" data-mfr="{{ mfr }}"
+            onclick="pickMfr('{{ s }}','{{ mfr|replace("'","\\x27") }}',this)">{{ mfr }}</button>
           {% endfor %}
+        </div>
+        <div class="h" style="margin-top:12px">3 · Pick a color</div>
+        {% for mfr, mfr_colors in mfr_groups %}
+        <div class="mfr-colors {{ 'on' if loop.first }}" id="mfrc-{{ s }}-{{ loop.index }}">
+          <div class="grid">
+            {% for c in mfr_colors %}
+            <div class="sw" data-hex="{{ c.hex }}" data-name="{{ c.name }}" onclick="pickColor(this)">
+              <div class="chip" style="background:{{ c.hex }}"></div>
+              <div class="nm">{{ c.name }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+        <div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--mut);font-weight:700;white-space:nowrap">Or type a color:</span>
+          <input type="text" id="customColor-{{ s }}" placeholder="e.g. Pewter Gray or #7e828a"
+            style="flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px">
+          <button type="button" class="btn ghost" style="white-space:nowrap;font-size:12px;padding:8px 12px"
+            onclick="applyCustomColor('{{ s }}')">Apply</button>
         </div>
       </div>
       {% endif %}{% endfor %}
@@ -182,6 +209,25 @@
     document.querySelectorAll('.sysblock').forEach(function(b){b.classList.toggle('on',b.id==='sys-'+s);});
     document.querySelectorAll('.optblock').forEach(function(b){b.classList.toggle('on',b.id==='opt-'+s);});
   }
+  function pickMfr(sys, mfr, btn) {
+    var block = document.getElementById('sys-' + sys);
+    if (!block) return;
+    block.querySelectorAll('.mfr-tab').forEach(function(t){t.classList.toggle('on', t.dataset.mfr===mfr);});
+    block.querySelectorAll('.mfr-colors').forEach(function(c,i){
+      c.classList.toggle('on', c.id === 'mfrc-' + sys + '-' + (Array.from(block.querySelectorAll('.mfr-tab')).findIndex(function(t){return t.dataset.mfr===mfr;})+1));
+    });
+  }
+  function applyCustomColor(sys) {
+    var inp = document.getElementById('customColor-' + sys);
+    if (!inp) return;
+    var val = (inp.value || '').trim();
+    if (!val) return;
+    var hex = val.startsWith('#') ? val : val;
+    roof.setAttribute('fill', hex); brushColor = hex;
+    var nm = val; selName.textContent = nm; fColor.value = nm;
+    document.querySelectorAll('.sw').forEach(function(s){s.classList.remove('on');});
+    sync();
+  }
   function pickColor(el){document.querySelectorAll('.sw').forEach(function(s){s.classList.remove('on');});
     el.classList.add('on');var hex=el.dataset.hex,nm=el.dataset.name;
     roof.setAttribute('fill',hex);brushColor=hex;selName.textContent=nm;fColor.value=nm;sync();}
@@ -205,8 +251,8 @@
     var cx=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left,cy=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
     return {x:cx*canvas.width/r.width,y:cy*canvas.height/r.height};}
   function paintAt(p){var sz=+document.getElementById('brushSize').value;
-    ctx.globalCompositeOperation='color';ctx.fillStyle=brushColor;
-    ctx.beginPath();ctx.arc(p.x,p.y,sz,0,6.29);ctx.fill();ctx.globalCompositeOperation='source-over';}
+    ctx.globalAlpha=0.65;ctx.fillStyle=brushColor;
+    ctx.beginPath();ctx.arc(p.x,p.y,sz,0,6.29);ctx.fill();ctx.globalAlpha=1.0;}
   canvas.addEventListener('pointerdown',function(e){painting=true;paintAt(cpos(e));});
   canvas.addEventListener('pointermove',function(e){if(painting){e.preventDefault();paintAt(cpos(e));}});
   window.addEventListener('pointerup',function(){painting=false;});

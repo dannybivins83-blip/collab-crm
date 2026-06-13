@@ -7,35 +7,72 @@
   <a class="btn" href="{{ url_for('roof_reports.index') }}">Cancel</a>
 </div>
 <form method="post" style="max-width:640px">
-  <p class="sub" style="margin-bottom:14px">Pick a job to use its address, or type one in.</p>
+  <p class="sub" style="margin-bottom:14px">Pick a lead or job to use its address, or type one in.</p>
+
+  {% if pre.lead_id %}
+  <input type="hidden" name="lead_id" value="{{ pre.lead_id }}">
+  <div style="background:var(--ok-bg,#e8f8ee);border:1px solid var(--ok,#2a9d5c);border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:13px">
+    ✓ Linked to lead #{{ pre.lead_id }} — address will be pulled from the lead.
+  </div>
+  {% else %}
+  <label style="display:block;margin-bottom:4px">From a lead</label>
+  <div style="position:relative;margin-bottom:12px">
+    <input type="text" id="lead_search" placeholder="Type lead name to search…"
+           autocomplete="off" style="display:block;width:100%;box-sizing:border-box">
+    <input type="hidden" name="lead_id" id="lead_id_val">
+    <div id="lead_dropdown"
+         style="display:none;position:absolute;left:0;right:0;z-index:201;
+                border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;
+                max-height:220px;overflow-y:auto;background:var(--card-bg,var(--bg));
+                box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+    <div id="lead_selected" style="display:none;font-size:12px;color:var(--ok);margin-top:4px"></div>
+  </div>
 
   <label style="display:block;margin-bottom:4px">From a job</label>
   <div style="position:relative;margin-bottom:12px">
     <input type="text" id="job_search" placeholder="Type job name to search…"
-           autocomplete="off"
-           style="display:block;width:100%;box-sizing:border-box">
+           autocomplete="off" style="display:block;width:100%;box-sizing:border-box">
     <input type="hidden" name="job_id" id="job_id_val">
     <div id="job_dropdown"
          style="display:none;position:absolute;left:0;right:0;z-index:200;
                 border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;
-                max-height:260px;overflow-y:auto;background:var(--card-bg,var(--bg));
+                max-height:220px;overflow-y:auto;background:var(--card-bg,var(--bg));
                 box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
     <div id="job_selected" style="display:none;font-size:12px;color:var(--ok);margin-top:4px"></div>
   </div>
+  {% endif %}
 
   <label style="display:block;margin-bottom:12px">Address
-    <input name="address" placeholder="123 Main St" style="display:block;width:100%;margin-top:4px">
+    <input name="address" placeholder="123 Main St" value="{{ pre.address }}" style="display:block;width:100%;margin-top:4px">
   </label>
   <div style="display:flex;gap:10px;margin-bottom:16px">
-    <label style="flex:2">City<input name="city" style="display:block;width:100%;margin-top:4px"></label>
-    <label style="flex:1">State<input name="state" value="FL" style="display:block;width:100%;margin-top:4px"></label>
-    <label style="flex:1">Zip<input name="zip" style="display:block;width:100%;margin-top:4px"></label>
+    <label style="flex:2">City<input name="city" value="{{ pre.city }}" style="display:block;width:100%;margin-top:4px"></label>
+    <label style="flex:1">State<input name="state" value="{{ pre.state or 'FL' }}" style="display:block;width:100%;margin-top:4px"></label>
+    <label style="flex:1">Zip<input name="zip" value="{{ pre.zip }}" style="display:block;width:100%;margin-top:4px"></label>
   </div>
 
   <button class="btn primary" type="submit">Generate report</button>
 </form>
 <script>
 var JOBS=[{% for j in jobs %}{id:{{j.id}},name:{{(j.name or j.address or ('Job #'~j.id))|tojson}},addr:{{((j.address or '')~(', '~j.city if j.city else ''))|tojson}}}{% if not loop.last %},{% endif %}{% endfor %}];
+var LEADS=[{% for l in (leads or []) %}{id:{{l.id}},name:{{(l.name or ('Lead #'~l.id))|tojson}},addr:{{((l.address or '')~(', '~l.city if l.city else ''))|tojson}}}{% if not loop.last %},{% endif %}{% endfor %}];
+
+function makeSearch(items,srchId,ddId,hidId,lblId,label){
+  var srch=document.getElementById(srchId),dd=document.getElementById(ddId),
+      hid=document.getElementById(hidId),lbl=document.getElementById(lblId);
+  if(!srch)return;
+  function render(q){if(!q){dd.style.display='none';return;}
+    var m=items.filter(function(x){return x.name.toLowerCase().includes(q)||x.addr.toLowerCase().includes(q);}).slice(0,20);
+    if(!m.length){dd.innerHTML='<div style="padding:8px 12px;color:var(--muted)">No matches</div>';dd.style.display='block';return;}
+    dd.innerHTML=m.map(function(x){return '<div class="sopt" data-id="'+x.id+'" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border-light,#eee)"><div style="font-weight:600">'+x.name+'</div>'+(x.addr?'<div style="font-size:12px;color:var(--muted)">'+x.addr+'</div>':'')+('</div>');}).join('');
+    dd.style.display='block';}
+  srch.addEventListener('input',function(){var q=this.value.trim().toLowerCase();if(!q){hid.value='';lbl.style.display='none';}render(q);});
+  dd.addEventListener('click',function(e){var o=e.target.closest('.sopt');if(!o)return;var id=parseInt(o.getAttribute('data-id'));var it=items.find(function(x){return x.id===id;});if(!it)return;hid.value=id;srch.value=it.name;lbl.textContent='✓ '+label+' selected';lbl.style.display='';dd.style.display='none';});
+  document.addEventListener('click',function(e){if(srch&&!srch.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';});
+}
+makeSearch(LEADS,'lead_search','lead_dropdown','lead_id_val','lead_selected','Lead');
+makeSearch(JOBS,'job_search','job_dropdown','job_id_val','job_selected','Job');
+
 var srch=document.getElementById('job_search'),
     dd=document.getElementById('job_dropdown'),
     hid=document.getElementById('job_id_val'),
