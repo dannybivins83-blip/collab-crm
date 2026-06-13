@@ -6,7 +6,7 @@
   <div class="grow"></div>
   <a class="btn primary" href="{{ url_for('estimates.new') }}">+ New Estimate</a>
 </div>
-<table class="grid">
+<table class="grid est-grid">
   <tr><th>Number</th><th>Title</th><th>Work type</th><th>Status</th><th class="right">Total</th><th>Created</th></tr>
   {% for e in estimates %}
   <tr onclick="location.href='{{ url_for('estimates.detail', est_id=e.id) }}'" style="cursor:pointer">

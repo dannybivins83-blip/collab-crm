@@ -433,3 +433,15 @@ table.grid tr:hover td{background:var(--panel2)}
   .brand-name{font-size:13px}
   .col{min-width:84vw;max-width:86vw}
 }
+
+/* Mobile: hide least-important columns in wide list tables so core data fits */
+@media(max-width:600px){
+  /* estimates: hide Work Type (col 3) and Created (col 6) */
+  .est-grid th:nth-child(3),.est-grid td:nth-child(3),
+  .est-grid th:nth-child(6),.est-grid td:nth-child(6){display:none}
+  /* contacts: hide Company (2), Address (5), Source (6), Tags (7) */
+  .contacts-grid th:nth-child(2),.contacts-grid td:nth-child(2),
+  .contacts-grid th:nth-child(5),.contacts-grid td:nth-child(5),
+  .contacts-grid th:nth-child(6),.contacts-grid td:nth-child(6),
+  .contacts-grid th:nth-child(7),.contacts-grid td:nth-child(7){display:none}
+}

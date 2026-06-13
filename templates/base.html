@@ -394,6 +394,14 @@ document.querySelectorAll('table.grid').forEach(function(t){
   color:var(--accent,#4680BF);border-radius:5px;padding:3px 8px;cursor:pointer;flex:none;white-space:nowrap}
 .dsp-snap:hover{background:var(--accent,#4680BF)18}
 .dsp-snap:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:600px){
+  /* Stack dispatch above devNote; fit panel inside viewport */
+  #dspBtn{right:16px !important;bottom:68px !important;width:38px !important;height:38px !important;font-size:15px !important}
+  #dspPanel{right:8px !important;width:calc(100vw - 16px) !important;bottom:114px !important}
+  /* Shrink devNote button; keep bottom-right corner */
+  #devNoteBtn{right:16px !important;bottom:16px !important;width:38px !important;height:38px !important;font-size:17px !important}
+  #devNoteCard{right:8px !important;width:calc(100vw - 16px) !important}
+}
 </style>
 <div id="dspBtn" title="⚡ Dispatch to agent  (Alt+D)">⚡</div>
 <div id="dspPanel">
