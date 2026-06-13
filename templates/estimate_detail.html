@@ -50,8 +50,9 @@
           </table>
           <button type="button" class="btn sm" onclick="addLine(this)">+ Line</button>
           </div><!-- /.section-body -->
+          {% set _scope_open = s.scope_text and (s.scope_text | trim) %}
           <div class="section-foot">
-            <span class="scope-toggle" onclick="toggleScope(this)">▸ Scope of work</span>
+            <span class="scope-toggle" onclick="toggleScope(this)">{{ '▾' if _scope_open else '▸' }} Scope of work</span>
             <div class="sec-totals">
               <label style="display:inline">Margin
                 <input class="sec-margin" type="number" step="0.1" value="{{ s.margin_pct }}" oninput="applyMargin(this)" style="width:64px">%
@@ -59,7 +60,7 @@
               <span class="sec-cost num">$0</span><span class="sec-price num">$0</span>
             </div>
           </div>
-          <textarea class="sec-scope" style="display:none" placeholder="Lettered scope-of-work clauses (a., b., c. …) — prints on the proposal">{{ s.scope_text }}</textarea>
+          <textarea class="sec-scope" style="{{ 'display:block' if _scope_open else 'display:none' }}" placeholder="Lettered scope-of-work clauses (a., b., c. …) — prints on the proposal">{{ s.scope_text }}</textarea>
         </div>
         {% endfor %}
       </div>
