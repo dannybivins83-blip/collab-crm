@@ -25,7 +25,7 @@ Secrets kept leaking by being **pasted into chat**. So:
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Gmail + Google sign-in | Render, Vercel | 🔴 **LEAKED (screenshot) — rotate** in Google Console, then update env. |
 | `GOOGLE_OAUTH_CLIENT_ID` | OAuth client id (not secret, but paired) | Render, Vercel | ✅ Set. |
 | `GDRIVE_FOLDER_ID`, `GDRIVE_SA_JSON` | Drive file-storage fallback | Render, Vercel | ✅ Set. |
-| `ANTHROPIC_API_KEY` | Claude AI — ZIP/PDF parse-zip + AI Plans Takeoff (`/leads/<id>/takeoff`) | Render, Vercel | 🔴 **NOT set on Render** — takeoff + parse-zip return 503. Set from `secrets/keys.local.env`. |
+| `ANTHROPIC_API_KEY` | Claude AI — ZIP/PDF parse-zip + AI Plans Takeoff (`/leads/<id>/takeoff`) | Render, Vercel | ✅ Set on Render. Set on Vercel before next deploy. |
 | `CRM_INTAKE_TOKEN` | Enables `/leads/intake*` (503 until set) | Render, Vercel | ⬜ Optional — set when you want intake live. |
 | `ROOF_ENGINE_URL`, `ROOF_ENGINE_API_KEY`, `ROOF_BRAND` | Roof-report engine link | Render, Vercel | 🔴 API key **leaked — rotate**; URL/brand not secret. |
 | `CRON_SECRET` | Guards `/sync/cron` | Render | ⬜ Set if using the background cron. |
