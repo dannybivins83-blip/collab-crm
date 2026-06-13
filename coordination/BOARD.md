@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-12 `git rev-parse`):** `3517461` on `agent/gc-consolidation`
-- **Last board update:** 2026-06-12 ET — crm-ui: CR 2046 (jobs default newest-to-oldest, id DESC) + CR 2048 (Reports nav removed; Analytics/Roof Reports/System Map moved under Tools ▾). Committed + pushed 3517461.
+- **Git tip (verified 2026-06-12 `git rev-parse`):** `a811390` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-12 ET — crm-ui: CR 2129 portal tracker now shows Proposal step for all bucket states (prospect→proposal active at step 1; approved+ shows ✓ then existing 6 phases). Committed + pushed a811390.
 
 ---
 
