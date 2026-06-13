@@ -338,7 +338,10 @@ function tjRun() {
     method: 'POST',
     headers: {'X-CSRFToken': document.cookie.match(/csrf_token=([^;]+)/)?.[1] || ''},
     body: fd
-  }).then(r=>r.json()).then(d=>{
+  }).then(r=>{
+    if (!r.ok && r.status===503) { btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert('Server not ready — wait ~60 seconds and try again (Render may be restarting).'); return Promise.reject('503'); }
+    return r.text().then(t=>{try{return JSON.parse(t);}catch(e){btn.disabled=false;btn.textContent='Run takeoff ⚡';alert('Server returned an unexpected response. Wait ~60s and try again (may be restarting).');return Promise.reject('html');}});
+  }).then(d=>{
     if (!d.ok) { btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert(d.error||'Upload failed'); return; }
     btn.textContent = 'Running…';
     document.getElementById('tj-status-row').style.display = '';
