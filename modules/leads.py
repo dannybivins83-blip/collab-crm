@@ -243,7 +243,13 @@ def new():
                                     "Homeowner portal invite emailed to %s" % data["email"])
                     notify_msg += " · portal invite sent to client"
                 else:
-                    notify_msg += " · portal link (no email transport — set SMTP_FROM+SMTP_PASSWORD on Render)"
+                    did = _gm.create_draft(uid, data["email"], subj, body)
+                    if did:
+                        db.add_activity("lead", lid, "draft",
+                                        "Portal invite draft created for %s — send from Gmail." % data["email"])
+                        notify_msg += " · portal invite drafted (send from Gmail)"
+                    else:
+                        notify_msg += " · portal link ready — add SMTP or send manually"
         except Exception as _e:
             current_app.logger.warning("Portal invite email failed for lead %s: %s", lid, _e)
         # Handle intake file uploads (drawings, emails, measurement reports, etc.)
@@ -692,10 +698,17 @@ def send_portal_invite(lead_id):
         db.add_activity("lead", lead_id, "email",
                         "Portal invite (re)sent to %s" % email)
         flash("Portal invite sent to %s" % email, "ok")
+    elif email:
+        uid = session.get("user_id")
+        did = _gm.create_draft(uid, email, subj, body)
+        if did:
+            db.add_activity("lead", lead_id, "draft",
+                            "Portal invite draft created for %s — send from Gmail." % email)
+            flash("Gmail send failed — draft created in Gmail. Open Gmail and send it to %s." % email, "warn")
+        else:
+            flash("Could not send or draft — copy this link and share manually with %s: %s" % (email, link), "warn")
     else:
-        # Gmail not connected or no email — surface the link so staff can share it
-        flash("Gmail not connected%s — copy this link and share manually: %s"
-              % (" (no email on lead)" if not email else "", link), "warn")
+        flash("No email on lead — add one then click Send portal invite again. Link: %s" % link, "warn")
     return redirect(url_for("leads.detail", lead_id=lead_id))
 
 
