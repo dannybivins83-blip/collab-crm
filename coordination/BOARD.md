@@ -4,7 +4,7 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-15):** `1233b3b` on `agent/gc-consolidation`
+- **Git tip (verified 2026-06-15):** `13dfe2a` on `agent/gc-consolidation`
 - **Last board update:** 2026-06-15 ET — crm-ui: takeoff fully unblocked (5-fix stack: model ID `50c2c49`, CSRF exempt `4f789a4`, JS token `71ac8af`, permanent session `2e43bd6`, job-reuse+reload `1233b3b`). **Launch verdict: SOFT GO** for internal SeaBreeze use. **HOLD** on external tenants pending P2 security close (ROOF_ENGINE_API_KEY in URL, 7 sync endpoints unvalidated) + D16 SMTP + bookmarklet reinstall.
 
 ---
