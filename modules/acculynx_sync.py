@@ -1317,9 +1317,12 @@ def dedupe():
 def cron():
     """Unattended daily sync, called by Vercel Cron. Protected by CRON_SECRET:
     Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` when that env
-    var is set. No-op (200) if no API key is configured yet — safe to pre-wire."""
-    secret = os.environ.get("CRON_SECRET")
-    if secret:
+    var is set. Fails closed (503) in production when the secret is not configured."""
+    secret = os.environ.get("CRON_SECRET", "").strip()
+    if not secret:
+        if config.IS_PROD:
+            return jsonify({"ok": False, "error": "CRON_SECRET not configured"}), 503
+    else:
         auth = request.headers.get("Authorization", "")
         if auth != "Bearer " + secret and request.args.get("key") != secret:
             return jsonify({"ok": False, "error": "unauthorized"}), 401

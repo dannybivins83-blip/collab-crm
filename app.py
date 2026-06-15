@@ -116,10 +116,18 @@ def _safe_upload_resp(resp, subpath):
     return resp
 
 
+_UPLOADS_SENSITIVE = ("docs/", "estimates/", "permits/", "photos/", "jobs/")
+
+
 @app.route("/uploads/<path:subpath>")
 def uploads(subpath):
     """Serve uploaded files (photos, docs, logos, estimate/permit PDFs).
-    Falls back to Google Drive when the local copy is missing (serverless hosts)."""
+    Falls back to Google Drive when the local copy is missing (serverless hosts).
+    Sensitive subdirs (docs/estimates/permits/photos) require an active session."""
+    if any(subpath.startswith(p) for p in _UPLOADS_SENSITIVE):
+        from flask import session as _sess
+        if not _sess.get("user_id"):
+            abort(403)
     full = os.path.normpath(os.path.join(config.UPLOAD_DIR, subpath))
     if full.startswith(config.UPLOAD_DIR) and os.path.exists(full):
         return _safe_upload_resp(
