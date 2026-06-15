@@ -369,13 +369,16 @@ function tjPoll(token, btn) {
       if (d.status==='done' || d.status==='failed') {
         clearInterval(_tjPoll);
         btn.disabled = false; btn.textContent = 'Run takeoff ⚡';
-        if (d.status==='done' && d.job_id) {
+        if (d.status==='done') {
+          var warn = (d.result&&d.result.warnings&&d.result.warnings.length)
+            ? '<br><span style="color:#856404">⚠ '+d.result.warnings.join(' · ')+'</span>' : '';
+          var jobLink = d.job_id ? ' &nbsp;<a href="/jobs/'+d.job_id+'" style="font-size:0.85em">View job →</a>' : '';
           document.getElementById('tj-result').innerHTML =
             '<div style="padding:10px;background:#d4edda;border-radius:6px;margin-top:8px">'+
-            '✅ Takeoff complete! <a href="/jobs/'+d.job_id+'"><b>View job →</b></a>'+
-            (d.result&&d.result.warnings&&d.result.warnings.length ?
-              '<br><span style="color:#856404">⚠ '+d.result.warnings.join(' · ')+'</span>' : '')+
+            '✅ Takeoff complete! Measurements updated on this lead.'+jobLink+warn+
             '</div>';
+          // Reload the current lead page so Measurements tab shows updated data
+          setTimeout(function(){ location.reload(); }, 1500);
         } else {
           var err = (d.result&&d.result.error) || 'Takeoff failed';
           document.getElementById('tj-result').innerHTML =

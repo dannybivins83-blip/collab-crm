@@ -130,9 +130,18 @@ def _ingest_envelope(env):
         job_id = rec["id"]
         db.update("jobs", job_id, **{k: v for k, v in job_fields.items() if v})
     elif rec and kind == "lead":
-        job_fields["lead_id"] = rec["id"]
-        job_fields["stage"] = "approved"
-        job_id = db.insert("jobs", job_fields)
+        lead_id_val = rec["id"]
+        # Check if this lead already has a job — update it rather than spawning a duplicate.
+        existing_jobs = db.all_rows("jobs", "lead_id=?", (lead_id_val,))
+        if existing_jobs:
+            job_id = existing_jobs[0]["id"]
+            db.update("jobs", job_id, **{k: v for k, v in job_fields.items() if v})
+        else:
+            job_fields["lead_id"] = lead_id_val
+            job_fields["name"] = rec.get("name") or job_fields["name"]
+            job_fields["address"] = rec.get("address") or job_fields["address"]
+            job_fields["stage"] = "approved"
+            job_id = db.insert("jobs", job_fields)
     else:
         job_fields["stage"] = "approved"
         job_id = db.insert("jobs", job_fields)
