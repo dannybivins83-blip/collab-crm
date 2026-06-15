@@ -223,6 +223,8 @@ _CSRF_EXEMPT = PUBLIC | {
     # They perform their own session-user gate inside the handler.
     "permit_api.new_key",
     "permit_api.revoke_key",
+    # File-upload endpoint — protected by session auth + SameSite=Lax; no form _csrf field.
+    "leads.run_takeoff",
 }
 
 
