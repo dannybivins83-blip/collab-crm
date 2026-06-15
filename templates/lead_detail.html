@@ -340,7 +340,12 @@ function tjRun() {
     body: fd
   }).then(r=>{
     if (!r.ok && r.status===503) { btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert('Server not ready — wait ~60 seconds and try again (Render may be restarting).'); return Promise.reject('503'); }
-    return r.text().then(t=>{try{return JSON.parse(t);}catch(e){btn.disabled=false;btn.textContent='Run takeoff ⚡';alert('Server returned an unexpected response. Wait ~60s and try again (may be restarting).');return Promise.reject('html');}});
+    return r.text().then(t=>{
+      try{return JSON.parse(t);}catch(e){
+        if(t.includes('Sign in') || t.includes('/login')){location.href='/login';return Promise.reject('session');}
+        btn.disabled=false;btn.textContent='Run takeoff ⚡';alert('Server returned an unexpected response. Wait ~60s and try again (may be restarting).');return Promise.reject('html');
+      }
+    });
   }).then(d=>{
     if (!d.ok) { btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert(d.error||'Upload failed'); return; }
     btn.textContent = 'Running…';
