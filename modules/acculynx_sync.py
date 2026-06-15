@@ -1170,15 +1170,28 @@ def worksheet_import():
             db.execute("DELETE FROM worksheet_lines WHERE worksheet_id=?", (ws_id,))
             n = 0
             for i, ln in enumerate(it.get("lines") or []):
-                cost = _money_num(ln.get("cost"))
+                item_type = (ln.get("item_type") or "material").strip()
                 desc = (ln.get("description") or "").strip()
-                if not desc and not cost:
+                cost = _money_num(ln.get("budget_cost") or ln.get("cost") or 0)
+                price = _money_num(ln.get("price") or 0)
+                if not desc and not cost and not price:
                     continue
-                db.insert("worksheet_lines", {"worksheet_id": ws_id, "sort": i,
-                          "category": ln.get("category") or _ws_cat(desc),
-                          "description": desc or "(line)", "budget_cost": cost, "actual_cost": cost,
-                          "qty": _money_num(ln.get("qty")), "unit": (ln.get("unit") or "")[:8],
-                          "unit_cost": _money_num(ln.get("unit_cost"))})
+                db.insert("worksheet_lines", {
+                    "worksheet_id": ws_id,
+                    "sort": ln.get("sort", i),
+                    "category": ln.get("category") or _ws_cat(desc),
+                    "description": desc or "(line)",
+                    "budget_cost": cost,
+                    "actual_cost": _money_num(ln.get("actual_cost") or ln.get("cost") or cost),
+                    "qty": _money_num(ln.get("qty") or ln.get("quantity") or 0),
+                    "unit": (ln.get("unit") or "")[:16],
+                    "unit_cost": _money_num(ln.get("unit_cost") or 0),
+                    "price": price,
+                    "ws_section": (ln.get("ws_section") or "")[:120],
+                    "ws_group": (ln.get("ws_group") or "")[:120],
+                    "item_type": item_type,
+                    "scope_letter": (ln.get("scope_letter") or "")[:4],
+                })
                 n += 1
             agg["worksheets"] += 1
             agg["lines"] += n

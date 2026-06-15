@@ -432,8 +432,39 @@
       function num(v){if(v==null)return 0;var n=parseFloat((''+v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;}
       function pick(o){var names=Array.prototype.slice.call(arguments,1);for(var i=0;i<names.length;i++){if(o[names[i]]!=null&&o[names[i]]!=='')return o[names[i]];}return '';}
       // AccuLynx estimate detail: GET /api/Estimatev3/Get/{id} -> Sections[].ItemGroups[].Items[]
-      function flattenDetail(det){var out=[];arr(det&&det.Sections).forEach(function(sec){var st=sec.Title||'';arr(sec.ItemGroups).forEach(function(g){var gn=g.OverrideName||g.Name||st;arr(g.Items).forEach(function(it){var desc=it.OverrideName||it.Name||it.Description||'';if(!desc)return;var q=num(it.Quantity);var cost=num(it.MaterialCost)+num(it.LaborCost);if(!cost&&q)cost=Math.round(num(it.TotalCost)/q*100)/100;out.push({description:desc,unit:it.UnitOfMeasure||it.EstimateUnit||it.OrderUnit||'EA',quantity:q,cost:cost,price:num(it.Price),section:gn});});});});return out;}
-      async function estLines(e){var id=e.EstimateID||e.EstimateId||e.Id||e.id;if(!id)return [];var det=null;var eps=['/api/Estimatev3/Get/'+id,'/api/v4/estimates/'+id];for(var i=0;i<eps.length&&!(det&&det.Sections);i++){det=await gj(eps[i]);}return flattenDetail(det);}
+      // wsFromDetail: preserves full hierarchy — section → group → scope items + materials.
+      var SCOPE_LETTERS='abcdefghijklmnopqrstuvwxyz';
+      function wsFromDetail(det){
+        var out=[],sort=0;
+        arr(det&&det.Sections).forEach(function(sec){
+          var sTitle=sec.Title||'';
+          // Scope of work items — check multiple field names AccuLynx uses
+          var scopeText=sec.ScopeOfWork||sec.Scope||sec.ScopeText||'';
+          var scopeItems=arr(sec.ScopeItems||sec.ScopeLines||[]);
+          var scopeLines=[];
+          if(scopeItems.length){scopeLines=scopeItems.map(function(s){return (s.Text||s.Description||s.Name||''+s).replace(/^[a-z]\.\s*/i,'');});}
+          else if(scopeText){scopeLines=scopeText.split(/\n/).map(function(s){return s.replace(/^[a-z]\.\s*/i,'').trim();}).filter(Boolean);}
+          scopeLines.forEach(function(txt,idx){
+            out.push({ws_section:sTitle,ws_group:'',item_type:'scope',scope_letter:SCOPE_LETTERS[idx]||String(idx+1),description:txt,qty:0,unit:'',unit_cost:0,budget_cost:0,actual_cost:0,price:0,sort:sort++});
+          });
+          arr(sec.ItemGroups).forEach(function(g){
+            var gName=g.OverrideName||g.Name||sTitle;
+            var gPrice=num(g.TotalPrice||g.Price||g.Total||0);
+            // Group header row
+            out.push({ws_section:sTitle,ws_group:gName,item_type:'group_header',scope_letter:'',description:gName,qty:0,unit:'',unit_cost:0,budget_cost:gPrice,actual_cost:gPrice,price:gPrice,sort:sort++});
+            arr(g.Items).forEach(function(it){
+              var desc=it.OverrideName||it.Name||it.Description||'';if(!desc)return;
+              var q=num(it.Quantity);
+              var cost=num(it.MaterialCost)+num(it.LaborCost);if(!cost&&q)cost=Math.round(num(it.TotalCost)/q*100)/100;
+              var price=num(it.Price);
+              out.push({ws_section:sTitle,ws_group:gName,item_type:'material',scope_letter:'',description:desc,qty:q,unit:it.UnitOfMeasure||it.EstimateUnit||it.OrderUnit||'EA',unit_cost:cost,budget_cost:Math.round(q*cost*100)/100||price,actual_cost:Math.round(q*cost*100)/100||price,price:price,sort:sort++});
+            });
+          });
+        });
+        return out;
+      }
+      function flattenDetail(det){return wsFromDetail(det).filter(function(r){return r.item_type==='material';}).map(function(r){return {description:r.description,unit:r.unit,quantity:r.qty,cost:r.unit_cost,price:r.price,section:r.ws_group};});}
+      async function estLines(e){var id=e.EstimateID||e.EstimateId||e.Id||e.id;if(!id)return [];var det=null;var eps=['/api/Estimatev3/Get/'+id,'/api/v4/estimates/'+id];for(var i=0;i<eps.length&&!(det&&det.Sections);i++){det=await gj(eps[i]);}return {flat:flattenDetail(det),ws:wsFromDetail(det),det:det};}
       async function post(path,p){for(var a=0;a<3;a++){try{if(a)await sleep(400*a);var r=await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});return await r.json();}catch(e){}}return null;}
       var seen={},guids=[];
       function collect(){[].forEach.call(document.querySelectorAll('a[href*="/jobs/"]'),function(a){var m=(a.getAttribute('href')||'').match(/\/jobs\/([0-9a-f-]{30,})/);if(m&&!seen[m[1]]){seen[m[1]]=1;guids.push(m[1]);}});}
@@ -450,17 +481,16 @@
           var payloadEsts=[],best=null,bestTotal=-1;
           for(var ei=0;ei<es.length;ei++){var e=es[ei],f=e.Financials||{};var li=await estLines(e);
             var tot2=num(f.HasOverridePrice?f.TotalOverridePrice:f.TotalPrice);
-            payloadEsts.push({id:e.EstimateID||e.EstimateId||e.Id,title:e.Title||e.Name,number:e.EstimateNumber,total:tot2,status:e.Status||e.State,date:e.CreatedDate,lineItems:li});
-            ests++;lines+=li.length;
+            payloadEsts.push({id:e.EstimateID||e.EstimateId||e.Id,title:e.Title||e.Name,number:e.EstimateNumber,total:tot2,status:e.Status||e.State,date:e.CreatedDate,lineItems:li.flat});
+            ests++;lines+=li.flat.length;
             if(tot2>bestTotal){bestTotal=tot2;best={li:li,total:tot2};}
           }
           var d=await post('sync/estimate-import',{guid:guid,estimates:payloadEsts});
           if(d&&d.ok){if(d.results&&d.results[0]&&d.results[0].reason==='no_job')nojob++;}else fail++;
-          // Worksheet (cost side) from the primary estimate's lines.
-          if(best&&best.li.length){
-            var wlines=best.li.map(function(x){return {description:x.description,qty:x.quantity,unit:x.unit,unit_cost:x.cost,cost:Math.round(x.quantity*x.cost*100)/100,category:x.section};});
-            var ctot=wlines.reduce(function(a,b){return a+(b.cost||0);},0);
-            var w=await post('sync/worksheet-import',{guid:guid,contract_value:best.total,cost_total:ctot,lines:wlines});
+          // Worksheet — send full hierarchical lines (section/group/scope/material).
+          if(best&&best.li.ws&&best.li.ws.length){
+            var ctot=best.li.ws.filter(function(r){return r.item_type==='material';}).reduce(function(a,b){return a+(b.budget_cost||0);},0);
+            var w=await post('sync/worksheet-import',{guid:guid,contract_value:best.total,cost_total:ctot,lines:best.li.ws});
             if(w&&w.ok&&w.summary&&w.summary.worksheets)wss++;
           }
         }catch(e){fail++;}

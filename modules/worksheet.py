@@ -150,17 +150,62 @@ def profit_analysis(job_id):
 
 # ---- routes ---------------------------------------------------------------
 
+def _build_synced_sections(ws_lines):
+    """Rebuild AccuLynx hierarchical view from flat worksheet_lines rows.
+    Returns list of sections, each with scope_items[] and groups[{name, price, items[]}]."""
+    sections = {}
+    section_order = []
+    for ln in sorted(ws_lines, key=lambda x: x.get("sort") or 0):
+        sec = ln.get("ws_section") or ""
+        grp = ln.get("ws_group") or ""
+        itype = ln.get("item_type") or "material"
+        if sec not in sections:
+            sections[sec] = {"title": sec, "scope_items": [], "groups": {}, "_gorder": []}
+            section_order.append(sec)
+        s = sections[sec]
+        if itype == "scope":
+            s["scope_items"].append({"letter": ln.get("scope_letter") or "", "text": ln.get("description") or ""})
+        elif itype == "group_header":
+            if grp not in s["groups"]:
+                s["groups"][grp] = {"name": grp, "price": 0, "items": []}
+                s["_gorder"].append(grp)
+            s["groups"][grp]["price"] = ln.get("price") or ln.get("budget_cost") or 0
+        else:  # material
+            if grp not in s["groups"]:
+                s["groups"][grp] = {"name": grp, "price": 0, "items": []}
+                s["_gorder"].append(grp)
+            s["groups"][grp]["items"].append(ln)
+    result = []
+    for sec_key in section_order:
+        s = sections[sec_key]
+        groups = [s["groups"][g] for g in s["_gorder"]]
+        if not groups and not s["scope_items"] and sec_key == "":
+            # Ungrouped flat lines — put them in one unnamed group
+            flat = [ln for ln in ws_lines if not (ln.get("ws_section") or "") and
+                    (ln.get("item_type") or "material") == "material"]
+            if flat:
+                groups = [{"name": "", "price": 0, "items": flat}]
+        result.append({"title": s["title"], "scope_items": s["scope_items"], "groups": groups})
+    return result
+
+
 @bp.route("/<int:job_id>")
 def view(job_id):
     job = db.get("jobs", job_id)
     if not job:
         return redirect(url_for("jobs.board"))
     ws = get_or_create(job_id)
+    all_lines = lines_for(ws["id"])
+    synced_sections = _build_synced_sections(all_lines)
+    # Only show the AccuLynx hierarchical view when there are synced (hierarchical) lines.
+    has_synced = any(ln.get("ws_section") or ln.get("ws_group") or ln.get("item_type") not in (None, "", "material")
+                     for ln in all_lines)
     try:
         catalog = db.all_rows("material_catalog", order="name")
     except Exception:
         catalog = []
-    return render_template("worksheet.html", job=job, ws=ws, lines=lines_for(ws["id"]),
+    return render_template("worksheet.html", job=job, ws=ws, lines=all_lines,
+                           synced_sections=synced_sections if has_synced else [],
                            categories=CATEGORIES, profit=profit_analysis(job_id),
                            draws=constants.DRAW_SCHEDULE, catalog=catalog)
 

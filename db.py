@@ -357,6 +357,11 @@ def init_db():
     # AccuLynx-style worksheet line breakdown (Qty | Unit | Unit Cost | Cost).
     for _c, _d in [("qty", "REAL DEFAULT 0"), ("unit", "TEXT"), ("unit_cost", "REAL DEFAULT 0")]:
         _ensure_column("worksheet_lines", _c, _d)
+    # Hierarchical worksheet sync — section/group/scope structure from AccuLynx.
+    for _c, _d in [("ws_section", "TEXT"), ("ws_group", "TEXT"),
+                   ("item_type", "TEXT DEFAULT 'material'"), ("scope_letter", "TEXT"),
+                   ("price", "REAL DEFAULT 0")]:
+        _ensure_column("worksheet_lines", _c, _d)
     _ensure_column("company_settings", "labels", "TEXT")  # JSON map of phrase -> custom label
     _ensure_column("company_settings", "lead_notify_to", "TEXT")  # fallback email for new-lead rep notifications
     _ensure_change_requests_table()
