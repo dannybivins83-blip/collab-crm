@@ -190,6 +190,7 @@ function lcGate(form,pct){
           <span class="badge">{{ d.category }}</span>
           <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank" style="flex:1;word-break:break-all">{{ d.original_name }}</a>
           <button type="button" onclick="docEdit({{ d.id }})" class="btn sm" title="Edit name or type" style="flex:none">✏️</button>
+          <form method="post" action="{{ url_for('files.delete_doc', doc_id=d.id) }}" style="margin:0" onsubmit="return confirm('Delete this document?')"><button class="btn sm" type="submit" title="Delete document" style="flex:none">🗑️</button></form>
           {% if d.signed_at %}<span class="badge" style="color:var(--ok)">✓ signed {{ d.signed_name }}</span>
           {% elif d.needs_sign %}<span class="badge" style="color:var(--warn)">awaiting signature</span>
           {% else %}<form method="post" action="{{ url_for('files.request_sign', doc_id=d.id) }}" style="margin:0"><button class="btn sm" type="submit" title="Ask the homeowner to e-sign this in their portal">✍️ Request signature</button></form>{% endif %}

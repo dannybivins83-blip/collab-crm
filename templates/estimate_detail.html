@@ -257,7 +257,7 @@ function collect(){
     notes:document.getElementById('notes').value, terms:document.getElementById('terms').value, sections};
 }
 function saveEstimate(){
-  fetch('{{ url_for("estimates.save", est_id=e.id) }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collect())})
+  fetch('{{ url_for("estimates.save", est_id=e.id) }}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify(collect())})
    .then(r=>r.json()).then(d=>{if(d.ok){const b=event.target;b.textContent='✓ Saved';setTimeout(()=>b.textContent='💾 Save',1200)}});
 }
 recalc();
@@ -272,7 +272,7 @@ if(pad){const ctx=pad.getContext('2d');let drawing=false;
   window.clearPad=()=>ctx.clearRect(0,0,pad.width,pad.height);
   window.submitSig=()=>{const name=document.getElementById('signer').value.trim();if(!name){alert('Enter the customer name.');return}
     if(!document.getElementById('sigConsent').checked){alert('Please check the authorization box — it applies your signature to the proposal and the sign-up documents.');return}
-    fetch('{{ url_for("estimates.sign", est_id=e.id) }}',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    fetch('{{ url_for("estimates.sign", est_id=e.id) }}',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':{{ csrf_token|tojson }}},
       body:'signed_name='+encodeURIComponent(name)+'&consent=1&signature='+encodeURIComponent(pad.toDataURL())}).then(r=>r.json()).then(d=>{if(d.ok)location.reload()});};
 }
 </script>

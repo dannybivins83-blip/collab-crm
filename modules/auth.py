@@ -34,6 +34,10 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "portal.learn", "portal.seminar", "portal.design_photo", "portal.proposal",
           "signups.portal_view", "signups.portal_complete",
           "measurements.ingest", "takeoff.create",
+          # Permit REST API — key-gated via X-Permit-API-Key; must bypass the
+          # session guard so external callers reach the route handlers.
+          "permit_api.list_ahjs", "permit_api.submit_build",
+          "permit_api.build_status", "permit_api.build_download",
           # Branded demo portal (shareable, login-free sales tool). The generator
           # UI (demo.generator/create/delete) is intentionally NOT public.
           "demo.portal", "demo.design", "demo.design_request",

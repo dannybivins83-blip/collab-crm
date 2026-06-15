@@ -96,7 +96,7 @@ def new():
                "system": job.get("system")}
     return render_template("permit_form.html", permit=pre, jobs=db.all_rows("jobs", order="name"),
                            systems=PERMIT_SYSTEMS, mode="new",
-                           company=db.get_company_settings())
+                           company=db.get_company())
 
 
 @bp.route("/<int:permit_id>")

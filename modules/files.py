@@ -76,6 +76,27 @@ def update_doc(doc_id):
     return redirect(request.referrer or url_for("jobs.detail", job_id=d.get("job_id") or 0))
 
 
+@bp.route("/doc/<int:doc_id>/delete", methods=["POST"])
+def delete_doc(doc_id):
+    d = db.get("documents", doc_id)
+    if not d:
+        flash("Document not found.", "err")
+        return redirect(request.referrer or "/")
+    job_id = d.get("job_id")
+    # Remove file from disk if present
+    try:
+        fpath = os.path.join(config.DOC_DIR, d.get("filename", ""))
+        if d.get("filename") and os.path.exists(fpath):
+            os.remove(fpath)
+    except Exception:
+        pass
+    db.delete("documents", doc_id)
+    if job_id:
+        db.add_activity("job", job_id, "note", "Document deleted: %s" % d.get("original_name", ""))
+    flash("Document deleted.", "ok")
+    return redirect(request.referrer or url_for("jobs.detail", job_id=job_id or 0))
+
+
 @bp.route("/doc/<int:doc_id>/request-sign", methods=["POST"])
 def request_sign(doc_id):
     """Flag a document so the homeowner is asked to e-sign it in their portal."""

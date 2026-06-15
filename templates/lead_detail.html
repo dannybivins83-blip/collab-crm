@@ -102,7 +102,7 @@ function lcGate(form,pct){
     {% if gc_contact.phone %}<div><a href="tel:{{ gc_contact.phone }}">📞 {{ gc_contact.phone }}</a></div>{% endif %}
     {% if gc_contact.email %}<div>✉️ <a href="mailto:{{ gc_contact.email }}">{{ gc_contact.email }}</a></div>{% endif %}
     {% if gc_contact.address %}<div>🏢 Billing: {{ gc_contact.address }}{% if gc_contact.city %}, {{ gc_contact.city }}{% endif %} {{ gc_contact.state or '' }} {{ gc_contact.zip or '' }}</div>{% endif %}
-    <div style="margin-top:4px"><a href="{{ url_for('contacts.detail', cid=gc_contact.id) }}" class="btn sm">View GC profile &rarr;</a></div>
+    <div style="margin-top:4px"><a href="{{ url_for('contacts.detail', contact_id=gc_contact.id) }}" class="btn sm">View GC profile &rarr;</a></div>
   </div>
 </div>
 {% endif %}
@@ -174,7 +174,7 @@ function lcGate(form,pct){
         <h2>📄 Documents</h2>
         {% if documents %}{% for d in documents %}<div class="rowline">
           <span class="badge">{{ d.category }}</span>
-          <a href="{{ url_for('uploads', subpath='measurements/' ~ d.filename) }}" target="_blank" style="flex:1">{{ d.original_name }}</a>
+          <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank" style="flex:1">{{ d.original_name }}</a>
         </div>{% endfor %}{% else %}<div class="muted">No documents yet.</div>{% endif %}
         <form method="post" action="{{ url_for('measurements.upload_lead', lead_id=l.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
           <div style="flex:1"><label>Upload roof report (PDF — auto-parses squares/pitch &amp; files here)</label><input type="file" name="file" accept="application/pdf" required></div>
