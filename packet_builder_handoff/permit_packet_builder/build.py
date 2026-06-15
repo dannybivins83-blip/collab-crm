@@ -415,18 +415,44 @@ _BC02_STAMPS=[
  (0,  40, 608, 'legaddr', 8, 510),   # 1. Description of property (legal + street)
  (0, 176, 554, 'owner',   8, 250),   # 3a. Owner Name
 ]
+_BC03_STAMPS=[
+ # Page index 1 = Section A of the 5-page HVHZ Roofing Application
+ (1, 137, 633, 'addrfull',       8, 390),  # Job Address (street, city, ST zip on one line)
+ # Roof Category checkboxes — only the matching system gets 'X'; others evaluate to '' and are skipped
+ (1,  39, 581, 'cat_flat_x',     8,  10),  # Low Slope
+ (1,  39, 559, 'cat_shingle_x',  8,  10),  # Asphaltic Shingles
+ (1, 183, 559, 'cat_metal_x',    8,  10),  # Metal Panel / Shingles
+ (1, 183, 581, 'cat_tile_mech_x',8,  10),  # Mechanically Fastened Tile
+]
+# Flat Section C template variants — deck type -> filename.
+# 'WoodDeck' is the residential reroof default; pass sysd['deck'] to select a different one.
+_FLAT_SECTION_C={
+ 'WoodDeck':       'HVHZ_Section_C_Flat_WoodDeck_Insulated_TEMPLATE.pdf',
+ 'ConcreteDeck':   'HVHZ_Section_C_Flat_ConcreteDeck_Insulated_TEMPLATE.pdf',
+ 'SteelDeck':      'HVHZ_Section_C_Flat_SteelDeck_Insulated_TEMPLATE.pdf',
+ 'BUR':            'HVHZ_Section_C_BUR_Flat_TEMPLATE.pdf',
+ 'HotMopWood':     'HVHZ_Section_C_Flat_HotMop_BUR_WoodDeck_TEMPLATE.pdf',
+ 'HotMopConcrete': 'HVHZ_Section_C_Flat_HotMop_BUR_ConcreteDeck_TEMPLATE.pdf',
+}
+_FLAT_SECTION_C_DEFAULT='WoodDeck'
 _BROWARD_STAMP_FORMS={
  'BC_01_Uniform_Building_Permit_Application_PREFILLED.pdf': _BC01_STAMPS,
  'BC_02_Notice_of_Commencement_PREFILLED.pdf': _BC02_STAMPS,
+ 'BC_03_HVHZ_Uniform_Roofing_Application_PREFILLED.pdf': _BC03_STAMPS,
 }
 
-def _broward_values(client, ahj):
+def _broward_values(client, ahj, system=None):
     addr=client.get('address',''); city=client.get('city','') or ahj.replace('_',' ')
+    zip_c=client.get('zip','')
+    addrfull=', '.join(s for s in [addr, city, ('FL '+zip_c) if zip_c else ''] if s)
     legal=client.get('legal',''); pcn=client.get('pcn','')
     legaddr=' -- '.join([s for s in (addr, legal) if s])
-    return {'addr':addr,'city':city,'st':'FL','zip':client.get('zip',''),
+    _is=lambda s: 'X' if system==s else ''
+    return {'addr':addr,'city':city,'st':'FL','zip':zip_c,'addrfull':addrfull,
             'owner':client.get('owner',''),'pcn':pcn,'legal':legal,'legaddr':legaddr,
-            'value':('$'+_permit_value(client)) if client.get('value') else ''}
+            'value':('$'+_permit_value(client)) if client.get('value') else '',
+            'cat_flat_x':_is('Flat'),'cat_shingle_x':_is('Shingle'),
+            'cat_metal_x':_is('Metal'),'cat_tile_mech_x':_is('Tile')}
 
 # --- PBC flattened-form stamping (city affidavits with no AcroForm fields) -----
 # Coords measured on Boynton Beach's Re-Roof Affidavit (letter 612x792, affidavit = page index 1).
@@ -645,7 +671,7 @@ def _build_broward(client, ahj, system, attachment_paths, out_path, underlayment
            'BC_02_Notice_of_Commencement_PREFILLED.pdf',
            'BC_03_HVHZ_Uniform_Roofing_Application_PREFILLED.pdf',
            'BC_06_FDEP_Asbestos_Notification_PREFILLED.pdf']
-    bvals=_broward_values(client, ahj)
+    bvals=_broward_values(client, ahj, system)
     for fn in forms:
         p=os.path.join(muni, fn)
         if not os.path.exists(p): p=os.path.join(BPK, fn)  # fall back to county-level prefilled
@@ -660,8 +686,16 @@ def _build_broward(client, ahj, system, attachment_paths, out_path, underlayment
     pk=sysd.get('product_key')
     if pk and os.path.isdir(os.path.join(st, pk)): st=os.path.join(st, pk)
     if os.path.isdir(st):
-        for fn in sorted(os.listdir(st)):
-            if fn.lower().endswith('.pdf'): _add_pdf(w, os.path.join(st, fn))
+        if system=='Flat' and st==os.path.join(BSPEC,'Flat'):
+            # Select AB template + one Section C matching the deck type (prevents all 6 variants appending)
+            deck=sysd.get('deck',_FLAT_SECTION_C_DEFAULT)
+            sec_c=_FLAT_SECTION_C.get(deck,_FLAT_SECTION_C[_FLAT_SECTION_C_DEFAULT])
+            for fn in ['HVHZ_RoofingSystem_AB_Flat_TEMPLATE.pdf', sec_c]:
+                fp=os.path.join(st,fn)
+                if os.path.exists(fp): _add_pdf(w,fp)
+        else:
+            for fn in sorted(os.listdir(st)):
+                if fn.lower().endswith('.pdf'): _add_pdf(w, os.path.join(st, fn))
     # product approvals for the system
     sub=os.path.join(BPA, _PA_SUB.get(system,''))
     if os.path.isdir(sub):
