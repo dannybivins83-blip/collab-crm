@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-13 `git log`):** `1a4d78a` on `agent/gc-consolidation`
-- **Last board update:** 2026-06-13 ET — crm-ui: bus-drain loop confirmed crm-coord shipped commits in branch (Audit #10 GUID dedup `7e628b6`, mobile responsive `79a59b2`, dashboard layout + dispatch widget). crm-ui tip `1a4d78a` (appconnect icon sweep). All crm-coord work is ancestor of current tip — branch clean. D14 pre-merge: templates-costing schema reconciliation required (see D14).
+- **Git tip (verified 2026-06-15):** `pending` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-15 ET — crm-ui: **CSRF+JS takeoff fix** (pending commit): lead_detail.html was reading CSRF token via `document.cookie` which is always empty (HttpOnly cookie invisible to JS). Fixed to `{{ csrf_token }}` (Jinja2). auth.py already has `leads.run_takeoff` in `_CSRF_EXEMPT` (`4f789a4`). Full fix stack: CSRF-exempt (`4f789a4`) + permanent session (`2e43bd6`) + correct token in JS (this commit). Takeoff unblocked. Prior: audit (`9217099`), session UX (`b866e3f`), permanent session + gmail skip (`2e43bd6`).
 
 ---
 
@@ -73,6 +73,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | **D18** | **Job Expenses import (16,217 rows)** — approve schema + import path | `worksheet_lines` table needs bulk-import from AccuLynx Job Expenses CSV (`C:\Users\kjburnz\Downloads\AccuLynx_Reports_ZIP`). Columns: Job Name, Payment Date, Type, Amount, To/Method, Check/Ref, Memo, Job Value, Balance, Account Type, Paid-in-Full. crm-ui can build the import + per-job UI — needs Danny's OK on where these show (Worksheet tab? New Expenses tab?). | crm-ui 2026-06-13 |
 | **D19** | **Appointments import (310 rows) + Workflow Status import (2,000+ rows)** — approve | `appointments` table exists (calendar.py). Import path for AccuLynx Appointments CSV + `job_stage_history` table for Workflow Status needs a go — crm-ui builds both once approved. | crm-ui 2026-06-13 |
 | **D20** | **La Gala gov-portal pipeline — provide FEIN + drop docs, then 3 final clicks** | la-gala lane signed up 5 master portals (Bonfire, OpenGov, DemandStar, BidNet, + PBC) covering 30+ municipalities, and pre-filled 3 more to the final click. **Master unlock = FEIN/EIN** — gates MFMP (all FL state agencies), BidNet final, Bids&Tenders Boynton, Boca eSourcing. Also needs a doc drop (W-9, license PDF, COI, comp cert, articles) into `la gala\portal-signups\docs\`. Owner-actions, in order: (1) drop FEIN + docs; (2) click activation emails to Danny@lagalacon.com for the 5 created accounts; (3) final-click the 3 pre-filled (PBC VSS, Bids&Tenders Boynton, Boca Raton eSourcing). Heavy lifts deferred: SAM.gov UEI check, FDOT pre-qual. Full click-order playbook: `C:\Users\kjburnz\la gala\portal-signups\HANDOFF.md`. | la-gala audit 2026-06-12T1645 (flagged by overlord 2026-06-13) |
+| **D21** | **Cloudflare R2 migration — say "go" to approve** | One R2 bucket (`collab-cdn`) replaces Google Drive mirror + Render ephemeral disk for CRM uploads (618 files, 2.5 GB). Cost: **$0/mo** at current volume (10 GB R2 free tier; $0 egress always). Plan: reconcile documents table (8 DB rows vs 618 disk files), upload to R2, update CRM URLs, retire Drive mirror, remove 2.5 GB from Render disk. Keys: overlord's lifecycle (RULE 1 — Danny never touches). Danny's action = one word **"go"** in chat. | crm-ui 2026-06-15 |
 
 ---
 

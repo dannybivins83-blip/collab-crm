@@ -336,7 +336,7 @@ function tjRun() {
   fd.append('bid_as_profile', profile);
   fetch('{{ url_for("leads.run_takeoff", lead_id=l.id) }}', {
     method: 'POST',
-    headers: {'X-CSRFToken': document.cookie.match(/csrf_token=([^;]+)/)?.[1] || ''},
+    headers: {'X-CSRFToken': '{{ csrf_token }}'},
     body: fd
   }).then(r=>{
     if (!r.ok && r.status===503) { btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert('Server not ready — wait ~60 seconds and try again (Render may be restarting).'); return Promise.reject('503'); }
