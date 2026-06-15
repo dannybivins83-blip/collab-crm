@@ -104,19 +104,19 @@
                   <span class="ws-chevron open" style="font-size:10px">▾</span>
                   <span class="ws-group-title">{{ group.name }}</span>
                   {% if group.price %}
-                  <span class="ws-group-price">{{ "$%,.2f"|format(group.price) }}</span>
+                  <span class="ws-group-price">{{ money(group.price) }}</span>
                   {% endif %}
                   <span class="ws-section-menu" title="Options">⋮</span>
                 </div>
                 {% endif %}
                 <div class="ws-group-body">
-                  {% for item in group.items %}
+                  {% for mat in group.lines %}
                   <div class="ws-material">
                     <span class="ws-drag">⋮⋮</span>
-                    <span class="ws-mat-desc">{{ item.description }}</span>
+                    <span class="ws-mat-desc">{{ mat.description }}</span>
                     <span class="ws-mat-price">
-                      {% if item.price %}{{ "$%,.2f"|format(item.price) }}
-                      {% elif item.budget_cost %}{{ "$%,.2f"|format(item.budget_cost) }}
+                      {% if mat.price %}{{ money(mat.price) }}
+                      {% elif mat.budget_cost %}{{ money(mat.budget_cost) }}
                       {% else %}—{% endif %}
                     </span>
                     <span class="ws-section-menu" title="Options">⋮</span>

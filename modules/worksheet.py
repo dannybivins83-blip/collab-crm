@@ -167,14 +167,14 @@ def _build_synced_sections(ws_lines):
             s["scope_items"].append({"letter": ln.get("scope_letter") or "", "text": ln.get("description") or ""})
         elif itype == "group_header":
             if grp not in s["groups"]:
-                s["groups"][grp] = {"name": grp, "price": 0, "items": []}
+                s["groups"][grp] = {"name": grp, "price": 0, "lines": []}
                 s["_gorder"].append(grp)
             s["groups"][grp]["price"] = ln.get("price") or ln.get("budget_cost") or 0
         else:  # material
             if grp not in s["groups"]:
-                s["groups"][grp] = {"name": grp, "price": 0, "items": []}
+                s["groups"][grp] = {"name": grp, "price": 0, "lines": []}
                 s["_gorder"].append(grp)
-            s["groups"][grp]["items"].append(ln)
+            s["groups"][grp]["lines"].append(ln)
     result = []
     for sec_key in section_order:
         s = sections[sec_key]
@@ -184,7 +184,7 @@ def _build_synced_sections(ws_lines):
             flat = [ln for ln in ws_lines if not (ln.get("ws_section") or "") and
                     (ln.get("item_type") or "material") == "material"]
             if flat:
-                groups = [{"name": "", "price": 0, "items": flat}]
+                groups = [{"name": "", "price": 0, "lines": flat}]
         result.append({"title": s["title"], "scope_items": s["scope_items"], "groups": groups})
     return result
 
