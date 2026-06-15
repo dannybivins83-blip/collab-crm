@@ -60,6 +60,22 @@ def upload_doc(job_id):
     return redirect(url_for("jobs.detail", job_id=job_id))
 
 
+@bp.route("/doc/<int:doc_id>/update", methods=["POST"])
+def update_doc(doc_id):
+    d = db.get("documents", doc_id)
+    if not d:
+        flash("Document not found.", "err")
+        return redirect(request.referrer or "/")
+    name = (request.form.get("original_name") or "").strip() or d.get("original_name", "")
+    cat = (request.form.get("category") or "").strip() or d.get("category", "Other")
+    db.update("documents", doc_id, original_name=name, category=cat)
+    if d.get("job_id"):
+        db.add_activity("job", d["job_id"], "note",
+                        "Document updated: %s → %s (%s)" % (d.get("original_name", ""), name, cat))
+    flash("Document updated.", "ok")
+    return redirect(request.referrer or url_for("jobs.detail", job_id=d.get("job_id") or 0))
+
+
 @bp.route("/doc/<int:doc_id>/request-sign", methods=["POST"])
 def request_sign(doc_id):
     """Flag a document so the homeowner is asked to e-sign it in their portal."""
