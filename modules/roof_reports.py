@@ -149,11 +149,11 @@ def status(report_id):
     """Polled by the detail page until the engine finishes; persists the result."""
     rr = db.get("roof_reports", report_id)
     if not rr:
-        return jsonify({"status": "missing"}), 404
+        return jsonify({"ok": False, "error": "not found", "status": "missing"}), 404
     try:
         ej = _engine(f"/reports/{rr['engine_job']}")
     except Exception as e:  # noqa: BLE001
-        return jsonify({"status": rr.get("status") or "processing", "error": str(e)})
+        return jsonify({"ok": False, "status": rr.get("status") or "processing", "error": str(e)})
     st = ej.get("status")
     m = ej.get("measurement") or {}
     if st == "done":

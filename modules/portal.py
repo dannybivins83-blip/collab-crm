@@ -1186,7 +1186,7 @@ def sign_doc(token, doc_id):
     sig = request.form.get("signature") or ""
     if not name:
         flash("Please type your name to sign.", "error")
-        return redirect(url_for("portal.home", token=token) + "#sign")
+        return redirect(url_for("portal.home", token=token) + "#estimate")
     db.update("documents", doc_id, signed_name=name, signed_at=db.now(),
               signature=sig, needs_sign=0)
     db.add_activity("job", j["id"], "automation",
@@ -1195,7 +1195,7 @@ def sign_doc(token, doc_id):
     notifications.notify(j["id"], "sign", "%s e-signed: %s" % (name, d.get("original_name", "a document")))
     db.update("jobs", j["id"], next_follow=db.today())
     flash("Thank you — your signature was recorded.", "ok")
-    return redirect(url_for("portal.home", token=token) + "#sign")
+    return redirect(url_for("portal.home", token=token) + "#estimate")
 
 
 @bp.route("/<token>/pay")

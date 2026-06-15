@@ -250,6 +250,10 @@ def note(contact_id):
 
 @bp.route("/<int:contact_id>/delete", methods=["POST"])
 def delete(contact_id):
+    # Null out FK references in leads and jobs so they don't become orphans.
+    db.execute("UPDATE leads SET contact_id=NULL WHERE contact_id=?", (contact_id,))
+    db.execute("UPDATE jobs SET contact_id=NULL WHERE contact_id=?", (contact_id,))
+    db.execute("DELETE FROM activities WHERE entity_type='contact' AND entity_id=?", (contact_id,))
     db.delete("contacts", contact_id)
     flash("Contact deleted.", "ok")
     return redirect(url_for("contacts.index"))

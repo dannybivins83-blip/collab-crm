@@ -82,6 +82,11 @@ def new():
     if request.method == "POST":
         data = {f: request.form.get(f, "").strip() for f in FIELDS}
         data["status"] = request.form.get("status", "prep")
+        # Validate job_id FK before insert to prevent orphan permits.
+        if data.get("job_id"):
+            if not db.get("jobs", data["job_id"]):
+                flash("Job #%s not found — permit not created." % data["job_id"], "error")
+                return redirect(url_for("permits.new"))
         pid = db.insert("permits", data)
         if data.get("job_id"):
             db.add_activity("job", int(data["job_id"]), "automation",

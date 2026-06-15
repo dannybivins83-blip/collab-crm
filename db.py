@@ -358,16 +358,151 @@ def init_db():
     for _c, _d in [("qty", "REAL DEFAULT 0"), ("unit", "TEXT"), ("unit_cost", "REAL DEFAULT 0")]:
         _ensure_column("worksheet_lines", _c, _d)
     _ensure_column("company_settings", "labels", "TEXT")  # JSON map of phrase -> custom label
+    _ensure_column("company_settings", "lead_notify_to", "TEXT")  # fallback email for new-lead rep notifications
     _ensure_change_requests_table()
     _ensure_library_table()
     _ensure_permit_api_tables()
     _seed_if_empty()
     _migrate_columns()  # idempotent; run unconditionally so renamed/added columns land
     _migrate_stages()
+    _migrate_null_defaults()  # backfill NULLs on columns accessed with direct bracket notation
+    _ensure_indexes()   # idempotent: CREATE INDEX IF NOT EXISTS for all WHERE-clause cols
     # Default departments for any existing company row that lacks them.
     co = get_company()
     if co and not (co.get("departments") or "").strip():
         save_company({"departments": "REROOF Department, Service Department, Warranties"})
+
+
+def _ensure_indexes():
+    """Create indexes for columns frequently used in WHERE clauses.
+
+    Called unconditionally from init_db() — every statement uses CREATE INDEX IF
+    NOT EXISTS so it is fully idempotent.  All indexes are on SQLite; the Postgres
+    path gains them via the same DDL (Postgres also accepts IF NOT EXISTS).
+
+    Index naming convention: idx_<table>_<col(s)>
+    """
+    _IDX_SQL = """
+-- leads: filtered by department (list page), contact, stage (pipeline/smart-todos)
+CREATE INDEX IF NOT EXISTS idx_leads_department    ON leads(department);
+CREATE INDEX IF NOT EXISTS idx_leads_contact_id    ON leads(contact_id);
+CREATE INDEX IF NOT EXISTS idx_leads_stage         ON leads(stage);
+CREATE INDEX IF NOT EXISTS idx_leads_portal_token  ON leads(portal_token);
+
+-- jobs: same high-traffic columns
+CREATE INDEX IF NOT EXISTS idx_jobs_department     ON jobs(department);
+CREATE INDEX IF NOT EXISTS idx_jobs_contact_id     ON jobs(contact_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_lead_id        ON jobs(lead_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_stage          ON jobs(stage);
+CREATE INDEX IF NOT EXISTS idx_jobs_portal_token   ON jobs(portal_token);
+
+-- activities: the timeline query filters by (entity_type, entity_id) and kind/done
+CREATE INDEX IF NOT EXISTS idx_activities_entity   ON activities(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_activities_kind_done ON activities(kind, done);
+
+-- estimates: loaded per-job and per-lead constantly
+CREATE INDEX IF NOT EXISTS idx_estimates_job_id    ON estimates(job_id);
+CREATE INDEX IF NOT EXISTS idx_estimates_lead_id   ON estimates(lead_id);
+
+-- estimate_sections/lines: always fetched by parent estimate
+CREATE INDEX IF NOT EXISTS idx_est_sections_est_id ON estimate_sections(estimate_id);
+CREATE INDEX IF NOT EXISTS idx_est_lines_est_id    ON estimate_lines(estimate_id);
+CREATE INDEX IF NOT EXISTS idx_est_lines_section_id ON estimate_lines(section_id);
+
+-- documents: loaded per-job and per-lead on every job/lead detail page
+CREATE INDEX IF NOT EXISTS idx_documents_job_id    ON documents(job_id);
+CREATE INDEX IF NOT EXISTS idx_documents_lead_id   ON documents(lead_id);
+
+-- photos: per-job on every job detail + portal page
+CREATE INDEX IF NOT EXISTS idx_photos_job_id       ON photos(job_id);
+
+-- invoices: per-job (list, QBO sync, portal)
+CREATE INDEX IF NOT EXISTS idx_invoices_job_id     ON invoices(job_id);
+
+-- materials: per-job
+CREATE INDEX IF NOT EXISTS idx_materials_job_id    ON materials(job_id);
+
+-- permits: per-job
+CREATE INDEX IF NOT EXISTS idx_permits_job_id      ON permits(job_id);
+
+-- worksheets / worksheet_lines: per-job and per-worksheet
+CREATE INDEX IF NOT EXISTS idx_worksheets_job_id       ON worksheets(job_id);
+CREATE INDEX IF NOT EXISTS idx_worksheet_lines_ws_id   ON worksheet_lines(worksheet_id);
+
+-- orders / order_lines: per-job, per-department
+CREATE INDEX IF NOT EXISTS idx_orders_job_id       ON orders(job_id);
+CREATE INDEX IF NOT EXISTS idx_orders_department   ON orders(department);
+CREATE INDEX IF NOT EXISTS idx_order_lines_order_id ON order_lines(order_id);
+
+-- measurements: per-job and per-lead (roof-report sync, takeoff)
+CREATE INDEX IF NOT EXISTS idx_measurements_job_id  ON measurements(job_id);
+CREATE INDEX IF NOT EXISTS idx_measurements_lead_id ON measurements(lead_id);
+
+-- roof_reports: per-job
+CREATE INDEX IF NOT EXISTS idx_roof_reports_job_id  ON roof_reports(job_id);
+
+-- appointments: per-lead, per-job, per-contact
+CREATE INDEX IF NOT EXISTS idx_appointments_lead_id    ON appointments(lead_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_job_id     ON appointments(job_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_contact_id ON appointments(contact_id);
+
+-- notifications: per job + read flag (notifications has job_id/rep/read columns, no entity_type/entity_id)
+CREATE INDEX IF NOT EXISTS idx_notifications_job_id ON notifications(job_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_read   ON notifications(read);
+
+-- automations: trigger lookup (run on every stage change)
+CREATE INDEX IF NOT EXISTS idx_automations_trigger  ON automations(trigger_stage, active);
+
+-- contacts: GC filter
+CREATE INDEX IF NOT EXISTS idx_contacts_is_gc       ON contacts(is_gc);
+
+-- custom_fields / custom_values: entity lookups
+CREATE INDEX IF NOT EXISTS idx_custom_fields_entity      ON custom_fields(entity);
+CREATE INDEX IF NOT EXISTS idx_custom_values_entity      ON custom_values(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_custom_values_field_id    ON custom_values(field_id);
+
+-- gmail_accounts: per-user
+CREATE INDEX IF NOT EXISTS idx_gmail_accounts_user_id ON gmail_accounts(user_id);
+
+-- commissions: per-job, per-department
+CREATE INDEX IF NOT EXISTS idx_commissions_job_id    ON commissions(job_id);
+CREATE INDEX IF NOT EXISTS idx_commissions_dept      ON commissions(department);
+
+-- takeoff_jobs: lookup by token and by lead
+CREATE INDEX IF NOT EXISTS idx_takeoff_jobs_token    ON takeoff_jobs(token);
+CREATE INDEX IF NOT EXISTS idx_takeoff_jobs_lead_id  ON takeoff_jobs(lead_id);
+
+-- library_docs: per-category (used for permit/signup package lookups)
+CREATE INDEX IF NOT EXISTS idx_library_docs_category ON library_docs(category);
+
+-- demos: slug lookup
+CREATE INDEX IF NOT EXISTS idx_demos_slug            ON demos(slug);
+
+-- signup_packets / signup_templates: per-job, per-system
+CREATE INDEX IF NOT EXISTS idx_signup_packets_job_id    ON signup_packets(job_id);
+CREATE INDEX IF NOT EXISTS idx_signup_templates_system  ON signup_templates(system);
+
+-- payments: per-job
+CREATE INDEX IF NOT EXISTS idx_payments_job_id       ON payments(job_id);
+
+-- qxo_products: per-material
+CREATE INDEX IF NOT EXISTS idx_qxo_products_material_id ON qxo_products(material_id);
+
+-- portal_updates: per-job, composite (job_id, phase) for duplicate check
+CREATE INDEX IF NOT EXISTS idx_portal_updates_job_id    ON portal_updates(job_id);
+CREATE INDEX IF NOT EXISTS idx_portal_updates_job_phase ON portal_updates(job_id, phase);
+"""
+    # Run each CREATE INDEX statement in its own connection so a Postgres
+    # transaction-abort on one failure does not poison all subsequent statements.
+    for stmt in _split_sql(_IDX_SQL):
+        conn = connect()
+        try:
+            conn.execute(stmt)
+            conn.commit()
+        except Exception:
+            pass  # table/column doesn't exist yet on this schema variant — skip
+        finally:
+            conn.close()
 
 
 def _ensure_library_table():
@@ -540,6 +675,104 @@ def _migrate_stages():
             conn.execute("UPDATE jobs SET stage=? WHERE stage=?", (new, old))
         for old, new in constants._OLD_LEAD_STAGE_MAP.items():
             conn.execute("UPDATE leads SET stage=? WHERE stage=?", (new, old))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _migrate_null_defaults():
+    """Backfill NULL values for columns that the application code accesses via direct
+    bracket notation (e.g. ``row["stage"]``), which raises or returns None when the
+    column is NULL, breaking board/list/dashboard views.
+
+    All affected columns have a schema DEFAULT — this migration ensures existing rows
+    that were inserted before the DEFAULT was present, or were inserted with an explicit
+    NULL, satisfy the non-null invariant that the rest of the code assumes.
+
+    Safe to run unconditionally: the UPDATE is a no-op when every row already has a
+    value.
+    """
+    _BACKFILLS = [
+        # table,               column,   fallback value
+        ("leads",              "stage",  "new"),
+        ("jobs",               "stage",  "approved"),
+        ("invoices",           "status", "unpaid"),
+        ("commissions",        "status", "pre"),
+        ("commissions",        "basis",  "profit"),
+        ("activities",         "kind",   "note"),
+        ("activities",         "done",   "0"),
+        ("estimate_sections",  "margin_pct", "30"),
+        ("estimate_lines",     "qty",    "0"),
+        ("estimate_lines",     "cost",   "0"),
+        ("estimate_lines",     "price",  "0"),
+        ("worksheet_lines",    "budget_cost", "0"),
+        ("worksheet_lines",    "actual_cost", "0"),
+        ("worksheets",         "contract_value", "0"),
+    ]
+    conn = connect()
+    try:
+        for table, col, val in _BACKFILLS:
+            try:
+                conn.execute(
+                    "UPDATE %s SET %s=? WHERE %s IS NULL" % (table, col, col),
+                    (val,))
+            except Exception:
+                pass  # table or column may not exist yet on very old schemas
+        # Fix estimate_lines rows with NULL section_id.
+        # Step 1: For estimates that have sections, assign orphan lines to section 0.
+        try:
+            conn.execute("""
+                UPDATE estimate_lines
+                SET section_id = (
+                    SELECT id FROM estimate_sections
+                    WHERE estimate_sections.estimate_id = estimate_lines.estimate_id
+                    ORDER BY sort, id LIMIT 1
+                )
+                WHERE section_id IS NULL
+                  AND estimate_id IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1 FROM estimate_sections
+                    WHERE estimate_sections.estimate_id = estimate_lines.estimate_id
+                  )
+            """)
+        except Exception:
+            pass
+        # Step 2: For estimates that have NO sections at all, create a default section
+        # and assign the orphan lines to it (these are pre-sections legacy estimates).
+        try:
+            orphan_est_ids = [
+                dict(r)["estimate_id"]
+                for r in conn.execute("""
+                    SELECT DISTINCT el.estimate_id
+                    FROM estimate_lines el
+                    WHERE el.section_id IS NULL
+                      AND el.estimate_id IS NOT NULL
+                      AND NOT EXISTS (
+                        SELECT 1 FROM estimate_sections es
+                        WHERE es.estimate_id = el.estimate_id
+                      )
+                """).fetchall()
+            ]
+        except Exception:
+            orphan_est_ids = []
+        for eid in orphan_est_ids:
+            try:
+                # _insert_section: create a default section for this estimate
+                conn.execute(
+                    "INSERT INTO estimate_sections (estimate_id, sort, name, scope_text, margin_pct)"
+                    " VALUES (?, 0, 'Scope of Work', '', 30)",
+                    (eid,))
+                # Get the new section id (RETURNING not available in old SQLite; use lastrowid approach)
+                sid_row = conn.execute(
+                    "SELECT id FROM estimate_sections WHERE estimate_id=? ORDER BY id DESC LIMIT 1",
+                    (eid,)).fetchone()
+                if sid_row:
+                    sid = dict(sid_row)["id"]
+                    conn.execute(
+                        "UPDATE estimate_lines SET section_id=? WHERE estimate_id=? AND section_id IS NULL",
+                        (sid, eid))
+            except Exception:
+                pass
         conn.commit()
     finally:
         conn.close()

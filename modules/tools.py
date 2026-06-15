@@ -337,7 +337,7 @@ def dev_note():
     body_text = (data.get("body") or "").strip()
     page = (data.get("page") or "").strip()
     if not title and not body_text:
-        return jsonify({"error": "empty note"}), 400
+        return jsonify({"ok": False, "error": "empty note"}), 400
     line = "[%s] %s%s%s\n" % (
         _dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
         (title + " -- ") if title else "",
@@ -350,7 +350,7 @@ def dev_note():
         with open(path, "a", encoding="utf-8") as f:
             f.write(line)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"ok": False, "error": str(e)}), 500
     return jsonify({"ok": True})
 
 

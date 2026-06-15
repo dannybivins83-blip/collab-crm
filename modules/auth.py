@@ -211,6 +211,11 @@ _CSRF_EXEMPT = PUBLIC | {
     "sync.index",       # sync dashboard page (GET-only in practice)
     "dbadmin.reconcile_docs",  # token-gated admin tool, supports GET
     "auth.logout",      # GET link, not a state-changing form
+    # Permit API key management — these are session-authenticated but called from the
+    # Settings page via JS fetch without a CSRF token in the request body/header.
+    # They perform their own session-user gate inside the handler.
+    "permit_api.new_key",
+    "permit_api.revoke_key",
 }
 
 

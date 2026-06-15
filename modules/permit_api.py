@@ -241,14 +241,14 @@ def build_download(job_id):
     if not job:
         rows = db.all_rows("permit_build_jobs", "job_id=?", (job_id,))
         if not rows:
-            return jsonify({"error": "Job not found"}), 404
+            return jsonify({"ok": False, "error": "Job not found"}), 404
         job = {"status": rows[0]["status"],
                "result_path": rows[0].get("result_path") or ""}
     if job.get("status") != "complete" or not job.get("result_path"):
-        return jsonify({"error": "Not ready", "status": job.get("status")}), 202
+        return jsonify({"ok": False, "error": "Not ready", "status": job.get("status")}), 202
     path = job["result_path"]
     if not os.path.exists(path):
-        return jsonify({"error": "File not found on server"}), 404
+        return jsonify({"ok": False, "error": "File not found on server"}), 404
     return send_file(path, as_attachment=True, download_name=os.path.basename(path))
 
 
@@ -257,8 +257,8 @@ def build_download(job_id):
 @bp.route("/keys/new", methods=["POST"])
 def new_key():
     """Generate a new API key. Requires an active session (owner/admin) or master key."""
-    from flask import session as _sess
-    u = getattr(g, "current_user", None)
+    from modules.auth import current_user as _current_user
+    u = _current_user()
     if not u:
         return jsonify({"ok": False, "error": "Login required"}), 401
     label = (request.form.get("label") or request.get_json(silent=True, force=True) or {}).get("label", "default")
@@ -281,7 +281,8 @@ def new_key():
 
 @bp.route("/keys/<int:key_id>/revoke", methods=["POST"])
 def revoke_key(key_id):
-    u = getattr(g, "current_user", None)
+    from modules.auth import current_user as _current_user
+    u = _current_user()
     if not u:
         return jsonify({"ok": False, "error": "Login required"}), 401
     db.execute("UPDATE permit_api_keys SET active=0 WHERE id=?", (key_id,))

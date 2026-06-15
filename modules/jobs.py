@@ -347,6 +347,25 @@ def note(job_id):
 
 @bp.route("/<int:job_id>/delete", methods=["POST"])
 def delete(job_id):
+    # Cascade-delete child records to prevent FK orphans.
+    for eid in [r["id"] for r in db.all_rows("estimates", "job_id=?", (job_id,))]:
+        db.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (eid,))
+        db.execute("DELETE FROM estimate_lines WHERE estimate_id=?", (eid,))
+    db.execute("DELETE FROM estimates WHERE job_id=?", (job_id,))
+    for wsid in [r["id"] for r in db.all_rows("worksheets", "job_id=?", (job_id,))]:
+        db.execute("DELETE FROM worksheet_lines WHERE worksheet_id=?", (wsid,))
+    db.execute("DELETE FROM worksheets WHERE job_id=?", (job_id,))
+    for oid in [r["id"] for r in db.all_rows("orders", "job_id=?", (job_id,))]:
+        db.execute("DELETE FROM order_lines WHERE order_id=?", (oid,))
+    db.execute("DELETE FROM orders WHERE job_id=?", (job_id,))
+    db.execute("DELETE FROM permits WHERE job_id=?", (job_id,))
+    db.execute("DELETE FROM invoices WHERE job_id=?", (job_id,))
+    db.execute("DELETE FROM materials WHERE job_id=?", (job_id,))
+    db.execute("DELETE FROM measurements WHERE job_id=?", (job_id,))
+    db.execute("DELETE FROM documents WHERE job_id=?", (job_id,))
+    db.execute("DELETE FROM photos WHERE job_id=?", (job_id,))
+    db.execute("DELETE FROM appointments WHERE job_id=?", (job_id,))
+    db.execute("DELETE FROM activities WHERE entity_type='job' AND entity_id=?", (job_id,))
     db.delete("jobs", job_id)
     flash("Job deleted.", "ok")
     return redirect(url_for("jobs.board"))
