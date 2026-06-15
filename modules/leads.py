@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-"""Sales pipeline (leads) — Kanban board, detail, drag-to-advance, convert-to-job."""
+﻿# -*- coding: utf-8 -*-
+"""Sales pipeline (leads) â€” Kanban board, detail, drag-to-advance, convert-to-job."""
 import os
 import re
 
@@ -13,7 +13,7 @@ from theme import current_department
 
 bp = Blueprint("leads", __name__, url_prefix="/leads")
 
-# AccuLynx "Create New Lead" parity — extra columns on the lead record. Added
+# AccuLynx "Create New Lead" parity â€” extra columns on the lead record. Added
 # idempotently so local SQLite and Neon both pick them up without a migration.
 # (`rank` is ensured in modules/customfields.py; reused here for Lead Rank.)
 for _col, _decl in [
@@ -33,7 +33,7 @@ EDITABLE = ["rid", "name", "company", "cross_ref", "phone", "email", "address", 
 
 
 def _rank_val(raw):
-    """Clamp the Lead Rank input to AccuLynx's 0–4 scale (blank → 0)."""
+    """Clamp the Lead Rank input to AccuLynx's 0â€“4 scale (blank â†’ 0)."""
     try:
         return max(0, min(4, int(raw or 0)))
     except (TypeError, ValueError):
@@ -134,7 +134,7 @@ def new():
         db.update("leads", lid, ahj=resolved_ahj, county=db.get_company().get("default_county", ""), system=system)
         if resolved_ahj:
             db.add_activity("lead", lid, "automation",
-                            "AHJ auto-set to %s%s" % (resolved_ahj, (" · system: " + system) if system else ""))
+                            "AHJ auto-set to %s%s" % (resolved_ahj, (" Â· system: " + system) if system else ""))
         # Auto-compose the lead name to the shop convention: Client (AHJ) (System) (Rep) L.
         # (The R-job number is assigned later, when the lead is won and becomes a job.)
         client_name = (data.get("name") or "").strip()
@@ -160,7 +160,7 @@ def new():
                 db.add_activity("lead", lid, "automation",
                                 "Estimate %s auto-created from %s template (with upgrades)" % (
                                     (e or {}).get("number", ""), data["work_type"]))
-                est_msg = " · estimate %s drafted" % (e or {}).get("number", "")
+                est_msg = " Â· estimate %s drafted" % (e or {}).get("number", "")
             except Exception:
                 pass
         # Populate the Communications tab with the intake details (verified facts only),
@@ -175,15 +175,15 @@ def new():
         if data.get("work_type"):
             bits.append("Work type: %s" % data["work_type"])
         if resolved_ahj:
-            bits.append("AHJ: %s%s" % (resolved_ahj, (" · " + system) if system else ""))
+            bits.append("AHJ: %s%s" % (resolved_ahj, (" Â· " + system) if system else ""))
         if data.get("source"):
             bits.append("Source: %s" % data["source"])
         if data.get("rep"):
             bits.append("Rep: %s" % data["rep"])
-        summary = "New lead intake — %s%s.\n%s" % (
+        summary = "New lead intake â€” %s%s.\n%s" % (
             client_name or "lead",
             (" (" + data["company"] + ")") if data.get("company") else "",
-            " · ".join(bits))
+            " Â· ".join(bits))
         for extra in (data.get("notes"), data.get("narrative")):
             if extra and extra.strip():
                 summary += "\nNotes: %s" % extra.strip()
@@ -205,23 +205,23 @@ def new():
                 link = url_for("leads.detail", lead_id=lid, _external=True)
                 subj = "New Lead: %s%s%s" % (
                     data.get("name") or "lead",
-                    (" — " + data["work_type"]) if data.get("work_type") else "",
-                    (" — " + data["address"]) if data.get("address") else "")
+                    (" â€” " + data["work_type"]) if data.get("work_type") else "",
+                    (" â€” " + data["address"]) if data.get("address") else "")
                 sent = _gmail.send_message(uid, notify_to, subj, summary + "\n\nOpen in CRM: " + link)
                 if sent:
                     db.add_activity("lead", lid, "email",
                                     "Rep/team notification sent to %s" % notify_to)
-                    notify_msg = " · rep notified"
+                    notify_msg = " Â· rep notified"
                 else:
                     # Fall back to draft if send fails (e.g. Gmail not fully connected).
                     did = _gmail.create_draft(uid, notify_to, subj, summary + "\n\nOpen in CRM: " + link)
                     if did:
                         db.add_activity("lead", lid, "draft",
-                                        "Rep-notification draft created for %s — send from Gmail." % notify_to)
-                        notify_msg = " · rep draft in Gmail"
+                                        "Rep-notification draft created for %s â€” send from Gmail." % notify_to)
+                        notify_msg = " Â· rep draft in Gmail"
         except Exception:
             pass
-        # Homeowner portal invite — always send the magic link when the lead has an email
+        # Homeowner portal invite â€” always send the magic link when the lead has an email
         # and Gmail is connected. Deduped via portal_invited timestamp.
         try:
             if (data.get("email") or "").strip():
@@ -232,24 +232,24 @@ def new():
                 link = _portal.lead_portal_link(lid)
                 cname = (data.get("name") or "there").split("(")[0].strip()
                 cn = comp.get("name") or "our team"
-                subj = "Welcome to %s — your private project page" % cn
+                subj = "Welcome to %s â€” your private project page" % cn
                 body = ("Hi %s,\n\nThanks for reaching out to %s. Here is your private "
                         "project page to follow your roof project and review your estimate "
                         "once it's ready:\n\n%s\n\nWe'll be in touch shortly to schedule "
-                        "your inspection.\n\n— %s" % (cname, cn, link, cn))
+                        "your inspection.\n\nâ€” %s" % (cname, cn, link, cn))
                 if _gm.send_message(uid, data["email"], subj, body):
                     db.update("leads", lid, portal_invited=db.now())
                     db.add_activity("lead", lid, "email",
                                     "Homeowner portal invite emailed to %s" % data["email"])
-                    notify_msg += " · portal invite sent to client"
+                    notify_msg += " Â· portal invite sent to client"
                 else:
                     did = _gm.create_draft(uid, data["email"], subj, body)
                     if did:
                         db.add_activity("lead", lid, "draft",
-                                        "Portal invite draft created for %s — send from Gmail." % data["email"])
-                        notify_msg += " · portal invite drafted (send from Gmail)"
+                                        "Portal invite draft created for %s â€” send from Gmail." % data["email"])
+                        notify_msg += " Â· portal invite drafted (send from Gmail)"
                     else:
-                        notify_msg += " · portal link ready — add SMTP or send manually"
+                        notify_msg += " Â· portal link ready â€” add SMTP or send manually"
         except Exception as _e:
             current_app.logger.warning("Portal invite email failed for lead %s: %s", lid, _e)
         # Handle intake file uploads (drawings, emails, measurement reports, etc.)
@@ -286,17 +286,17 @@ def new():
                 pass
         if has_drawings:
             db.add_activity("lead", lid, "automation",
-                            "Drawing files uploaded at intake — estimator ready to auto-generate scope, estimate, and permit forms.")
-            doc_msg = " · drawings attached (estimator ready)"
+                            "Drawing files uploaded at intake â€” estimator ready to auto-generate scope, estimate, and permit forms.")
+            doc_msg = " Â· drawings attached (estimator ready)"
         elif intake_files and any(f and f.filename for f in intake_files):
-            doc_msg = " · %d file(s) attached" % sum(1 for f in intake_files if f and f.filename)
+            doc_msg = " Â· %d file(s) attached" % sum(1 for f in intake_files if f and f.filename)
         # Roof report request flag
         if request.form.get("run_roof_report"):
             db.add_activity("lead", lid, "note",
-                            "Roof report requested at intake — approve or skip from the lead page.")
-            doc_msg += " · roof report requested"
+                            "Roof report requested at intake â€” approve or skip from the lead page.")
+            doc_msg += " Â· roof report requested"
         flash("Lead created. AHJ: %s%s%s%s%s" % (
-            resolved_ahj or "—", (" · " + system) if system else "", est_msg, notify_msg, doc_msg), "ok")
+            resolved_ahj or "â€”", (" Â· " + system) if system else "", est_msg, notify_msg, doc_msg), "ok")
         return redirect(url_for("leads.detail", lead_id=lid))
     return render_template("lead_form.html", lead={}, contacts=db.all_rows("contacts", order="last_name"),
                            mode="new",
@@ -317,7 +317,7 @@ def parse_zip():
 
     api_key = config.ANTHROPIC_API_KEY
     if not api_key:
-        return jsonify({"error": "ANTHROPIC_API_KEY not set — add it to Render env"}), 503
+        return jsonify({"error": "ANTHROPIC_API_KEY not set â€” add it to Render env"}), 503
 
     import anthropic
     client = anthropic.Anthropic(api_key=api_key)
@@ -333,7 +333,7 @@ def parse_zip():
     def _try_claude_text(text):
         try:
             msg = client.messages.create(
-                model="claude-haiku-4-5-20251001", max_tokens=512,
+                model="claude-haiku-4-5", max_tokens=512,
                 messages=[{"role": "user", "content": PROMPT + "\n\nDocument text:\n" + text[:3000]}])
             raw = msg.content[0].text.strip()
             if raw.startswith("```"):
@@ -348,7 +348,7 @@ def parse_zip():
         try:
             b64 = base64.standard_b64encode(data).decode()
             msg = client.messages.create(
-                model="claude-haiku-4-5-20251001", max_tokens=512,
+                model="claude-haiku-4-5", max_tokens=512,
                 messages=[{"role": "user", "content": [
                     {"type": "image", "source": {"type": "base64", "media_type": ct, "data": b64}},
                     {"type": "text", "text": PROMPT}
@@ -375,7 +375,7 @@ def parse_zip():
         zdata = f.read()
         zf = zipfile.ZipFile(io.BytesIO(zdata))
     except zipfile.BadZipFile:
-        return jsonify({"error": "Not a valid ZIP file — please upload a .zip archive."}), 400
+        return jsonify({"error": "Not a valid ZIP file â€” please upload a .zip archive."}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -443,14 +443,14 @@ def parse_image():
 
     api_key = config.ANTHROPIC_API_KEY
     if not api_key:
-        return jsonify({"error": "ANTHROPIC_API_KEY not set — add it to your .env or Render env"}), 503
+        return jsonify({"error": "ANTHROPIC_API_KEY not set â€” add it to your .env or Render env"}), 503
 
     try:
         img_b64 = base64.standard_b64encode(f.read()).decode()
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
         msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model="claude-haiku-4-5",
             max_tokens=512,
             messages=[{
                 "role": "user",
@@ -488,7 +488,7 @@ def detail(lead_id):
     _decorate(l)
     from modules import measurements as meas
     # Quick Estimate is scoped to THIS client's system (the work type tagged at lead
-    # entry) — show only the matching template(s), not the whole catalog.
+    # entry) â€” show only the matching template(s), not the whole catalog.
     key = constants.template_for_work_type(l.get("work_type") or "")
     quick_templates = [t for t in db.all_rows("templates", order="name")
                        if constants.template_for_work_type(t.get("work_type") or "") == key
@@ -537,7 +537,7 @@ def edit(lead_id):
 def backfill_ahj():
     """One-time maintenance: for leads whose AHJ is blank or the county fallback, scan the
     address for a known municipality, set the city, and re-resolve the permit office.
-    Never overrides a hand-set municipal AHJ. Idempotent — safe to run repeatedly."""
+    Never overrides a hand-set municipal AHJ. Idempotent â€” safe to run repeatedly."""
     from modules import ahj as ahj_mod, acculynx_sync as S
     county = (db.get_company().get("default_county", "") or "").strip()
     munis = sorted({m for m in (set(ahj_mod._ahj_keys()) | set(S._AHJ_MAP.values())) if m},
@@ -580,7 +580,7 @@ def backfill_ahj():
 @bp.route("/strip-lead-marker", methods=["POST"])
 def strip_lead_marker():
     """One-time backfill: remove the old ' L' suffix from any lead names that have it.
-    Idempotent — safe to run multiple times."""
+    Idempotent â€” safe to run multiple times."""
     fixed = 0
     for l in db.all_rows("leads"):
         name = (l.get("name") or "")
@@ -645,7 +645,7 @@ def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _ru
     if not l:
         return jsonify({"ok": False, "error": "Lead not found"}), 404
     if not config.ANTHROPIC_API_KEY:
-        return jsonify({"ok": False, "error": "ANTHROPIC_API_KEY not set — add it to Render env vars"}), 503
+        return jsonify({"ok": False, "error": "ANTHROPIC_API_KEY not set â€” add it to Render env vars"}), 503
     f = request.files.get("plans_file")
     if not f or not f.filename:
         return jsonify({"ok": False, "error": "No file uploaded"}), 400
@@ -668,7 +668,7 @@ def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _ru
     db.execute(
         "INSERT INTO takeoff_jobs (token,lead_id,profile,status,progress,created,updated) "
         "VALUES (?,?,?,?,?,?,?)",
-        (token, lead_id, profile, "queued", "Queued…", db.now(), db.now()))
+        (token, lead_id, profile, "queued", "Queuedâ€¦", db.now(), db.now()))
     t = _threading.Thread(
         target=_run_takeoff_worker,
         args=(token, file_path, f.filename, lead_id, profile,
@@ -694,10 +694,10 @@ def send_portal_invite(lead_id):
     comp = db.get_company()
     cn = comp.get("name") or "our team"
     cname = (l.get("name") or "there").split("(")[0].strip()
-    subj = "Your private project page — %s" % cn
+    subj = "Your private project page â€” %s" % cn
     body = ("Hi %s,\n\nHere is your private project page to follow your roof "
             "project and review your estimate once it's ready:\n\n%s\n\nWe'll "
-            "be in touch shortly.\n\n— %s" % (cname, link, cn))
+            "be in touch shortly.\n\nâ€” %s" % (cname, link, cn))
     sent = False
     if email:
         uid = session.get("user_id")
@@ -715,12 +715,12 @@ def send_portal_invite(lead_id):
         did = _gm.create_draft(uid, email, subj, body)
         if did:
             db.add_activity("lead", lead_id, "draft",
-                            "Portal invite draft created for %s — send from Gmail." % email)
-            flash("Gmail send failed — draft created in Gmail. Open Gmail and send it to %s." % email, "warn")
+                            "Portal invite draft created for %s â€” send from Gmail." % email)
+            flash("Gmail send failed â€” draft created in Gmail. Open Gmail and send it to %s." % email, "warn")
         else:
-            flash("Could not send or draft — copy this link and share manually with %s: %s" % (email, link), "warn")
+            flash("Could not send or draft â€” copy this link and share manually with %s: %s" % (email, link), "warn")
     else:
-        flash("No email on lead — add one then click Send portal invite again. Link: %s" % link, "warn")
+        flash("No email on lead â€” add one then click Send portal invite again. Link: %s" % link, "warn")
     return redirect(url_for("leads.detail", lead_id=lead_id))
 
 
@@ -759,14 +759,14 @@ def field(lead_id):
 def assign(lead_id):
     rep = request.form.get("rep", "").strip()
     db.update("leads", lead_id, rep=rep)
-    db.add_activity("lead", lead_id, "automation", "Assigned to %s" % (rep or "—"))
-    flash("Lead assigned to %s." % (rep or "—"), "ok")
+    db.add_activity("lead", lead_id, "automation", "Assigned to %s" % (rep or "â€”"))
+    flash("Lead assigned to %s." % (rep or "â€”"), "ok")
     return redirect(url_for("leads.detail", lead_id=lead_id))
 
 
 @bp.route("/<int:lead_id>/convert", methods=["POST"])
 def convert(lead_id):
-    """Won → create a production Job from this lead."""
+    """Won â†’ create a production Job from this lead."""
     l = db.get("leads", lead_id)
     if not l:
         return redirect(url_for("leads.board"))
@@ -803,7 +803,7 @@ def convert(lead_id):
                                     "system": p_system, "status": "prep",
                                     "notes": "Auto-created from lead conversion (%s roof)" % p_system})
         db.add_activity("job", jid, "automation",
-                        "Permit auto-created — AHJ %s · %s system" % (p_ahj or "—", p_system))
+                        "Permit auto-created â€” AHJ %s Â· %s system" % (p_ahj or "â€”", p_system))
     # Carry the lead's RoofGraf measurement + documents onto the new job.
     from modules import measurements as meas
     m = meas.for_lead(lead_id)
@@ -813,7 +813,7 @@ def convert(lead_id):
             db.update("jobs", jid, area=str(m.get("squares")), slope=m.get("pitch") or "")
     db.execute("UPDATE documents SET job_id=? WHERE lead_id=?", (jid, lead_id))
     db.update("leads", lead_id, stage="won", stage_since=db.today())
-    db.add_activity("lead", lead_id, "stage", "Won — converted to Job #%d" % jid)
+    db.add_activity("lead", lead_id, "stage", "Won â€” converted to Job #%d" % jid)
     db.add_activity("job", jid, "stage", "Job created from Lead #%d" % lead_id)
     flash("Converted to job.", "ok")
     return redirect(url_for("jobs.detail", job_id=jid))
@@ -831,7 +831,7 @@ def delete(lead_id):
 # Public, token-guarded webhook for inbound leads from email parsers, web forms,
 # Craigslist relays, RingCentral call/voicemail events, etc. Unlike /import (a
 # CORS-open bulk scraper feed), this runs the SAME enrichment as a hand-keyed
-# lead: AHJ resolve + roof system + auto-starter-estimate. Drafts only — it never
+# lead: AHJ resolve + roof system + auto-starter-estimate. Drafts only â€” it never
 # emails anyone. Set CRM_INTAKE_TOKEN to enable; unset = endpoint disabled.
 # ---------------------------------------------------------------------------
 
@@ -915,14 +915,14 @@ def _cors(resp):
 
 @bp.route("/intake", methods=["POST", "OPTIONS"])
 def intake():
-    """Single normalized lead → enriched CRM lead. JSON body:
+    """Single normalized lead â†’ enriched CRM lead. JSON body:
     {name, phone, email, address, work_type, source}."""
     if request.method == "OPTIONS":
         from flask import make_response
         return _cors(make_response("", 204))
     auth = _intake_authorized()
     if auth is None:
-        return _cors(jsonify({"ok": False, "error": "intake disabled — set CRM_INTAKE_TOKEN"})), 503
+        return _cors(jsonify({"ok": False, "error": "intake disabled â€” set CRM_INTAKE_TOKEN"})), 503
     if not auth:
         return _cors(jsonify({"ok": False, "error": "bad token"})), 403
     from modules import lead_intake
@@ -937,14 +937,14 @@ def intake():
 
 @bp.route("/intake/email", methods=["POST", "OPTIONS"])
 def intake_email():
-    """Raw inbound lead email → parsed + enriched CRM lead. JSON body:
+    """Raw inbound lead email â†’ parsed + enriched CRM lead. JSON body:
     {from, subject, body}. Pair with a Gmail watcher or an email-relay webhook."""
     if request.method == "OPTIONS":
         from flask import make_response
         return _cors(make_response("", 204))
     auth = _intake_authorized()
     if auth is None:
-        return _cors(jsonify({"ok": False, "error": "intake disabled — set CRM_INTAKE_TOKEN"})), 503
+        return _cors(jsonify({"ok": False, "error": "intake disabled â€” set CRM_INTAKE_TOKEN"})), 503
     if not auth:
         return _cors(jsonify({"ok": False, "error": "bad token"})), 403
     from modules import lead_intake
@@ -967,7 +967,7 @@ def import_leads():
     if request.method == "OPTIONS":
         r = make_response("", 204)
     else:
-        # Audit #1: same shared-secret gate as the /sync/* bridge — this endpoint is also
+        # Audit #1: same shared-secret gate as the /sync/* bridge â€” this endpoint is also
         # login-exempt + CORS-open. Sent as ?k= by the bookmarklet; fails closed in prod.
         from modules.acculynx_sync import sync_authed
         if not sync_authed():
@@ -1012,14 +1012,14 @@ def import_leads():
 @bp.route("/intake/ringcentral", methods=["POST", "OPTIONS"])
 def intake_ringcentral():
     """RingCentral telephony / voicemail webhook ("Ping Central" on the build list).
-    Inbound call or voicemail → log a call activity on the matching lead/contact by
+    Inbound call or voicemail â†’ log a call activity on the matching lead/contact by
     phone, or create a new lead (source RingCentral) if the caller is unknown.
 
     Register the webhook URL with ?token=<CRM_INTAKE_TOKEN> appended. RingCentral's
     one-time subscription handshake sends a Validation-Token header that we echo back
     (no auth needed for that ping)."""
     from flask import make_response
-    # 1) Subscription validation handshake — echo the token, 200, done.
+    # 1) Subscription validation handshake â€” echo the token, 200, done.
     vtok = request.headers.get("Validation-Token")
     if vtok:
         resp = make_response("", 200)
@@ -1029,14 +1029,14 @@ def intake_ringcentral():
         return _cors(make_response("", 204))
     auth = _intake_authorized()
     if auth is None:
-        return _cors(jsonify({"ok": False, "error": "intake disabled — set CRM_INTAKE_TOKEN"})), 503
+        return _cors(jsonify({"ok": False, "error": "intake disabled â€” set CRM_INTAKE_TOKEN"})), 503
     if not auth:
         return _cors(jsonify({"ok": False, "error": "bad token"})), 403
     from modules import lead_intake
     payload = request.get_json(force=True, silent=True) or {}
     data = lead_intake.parse_ringcentral(payload)
     if not data:
-        # Non-call event (e.g. message-count ping) — accept so RC doesn't retry.
+        # Non-call event (e.g. message-count ping) â€” accept so RC doesn't retry.
         return _cors(jsonify({"ok": True, "ignored": True}))
     if (data.get("direction") or "Inbound") != "Inbound":
         return _cors(jsonify({"ok": True, "ignored": "outbound"}))
@@ -1062,7 +1062,7 @@ def intake_ringcentral():
 
 
 # ---------------------------------------------------------------------------
-# Gmail → AccuLynx lead sync
+# Gmail â†’ AccuLynx lead sync
 # ---------------------------------------------------------------------------
 
 # Add the last-sync timestamp column to company_settings if it doesn't exist yet.
@@ -1095,7 +1095,7 @@ def gmail_acculynx_sync():
                 break
 
     if not _gmail.account_for_user(uid):
-        flash("Gmail not connected — connect your Gmail in Settings first.", "warn")
+        flash("Gmail not connected â€” connect your Gmail in Settings first.", "warn")
         return redirect(url_for("leads.list_view"))
 
     # Build search query: AccuLynx lead-assigned emails, optionally scoped to since last sync.
@@ -1112,7 +1112,7 @@ def gmail_acculynx_sync():
 
     msgs = _gmail._list_messages(uid, {"q": q, "maxResults": "50"}, limit=50)
     if msgs is None:
-        flash("Gmail search failed — check Gmail connection in Settings.", "warn")
+        flash("Gmail search failed â€” check Gmail connection in Settings.", "warn")
         return redirect(url_for("leads.list_view"))
 
     created_count = skipped_count = 0
@@ -1163,9 +1163,9 @@ def gmail_acculynx_sync():
                     "New lead auto-created from AccuLynx email:\n\n"
                     "Name: %s\nPhone: %s\nEmail: %s\nAddress: %s\nWork type: %s\n\n"
                     "Open in CRM: %s\n\n(Auto-created by Gmail AccuLynx sync)"
-                ) % (data.get("name", "—"), data.get("phone", "—"),
-                     data.get("email", "—"), data.get("address", "—"),
-                     data.get("work_type", "—"), lead_url)
+                ) % (data.get("name", "â€”"), data.get("phone", "â€”"),
+                     data.get("email", "â€”"), data.get("address", "â€”"),
+                     data.get("work_type", "â€”"), lead_url)
                 _gmail.send_message(uid, "dannybivins83@gmail.com",
                                     "New CRM Lead: %s" % data.get("name", "Lead"), body)
             except Exception:
@@ -1176,6 +1176,7 @@ def gmail_acculynx_sync():
     # Update last-sync timestamp so the next run only checks new emails.
     db.save_company({"acculynx_email_last_sync": db.now()})
 
-    flash("AccuLynx email sync complete — %d new lead%s created, %d already existed." % (
+    flash("AccuLynx email sync complete â€” %d new lead%s created, %d already existed." % (
         created_count, "" if created_count == 1 else "s", skipped_count), "ok")
     return redirect(url_for("leads.list_view"))
+
