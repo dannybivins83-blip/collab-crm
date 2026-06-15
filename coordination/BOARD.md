@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-15):** `eb3bc72` on `agent/gc-consolidation`
-- **Last board update:** 2026-06-15 ET — crm-ui: takeoff fully unblocked (5-fix stack: model ID `50c2c49`, CSRF exempt `4f789a4`, JS token `71ac8af`, permanent session `2e43bd6`, job-reuse+reload `1233b3b`). **Launch verdict: SOFT GO** for internal SeaBreeze use. **HOLD** on external tenants pending P2 security close (ROOF_ENGINE_API_KEY in URL, 7 sync endpoints unvalidated) + D16 SMTP + bookmarklet reinstall.
+- **Git tip (verified 2026-06-15):** `a0fccd2` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-15 ET — crm-ui: worksheet 500 fixed (Jinja dict.items + $%,.2f bugs, commit `a0fccd2`). CLAUDE.md stale Vercel-as-live note corrected → Render is live. **Launch verdict: SOFT GO** for internal SeaBreeze use. **HOLD** on external tenants pending: D16 SMTP (Danny sets Render SMTP_FROM/SMTP_PASSWORD) + bookmarklet reinstall + CRM_SYNC_SECRET on Render (sync validation fail-closes w/o it). Security P2s (ROOF_ENGINE_API_KEY in URL ✅`92c61ae`, 7 sync endpoints ✅`a9c0550`) are FIXED.
 
 ---
 

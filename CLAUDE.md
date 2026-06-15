@@ -48,11 +48,11 @@ escalates. Never put secret values in a message.
 - `docs/SESSION_STATE.md` — host/git grounding.
 
 ## Hosts
-- **Render** (`collab-crm`, SQLite on disk) — canonical target; auto-deploys from
-  `agent/gc-consolidation`; `RENDER=true ⇒ IS_PROD`.
-- **Vercel** (Neon) — current live domain `crm.collaborativeconceptsfl.com`; deploys via
-  `vercel --prod` from the local tree. **Set secrets there before any deploy** or sync/ingest 401s.
-- DNS cutover Vercel→Render is the plan; Vercel is the rollback.
+- **Render** (`collab-crm`, SQLite on disk) — **LIVE** (`crm.collaborativeconceptsfl.com` →
+  `collab-crm-bwsl.onrender.com`; DNS cutover confirmed 2026-06-13). Auto-deploys from
+  `agent/gc-consolidation`; `RENDER=true ⇒ IS_PROD`. Push to branch = deploy.
+- **Vercel** (Neon) — **ROLLBACK ONLY** (no longer the live domain). Keep as fallback;
+  don't deploy there routinely.
 
 ## Tech
 Flask + Jinja + vanilla JS; ~40 blueprints in `modules/`; `db.py` dual-engine (SQLite local /
