@@ -46,22 +46,28 @@
   <div class="results">
     {% for l in rows %}
     {% set col = 'var(--danger)' if l._fs.level=='hot' else ('var(--warn)' if l._fs.level=='stalled' else 'var(--ok)') %}
-    <a class="result" href="{{ url_for('leads.detail', lead_id=l.id) }}">
-      <span class="res-badge" style="background:{{ constants.BUCKET_BY_KEY[l._stage.bucket].color }}">{{ constants.BUCKET_BY_KEY[l._stage.bucket].letter }}</span>
-      <div class="res-main">
-        <div class="res-name">{{ l.rid ~ ': ' if l.rid }}{{ l.name }}</div>
-        <div class="res-sub">{% if l.phone %}<span class="telcall" onclick="event.preventDefault();event.stopPropagation();location.href='tel:{{ l.phone }}'">{{ l.phone }}</span>{% endif %}{% if l.address %} · {{ l.address }}{% endif %}</div>
-        <div class="res-sub">{{ l.work_type }}{% if l.source %} · {{ l.source }}{% endif %}{% if l.rep %} · {{ l.rep }}{% endif %}</div>
-        <div class="rankbars" title="Lead Rank — click to set">
-          {% for n in [1,2,3,4] %}<span class="rankbar {{ 'on' if (l.rank or 0) >= n }}" onclick="event.preventDefault();event.stopPropagation();setRank({{ l.id }},{{ n }},this)"></span>{% endfor %}
+    <div style="position:relative">
+      <a class="result" href="{{ url_for('leads.detail', lead_id=l.id) }}">
+        <span class="res-badge" style="background:{{ constants.BUCKET_BY_KEY[l._stage.bucket].color }}">{{ constants.BUCKET_BY_KEY[l._stage.bucket].letter }}</span>
+        <div class="res-main">
+          <div class="res-name">{{ l.rid ~ ': ' if l.rid }}{{ l.name }}</div>
+          <div class="res-sub">{% if l.phone %}<span class="telcall" onclick="event.preventDefault();event.stopPropagation();location.href='tel:{{ l.phone }}'">{{ l.phone }}</span>{% endif %}{% if l.address %} · {{ l.address }}{% endif %}</div>
+          <div class="res-sub">{{ l.work_type }}{% if l.source %} · {{ l.source }}{% endif %}{% if l.rep %} · {{ l.rep }}{% endif %}</div>
+          <div class="rankbars" title="Lead Rank — click to set">
+            {% for n in [1,2,3,4] %}<span class="rankbar {{ 'on' if (l.rank or 0) >= n }}" onclick="event.preventDefault();event.stopPropagation();setRank({{ l.id }},{{ n }},this)"></span>{% endfor %}
+          </div>
         </div>
-      </div>
-      <div class="res-meta">
-        <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ l._stage.name }}</span>
-        <div class="muted" style="margin-top:6px">In status <b>{{ l._fs.days }}d</b></div>
-        {% if l.estimate %}<div class="est">{{ l.estimate }}</div>{% endif %}
-      </div>
-    </a>
+        <div class="res-meta">
+          <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ l._stage.name }}</span>
+          <div class="muted" style="margin-top:6px">In status <b>{{ l._fs.days }}d</b></div>
+          {% if l.estimate %}<div class="est">{{ l.estimate }}</div>{% endif %}
+        </div>
+      </a>
+      <form method="post" action="{{ url_for('leads.delete', lead_id=l.id) }}" style="position:absolute;top:8px;right:8px;margin:0"
+            onsubmit="return confirm('Delete {{ l.name|replace("'","\'") }}?\nThis removes the lead and all its estimates, documents, and activity. Cannot be undone.')">
+        <button type="submit" class="del-lead-btn" title="Delete lead">🗑️</button>
+      </form>
+    </div>
     {% else %}<div class="empty">No leads match.</div>{% endfor %}
   </div>
 </div>

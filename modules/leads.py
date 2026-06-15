@@ -832,7 +832,10 @@ def delete(lead_id):
     db.execute("DELETE FROM activities WHERE entity_type='lead' AND entity_id=?", (lead_id,))
     db.delete("leads", lead_id)
     flash("Lead deleted.", "ok")
-    return redirect(url_for("leads.board"))
+    ref = request.referrer or ""
+    if ref and "/leads/" not in ref:
+        return redirect(ref)
+    return redirect(url_for("leads.list_view"))
 
 
 # ---------------------------------------------------------------------------
