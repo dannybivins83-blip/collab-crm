@@ -42,10 +42,12 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # UI (demo.generator/create/delete) is intentionally NOT public.
           "demo.portal", "demo.design", "demo.design_request",
           "demo.refer_share", "demo.refer_msg",
-          # Token-gated DB-restore: NOT session-auth'd. Its own X-Restore-Token
-          # check is the gate (404 when unarmed/wrong). Must bypass the login
-          # redirect so the gate returns 404, not a 302 to /login.
+          # Token-gated DB-restore + CSV imports: NOT session-auth'd. Their own
+          # X-Restore-Token check is the gate (404 when unarmed/wrong). Must bypass
+          # the login redirect so the gate returns 404, not a 302 to /login.
           "dbadmin.db_restore",
+          "dbadmin.import_job_expenses",
+          "dbadmin.import_workflow_status",
           "sitecam.gallery_link"}
 # Endpoints only admins may hit (prefix match on the path).
 ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow")
@@ -216,7 +218,9 @@ def _get_csrf_token():
 # public portal magic-link routes / the DB-restore which has its own X-Restore-Token gate).
 _CSRF_EXEMPT = PUBLIC | {
     "sync.index",       # sync dashboard page (GET-only in practice)
-    "dbadmin.reconcile_docs",  # token-gated admin tool, supports GET
+    "dbadmin.reconcile_docs",      # token-gated admin tool, supports GET
+    "dbadmin.import_job_expenses", # token-gated CSV import (X-Restore-Token)
+    "dbadmin.import_workflow_status",
     "auth.logout",      # GET link, not a state-changing form
     # Permit API key management — these are session-authenticated but called from the
     # Settings page via JS fetch without a CSRF token in the request body/header.

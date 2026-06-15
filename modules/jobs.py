@@ -191,6 +191,14 @@ def detail(job_id):
     _k = constants.template_for_work_type(j.get("work_type") or "")
     quick_templates = [t for t in db.all_rows("templates", order="name")
                        if constants.template_for_work_type(t.get("work_type") or "") == _k and _k != "blank"]
+    try:
+        job_expenses = db.all_rows("job_expenses", "job_id=?", (job_id,), "payment_date DESC")
+    except Exception:
+        job_expenses = []
+    try:
+        stage_history = db.all_rows("job_stage_history", "job_id=?", (job_id,), "started_at")
+    except Exception:
+        stage_history = []
     return render_template("job_detail.html", j=j, measurement=meas.for_job(job_id),
                            quick_templates=quick_templates,
                            meas_fields=meas.FIELDS,
@@ -201,6 +209,7 @@ def detail(job_id):
                            permits=db.all_rows("permits", "job_id=?", (job_id,)),
                            invoices=db.all_rows("invoices", "job_id=?", (job_id,)),
                            materials=db.all_rows("materials", "job_id=?", (job_id,)),
+                           job_expenses=job_expenses, stage_history=stage_history,
                            draws=constants.DRAW_SCHEDULE, buckets=constants.BUCKETS,
                            cur_bucket=j["_stage"].get("bucket"), next_stage=next_stage,
                            cur_bucket_index=next((i for i, b in enumerate(constants.BUCKETS)

@@ -283,6 +283,25 @@ CREATE TABLE IF NOT EXISTS worksheet_lines (
     qty REAL DEFAULT 0, unit TEXT, unit_cost REAL DEFAULT 0  -- AccuLynx-style breakdown
 );
 
+CREATE TABLE IF NOT EXISTS job_expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER, acculynx_job_name TEXT,
+    payment_date TEXT, payment_type TEXT,
+    amount REAL DEFAULT 0,
+    to_method TEXT, check_ref TEXT,
+    memo TEXT, job_value REAL DEFAULT 0, balance_due REAL DEFAULT 0,
+    account_type TEXT, paid_in_full TEXT, rep TEXT
+);
+
+CREATE TABLE IF NOT EXISTS job_stage_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER, acculynx_job_name TEXT,
+    status_name TEXT, milestone TEXT,
+    started_at TEXT, ended_at TEXT,
+    duration_days INTEGER DEFAULT 0,
+    set_by TEXT, checklist_pct TEXT, checklist_done TEXT
+);
+
 CREATE TABLE IF NOT EXISTS vendors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created TEXT, name TEXT, type TEXT, phone TEXT, email TEXT, address TEXT

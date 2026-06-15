@@ -280,3 +280,108 @@ def reconcile_docs():
                   "deleted_stubs": deleted,
                   "registered_orphans": registered,
                   "already_ok": already_ok})
+
+
+# ---------------------------------------------------------------------------
+# AccuLynx CSV imports — gated by DB_RESTORE_TOKEN (same as db-restore)
+# POST multipart/form-data with field "file" containing the CSV.
+# ---------------------------------------------------------------------------
+
+def _parse_amount(val):
+    try:
+        return float(str(val).replace(",", "").replace("$", "").strip() or 0)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _job_map_cached():
+    """job name → id dict, built once per request."""
+    jobs = db.all_rows("jobs")
+    return {(j.get("name") or "").strip(): j["id"] for j in jobs if j.get("name")}
+
+
+@bp.route("/import-job-expenses", methods=["POST"])
+def import_job_expenses():
+    """Upload AccuLynx Job Expenses CSV and populate job_expenses table.
+
+    curl -X POST https://crm.../admin/import-job-expenses \
+         -H "X-Restore-Token: $DB_RESTORE_TOKEN" \
+         -F "file=@Job_Expenses_Report.csv"
+    """
+    _gate_or_404()
+    import csv, io
+    f = request.files.get("file")
+    if not f:
+        return _json({"ok": False, "error": "no file"}), 400
+    text = f.read().decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(text))
+    job_map = _job_map_cached()
+    db.execute("DELETE FROM job_expenses")
+    added = 0
+    unmatched = 0
+    for row in reader:
+        job_name = (row.get("Job Name") or "").strip()
+        job_id = job_map.get(job_name)
+        if not job_id:
+            unmatched += 1
+        db.insert("job_expenses", {
+            "job_id": job_id,
+            "acculynx_job_name": job_name,
+            "payment_date": (row.get("Payment Date") or "").strip(),
+            "payment_type": (row.get("Payment Type") or "").strip(),
+            "amount": _parse_amount(row.get("Payment Amount")),
+            "to_method": (row.get("To/Method") or "").strip(),
+            "check_ref": (row.get("Check Number/Reference") or "").strip(),
+            "memo": (row.get("Memo/Notes") or "").strip(),
+            "job_value": _parse_amount(row.get("Job Value")),
+            "balance_due": _parse_amount(row.get("Balance Due")),
+            "account_type": (row.get("Account Type") or "").strip(),
+            "paid_in_full": (row.get("Paid in Full") or "").strip(),
+            "rep": (row.get("Company Representative") or "").strip(),
+        })
+        added += 1
+    return _json({"ok": True, "imported": added, "unmatched": unmatched})
+
+
+@bp.route("/import-workflow-status", methods=["POST"])
+def import_workflow_status():
+    """Upload AccuLynx Workflow Status CSV and populate job_stage_history table.
+
+    curl -X POST https://crm.../admin/import-workflow-status \
+         -H "X-Restore-Token: $DB_RESTORE_TOKEN" \
+         -F "file=@Workflow_Status_Report.csv"
+    """
+    _gate_or_404()
+    import csv, io
+    f = request.files.get("file")
+    if not f:
+        return _json({"ok": False, "error": "no file"}), 400
+    text = f.read().decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(text))
+    job_map = _job_map_cached()
+    db.execute("DELETE FROM job_stage_history")
+    added = 0
+    unmatched = 0
+    for row in reader:
+        job_name = (row.get("Job Name") or "").strip()
+        job_id = job_map.get(job_name)
+        if not job_id:
+            unmatched += 1
+        try:
+            dur = int(str(row.get("Status Duration") or "0").strip())
+        except (ValueError, TypeError):
+            dur = 0
+        db.insert("job_stage_history", {
+            "job_id": job_id,
+            "acculynx_job_name": job_name,
+            "status_name": (row.get("Status Name") or "").strip(),
+            "milestone": (row.get("Status Milestone") or "").strip(),
+            "started_at": (row.get("Status Start Date") or "").strip(),
+            "ended_at": (row.get("Status End Date") or "").strip(),
+            "duration_days": dur,
+            "set_by": (row.get("Set By") or "").strip(),
+            "checklist_pct": (row.get("Checklist Percentage Completed") or "").strip(),
+            "checklist_done": (row.get("Checklist Completed") or "").strip(),
+        })
+        added += 1
+    return _json({"ok": True, "imported": added, "unmatched": unmatched})

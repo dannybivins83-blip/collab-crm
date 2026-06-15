@@ -74,6 +74,7 @@ function lcGate(form,pct){
   <a class="jtab" data-tab="photo">Photos <span class="jt-n">{{ photos|length }}</span></a>
   <a class="jtab" data-tab="doc">Documents <span class="jt-n">{{ documents|length }}</span></a>
   <a class="jtab" data-tab="meas">Measurements {% if measurement %}<span class="jt-n">✓</span>{% endif %}</a>
+  <a class="jtab" data-tab="fin">Financials {% if job_expenses %}<span class="jt-n">{{ job_expenses|length }}</span>{% endif %}</a>
   <a class="jtab" data-tab="check">Checklist</a>
 </div>
 
@@ -257,6 +258,78 @@ function lcGate(form,pct){
           <span class="muted" style="margin-left:10px">These feed estimate quantities — open an estimate and click <b>Apply measurements</b>.</span>
         </form>
       </div>
+    </div>
+    <!-- FINANCIALS (AccuLynx Job Expenses + Stage History) -->
+    <div class="tabpane" data-pane="fin" style="display:none">
+      <div class="card">
+        <h2>Job Expenses (AccuLynx)</h2>
+        {% if job_expenses %}
+        <table style="width:100%;font-size:13px;border-collapse:collapse">
+          <thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+            <th style="padding:4px 8px">Date</th>
+            <th style="padding:4px 8px">Type</th>
+            <th style="padding:4px 8px;text-align:right">Amount</th>
+            <th style="padding:4px 8px">To / Method</th>
+            <th style="padding:4px 8px">Ref</th>
+            <th style="padding:4px 8px">Memo</th>
+          </tr></thead>
+          <tbody>
+          {% set ns = namespace(total=0) %}
+          {% for e in job_expenses %}
+          {% set ns.total = ns.total + (e.amount or 0) %}
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:4px 8px;white-space:nowrap">{{ e.payment_date }}</td>
+            <td style="padding:4px 8px">{{ e.payment_type }}</td>
+            <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums">{{ money(e.amount or 0) }}</td>
+            <td style="padding:4px 8px">{{ e.to_method or '—' }}</td>
+            <td style="padding:4px 8px">{{ e.check_ref or '—' }}</td>
+            <td style="padding:4px 8px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ e.memo }}">{{ e.memo or '' }}</td>
+          </tr>
+          {% endfor %}
+          <tr style="font-weight:600;border-top:2px solid var(--border)">
+            <td colspan="2" style="padding:6px 8px">Total</td>
+            <td style="padding:6px 8px;text-align:right">{{ money(ns.total) }}</td>
+            <td colspan="3"></td>
+          </tr>
+          </tbody>
+        </table>
+        <p class="muted" style="margin-top:8px;font-size:12px">
+          Job Value: {{ money(job_expenses[0].job_value or 0) }} &nbsp;·&nbsp;
+          Balance Due: {{ money(job_expenses[0].balance_due or 0) }} &nbsp;·&nbsp;
+          Paid in Full: {{ job_expenses[0].paid_in_full }}
+        </p>
+        {% else %}
+        <p class="muted">No expense records synced from AccuLynx for this job.<br>
+          Run <code>python scripts/import_job_expenses.py</code> on the server to load them.</p>
+        {% endif %}
+      </div>
+      {% if stage_history %}
+      <div class="card" style="margin-top:16px">
+        <h2>Stage History (AccuLynx)</h2>
+        <table style="width:100%;font-size:13px;border-collapse:collapse">
+          <thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+            <th style="padding:4px 8px">Status</th>
+            <th style="padding:4px 8px">Milestone</th>
+            <th style="padding:4px 8px">Started</th>
+            <th style="padding:4px 8px">Ended</th>
+            <th style="padding:4px 8px;text-align:right">Days</th>
+            <th style="padding:4px 8px">Set By</th>
+          </tr></thead>
+          <tbody>
+          {% for s in stage_history %}
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:4px 8px">{{ s.status_name }}</td>
+            <td style="padding:4px 8px"><span class="badge">{{ s.milestone }}</span></td>
+            <td style="padding:4px 8px;white-space:nowrap">{{ s.started_at }}</td>
+            <td style="padding:4px 8px;white-space:nowrap">{{ s.ended_at or 'Active' }}</td>
+            <td style="padding:4px 8px;text-align:right">{{ s.duration_days }}</td>
+            <td style="padding:4px 8px">{{ s.set_by }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
     </div>
     <!-- CHECKLIST -->
     <div class="tabpane" data-pane="check" style="display:none">
