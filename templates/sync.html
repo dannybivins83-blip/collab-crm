@@ -76,9 +76,11 @@
     <tr><td><a id="bmbill" class="btn accent sm" href="#" onclick="return false">💵 AccuLynx Billing → CRM</a></td>
         <td>Same, for the <b>currently open list</b> (scroll-based).</td><td></td></tr>
     <tr><td><a id="bmestws" class="btn accent sm" href="#" onclick="return false">📊 AccuLynx Est+WS → CRM (whole list)</a></td>
-        <td>Each estimate's <b>line items + a cost/profit worksheet</b> for the open list.</td><td></td></tr>
+        <td>Each estimate's <b>line items + a cost/profit worksheet</b> for the open list.</td>
+        <td><button class="btn sm" onclick="_runEstWsOnAccuLynx(0)">▶ Run now (Approved)</button></td></tr>
     <tr><td><a id="bmestws50" class="btn accent sm" href="#" onclick="return false">📊 AccuLynx Est+WS → CRM (first 50)</a></td>
-        <td>Same, capped to the <b>50 most recent</b> (use on Invoiced, sorted newest).</td><td></td></tr>
+        <td>Same, capped to the <b>50 most recent</b> (use on Invoiced, sorted newest).</td>
+        <td><button class="btn sm" onclick="_runEstWsOnAccuLynx(50)">▶ Run now (Approved, 50)</button></td></tr>
     <tr><td><a id="bmestlines" class="btn accent sm" href="#" onclick="return false">🧾 AccuLynx Estimate Lines → CRM</a></td>
         <td>Exact estimate <b>line items</b> only (no worksheet).</td><td></td></tr>
     <tr><td><a id="bmest" class="btn accent sm" href="#" onclick="return false">📝 AccuLynx Estimates → CRM</a></td>
@@ -502,6 +504,14 @@
   }
   document.getElementById('bmestws').href='javascript:('+pullEstWsBM.toString()+')('+JSON.stringify({BASE:BASE,LIMIT:0})+')';
   document.getElementById('bmestws50').href='javascript:('+pullEstWsBM.toString()+')('+JSON.stringify({BASE:BASE,LIMIT:50})+')';
+  // "Run now" stores the RAW (un-encoded) JS in window.name, then navigates to AccuLynx
+  // Approved jobs list. On AccuLynx, inject window.name as a blob script — no URL decoding
+  // needed so Chrome's javascript:-URL normalization bug can't truncate the code.
+  window._runEstWsOnAccuLynx = function(limit) {
+    var raw = '(' + pullEstWsBM.toString() + ')(' + JSON.stringify({BASE:BASE,LIMIT:limit||0}) + ')';
+    window.name = raw;
+    window.location = 'https://my.acculynx.com/jobs/?filters=currentMilestoneList:Approved';
+  };
 })();
 </script>
 <script>
