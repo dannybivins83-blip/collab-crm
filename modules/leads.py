@@ -657,8 +657,9 @@ def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _ru
     os.makedirs(config.DOC_DIR, exist_ok=True)
     file_path = os.path.join(config.DOC_DIR, fn)
     f.save(file_path)
+    doc_id = None
     try:
-        db.insert("documents", {
+        doc_id = db.insert("documents", {
             "lead_id": lead_id, "filename": fn, "original_name": f.filename,
             "category": "Drawing/Plans", "size": os.path.getsize(file_path),
             "created": db.now()})
@@ -672,7 +673,7 @@ def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _ru
     t = _threading.Thread(
         target=_run_takeoff_worker,
         args=(token, file_path, f.filename, lead_id, profile,
-              current_app._get_current_object()),
+              current_app._get_current_object(), doc_id),
         daemon=True)
     t.start()
     return jsonify({"ok": True, "token": token})

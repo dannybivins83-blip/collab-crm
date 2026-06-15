@@ -208,7 +208,7 @@ def _ingest_envelope(env):
             "attachment_ids": [], "warnings": warnings}
 
 
-def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app):
+def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_id=None):
     """Background thread: extract PDF text → AI extraction → ingest envelope."""
 
     def _progress(msg):
@@ -378,6 +378,12 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app):
 
         with app.app_context():
             result = _ingest_envelope(envelope)
+            if doc_id and result.get("job_id"):
+                try:
+                    db.execute("UPDATE documents SET job_id=? WHERE id=?",
+                               (result["job_id"], doc_id))
+                except Exception:
+                    pass
 
         _progress("Done! Job and draft estimate created.")
         with app.app_context():
