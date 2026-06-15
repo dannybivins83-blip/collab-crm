@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-15):** `fbc8b48` on `agent/gc-consolidation`
-- **Last board update:** 2026-06-15 ET — crm-ui: **CSRF+JS takeoff fix** (pending commit): lead_detail.html was reading CSRF token via `document.cookie` which is always empty (HttpOnly cookie invisible to JS). Fixed to `{{ csrf_token }}` (Jinja2). auth.py already has `leads.run_takeoff` in `_CSRF_EXEMPT` (`4f789a4`). Full fix stack: CSRF-exempt (`4f789a4`) + permanent session (`2e43bd6`) + correct token in JS (this commit). Takeoff unblocked. Prior: audit (`9217099`), session UX (`b866e3f`), permanent session + gmail skip (`2e43bd6`).
+- **Git tip (verified 2026-06-15):** `1233b3b` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-15 ET — crm-ui: takeoff fully unblocked (5-fix stack: model ID `50c2c49`, CSRF exempt `4f789a4`, JS token `71ac8af`, permanent session `2e43bd6`, job-reuse+reload `1233b3b`). **Launch verdict: SOFT GO** for internal SeaBreeze use. **HOLD** on external tenants pending P2 security close (ROOF_ENGINE_API_KEY in URL, 7 sync endpoints unvalidated) + D16 SMTP + bookmarklet reinstall.
 
 ---
 
