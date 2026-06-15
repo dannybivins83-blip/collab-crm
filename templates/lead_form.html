@@ -931,7 +931,7 @@ document.querySelectorAll('[name="contact_id"]').forEach(function(s){ showGcBill
     var fd=new FormData(); fd.append('image',pendingFile); fd.append('_csrf', {{ csrf_token|tojson }});
     fetch('/leads/parse-image',{method:'POST',body:fd})
       .then(function(r){
-        return r.json().catch(function(){ return {error:'Server error ('+r.status+') — AI extraction not configured on this host.'}; });
+        return r.json().catch(function(){ return {error:'Server error ('+r.status+') — try a smaller image or try again.'}; });
       })
       .then(function(d){
         scanBtn.disabled=false;
