@@ -47,7 +47,7 @@
     {% for l in rows %}
     {% set col = 'var(--danger)' if l._fs.level=='hot' else ('var(--warn)' if l._fs.level=='stalled' else 'var(--ok)') %}
     <div style="position:relative">
-      <a class="result" href="{{ url_for('leads.detail', lead_id=l.id) }}">
+      <a class="result" href="{{ url_for('leads.detail', lead_id=l.id) }}" style="padding-right:52px">
         <span class="res-badge" style="background:{{ constants.BUCKET_BY_KEY[l._stage.bucket].color }}">{{ constants.BUCKET_BY_KEY[l._stage.bucket].letter }}</span>
         <div class="res-main">
           <div class="res-name">{{ l.rid ~ ': ' if l.rid }}{{ l.name }}</div>
@@ -63,7 +63,7 @@
           {% if l.estimate %}<div class="est">{{ l.estimate }}</div>{% endif %}
         </div>
       </a>
-      <form method="post" action="{{ url_for('leads.delete', lead_id=l.id) }}" style="position:absolute;top:8px;right:8px;margin:0"
+      <form method="post" action="{{ url_for('leads.delete', lead_id=l.id) }}" style="position:absolute;top:50%;right:6px;transform:translateY(-50%);margin:0"
             onsubmit="return confirm('Delete {{ l.name|replace("'","\'") }}?\nThis removes the lead and all its estimates, documents, and activity. Cannot be undone.')">
         <button type="submit" class="del-lead-btn" title="Delete lead">🗑️</button>
       </form>
