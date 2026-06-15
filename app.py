@@ -18,6 +18,8 @@ import config
 import db
 import theme
 
+from datetime import timedelta
+
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024  # 64 MB uploads
@@ -28,6 +30,9 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True  # pick up template edits without a r
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = config.IS_PROD
+# Permanent sessions: cookie carries an explicit 30-day expiry instead of being a
+# browser-session cookie (which Incognito drops aggressively between navigations).
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.jinja_env.auto_reload = True
 
 db.init_db()

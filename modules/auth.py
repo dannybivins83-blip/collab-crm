@@ -74,18 +74,24 @@ def _after_login_redirect(nxt):
     CRM login itself stays identity-only (non-sensitive Google scopes, no app
     review). The restricted gmail.modify consent is triggered ONCE per session so
     the inbox widget is ready without a manual "Connect Gmail" click. A session
-    flag prevents a declined consent from looping."""
+    flag prevents a declined consent from looping.
+
+    When the user was interrupted mid-task (?next= set), skip the Gmail autoprompt
+    and take them directly back — the OAuth round-trip adds friction and can drop
+    the session in Incognito/strict-cookie environments."""
     target = nxt if (nxt or "").startswith("/") else url_for("dashboard.home")
-    try:
-        from modules import gmail
-        if (gmail.configured()
-                and not session.get("gmail_autoprompted")
-                and not gmail.account_for_user(session.get("user_id"))):
-            session["gmail_autoprompted"] = True
-            session["gmail_after"] = target   # where to land after consent
-            return redirect(url_for("gmail.connect"))
-    except Exception:
-        pass
+    # Only autoprompt on plain dashboard landings, not on redirect-back flows
+    if not nxt:
+        try:
+            from modules import gmail
+            if (gmail.configured()
+                    and not session.get("gmail_autoprompted")
+                    and not gmail.account_for_user(session.get("user_id"))):
+                session["gmail_autoprompted"] = True
+                session["gmail_after"] = target
+                return redirect(url_for("gmail.connect"))
+        except Exception:
+            pass
     return redirect(target)
 
 
@@ -99,6 +105,7 @@ def login():
         user = next((u for u in db.all_rows("users")
                      if (u.get("email") or "").lower() == email and u.get("active", 1)), None)
         if user and user.get("password_hash") and check_password_hash(user["password_hash"], pw):
+            session.permanent = True
             session["user_id"] = user["id"]
             session["user_name"] = user["name"]
             session["user_role"] = user.get("role", "sales")
