@@ -342,7 +342,12 @@ function tjRun() {
     if (!r.ok && r.status===503) { btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert('Server not ready — wait ~60 seconds and try again (Render may be restarting).'); return Promise.reject('503'); }
     return r.text().then(t=>{
       try{return JSON.parse(t);}catch(e){
-        if(t.includes('Sign in') || t.includes('/login')){location.href='/login';return Promise.reject('session');}
+        if(t.includes('Sign in') || t.includes('/login')){
+          btn.disabled=false; btn.textContent='Run takeoff ⚡';
+          alert('Your session expired — you will be redirected to sign in. Come back to this lead and try again.');
+          location.href='/login?next='+encodeURIComponent(location.pathname);
+          return Promise.reject('session');
+        }
         btn.disabled=false;btn.textContent='Run takeoff ⚡';alert('Server returned an unexpected response. Wait ~60s and try again (may be restarting).');return Promise.reject('html');
       }
     });
@@ -354,7 +359,7 @@ function tjRun() {
     document.getElementById('tj-result').innerHTML = '';
     _tjPoll = setInterval(()=>tjPoll(d.token, btn), 5000);
     tjPoll(d.token, btn);
-  }).catch(e=>{ btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert('Network error: '+e); });
+  }).catch(e=>{ if(e==='session'||e==='503'||e==='html') return; btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert('Network error: '+e); });
 }
 function tjPoll(token, btn) {
   fetch('/api/takeoff_jobs/'+token)
