@@ -389,12 +389,18 @@ def import_workflow_status():
 
 @bp.route("/link-estimates-to-job", methods=["POST"])
 def link_estimates_to_job():
-    """One-shot: set job_id on estimates that belong to a lead but are missing a job link.
+    """Set job_id on estimates that belong to a lead but are missing a job link.
 
+    Accepts: X-Restore-Token header (token-gated) OR active admin session.
     Body JSON: {"lead_id": N, "job_id": M}
-    Gate: X-Restore-Token header (same as other admin endpoints).
     """
-    _gate_or_404()
+    from flask import session as _sess
+    armed = _restore_token()
+    presented = request.headers.get("X-Restore-Token", "")
+    token_ok = armed and hmac.compare_digest(str(presented), str(armed))
+    admin_ok = _sess.get("user_role") == "admin"
+    if not token_ok and not admin_ok:
+        abort(403)
     data = request.get_json(silent=True) or {}
     lead_id = data.get("lead_id")
     job_id = data.get("job_id")

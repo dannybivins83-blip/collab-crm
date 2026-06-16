@@ -48,7 +48,6 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "dbadmin.db_restore",
           "dbadmin.import_job_expenses",
           "dbadmin.import_workflow_status",
-          "dbadmin.link_estimates_to_job",
           "sitecam.gallery_link"}
 # Endpoints only admins may hit (prefix match on the path).
 ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow")
@@ -222,7 +221,7 @@ _CSRF_EXEMPT = PUBLIC | {
     "dbadmin.reconcile_docs",      # token-gated admin tool, supports GET
     "dbadmin.import_job_expenses", # token-gated CSV import (X-Restore-Token)
     "dbadmin.import_workflow_status",
-    "dbadmin.link_estimates_to_job",
+    "dbadmin.link_estimates_to_job",  # token-gated OR admin session
     "auth.logout",      # GET link, not a state-changing form
     # Permit API key management — these are session-authenticated but called from the
     # Settings page via JS fetch without a CSRF token in the request body/header.
