@@ -388,13 +388,14 @@ function tjPoll(token, btn) {
         btn.disabled = false; btn.textContent = 'Run takeoff ⚡';
         if (d.status==='done') {
           var warn = (d.result&&d.result.warnings&&d.result.warnings.length)
-            ? '<br><span style="color:#856404">⚠ '+d.result.warnings.join(' · ')+'</span>' : '';
+            ? '<br><span style="color:#856404">⚠ '+d.result.warnings.join('<br>⚠ ')+'</span>' : '';
+          var sqMsg = (d.result&&d.result.squares) ? ' <b>'+d.result.squares+' sq</b> recorded.' : '';
           var jobLink = d.job_id ? ' &nbsp;<a href="/jobs/'+d.job_id+'" style="font-size:0.85em">View job →</a>' : '';
           document.getElementById('tj-result').innerHTML =
             '<div style="padding:10px;background:#d4edda;border-radius:6px;margin-top:8px">'+
-            '✅ Takeoff complete! Measurements updated on this lead.'+jobLink+warn+
+            '✅ Plans extracted!'+sqMsg+jobLink+warn+
             '</div>';
-          setTimeout(function(){ location.reload(); }, 1500);
+          setTimeout(function(){ location.reload(); }, 2000);
         } else {
           var err = (d.result&&d.result.error) || 'Takeoff failed';
           document.getElementById('tj-result').innerHTML =

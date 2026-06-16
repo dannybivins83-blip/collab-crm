@@ -322,7 +322,7 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                 fields = block.input or {}
                 break
 
-        _progress("AI extraction complete — building job + estimate…")
+        _progress("AI extraction complete — updating lead…")
 
         rtype = (fields.get("roof_system_type") or lead.get("work_type") or "").lower()
         if "tile" in rtype:
@@ -332,66 +332,99 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
         elif any(x in rtype for x in ("flat", "tpo", "mod", "built")):
             work_type = "Roofing - Flat (TPO)"
         else:
-            work_type = "Roofing - Shingle"
+            work_type = lead.get("work_type") or "Roofing - Shingle"
 
-        heads_up = []
-        if not fields.get("total_sq"):
-            heads_up.append({"severity": "HIGH", "title": "Measurement missing",
-                             "body": "Plans did not contain readable square footage. "
-                                     "Enter measurements manually on the job."})
+        total_sq = fields.get("total_sq")
+        warnings = []
+        if not total_sq:
+            warnings.append("Square footage not found in plans — enter measurements manually. "
+                            "Plans may be image-based (scanned) with no text layer.")
         if not fields.get("wind_speed_mph"):
-            heads_up.append({"severity": "MEDIUM", "title": "Wind speed not found",
-                             "body": "Could not extract wind design speed — defaulted to 170 mph. "
-                                     "Verify against cover sheet."})
-
-        envelope = {
-            "schema_version": "estimator-takeoff/v1",
-            "source": "CRM-Plans-Upload",
-            "idempotency_key": str(uuid.uuid4()),
-            "lead_id": lead_id,
-            "project": {
-                "name": fields.get("project_name") or lead.get("name") or "",
-                "address_line1": fields.get("address_line1") or lead.get("address") or "",
-                "city": fields.get("city") or lead.get("city") or "",
-                "state": fields.get("state") or "FL",
-                "zip": fields.get("zip") or "",
-                "owner_name": fields.get("owner_name") or lead.get("name") or "",
-                "architect_firm": fields.get("architect_firm") or "",
-                "engineer_firm": fields.get("engineer_firm") or "",
-                "plan_set_label": fields.get("plan_set_label") or "",
-                "permit_jurisdiction": lead.get("ahj") or "",
-            },
-            "wind_design": {
-                "wind_speed_mph_ultimate": fields.get("wind_speed_mph") or 170,
-                "asce_version": fields.get("asce_version") or "ASCE 7-22",
-                "risk_category": fields.get("risk_category") or "II",
-                "exposure_category": fields.get("exposure_category") or "C",
-            },
-            "roof_system": {
-                "primary_type": work_type,
-                "predominant_pitch": fields.get("predominant_pitch") or "",
-            },
-            "measurements": ([{
-                "measurement_name": "Extracted from plans",
-                "total_sq": fields["total_sq"],
-                "predominant_pitch": fields.get("predominant_pitch") or "",
-                "steep_slope": {}
-            }] if fields.get("total_sq") else []),
-            "line_items": [],
-            "submittal_components": [],
-            "heads_up_items": heads_up,
-        }
+            warnings.append("Wind speed not found — verify against cover sheet.")
 
         with app.app_context():
-            result = _ingest_envelope(envelope)
-            if doc_id and result.get("job_id"):
+            # Update the lead with non-invasive fields only — never rename or convert.
+            lead_upd = {}
+            if total_sq and not lead.get("area"):
+                lead_upd["area"] = str(total_sq)
+            if work_type and not lead.get("work_type"):
+                lead_upd["work_type"] = work_type
+            if fields.get("architect_firm") and not lead.get("architect_firm"):
+                lead_upd["architect_firm"] = fields["architect_firm"]
+            if fields.get("engineer_firm") and not lead.get("engineer_firm"):
+                lead_upd["engineer_firm"] = fields["engineer_firm"]
+            if lead_upd:
+                db.update("leads", lead_id, **lead_upd)
+
+            # Check if this lead has already been converted to a job.
+            target_job_id = None
+            existing_jobs = db.all_rows("jobs", "lead_id=?", (lead_id,))
+            if existing_jobs:
+                target_job_id = existing_jobs[0]["id"]
+                job_upd = {k: v for k, v in {
+                    "wind_speed_mph": str(fields["wind_speed_mph"]) if fields.get("wind_speed_mph") else "",
+                    "asce_version": fields.get("asce_version") or "",
+                    "risk_category": fields.get("risk_category") or "",
+                    "exposure": fields.get("exposure_category") or "",
+                    "architect_firm": fields.get("architect_firm") or "",
+                    "engineer_firm": fields.get("engineer_firm") or "",
+                    "plan_set_label": fields.get("plan_set_label") or "",
+                }.items() if v}
+                if job_upd:
+                    db.update("jobs", target_job_id, **job_upd)
+                if doc_id:
+                    try:
+                        db.execute("UPDATE documents SET job_id=? WHERE id=?",
+                                   (target_job_id, doc_id))
+                    except Exception:
+                        pass
+
+            # Insert measurement if square footage was found.
+            meas_id = None
+            if total_sq:
+                mdata = {
+                    "source": "Plans Upload",
+                    "squares": total_sq,
+                    "pitch": fields.get("predominant_pitch") or "",
+                    "notes": fields.get("plan_set_label") or file_name,
+                }
+                if target_job_id:
+                    mdata["job_id"] = target_job_id
+                else:
+                    try:
+                        db.execute("ALTER TABLE measurements ADD COLUMN lead_id INTEGER")
+                        db._COLCACHE.clear()
+                    except Exception:
+                        pass
+                    mdata["lead_id"] = lead_id
                 try:
-                    db.execute("UPDATE documents SET job_id=? WHERE id=?",
-                               (result["job_id"], doc_id))
+                    meas_id = db.insert("measurements", mdata)
                 except Exception:
                     pass
 
-        _progress("Done! Job and draft estimate created.")
+            # Activity note on the lead.
+            note_parts = ["Plans uploaded: %s" % (fields.get("plan_set_label") or file_name)]
+            note_parts.append("System: %s" % work_type)
+            if fields.get("wind_speed_mph"):
+                note_parts.append("Wind: %s mph %s" % (
+                    fields["wind_speed_mph"], fields.get("asce_version") or ""))
+            note_parts.append(("%.2f sq" % total_sq) if total_sq else "⚠ sq not found")
+            if warnings:
+                note_parts += warnings
+            db.add_activity("lead", lead_id, "note", " | ".join(note_parts))
+
+            result = {
+                "ok": True,
+                "lead_id": lead_id,
+                "job_id": target_job_id,
+                "measurement_id": meas_id,
+                "squares": total_sq,
+                "work_type": work_type,
+                "warnings": warnings,
+            }
+
+        _progress("Done! Lead updated%s." % (
+            (" · %.2f sq recorded" % total_sq) if total_sq else " · ⚠ sq not found in plans"))
         with app.app_context():
             db.execute(
                 "UPDATE takeoff_jobs SET status='done',result=?,job_id=?,updated=? WHERE token=?",
