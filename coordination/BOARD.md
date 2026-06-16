@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-15):** `eb7cd5c` on `agent/gc-consolidation`
-- **Last board update:** 2026-06-15 ET — crm-ui: D18+D19 built (`eb7cd5c`): job_expenses + job_stage_history tables, Financials tab on job detail, admin CSV import endpoints + push script. Run `python scripts/push_acculynx_reports.py` to load 1,322 expense rows + 1,698 stage-history rows into live Render. **Launch verdict: SOFT GO** for internal SeaBreeze use. **HOLD** on external tenants pending: D16 SMTP (Danny sets Render SMTP_FROM/SMTP_PASSWORD) + bookmarklet reinstall + CRM_SYNC_SECRET on Render.
+- **Git tip (verified 2026-06-16):** `4cf9bef` on `agent/gc-consolidation`
+- **Last board update:** 2026-06-16 ET — crm-ui: Full lead-intake E2E QA completed. 3 bugs found+fixed (`dd77ea1`→`4cf9bef`): (1) duplicate AHJ/system tags in job name on convert, (2) doubled RID prefix in job name, (3) estimate not linked to job on convert (worksheet seed was breaking). All steps verified PASSING: lead form → AHJ resolve → auto-estimate → convert → job name → worksheet seed → permit auto-create → portal → sign-up package → image parse (Claude vision) → voice recording → roof report order. D2 (roof engine key) confirmed already live on Render; engine /reports returns 200. SITECAM_API_KEY_WWS pushed to Render. **HOLD** same as before: D16 SMTP + CRM_SYNC_SECRET + Google OAuth rotation.
 
 ---
 
