@@ -385,3 +385,21 @@ def import_workflow_status():
         })
         added += 1
     return _json({"ok": True, "imported": added, "unmatched": unmatched})
+
+
+@bp.route("/link-estimates-to-job", methods=["POST"])
+def link_estimates_to_job():
+    """One-shot: set job_id on estimates that belong to a lead but are missing a job link.
+
+    Body JSON: {"lead_id": N, "job_id": M}
+    Gate: X-Restore-Token header (same as other admin endpoints).
+    """
+    _gate_or_404()
+    data = request.get_json(silent=True) or {}
+    lead_id = data.get("lead_id")
+    job_id = data.get("job_id")
+    if not lead_id or not job_id:
+        return jsonify(ok=False, error="lead_id and job_id required"), 400
+    db.execute("UPDATE estimates SET job_id=? WHERE lead_id=? AND (job_id IS NULL OR job_id=0)",
+               (job_id, lead_id))
+    return jsonify(ok=True, lead_id=lead_id, job_id=job_id)
