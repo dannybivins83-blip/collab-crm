@@ -408,4 +408,11 @@ def link_estimates_to_job():
         return jsonify(ok=False, error="lead_id and job_id required"), 400
     db.execute("UPDATE estimates SET job_id=? WHERE lead_id=? AND (job_id IS NULL OR job_id=0)",
                (job_id, lead_id))
+    # Also fix any doubled RID prefix in the job name (R-XXXXX: R-XXXXX: Client → R-XXXXX: Client).
+    job = db.get("jobs", job_id)
+    if job:
+        rid = (job.get("rid") or "").strip()
+        name = (job.get("name") or "").strip()
+        if rid and name.startswith(rid + ": "):
+            db.update("jobs", job_id, name=name[len(rid) + 2:])
     return jsonify(ok=True, lead_id=lead_id, job_id=job_id)

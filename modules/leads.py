@@ -780,10 +780,14 @@ def convert(lead_id):
     rid = S.next_job_number()
     # Strip auto-appended AHJ/system/rep tags that compose_job_name added at lead-creation
     # time so they aren't duplicated in the job name (e.g. "Client (LAN) (S) (LAN) (S)").
+    # Strip auto-appended AHJ/system/rep tags that compose_job_name added at lead-creation
+    # time so they aren't duplicated in the job name (e.g. "Client (LAN) (S) (LAN) (S)").
     _raw_client = re.sub(r'(?:\s*\([A-Z0-9]{1,5}\))+\s*$', '', (l.get("name") or "")).strip()
+    # Do NOT pass rid= here — the job_detail template prefixes "{rid}: " itself.
+    # AccuLynx-imported jobs store name without the RID prefix; new jobs should match.
     job_name = S.compose_job_name(
         _raw_client, ahj=l.get("ahj") or "", work_type=l.get("work_type") or "",
-        system=l.get("system") or "", squares=_sq, rep=l.get("rep") or "", rid=rid)
+        system=l.get("system") or "", squares=_sq, rep=l.get("rep") or "")
     job = {
         "contact_id": l.get("contact_id"), "lead_id": lead_id,
         "rid": rid, "name": job_name,
