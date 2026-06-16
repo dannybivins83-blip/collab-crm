@@ -798,6 +798,8 @@ def convert(lead_id):
         "department": l.get("department") or current_department(),
     }
     jid = db.insert("jobs", job)
+    # Carry the lead's estimates to the new job so worksheet seeding can find them.
+    db.execute("UPDATE estimates SET job_id=? WHERE lead_id=?", (jid, lead_id))
     # Auto-create the permit record (pre-filled from the lead's AHJ + roof system).
     from modules import ahj as ahj_mod
     p_ahj = l.get("ahj") or ahj_mod.resolve_ahj(l.get("address", ""), job.get("city", ""), job["county"])
