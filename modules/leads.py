@@ -778,8 +778,11 @@ def convert(lead_id):
     _m = _meas.for_lead(lead_id)
     _sq = (_m or {}).get("squares") or ""
     rid = S.next_job_number()
+    # Strip auto-appended AHJ/system/rep tags that compose_job_name added at lead-creation
+    # time so they aren't duplicated in the job name (e.g. "Client (LAN) (S) (LAN) (S)").
+    _raw_client = re.sub(r'(?:\s*\([A-Z0-9]{1,5}\))+\s*$', '', (l.get("name") or "")).strip()
     job_name = S.compose_job_name(
-        l.get("name"), ahj=l.get("ahj") or "", work_type=l.get("work_type") or "",
+        _raw_client, ahj=l.get("ahj") or "", work_type=l.get("work_type") or "",
         system=l.get("system") or "", squares=_sq, rep=l.get("rep") or "", rid=rid)
     job = {
         "contact_id": l.get("contact_id"), "lead_id": lead_id,
