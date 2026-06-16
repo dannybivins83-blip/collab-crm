@@ -215,7 +215,7 @@ def _ingest_envelope(env):
 
 
 def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_id=None):
-    """Background thread: extract PDF text → AI extraction → ingest envelope."""
+    """Background thread: send PDFs to Claude Vision → extract full measurement set → update lead."""
 
     def _progress(msg):
         try:
@@ -235,90 +235,128 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                        (db.now(), token))
             lead = db.get("leads", lead_id) or {}
 
-        _progress("Reading uploaded file…")
-        text_chunks = []
+        import base64 as _b64
+        import anthropic
+        import config as _config
+
+        _progress("Loading PDF(s)…")
+        content_blocks = []
+        MAX_PDF_BYTES = 25 * 1024 * 1024  # 25 MB per PDF (API limit is 32 MB)
 
         if file_name.lower().endswith(".zip"):
             import zipfile
             try:
-                import pypdf
                 with zipfile.ZipFile(file_path) as zf:
-                    for name in zf.namelist()[:20]:
-                        if name.lower().endswith(".pdf"):
-                            try:
-                                reader = pypdf.PdfReader(io.BytesIO(zf.read(name)))
-                                for page in reader.pages[:10]:
-                                    text_chunks.append(page.extract_text() or "")
-                                _progress("Extracted %s" % name)
-                            except Exception:
-                                pass
+                    all_names = zf.namelist()
             except zipfile.BadZipFile as e:
                 raise ValueError("Not a valid ZIP file: %s" % e)
+            # Prioritise roof-plan sheets; take up to 5 PDFs total
+            def _pdf_rank(n):
+                nl = n.lower()
+                if "roof" in nl:
+                    return 0
+                if "cover" in nl or "sheet" in nl or "index" in nl:
+                    return 1
+                return 2
+            pdf_names = sorted(
+                [n for n in all_names if n.lower().endswith(".pdf")],
+                key=_pdf_rank)[:5]
+            if not pdf_names:
+                raise ValueError("ZIP contains no PDF files.")
+            for pname in pdf_names:
+                with zipfile.ZipFile(file_path) as zf:
+                    pdf_bytes = zf.read(pname)
+                if len(pdf_bytes) > MAX_PDF_BYTES:
+                    _progress("Skipping %s — %dMB exceeds limit" % (
+                        pname, len(pdf_bytes) // 1048576))
+                    continue
+                content_blocks.append({
+                    "type": "document",
+                    "source": {"type": "base64", "media_type": "application/pdf",
+                               "data": _b64.standard_b64encode(pdf_bytes).decode()},
+                    "title": pname,
+                })
+                _progress("Loaded %s (%dKB)" % (pname, len(pdf_bytes) // 1024))
         else:
-            try:
-                import pypdf
-                reader = pypdf.PdfReader(file_path)
-                for page in reader.pages[:20]:
-                    text_chunks.append(page.extract_text() or "")
-                _progress("Extracted %d PDF pages" % len(reader.pages))
-            except Exception as e:
-                raise ValueError("Could not read PDF: %s" % e)
+            with open(file_path, "rb") as fh:
+                pdf_bytes = fh.read()
+            if len(pdf_bytes) > MAX_PDF_BYTES:
+                raise ValueError("PDF too large (%dMB). Max 25MB per file." % (
+                    len(pdf_bytes) // 1048576))
+            content_blocks.append({
+                "type": "document",
+                "source": {"type": "base64", "media_type": "application/pdf",
+                           "data": _b64.standard_b64encode(pdf_bytes).decode()},
+            })
+            _progress("Loaded PDF (%dKB)" % (len(pdf_bytes) // 1024))
 
-        full_text = "\n\n".join(text_chunks)[:40000]
-        if not full_text.strip():
-            raise ValueError(
-                "No text found in upload — may be a scanned/image-only PDF. "
-                "Request a text-layer plan set from the architect.")
+        if not content_blocks:
+            raise ValueError("No readable PDFs found in the upload (all exceeded size limit).")
 
-        _progress("AI extracting project data…")
+        content_blocks.append({
+            "type": "text",
+            "text": (
+                "You are a roofing estimator reading a plan set or measurement report.\n"
+                "Lead: name=%(name)s  address=%(addr)s  work_type=%(wt)s\n\n"
+                "Extract every roof measurement from these documents.\n"
+                "Look for: Roof Plan sheet, Measurement Summary, Take-Off Summary, "
+                "Area Schedule, Roof Framing Plan, or any table with ridge/hip/valley/rake/eave LF.\n\n"
+                "UNIT RULES:\n"
+                "- Squares = 100 sq ft. If document shows sq ft, divide by 100.\n"
+                "- If document shows squares directly, use as-is.\n"
+                "- Linear feet (LF) for ridge, hip, valley, rake, eave, flashing.\n"
+                "- If a value is shown in a table or dimension callout, use it even if approximate.\n"
+                "- Leave a field null only if genuinely absent — do not guess."
+            ) % {"name": lead.get("name",""), "addr": lead.get("address",""),
+                 "wt": lead.get("work_type","")}
+        })
 
-        import anthropic
-        import config as _config
+        _progress("Sending to Claude Vision for measurement extraction…")
+
         client = anthropic.Anthropic(api_key=_config.ANTHROPIC_API_KEY or None)
         resp = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1500,
+            model="claude-sonnet-4-6",
+            max_tokens=2000,
             tools=[{
-                "name": "extract_takeoff",
-                "description": "Extract roof project fields from construction plan documents",
+                "name": "extract_roof_measurements",
+                "description": "Extract complete roof measurement set from plan documents",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "project_name": {"type": "string"},
-                        "address_line1": {"type": "string"},
-                        "city": {"type": "string"},
-                        "state": {"type": "string"},
-                        "zip": {"type": "string"},
-                        "owner_name": {"type": "string"},
-                        "architect_firm": {"type": "string"},
-                        "engineer_firm": {"type": "string"},
-                        "roof_system_type": {"type": "string",
-                                             "description": "e.g. Shingle, Tile, Metal, Flat/TPO"},
+                        "total_sq":      {"type": "number", "description": "Steep-slope area in SQUARES (sq ft ÷ 100)"},
+                        "flat_sq":       {"type": "number", "description": "Flat/low-slope area in squares"},
+                        "ridge_lf":      {"type": "number", "description": "Ridge in linear feet"},
+                        "hip_lf":        {"type": "number", "description": "Hip edges in linear feet"},
+                        "valley_lf":     {"type": "number", "description": "Valleys in linear feet"},
+                        "rake_lf":       {"type": "number", "description": "Rake edges in linear feet"},
+                        "eave_lf":       {"type": "number", "description": "Eaves / drip edge in linear feet"},
+                        "step_flash_lf": {"type": "number", "description": "Step flashing in linear feet"},
                         "predominant_pitch": {"type": "string", "description": "e.g. 4:12"},
-                        "total_sq": {"type": "number",
-                                     "description": "Total roof area in squares (100 sq ft each)"},
-                        "wind_speed_mph": {"type": "number",
-                                           "description": "Ultimate design wind speed (mph)"},
-                        "asce_version": {"type": "string", "description": "e.g. ASCE 7-22"},
+                        "roof_system_type":  {"type": "string", "description": "Shingle / Tile / Metal / Flat/TPO"},
+                        "project_name":  {"type": "string"},
+                        "address_line1": {"type": "string"},
+                        "city":          {"type": "string"},
+                        "state":         {"type": "string"},
+                        "zip":           {"type": "string"},
+                        "owner_name":    {"type": "string"},
+                        "architect_firm":{"type": "string"},
+                        "engineer_firm": {"type": "string"},
+                        "wind_speed_mph":{"type": "number", "description": "Ultimate design wind speed mph"},
+                        "asce_version":  {"type": "string", "description": "e.g. ASCE 7-22"},
                         "risk_category": {"type": "string", "description": "e.g. II"},
                         "exposure_category": {"type": "string", "description": "e.g. C"},
-                        "plan_set_label": {"type": "string",
-                                           "description": "Sheet set / revision label"}
+                        "plan_set_label":{"type": "string"},
                     },
                     "required": []
                 }
             }],
-            tool_choice={"type": "tool", "name": "extract_takeoff"},
-            messages=[{"role": "user", "content": (
-                "Extract all project and roof data from these construction plans.\n"
-                "Lead context: name=%s  address=%s  work_type=%s\n\nPLAN TEXT:\n%s"
-            ) % (lead.get("name", ""), lead.get("address", ""),
-                 lead.get("work_type", ""), full_text)}]
+            tool_choice={"type": "tool", "name": "extract_roof_measurements"},
+            messages=[{"role": "user", "content": content_blocks}]
         )
 
         fields = {}
         for block in resp.content:
-            if block.type == "tool_use" and block.name == "extract_takeoff":
+            if block.type == "tool_use" and block.name == "extract_roof_measurements":
                 fields = block.input or {}
                 break
 
@@ -379,14 +417,21 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                     except Exception:
                         pass
 
-            # Insert measurement if square footage was found.
+            # Insert measurement row with all extracted LF values.
             meas_id = None
-            if total_sq:
+            if total_sq or any(fields.get(k) for k in (
+                    "ridge_lf","hip_lf","valley_lf","rake_lf","eave_lf","step_flash_lf")):
                 mdata = {
                     "source": "Plans Upload",
-                    "squares": total_sq,
+                    "squares": total_sq or 0,
                     "pitch": fields.get("predominant_pitch") or "",
                     "notes": fields.get("plan_set_label") or file_name,
+                    "ridge_lf":      fields.get("ridge_lf") or 0,
+                    "hip_lf":        fields.get("hip_lf") or 0,
+                    "valley_lf":     fields.get("valley_lf") or 0,
+                    "rake_lf":       fields.get("rake_lf") or 0,
+                    "eave_lf":       fields.get("eave_lf") or 0,
+                    "step_flash_lf": fields.get("step_flash_lf") or 0,
                 }
                 if target_job_id:
                     mdata["job_id"] = target_job_id
@@ -408,23 +453,40 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
             if fields.get("wind_speed_mph"):
                 note_parts.append("Wind: %s mph %s" % (
                     fields["wind_speed_mph"], fields.get("asce_version") or ""))
-            note_parts.append(("%.2f sq" % total_sq) if total_sq else "⚠ sq not found")
+            meas_summary = []
+            if total_sq:
+                meas_summary.append("%.2f sq" % total_sq)
+            for lbl, key in [("ridge","ridge_lf"),("hip","hip_lf"),("valley","valley_lf"),
+                              ("rake","rake_lf"),("eave","eave_lf"),("step flash","step_flash_lf")]:
+                if fields.get(key):
+                    meas_summary.append("%s %.0f LF" % (lbl, fields[key]))
+            if meas_summary:
+                note_parts.append(" · ".join(meas_summary))
+            else:
+                note_parts.append("⚠ no measurements found")
             if warnings:
                 note_parts += warnings
             db.add_activity("lead", lead_id, "note", " | ".join(note_parts))
 
+            lf_summary = {k: fields.get(k) for k in
+                          ("ridge_lf","hip_lf","valley_lf","rake_lf","eave_lf","step_flash_lf")
+                          if fields.get(k)}
             result = {
                 "ok": True,
                 "lead_id": lead_id,
                 "job_id": target_job_id,
                 "measurement_id": meas_id,
                 "squares": total_sq,
+                "lf": lf_summary,
                 "work_type": work_type,
                 "warnings": warnings,
             }
 
-        _progress("Done! Lead updated%s." % (
-            (" · %.2f sq recorded" % total_sq) if total_sq else " · ⚠ sq not found in plans"))
+        meas_line = ("%.2f sq" % total_sq) if total_sq else "⚠ sq not found"
+        if lf_summary:
+            meas_line += " · " + " · ".join(
+                "%s %.0fLF" % (k.replace("_lf",""), v) for k, v in lf_summary.items())
+        _progress("Done! %s" % meas_line)
         with app.app_context():
             db.execute(
                 "UPDATE takeoff_jobs SET status='done',result=?,job_id=?,updated=? WHERE token=?",

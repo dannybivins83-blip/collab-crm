@@ -389,11 +389,17 @@ function tjPoll(token, btn) {
         if (d.status==='done') {
           var warn = (d.result&&d.result.warnings&&d.result.warnings.length)
             ? '<br><span style="color:#856404">⚠ '+d.result.warnings.join('<br>⚠ ')+'</span>' : '';
-          var sqMsg = (d.result&&d.result.squares) ? ' <b>'+d.result.squares+' sq</b> recorded.' : '';
+          var r = d.result || {};
+          var sqMsg = r.squares ? ' <b>'+r.squares.toFixed(2)+' sq</b>' : '';
+          var lf = r.lf || {};
+          var lfParts = [];
+          var lfLabels = {ridge_lf:'ridge',hip_lf:'hip',valley_lf:'valley',rake_lf:'rake',eave_lf:'eave',step_flash_lf:'step flash'};
+          Object.keys(lfLabels).forEach(function(k){ if(lf[k]) lfParts.push('<b>'+Math.round(lf[k])+'</b> '+lfLabels[k]+' LF'); });
+          var lfMsg = lfParts.length ? '<br><span style="font-size:0.9em">'+lfParts.join(' · ')+'</span>' : '';
           var jobLink = d.job_id ? ' &nbsp;<a href="/jobs/'+d.job_id+'" style="font-size:0.85em">View job →</a>' : '';
           document.getElementById('tj-result').innerHTML =
             '<div style="padding:10px;background:#d4edda;border-radius:6px;margin-top:8px">'+
-            '✅ Plans extracted!'+sqMsg+jobLink+warn+
+            '✅ Plans extracted!'+sqMsg+jobLink+lfMsg+warn+
             '</div>';
           setTimeout(function(){ location.reload(); }, 2000);
         } else {
