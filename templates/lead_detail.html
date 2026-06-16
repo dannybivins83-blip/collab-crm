@@ -324,7 +324,7 @@ document.querySelectorAll('.jtab').forEach(t=>t.onclick=()=>{
 });
 
 // Plans / async takeoff
-var _tjPoll = null;
+var _tjPoll = null, _tjPollCount = 0;
 function tjRun() {
   var file = document.getElementById('tj-file').files[0];
   if (!file) { alert('Pick a PDF or ZIP first.'); return; }
@@ -357,11 +357,28 @@ function tjRun() {
     document.getElementById('tj-status-row').style.display = '';
     document.getElementById('tj-status').textContent = 'queued';
     document.getElementById('tj-result').innerHTML = '';
+    _tjPollCount = 0;
     _tjPoll = setInterval(()=>tjPoll(d.token, btn), 5000);
     tjPoll(d.token, btn);
   }).catch(e=>{ if(e==='session'||e==='503'||e==='html') return; btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert('Network error: '+e); });
 }
+function tjRetry(token, btn) {
+  btn.disabled = true; btn.textContent = 'Retrying…';
+  document.getElementById('tj-result').innerHTML = '';
+  fetch('/leads/{{ l.id }}/takeoff/'+token+'/retry', {
+    method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}
+  }).then(r=>r.json()).then(d=>{
+    if (!d.ok) { btn.disabled=false; btn.textContent='Run takeoff ⚡'; alert(d.error||'Retry failed'); return; }
+    btn.textContent = 'Running…';
+    document.getElementById('tj-status').textContent = 'queued';
+    _tjPollCount = 0;
+    clearInterval(_tjPoll);
+    _tjPoll = setInterval(()=>tjPoll(d.token, btn), 5000);
+    tjPoll(d.token, btn);
+  }).catch(()=>{ btn.disabled=false; btn.textContent='Run takeoff ⚡'; });
+}
 function tjPoll(token, btn) {
+  _tjPollCount++;
   fetch('/api/takeoff_jobs/'+token)
     .then(r=>r.json()).then(d=>{
       document.getElementById('tj-status').textContent = d.status;
@@ -377,13 +394,21 @@ function tjPoll(token, btn) {
             '<div style="padding:10px;background:#d4edda;border-radius:6px;margin-top:8px">'+
             '✅ Takeoff complete! Measurements updated on this lead.'+jobLink+warn+
             '</div>';
-          // Reload the current lead page so Measurements tab shows updated data
           setTimeout(function(){ location.reload(); }, 1500);
         } else {
           var err = (d.result&&d.result.error) || 'Takeoff failed';
           document.getElementById('tj-result').innerHTML =
             '<div style="padding:10px;background:#f8d7da;border-radius:6px;margin-top:8px">❌ '+err+'</div>';
         }
+      } else if (_tjPollCount >= 48) {
+        // ~4 minutes with no completion — server likely restarted mid-job
+        clearInterval(_tjPoll);
+        btn.disabled = false; btn.textContent = 'Run takeoff ⚡';
+        document.getElementById('tj-result').innerHTML =
+          '<div style="padding:10px;background:#fff3cd;border-radius:6px;margin-top:8px">'+
+          '⚠ Server restarted mid-job (Render redeploy). Your file is saved — '+
+          '<button onclick="tjRetry(\''+token+'\',document.getElementById(\'tj-run\'))" style="cursor:pointer;font-weight:600;border:none;background:none;color:var(--accent);text-decoration:underline;padding:0">click here to retry</button>'+
+          ' without re-uploading.</div>';
       }
     }).catch(()=>{});
 }

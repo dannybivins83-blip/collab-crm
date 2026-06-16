@@ -72,8 +72,14 @@ try:
         status TEXT DEFAULT 'queued',
         progress TEXT,
         result TEXT,
+        file_path TEXT,
         created TEXT,
         updated TEXT)""")
+except Exception:
+    pass
+# file_path column (added for retry-without-reupload support).
+try:
+    db.execute("ALTER TABLE takeoff_jobs ADD COLUMN file_path TEXT")
 except Exception:
     pass
 # Sticky profile selection on leads.

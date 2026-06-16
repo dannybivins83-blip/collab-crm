@@ -667,9 +667,9 @@ def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _ru
         pass
     token = str(_uuid.uuid4())
     db.execute(
-        "INSERT INTO takeoff_jobs (token,lead_id,profile,status,progress,created,updated) "
-        "VALUES (?,?,?,?,?,?,?)",
-        (token, lead_id, profile, "queued", "Queued...", db.now(), db.now()))
+        "INSERT INTO takeoff_jobs (token,lead_id,profile,status,progress,file_path,created,updated) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        (token, lead_id, profile, "queued", "Queued...", file_path, db.now(), db.now()))
     t = _threading.Thread(
         target=_run_takeoff_worker,
         args=(token, file_path, f.filename, lead_id, profile,
@@ -677,6 +677,36 @@ def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _ru
         daemon=True)
     t.start()
     return jsonify({"ok": True, "token": token})
+
+
+@bp.route("/<int:lead_id>/takeoff/<token>/retry", methods=["POST"])
+def retry_takeoff(lead_id, token):
+    """Re-spawn a stuck/killed takeoff job using the already-saved file."""
+    import uuid as _uuid, threading as _threading
+    from flask import current_app
+    try:
+        from modules.takeoff import _run_takeoff_worker
+    except Exception as _ie:
+        return jsonify({"ok": False, "error": "Takeoff module unavailable: %s" % _ie}), 503
+    old = (db.all_rows("takeoff_jobs", "token=? AND lead_id=?", (token, lead_id)) or [None])[0]
+    if not old:
+        return jsonify({"ok": False, "error": "Job not found"}), 404
+    file_path = old.get("file_path") or ""
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({"ok": False, "error": "Uploaded file no longer on disk — please re-upload"}), 400
+    profile = old.get("profile") or "seabreeze"
+    new_token = str(_uuid.uuid4())
+    db.execute(
+        "INSERT INTO takeoff_jobs (token,lead_id,profile,status,progress,file_path,created,updated) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        (new_token, lead_id, profile, "queued", "Queued...", file_path, db.now(), db.now()))
+    t = _threading.Thread(
+        target=_run_takeoff_worker,
+        args=(new_token, file_path, os.path.basename(file_path), lead_id, profile,
+              current_app._get_current_object(), None),
+        daemon=True)
+    t.start()
+    return jsonify({"ok": True, "token": new_token})
 
 
 @bp.route("/<int:lead_id>/send-portal-invite", methods=["POST"])

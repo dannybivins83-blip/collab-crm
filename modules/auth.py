@@ -230,6 +230,7 @@ _CSRF_EXEMPT = PUBLIC | {
     "permit_api.revoke_key",
     # File-upload endpoints — protected by session auth + SameSite=Lax; no form _csrf field.
     "leads.run_takeoff",
+    "leads.retry_takeoff",
     "leads.parse_image",
 }
 
