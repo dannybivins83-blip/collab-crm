@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-19):** `309872c` on `agent/gc-consolidation` · `main` still at `17a9ad0`
-- **Last board update:** 2026-06-19 ET — crm-ui: **Stress-test bug fixes deployed** (`309872c`). Fixed: 404 on invalid job/estimate/lead/roof-report IDs (was 200+flash-storm); brute-force login guard (5 attempts/60s); `/dashboard` → `/` redirect alias; `/reports/system-map` owner-flag re-seed. Deployed to Render via `agent/gc-consolidation` push.
+- **Git tip (verified 2026-06-19):** `4b573f2` on `agent/gc-consolidation` · `main` still at `17a9ad0`
+- **Last board update:** 2026-06-19 ET — crm-ui: **7-wave security/perf audit sweep** (`ed29403`→`4b573f2`). Wave 1-2 (prior session): auth fix, dbadmin NameError, QuickBooks CSRF, portal upload allowlist, XSS fixes, security headers, error pages, CSRF on drag-drop, mobile viewport. Wave 3: IDOR ownership guards on leads (14 routes), jobs (9 routes), estimates (6 routes), orders (6 routes). Wave 4: dashboard N+1 eliminated (batch name lookup + throttled overdue sweep), portal /learn N+1 fixed (5-min TTL cache). Wave 5: uploads path traversal guard, invoice double-pay guard, lead.convert idempotency. Wave 6: pipeline board department scoping, leads.new silent failure logging. Wave 7: contacts search LOWER() for Postgres case-insensitivity.
 
 ---
 
