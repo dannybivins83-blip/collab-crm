@@ -42,6 +42,22 @@ app.config["SESSION_COOKIE_SECURE"] = config.IS_PROD
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.jinja_env.auto_reload = True
 
+# Emergency disk guard: if upload files were not deleted after Drive mirroring
+# (now fixed), the persistent disk fills and sqlite3 raises a disk I/O error on
+# startup.  This runs BEFORE init_db() so we can delete local upload copies
+# (Drive is authoritative; db rows carry drive_id) and give SQLite room to write.
+try:
+    import shutil as _su, glob as _gl
+    if _su.disk_usage(config.UPLOAD_DIR).free < 200 * 1024 * 1024:
+        for _ud in (config.DOC_DIR, config.MEAS_DIR, config.PHOTO_DIR,
+                    config.ESTIMATE_PDF_DIR, config.PERMIT_DIR):
+            for _fp in _gl.glob(os.path.join(_ud, "**", "*"), recursive=True):
+                if os.path.isfile(_fp):
+                    try: os.remove(_fp)
+                    except Exception: pass
+except Exception:
+    pass
+
 db.init_db()
 theme.register(app)
 
