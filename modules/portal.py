@@ -882,6 +882,22 @@ def _doc_servable(d, folder):
     return _servable("%s/%s" % (folder, d.get("filename") or ""))
 
 
+@bp.route("/invite/<token>")
+def invite(token):
+    """Alias: legacy invite-link format /portal/invite/<token> → redirect to home."""
+    return redirect(url_for("portal.home", token=token), 301)
+
+
+@bp.route("/login")
+@bp.route("/login/<token>")
+def portal_login(token=None):
+    """Alias: /portal/login[/<token>] → redirect to portal home (or main login).
+    Invite emails that used /portal/login/... still land on the correct portal."""
+    if token:
+        return redirect(url_for("portal.home", token=token), 301)
+    return redirect(url_for("auth.login"), 302)
+
+
 @bp.route("/<token>")
 def home(token):
     j = _job_by_token(token)
