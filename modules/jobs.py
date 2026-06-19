@@ -357,24 +357,43 @@ def note(job_id):
 @bp.route("/<int:job_id>/delete", methods=["POST"])
 def delete(job_id):
     # Cascade-delete child records to prevent FK orphans.
-    for eid in [r["id"] for r in db.all_rows("estimates", "job_id=?", (job_id,))]:
-        db.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (eid,))
-        db.execute("DELETE FROM estimate_lines WHERE estimate_id=?", (eid,))
-    db.execute("DELETE FROM estimates WHERE job_id=?", (job_id,))
-    for wsid in [r["id"] for r in db.all_rows("worksheets", "job_id=?", (job_id,))]:
-        db.execute("DELETE FROM worksheet_lines WHERE worksheet_id=?", (wsid,))
-    db.execute("DELETE FROM worksheets WHERE job_id=?", (job_id,))
-    for oid in [r["id"] for r in db.all_rows("orders", "job_id=?", (job_id,))]:
-        db.execute("DELETE FROM order_lines WHERE order_id=?", (oid,))
-    db.execute("DELETE FROM orders WHERE job_id=?", (job_id,))
-    db.execute("DELETE FROM permits WHERE job_id=?", (job_id,))
-    db.execute("DELETE FROM invoices WHERE job_id=?", (job_id,))
-    db.execute("DELETE FROM materials WHERE job_id=?", (job_id,))
-    db.execute("DELETE FROM measurements WHERE job_id=?", (job_id,))
-    db.execute("DELETE FROM documents WHERE job_id=?", (job_id,))
-    db.execute("DELETE FROM photos WHERE job_id=?", (job_id,))
-    db.execute("DELETE FROM appointments WHERE job_id=?", (job_id,))
-    db.execute("DELETE FROM activities WHERE entity_type='job' AND entity_id=?", (job_id,))
-    db.delete("jobs", job_id)
+    # All deletes run in a single BEGIN IMMEDIATE transaction to prevent partial
+    # deletes leaving orphan rows if the process is interrupted mid-way.
+    import sqlite3
+    conn = sqlite3.connect(db.DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        eids = [r["id"] for r in conn.execute(
+            "SELECT id FROM estimates WHERE job_id=?", (job_id,)).fetchall()]
+        for eid in eids:
+            conn.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (eid,))
+            conn.execute("DELETE FROM estimate_lines WHERE estimate_id=?", (eid,))
+        conn.execute("DELETE FROM estimates WHERE job_id=?", (job_id,))
+        wsids = [r["id"] for r in conn.execute(
+            "SELECT id FROM worksheets WHERE job_id=?", (job_id,)).fetchall()]
+        for wsid in wsids:
+            conn.execute("DELETE FROM worksheet_lines WHERE worksheet_id=?", (wsid,))
+        conn.execute("DELETE FROM worksheets WHERE job_id=?", (job_id,))
+        oids = [r["id"] for r in conn.execute(
+            "SELECT id FROM orders WHERE job_id=?", (job_id,)).fetchall()]
+        for oid in oids:
+            conn.execute("DELETE FROM order_lines WHERE order_id=?", (oid,))
+        conn.execute("DELETE FROM orders WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM permits WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM invoices WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM materials WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM measurements WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM documents WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM photos WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM appointments WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM activities WHERE entity_type='job' AND entity_id=?", (job_id,))
+        conn.execute("DELETE FROM jobs WHERE id=?", (job_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     flash("Job deleted.", "ok")
     return redirect(url_for("jobs.board"))

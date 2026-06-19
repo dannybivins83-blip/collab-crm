@@ -558,15 +558,29 @@ def compose_job_name(client, ahj="", work_type="", system="", squares="",
 
 
 def next_job_number(year=None):
-    """Next R-YY### number, continuing the highest existing sequence for the year."""
-    import db
-    yy = (str(year) if year else db.today()[:4])[-2:]
-    hi = 0
-    for j in db.all_rows("jobs"):
-        m = re.match(r"\s*R-?%s(\d{2,})" % re.escape(yy), (j.get("rid") or "") + " " + (j.get("name") or ""))
-        if m:
-            hi = max(hi, int(m.group(1)))
-    return "R-%s%03d" % (yy, hi + 1)
+    """Next R-YY### number, continuing the highest existing sequence for the year.
+    Wrapped in BEGIN IMMEDIATE to prevent duplicate RIDs under concurrent inserts."""
+    import sqlite3
+    import db as _db
+    yy = (str(year) if year else _db.today()[:4])[-2:]
+    conn = sqlite3.connect(_db.DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        hi = 0
+        for j in conn.execute("SELECT rid, name FROM jobs").fetchall():
+            m = re.match(r"\s*R-?%s(\d{2,})" % re.escape(yy),
+                         (j["rid"] or "") + " " + (j["name"] or ""))
+            if m:
+                hi = max(hi, int(m.group(1)))
+        nxt = "R-%s%03d" % (yy, hi + 1)
+        conn.commit()
+        return nxt
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def run_sync(deep=False, batch=50):

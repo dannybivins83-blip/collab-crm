@@ -63,15 +63,28 @@ def _draws(total):
 
 def _next_number():
     # Highest existing EST- number + 1 (not the row id) so deletes can't collide.
-    mx = 0
-    for r in db.all_rows("estimates"):
-        n = (r.get("number") or "")
-        if n.startswith("EST-"):
-            try:
-                mx = max(mx, int(n[4:]))
-            except Exception:
-                pass
-    return "EST-%04d" % (mx + 1)
+    # Wrapped in BEGIN IMMEDIATE to prevent duplicate numbers under concurrent inserts.
+    import sqlite3
+    conn = sqlite3.connect(db.DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        mx = 0
+        for r in conn.execute("SELECT number FROM estimates").fetchall():
+            n = (r["number"] or "")
+            if n.startswith("EST-"):
+                try:
+                    mx = max(mx, int(n[4:]))
+                except Exception:
+                    pass
+        nxt = "EST-%04d" % (mx + 1)
+        conn.commit()
+        return nxt
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 # ---- routes ---------------------------------------------------------------
