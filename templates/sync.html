@@ -763,8 +763,6 @@
     })();
   }
   document.getElementById('bmorders').href='javascript:('+pullOrdersBM.toString()+')('+JSON.stringify({BASE:BASE,KEY:{{ (sync_key or '')|tojson }}})+')';
-})();
-</script>
   // ⭐ Combined: billing + estimates + comms per job, one click.
   function pullAll(cfg){
     (async function(){
