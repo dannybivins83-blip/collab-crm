@@ -3,7 +3,7 @@
 import os
 import re
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, session, abort
 
 import config
 import db
@@ -484,7 +484,7 @@ def parse_image():
 def detail(lead_id):
     l = db.get("leads", lead_id)
     if not l:
-        return redirect(url_for("leads.board"))
+        abort(404)
     _decorate(l)
     from modules import measurements as meas
     # Quick Estimate is scoped to THIS client's system (the work type tagged at lead

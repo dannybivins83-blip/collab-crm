@@ -19,7 +19,7 @@ import ssl
 import urllib.request
 
 from flask import (Blueprint, render_template, request, redirect, url_for,
-                   flash, jsonify, Response)
+                   flash, jsonify, Response, abort)
 
 import db
 
@@ -126,7 +126,7 @@ def new():
 def detail(report_id):
     rr = db.get("roof_reports", report_id)
     if not rr:
-        return redirect(url_for("roof_reports.index"))
+        abort(404)
     rr["result"] = json.loads(rr.get("api_result") or "{}")
     # Keyless link: the engine API key must NOT reach the browser, so the
     # "Trace from plans" link points at a CRM route that redirects server-side.

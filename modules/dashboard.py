@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Dashboard — AccuLynx-style Current Pipeline (L/P/A/C/I) + activity feed."""
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, redirect, url_for
 
 import db
 import theme
@@ -13,6 +13,11 @@ def _bucket_of(kind, stage):
     if kind == "lead":
         return constants.lead_stage(stage).get("bucket")
     return constants.job_stage(stage).get("bucket")
+
+
+@bp.route("/dashboard")
+def dashboard_alias():
+    return redirect(url_for("dashboard.home"), 301)
 
 
 @bp.route("/")

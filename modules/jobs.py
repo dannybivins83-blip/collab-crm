@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Jobs / production pipeline — board, detail, checklists, draw schedule, payments."""
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
 
 import db
 import theme
@@ -173,7 +173,7 @@ def _prefill_from_gc():
 def detail(job_id):
     j = db.get("jobs", job_id)
     if not j:
-        return redirect(url_for("jobs.board"))
+        abort(404)
     _decorate(j)
     # Auto-materialize the worksheet from the estimate so Profit Analysis fills in without
     # opening the worksheet + clicking Seed. Only when an estimate with line items exists
@@ -221,7 +221,7 @@ def detail(job_id):
 def edit(job_id):
     j = db.get("jobs", job_id)
     if not j:
-        return redirect(url_for("jobs.board"))
+        abort(404)
     if request.method == "POST":
         data = {f: request.form.get(f, "").strip() for f in EDITABLE}
         db.update("jobs", job_id, **data)

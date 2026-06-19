@@ -35,6 +35,7 @@ _ensure_owner_flag()
 
 def _require_owner():
     from modules.auth import current_user
+    _ensure_owner_flag()  # re-seed if column missing or nobody flagged yet
     u = current_user()
     if not (u and u.get("is_owner")):
         abort(403)

@@ -10,9 +10,29 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 import os
 import secrets
+import time
 import db
 
 bp = Blueprint("auth", __name__)
+
+# Brute-force protection: max 5 failed attempts per IP in a 60-second window.
+_login_attempts: dict = {}  # ip -> [timestamp, ...]
+_MAX_ATTEMPTS = 5
+_WINDOW_SECS = 60
+
+
+def _is_rate_limited(ip: str) -> bool:
+    now = time.monotonic()
+    hits = [t for t in _login_attempts.get(ip, []) if now - t < _WINDOW_SECS]
+    _login_attempts[ip] = hits
+    return len(hits) >= _MAX_ATTEMPTS
+
+
+def _record_failure(ip: str) -> None:
+    now = time.monotonic()
+    hits = [t for t in _login_attempts.get(ip, []) if now - t < _WINDOW_SECS]
+    hits.append(now)
+    _login_attempts[ip] = hits
 
 # Seed/default password. Override in production via the CRM_DEFAULT_PASSWORD env var
 # so the live (real-data) instance never uses the publicly-known default.
@@ -102,17 +122,23 @@ def login():
     if session.get("user_id"):
         return redirect(url_for("dashboard.home"))
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        pw = request.form.get("password", "")
-        user = next((u for u in db.all_rows("users")
-                     if (u.get("email") or "").lower() == email and u.get("active", 1)), None)
-        if user and user.get("password_hash") and check_password_hash(user["password_hash"], pw):
-            session.permanent = True
-            session["user_id"] = user["id"]
-            session["user_name"] = user["name"]
-            session["user_role"] = user.get("role", "sales")
-            return _after_login_redirect(request.args.get("next"))
-        flash("Invalid email or password.", "error")
+        ip = request.remote_addr or "unknown"
+        if _is_rate_limited(ip):
+            flash("Too many failed attempts — please wait 60 seconds.", "error")
+        else:
+            email = request.form.get("email", "").strip().lower()
+            pw = request.form.get("password", "")
+            user = next((u for u in db.all_rows("users")
+                         if (u.get("email") or "").lower() == email and u.get("active", 1)), None)
+            if user and user.get("password_hash") and check_password_hash(user["password_hash"], pw):
+                _login_attempts.pop(ip, None)
+                session.permanent = True
+                session["user_id"] = user["id"]
+                session["user_name"] = user["name"]
+                session["user_role"] = user.get("role", "sales")
+                return _after_login_redirect(request.args.get("next"))
+            _record_failure(ip)
+            flash("Invalid email or password.", "error")
     from modules import gmail
     return render_template("login.html", google_enabled=gmail.configured())
 

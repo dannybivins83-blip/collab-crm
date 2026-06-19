@@ -3,7 +3,7 @@
 with the Cost / Price / Profit-Margin model. Price = Cost / (1 - margin)."""
 import re
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
 
 import db
 import theme
@@ -296,7 +296,7 @@ def quick():
 def detail(est_id):
     e = db.get("estimates", est_id)
     if not e:
-        return redirect(url_for("estimates.index"))
+        abort(404)
     sections = _load_sections(est_id)
     totals = estimate_totals(e, sections)
     from modules import measurements as meas
