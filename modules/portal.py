@@ -525,13 +525,36 @@ def sitecam_showcase_photos(sysk, limit=6, per=8):
         return []
 
 
+# TTL caches for photo queries that scan ALL jobs — these are called on every portal
+# /learn page load. Cache for 5 min to avoid N+1 on large job tables.
+_PHOTO_CACHE_TTL = 300  # seconds
+_photo_cache = {}  # key → (expires_at, value)
+
+
+def _cache_get(key):
+    entry = _photo_cache.get(key)
+    if entry and time.time() < entry[0]:
+        return entry[1]
+    return None
+
+
+def _cache_set(key, value):
+    _photo_cache[key] = (time.time() + _PHOTO_CACHE_TTL, value)
+
+
 def similar_job_photos(system, exclude_id, cap=24):
     """Real field photos from OTHER jobs of the same roof system. Prefers SiteCam's
     R2-hosted photos (the standalone source); falls back to locally-synced photos.
     Anonymized — photos only, no names/addresses."""
+    cache_key = ("similar", system, exclude_id, cap)
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
     urls = sitecam_showcase_photos(system, limit=8, per=6)[:cap]
     if urls:
-        return {"Recent installs": urls}
+        result = {"Recent installs": urls}
+        _cache_set(cache_key, result)
+        return result
     from modules import ahj as ahj_mod
     groups = {"Tear-off": [], "Installation": [], "Finished": []}
     n = 0
@@ -548,12 +571,17 @@ def similar_job_photos(system, exclude_id, cap=24):
                 n += 1
         if n >= cap:
             break
-    return {k: v for k, v in groups.items() if v}
+    result = {k: v for k, v in groups.items() if v}
+    _cache_set(cache_key, result)
+    return result
 
 
 def one_photo_per_system():
     """A single representative REAL field photo per roof system (for the Roof School
     cards). Prefers a SiteCam R2 photo; falls back to a locally-synced filename."""
+    cached = _cache_get("one_photo_per_system")
+    if cached is not None:
+        return cached
     from modules import ahj as ahj_mod
     out = {}
     for s in ("shingle", "tile", "metal", "flat"):
@@ -566,6 +594,7 @@ def one_photo_per_system():
             ph = db.all_rows("photos", "job_id=?", (j["id"],), "id DESC")
             if ph:
                 out[s] = ph[0].get("filename")
+    _cache_set("one_photo_per_system", out)
     return out
 
 

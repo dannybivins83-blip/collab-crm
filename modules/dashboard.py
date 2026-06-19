@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Dashboard — AccuLynx-style Current Pipeline (L/P/A/C/I) + activity feed."""
+import time as _time
+
 from flask import Blueprint, render_template, redirect, url_for
 
 import db
@@ -7,6 +9,12 @@ import theme
 import constants
 
 bp = Blueprint("dashboard", __name__)
+
+# Throttle sweep_overdue_automations to once per 5 min across all dashboard loads
+# to avoid running automation rules on every GET. idempotency is already enforced
+# per-invoice via overdue_fired_at, but we avoid the scan overhead entirely here.
+_OVERDUE_SWEEP_INTERVAL = 300
+_last_overdue_sweep = 0.0
 
 
 def _bucket_of(kind, stage):
@@ -64,9 +72,19 @@ def home():
     overdue.sort(key=lambda x: (0 if x[3]["level"] == "hot" else 1, -x[3]["days"]))
 
     # Recent activity feed (newest across all entities).
+    # Build a name lookup from already-loaded leads+jobs + one contacts query to avoid
+    # an N+1 (up to 80 individual db.get calls, one per activity row).
+    _name_cache = {}
+    for _l in leads:
+        _name_cache[("lead", _l["id"])] = _l.get("name") or ""
+    for _j in jobs:
+        _name_cache[("job", _j["id"])] = _j.get("name") or ""
+    for _c in db.all_rows("contacts"):
+        _name_cache[("contact", _c["id"])] = (
+            "%s %s" % (_c.get("first_name", ""), _c.get("last_name", ""))).strip()
     feed = db.all_rows("activities", order="id DESC")[:80]  # show ~15, scroll the rest
     for a in feed:
-        a["_who"] = _activity_name(a)
+        a["_who"] = _name_cache.get((a.get("entity_type"), a.get("entity_id")), "")
 
     won = len([l for l in leads if l["stage"] == "won"])
     lost = len([l for l in leads if l["stage"] == "lost"])
@@ -110,7 +128,11 @@ def home():
     for inv in outstanding:
         inv["_job"] = job_by_id.get(inv.get("job_id"))
         inv["_overdue"] = invmod._is_overdue(inv)
-    invmod.sweep_overdue_automations(outstanding)
+    global _last_overdue_sweep
+    now = _time.time()
+    if now - _last_overdue_sweep >= _OVERDUE_SWEEP_INTERVAL:
+        invmod.sweep_overdue_automations(outstanding)
+        _last_overdue_sweep = now
     outstanding_total = sum(i.get("amount") or 0 for i in outstanding)
 
     active_job_list = sorted(
