@@ -142,6 +142,9 @@ def build_packet(permit_id):
     # Persist the chosen AHJ/system back onto the permit.
     db.update("permits", permit_id, ahj=ahj, system=system_lower)
 
+    # Sanitize user-supplied strings used in filename construction (path traversal fix).
+    ahj = re.sub(r'[^A-Za-z0-9 _-]', '', ahj)[:64]
+    system_lower = re.sub(r'[^A-Za-z0-9 _-]', '', system_lower)[:32]
     b = _build()
     if not b:
         flash("Permit builder engine (build.py) not available on this host.", "error")

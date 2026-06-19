@@ -149,8 +149,8 @@ def submit_build():
     contractor = body.get("contractor") or None
     webhook_url = body.get("webhook_url") or None
 
-    ahj = (job_data.get("ahj") or "").strip()
-    system_lower = (job_data.get("system") or "").lower().strip()
+    ahj = re.sub(r'[^A-Za-z0-9 _-]', '', (job_data.get("ahj") or "").strip())[:64]
+    system_lower = re.sub(r'[^A-Za-z0-9 _-]', '', (job_data.get("system") or "").lower().strip())[:32]
     system = _SYS_MAP.get(system_lower)
     if not ahj or not system:
         return jsonify({"ok": False, "error": "job.ahj and job.system (shingle/tile/metal/flat) are required"}), 400
@@ -247,9 +247,14 @@ def build_download(job_id):
     if job.get("status") != "complete" or not job.get("result_path"):
         return jsonify({"ok": False, "error": "Not ready", "status": job.get("status")}), 202
     path = job["result_path"]
-    if not os.path.exists(path):
+    # Path traversal guard: resolved path must stay inside PERMIT_DIR.
+    full = os.path.realpath(path)
+    permit_root = os.path.realpath(config.PERMIT_DIR)
+    if not full.startswith(permit_root + os.sep) and full != permit_root:
+        return jsonify({"ok": False, "error": "Invalid file path"}), 403
+    if not os.path.exists(full):
         return jsonify({"ok": False, "error": "File not found on server"}), 404
-    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
+    return send_file(full, as_attachment=True, download_name=os.path.basename(full))
 
 
 # --- API key management (called from Settings or directly) --------------------
