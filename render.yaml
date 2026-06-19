@@ -35,6 +35,8 @@ services:
         value: "1"
       - key: PYTHONUNBUFFERED
         value: "1"
+      - key: TZ
+        value: America/New_York
       # Google Drive — set these so EXISTING uploaded files (currently mirrored to Drive)
       # keep serving after cutover. New files write to /data/uploads on the disk. Once you
       # backfill Drive -> /data/uploads you can drop these and be fully Drive-free.
