@@ -40,6 +40,7 @@
   </a>
   <div class="or">or sign in with email</div>
   {% endif %}
+  <input type="hidden" name="_csrf" value="{{ session.get('_login_csrf', '') }}">
   <div class="field"><label>Email</label><input id="email" name="email" type="email" autofocus required></div>
   <div class="field"><label>Password</label><input id="password" name="password" type="password" required></div>
   <button type="submit">Sign in</button>

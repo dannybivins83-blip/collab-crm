@@ -128,7 +128,20 @@ def _after_login_redirect(nxt):
 def login():
     if session.get("user_id"):
         return redirect(url_for("dashboard.home"))
+    # Ensure a pre-auth CSRF token exists in the session for the login form.
+    # This defends against login-CSRF (attacker logs victim into attacker account).
+    if "_login_csrf" not in session:
+        session["_login_csrf"] = secrets.token_hex(24)
     if request.method == "POST":
+        # Validate login-form CSRF token (pre-auth defense-in-depth).
+        presented = request.form.get("_csrf", "")
+        expected = session.get("_login_csrf", "")
+        if not presented or not expected or not secrets.compare_digest(
+                str(expected), str(presented)):
+            flash("Request expired — please try again.", "error")
+            session["_login_csrf"] = secrets.token_hex(24)
+            from modules import gmail
+            return render_template("login.html", google_enabled=gmail.configured())
         ip = (request.headers.get("X-Forwarded-For", request.remote_addr or "unknown")
               .split(",")[0].strip())
         if _is_rate_limited(ip):
