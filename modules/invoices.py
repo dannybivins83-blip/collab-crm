@@ -301,10 +301,18 @@ def remind_overdue():
     if not gmail.account_for_user(session.get("user_id")):
         flash("Connect your Gmail (📨 in the top bar) to draft reminders.", "info")
         return redirect(url_for("invoices.index"))
+    _REMIND_COOLDOWN_DAYS = 5
+    from datetime import date as _date, timedelta as _td
+    _cutoff = (_date.today() - _td(days=_REMIND_COOLDOWN_DAYS)).isoformat()
     jobs = {j["id"]: j for j in db.all_rows("jobs")}
-    drafted = skipped = 0
+    drafted = skipped = already_sent = 0
     for inv in db.all_rows("invoices"):
         if not _is_overdue(inv):
+            continue
+        # Skip invoices reminded within the cooldown window to prevent duplicate floods.
+        reminded = (inv.get("reminded_at") or "")[:10]
+        if reminded >= _cutoff:
+            already_sent += 1
             continue
         job = jobs.get(inv.get("job_id"))
         _, email = _customer(inv, job)
@@ -314,6 +322,8 @@ def remind_overdue():
         if _draft_reminder(inv, job, email):
             drafted += 1
     msg = "Drafted %d payment reminder%s in your Gmail." % (drafted, "" if drafted == 1 else "s")
+    if already_sent:
+        msg += " %d skipped (reminded within last %d days)." % (already_sent, _REMIND_COOLDOWN_DAYS)
     if skipped:
         msg += " %d skipped (no customer email on file)." % skipped
     flash(msg, "ok" if drafted else "info")

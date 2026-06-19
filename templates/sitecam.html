@@ -54,7 +54,8 @@
     return mint().then(function (data) {
       if (!data || !data.assertion) { setBadge('🔑 SSO unavailable', 'err'); return; }
       // Post only to SiteCam's origin — never '*'.
-      var origin = data.origin || TARGET_ORIGIN || '*';
+      var origin = data.origin || TARGET_ORIGIN;
+      if (!origin || origin === '*') { setBadge('🔑 SSO blocked — origin unknown', 'err'); return; }
       try {
         frame.contentWindow.postMessage(
           { type: 'crm-sso-assertion', assertion: data.assertion }, origin);
@@ -68,7 +69,7 @@
   // The iframe pings us when it's loaded and not yet authenticated. Verify the
   // message really came from SiteCam before responding.
   window.addEventListener('message', function (ev) {
-    if (TARGET_ORIGIN !== '*' && ev.origin !== TARGET_ORIGIN) return;
+    if (!TARGET_ORIGIN || TARGET_ORIGIN === '*' || ev.origin !== TARGET_ORIGIN) return;
     var d = ev.data || {};
     if (d.type === 'sitecam-sso-ready') send();
     if (d.type === 'sitecam-sso-ok') setBadge('🔑 Signed in', 'ok');
