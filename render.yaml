@@ -38,6 +38,19 @@ services:
       # Google Drive — set these so EXISTING uploaded files (currently mirrored to Drive)
       # keep serving after cutover. New files write to /data/uploads on the disk. Once you
       # backfill Drive -> /data/uploads you can drop these and be fully Drive-free.
+      # Cloudflare R2 — preferred file storage (S3-compatible, $0/mo for 10 GB).
+      # Create a bucket at dash.cloudflare.com/r2 and an R2 API token with
+      # Object Read & Write on that bucket. Set all four vars to activate.
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      # Google Drive — legacy fallback for files uploaded before R2 was added.
+      # Keep set until all existing Drive files are backfilled to R2.
       - key: GDRIVE_SA_JSON       # paste the service-account key JSON (raw or base64)
         sync: false
       - key: GDRIVE_FOLDER_ID

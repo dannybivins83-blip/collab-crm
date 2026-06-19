@@ -24,7 +24,13 @@ Secrets kept leaking by being **pasted into chat**. So:
 | `SEABREEZE_CRM_WEBHOOK_SECRET` | HMAC for SSO / SiteCam | Render, Vercel, **sitecam-api** | 🔴 **LEAKED — rotate.** Fresh value on both sides, then redeploy sitecam-api once with `SEED_FORCE=true`. |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Gmail + Google sign-in | Render, Vercel | 🔴 **LEAKED (screenshot) — rotate** in Google Console, then update env. |
 | `GOOGLE_OAUTH_CLIENT_ID` | OAuth client id (not secret, but paired) | Render, Vercel | ✅ Set. |
-| `GDRIVE_FOLDER_ID`, `GDRIVE_SA_JSON` | Drive file-storage fallback | Render, Vercel | ✅ Set. |
+| `R2_ACCOUNT_ID` | Cloudflare R2 account ID (32-char hex) | Render | ⬜ **Pending** — create bucket at dash.cloudflare.com/r2, then set |
+| `R2_ACCESS_KEY_ID` | R2 API token access key | Render | ⬜ Pending |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret | Render | ⬜ Pending |
+| `R2_BUCKET_NAME` | R2 bucket name (e.g. `crm-files`) | Render | ⬜ Pending |
+| `GDRIVE_FOLDER_ID`, `GDRIVE_SA_JSON` | Drive file-storage legacy fallback (keep until R2 backfill complete) | Render, Vercel | ✅ Set. |
+| `SMTP_FROM` | Gmail address for CRM outbound notifications (e.g. `seabreezeroof@gmail.com`) | Render | 🔴 Missing — portal emails + lead notifications silent |
+| `SMTP_PASSWORD` | Gmail App Password for `SMTP_FROM` account | Render | 🔴 Missing — generate at myaccount.google.com/apppasswords |
 | `ANTHROPIC_API_KEY` | Claude AI — ZIP/PDF parse-zip + AI Plans Takeoff (`/leads/<id>/takeoff`) | Render, Vercel | ✅ Set on Render. Set on Vercel before next deploy. |
 | `CRM_INTAKE_TOKEN` | Enables `/leads/intake*` (503 until set) | Render, Vercel | ⬜ Optional — set when you want intake live. |
 | `ROOF_ENGINE_URL`, `ROOF_ENGINE_API_KEY`, `ROOF_BRAND` | Roof-report engine link | Render, Vercel | 🔴 API key **leaked — rotate**; URL/brand not secret. |

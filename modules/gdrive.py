@@ -230,12 +230,23 @@ def backfill_local():
 
 
 def serve_fallback(subpath):
-    """If a local upload is missing (serverless), serve it from the Neon blob store
-    first (small files), then Google Drive. Returns (bytes, mimetype) or None."""
+    """If a local upload is missing, serve it from: R2 (preferred) → blob store → Drive.
+    Returns (bytes, mimetype) or None."""
     base = os.path.basename(subpath)
+    # 1. R2 (fast, no SA JSON needed)
+    try:
+        from modules import r2 as _r2
+        if _r2.enabled():
+            result = _r2.serve_fallback(subpath)
+            if result:
+                return result
+    except Exception:
+        pass
+    # 2. SQLite/Neon blob store (small files, legacy)
     b = blob_get(base)
     if b:
         return b
+    # 3. Google Drive (legacy SA-key path)
     did = find_drive_id(base)
     if did:
         data = download(did)

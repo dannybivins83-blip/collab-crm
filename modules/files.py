@@ -13,10 +13,14 @@ bp = Blueprint("files", __name__, url_prefix="/files")
 
 
 def _mirror(path, fn):
-    """Persist a just-uploaded file so it survives + serves on serverless: stores it
-    in the Neon blob table (small files) and Drive if configured. Returns drive id."""
+    """Persist a just-uploaded file to R2 (preferred) or Drive (fallback).
+    Returns the storage key/id on success, or None."""
     try:
-        from modules import gdrive
+        from modules import r2, gdrive
+        if r2.enabled():
+            key = r2.mirror(path, fn)
+            if key:
+                return key
         return gdrive.mirror(path, fn)
     except Exception:
         return None
