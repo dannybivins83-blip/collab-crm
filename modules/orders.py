@@ -4,12 +4,25 @@
 Material + Labor purchase orders generated from a job's estimate, queued across
 jobs in the Order Manager. Vendors are admin-managed in Settings.
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
 
 import db
 import theme
 
 bp = Blueprint("orders", __name__, url_prefix="/orders")
+
+
+def _require_order(order_id):
+    """Fetch order and verify caller's department owns it. Aborts 404/403 as needed."""
+    o = db.get("orders", order_id)
+    if not o:
+        abort(404)
+    from modules.auth import current_user as _cu
+    from theme import current_department
+    u = _cu() or {}
+    if u.get("role") != "admin" and o.get("department") != current_department():
+        abort(403)
+    return o
 
 TYPES = ["Material", "Labor"]
 STATUSES = ["draft", "ordered", "delivered", "received"]
@@ -69,9 +82,14 @@ def generate(job_id):
     job's estimate. Categorizes each estimate line by description."""
     from modules import estimates as est
     from modules import worksheet as ws
+    from modules.auth import current_user as _cu
+    from theme import current_department
     job = db.get("jobs", job_id)
     if not job:
         return redirect(url_for("jobs.board"))
+    u = _cu() or {}
+    if u.get("role") != "admin" and job.get("department") != current_department():
+        abort(403)
     rows = db.all_rows("estimates", "job_id=?", (job_id,), "id DESC")
     e = next((x for x in rows if x.get("status") == "signed"), rows[0] if rows else None)
     if not e:
@@ -107,9 +125,7 @@ def generate(job_id):
 
 @bp.route("/<int:order_id>")
 def detail(order_id):
-    o = db.get("orders", order_id)
-    if not o:
-        return redirect(url_for("orders.index"))
+    o = _require_order(order_id)
     return render_template("orders_detail.html", o=o, lines=lines_for(order_id),
                            job=db.get("jobs", o["job_id"]) if o.get("job_id") else None,
                            total=order_total(order_id), statuses=STATUSES,
@@ -118,6 +134,7 @@ def detail(order_id):
 
 @bp.route("/<int:order_id>/save", methods=["POST"])
 def save(order_id):
+    _require_order(order_id)
     data = request.get_json(silent=True) or {}
     db.update("orders", order_id, vendor=data.get("vendor", ""), po_number=data.get("po_number", ""),
               notes=data.get("notes", ""))
@@ -134,8 +151,8 @@ def save(order_id):
 @bp.route("/<int:order_id>/status", methods=["POST"])
 def status(order_id):
     st = request.form.get("status")
-    o = db.get("orders", order_id)
-    if not o or st not in STATUSES:
+    o = _require_order(order_id)
+    if st not in STATUSES:
         return redirect(url_for("orders.detail", order_id=order_id))
     fields = {"status": st}
     if st == "ordered" and not o.get("ordered_date"):
@@ -152,9 +169,7 @@ def status(order_id):
 
 @bp.route("/<int:order_id>/print")
 def print_view(order_id):
-    o = db.get("orders", order_id)
-    if not o:
-        return redirect(url_for("orders.index"))
+    o = _require_order(order_id)
     return render_template("order_print.html", o=o, lines=lines_for(order_id),
                            job=db.get("jobs", o["job_id"]) if o.get("job_id") else None,
                            total=order_total(order_id))
@@ -162,6 +177,7 @@ def print_view(order_id):
 
 @bp.route("/<int:order_id>/delete", methods=["POST"])
 def delete(order_id):
+    _require_order(order_id)
     db.delete("orders", order_id)
     db.execute("DELETE FROM order_lines WHERE order_id=?", (order_id,))
     flash("Order deleted.", "ok")

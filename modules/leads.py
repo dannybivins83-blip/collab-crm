@@ -480,11 +480,21 @@ def parse_image():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@bp.route("/<int:lead_id>")
-def detail(lead_id):
+def _require_lead(lead_id):
+    """Fetch lead and verify the caller's department owns it. Aborts 404/403 as needed."""
     l = db.get("leads", lead_id)
     if not l:
         abort(404)
+    from modules.auth import current_user as _cu
+    u = _cu() or {}
+    if u.get("role") != "admin" and l.get("department") != current_department():
+        abort(403)
+    return l
+
+
+@bp.route("/<int:lead_id>")
+def detail(lead_id):
+    l = _require_lead(lead_id)
     _decorate(l)
     from modules import measurements as meas
     # Quick Estimate is scoped to THIS client's system (the work type tagged at lead
@@ -513,9 +523,7 @@ def detail(lead_id):
 
 @bp.route("/<int:lead_id>/edit", methods=["GET", "POST"])
 def edit(lead_id):
-    l = db.get("leads", lead_id)
-    if not l:
-        return redirect(url_for("leads.board"))
+    l = _require_lead(lead_id)
     if request.method == "POST":
         data = {f: request.form.get(f, "").strip() for f in EDITABLE}
         data["sms_opt"] = 1 if request.form.get("sms_opt") else 0
@@ -593,6 +601,7 @@ def strip_lead_marker():
 
 @bp.route("/<int:lead_id>/stage", methods=["POST"])
 def set_stage(lead_id):
+    _require_lead(lead_id)
     stage = request.form.get("stage")
     if stage in constants.LEAD_STAGE_INDEX:
         closed = stage in ("won", "lost")
@@ -608,6 +617,7 @@ def set_stage(lead_id):
 @bp.route("/<int:lead_id>/move", methods=["POST"])
 def move(lead_id):
     """Drag-to-advance endpoint (AJAX)."""
+    _require_lead(lead_id)
     stage = (request.get_json(silent=True) or {}).get("stage") or request.form.get("stage")
     if stage in constants.LEAD_STAGE_INDEX:
         closed = stage in ("won", "lost")
@@ -620,6 +630,7 @@ def move(lead_id):
 
 @bp.route("/<int:lead_id>/touch", methods=["POST"])
 def touch(lead_id):
+    _require_lead(lead_id)
     db.update("leads", lead_id, last_contact=db.today(), snooze_until="")
     db.add_activity("lead", lead_id, "call", "Logged touch (call/text/email).")
     if request.form.get("ajax"):
@@ -645,9 +656,7 @@ def run_takeoff(lead_id):
 
 
 def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _run_takeoff_worker):
-    l = db.get("leads", lead_id)
-    if not l:
-        return jsonify({"ok": False, "error": "Lead not found"}), 404
+    l = _require_lead(lead_id)
     if not config.ANTHROPIC_API_KEY:
         return jsonify({"ok": False, "error": "ANTHROPIC_API_KEY not set - add it to Render env vars"}), 503
     f = request.files.get("plans_file")
@@ -686,6 +695,7 @@ def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _ru
 @bp.route("/<int:lead_id>/takeoff/<token>/retry", methods=["POST"])
 def retry_takeoff(lead_id, token):
     """Re-spawn a stuck/killed takeoff job using the already-saved file."""
+    _require_lead(lead_id)
     import uuid as _uuid, threading as _threading
     from flask import current_app
     try:
@@ -716,10 +726,7 @@ def retry_takeoff(lead_id, token):
 @bp.route("/<int:lead_id>/send-portal-invite", methods=["POST"])
 def send_portal_invite(lead_id):
     """Manually send (or resend) the homeowner portal magic-link email."""
-    l = db.get("leads", lead_id)
-    if not l:
-        flash("Lead not found.", "error")
-        return redirect(url_for("leads.list_view"))
+    l = _require_lead(lead_id)
     from modules import portal as _portal, gmail as _gm
     link = _portal.lead_portal_link(lead_id)
     if not link:
@@ -761,9 +768,7 @@ def send_portal_invite(lead_id):
 
 @bp.route("/<int:lead_id>/check", methods=["POST"])
 def check(lead_id):
-    l = db.get("leads", lead_id)
-    if not l:
-        abort(404)
+    l = _require_lead(lead_id)
     checks = db.load_json(l.get("checks"), {})
     key = request.form.get("key")
     checks[key] = not checks.get(key)
@@ -775,6 +780,7 @@ def check(lead_id):
 
 @bp.route("/<int:lead_id>/note", methods=["POST"])
 def note(lead_id):
+    _require_lead(lead_id)
     text = request.form.get("text", "").strip()
     kind = request.form.get("kind", "note")
     if text:
@@ -786,6 +792,7 @@ def note(lead_id):
 
 @bp.route("/<int:lead_id>/field", methods=["POST"])
 def field(lead_id):
+    _require_lead(lead_id)
     f = request.form.get("field")
     if f in EDITABLE + ["snooze_until"]:
         db.update("leads", lead_id, **{f: request.form.get("value", "")})
@@ -794,6 +801,7 @@ def field(lead_id):
 
 @bp.route("/<int:lead_id>/assign", methods=["POST"])
 def assign(lead_id):
+    _require_lead(lead_id)
     rep = request.form.get("rep", "").strip()
     db.update("leads", lead_id, rep=rep)
     db.add_activity("lead", lead_id, "automation", "Assigned to %s" % (rep or "-"))
@@ -803,10 +811,8 @@ def assign(lead_id):
 
 @bp.route("/<int:lead_id>/convert", methods=["POST"])
 def convert(lead_id):
-    """Won ->' create a production Job from this lead."""
-    l = db.get("leads", lead_id)
-    if not l:
-        return redirect(url_for("leads.board"))
+    """Won — create a production Job from this lead."""
+    l = _require_lead(lead_id)
     parts = [p.strip() for p in (l.get("address") or "").split(",")]
     # Auto-compose the canonical job number + name:  R-YY###: Client (AHJ) (RoofCode+Sq) (Rep)
     from modules import acculynx_sync as S
@@ -867,6 +873,7 @@ def convert(lead_id):
 
 @bp.route("/<int:lead_id>/delete", methods=["POST"])
 def delete(lead_id):
+    _require_lead(lead_id)
     # Cascade-delete child records to prevent FK orphans.
     for eid in [r["id"] for r in db.all_rows("estimates", "lead_id=?", (lead_id,))]:
         db.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (eid,))

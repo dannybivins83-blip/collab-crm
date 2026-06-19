@@ -16,6 +16,18 @@ EDITABLE = ["rid", "name", "phone", "email", "address", "city", "state", "zip",
             "sitecam_url"]
 
 
+def _require_job(job_id):
+    """Fetch job and verify caller's department owns it. Aborts 404/403 as needed."""
+    j = db.get("jobs", job_id)
+    if not j:
+        abort(404)
+    from modules.auth import current_user as _cu
+    u = _cu() or {}
+    if u.get("role") != "admin" and j.get("department") != current_department():
+        abort(403)
+    return j
+
+
 def _decorate(j):
     sd = constants.job_stage(j["stage"])
     fs = theme.follow_status(sd, j.get("stage_since") or j.get("created"), j.get("snooze_until"))
@@ -171,9 +183,7 @@ def _prefill_from_gc():
 
 @bp.route("/<int:job_id>")
 def detail(job_id):
-    j = db.get("jobs", job_id)
-    if not j:
-        abort(404)
+    j = _require_job(job_id)
     _decorate(j)
     # Auto-materialize the worksheet from the estimate so Profit Analysis fills in without
     # opening the worksheet + clicking Seed. Only when an estimate with line items exists
@@ -219,9 +229,7 @@ def detail(job_id):
 
 @bp.route("/<int:job_id>/edit", methods=["GET", "POST"])
 def edit(job_id):
-    j = db.get("jobs", job_id)
-    if not j:
-        abort(404)
+    j = _require_job(job_id)
     if request.method == "POST":
         data = {f: request.form.get(f, "").strip() for f in EDITABLE}
         db.update("jobs", job_id, **data)
@@ -296,9 +304,9 @@ def _write_stage_history(job_id, stage):
 
 @bp.route("/<int:job_id>/stage", methods=["POST"])
 def set_stage(job_id):
+    job = _require_job(job_id)
     stage = request.form.get("stage")
     if stage in constants.JOB_STAGE_INDEX:
-        job = db.get("jobs", job_id) or {}
         _old = job.get("stage")
         warn = _skip_warning(job, _old, stage)
         db.update("jobs", job_id, stage=stage, stage_since=db.today())
@@ -317,7 +325,7 @@ def set_stage(job_id):
 @bp.route("/<int:job_id>/advance", methods=["POST"])
 def advance(job_id):
     """Move the job to the next milestone (AccuLynx 'Advance Job')."""
-    j = db.get("jobs", job_id)
+    j = _require_job(job_id)
     if j:
         idx = constants.JOB_STAGE_INDEX.get(j["stage"], 0)
         if idx < len(constants.JOB_STAGES) - 1:
@@ -335,9 +343,9 @@ def advance(job_id):
 
 @bp.route("/<int:job_id>/move", methods=["POST"])
 def move(job_id):
+    job = _require_job(job_id)
     stage = (request.get_json(silent=True) or {}).get("stage") or request.form.get("stage")
     if stage in constants.JOB_STAGE_INDEX:
-        job = db.get("jobs", job_id) or {}
         warn = _skip_warning(job, job.get("stage"), stage)
         db.update("jobs", job_id, stage=stage, stage_since=db.today())
         db.add_activity("job", job_id, "stage", "Moved to %s" % constants.job_stage(stage)["name"])
@@ -348,9 +356,7 @@ def move(job_id):
 
 @bp.route("/<int:job_id>/check", methods=["POST"])
 def check(job_id):
-    j = db.get("jobs", job_id)
-    if not j:
-        abort(404)
+    j = _require_job(job_id)
     checks = db.load_json(j.get("checks"), {})
     key = request.form.get("key")
     checks[key] = not checks.get(key)
@@ -362,9 +368,7 @@ def check(job_id):
 
 @bp.route("/<int:job_id>/pay", methods=["POST"])
 def pay(job_id):
-    j = db.get("jobs", job_id)
-    if not j:
-        abort(404)
+    j = _require_job(job_id)
     payments = db.load_json(j.get("payments"), {})
     key = request.form.get("key")
     if key == "woodAmt":
@@ -377,6 +381,7 @@ def pay(job_id):
 
 @bp.route("/<int:job_id>/note", methods=["POST"])
 def note(job_id):
+    _require_job(job_id)
     text = request.form.get("text", "").strip()
     kind = request.form.get("kind", "note")
     if text:
@@ -386,6 +391,7 @@ def note(job_id):
 
 @bp.route("/<int:job_id>/delete", methods=["POST"])
 def delete(job_id):
+    _require_job(job_id)
     # Cascade-delete child records to prevent FK orphans.
     # All deletes run in a single BEGIN IMMEDIATE transaction to prevent partial
     # deletes leaving orphan rows if the process is interrupted mid-way.

@@ -12,6 +12,27 @@ import constants
 bp = Blueprint("estimates", __name__, url_prefix="/estimates")
 
 
+def _require_estimate(est_id):
+    """Fetch estimate and verify caller's department owns the parent job/lead. Aborts 404/403."""
+    e = db.get("estimates", est_id)
+    if not e:
+        abort(404)
+    from modules.auth import current_user as _cu
+    from theme import current_department
+    u = _cu() or {}
+    if u.get("role") == "admin":
+        return e
+    dept = current_department()
+    parent = None
+    if e.get("job_id"):
+        parent = db.get("jobs", e["job_id"])
+    elif e.get("lead_id"):
+        parent = db.get("leads", e["lead_id"])
+    if parent and parent.get("department") != dept:
+        abort(403)
+    return e
+
+
 # ---- money math (margin model, mirrors AccuLynx) --------------------------
 
 def line_cost(l):
@@ -307,9 +328,7 @@ def quick():
 
 @bp.route("/<int:est_id>")
 def detail(est_id):
-    e = db.get("estimates", est_id)
-    if not e:
-        abort(404)
+    e = _require_estimate(est_id)
     sections = _load_sections(est_id)
     totals = estimate_totals(e, sections)
     from modules import measurements as meas
@@ -331,6 +350,7 @@ def detail(est_id):
 
 @bp.route("/<int:est_id>/save", methods=["POST"])
 def save(est_id):
+    _require_estimate(est_id)
     data = request.get_json(silent=True) or {}
     # Wrap the multi-step delete → insert in a single BEGIN IMMEDIATE transaction so a
     # crash mid-save can't leave the estimate with no sections/lines (half-written state).
@@ -373,6 +393,7 @@ def save(est_id):
 
 @bp.route("/<int:est_id>/status", methods=["POST"])
 def status(est_id):
+    _require_estimate(est_id)
     st = request.form.get("status")
     if st in ("draft", "sent", "signed", "declined"):
         db.update("estimates", est_id, status=st)
@@ -382,6 +403,7 @@ def status(est_id):
 
 @bp.route("/<int:est_id>/sign", methods=["POST"])
 def sign(est_id):
+    _require_estimate(est_id)
     name = request.form.get("signed_name", "")
     sig = request.form.get("signature", "")
     when = db.now()
@@ -406,9 +428,7 @@ def sign(est_id):
 
 @bp.route("/<int:est_id>/print")
 def print_view(est_id):
-    e = db.get("estimates", est_id)
-    if not e:
-        return redirect(url_for("estimates.index"))
+    e = _require_estimate(est_id)
     sections = _load_sections(est_id)
     totals = estimate_totals(e, sections)
     return render_template("estimate_print.html", e=e, sections=sections, totals=totals,
@@ -417,6 +437,7 @@ def print_view(est_id):
 
 @bp.route("/<int:est_id>/delete", methods=["POST"])
 def delete(est_id):
+    _require_estimate(est_id)
     db.delete("estimates", est_id)
     db.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (est_id,))
     db.execute("DELETE FROM estimate_lines WHERE estimate_id=?", (est_id,))
