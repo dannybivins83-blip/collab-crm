@@ -8,6 +8,7 @@ from flask import Blueprint, render_template, url_for
 import db
 import theme
 import constants
+from theme import current_department
 
 bp = Blueprint("pipeline", __name__, url_prefix="/pipeline")
 
@@ -47,16 +48,17 @@ def _card(kind, r):
 
 @bp.route("/")
 def board():
+    dept = current_department()
     cols = {s["key"]: {"def": s, "items": [], "value": 0.0, "count": 0}
             for s in constants.LIFECYCLE}
-    for l in db.all_rows("leads", "stage NOT IN ('won','lost')"):
+    for l in db.all_rows("leads", "department=? AND stage NOT IN ('won','lost')", (dept,)):
         step = constants.lifecycle_step("lead", l.get("stage") or "")
         c = cols[step]
         c["count"] += 1
         card = _card("lead", l)
         c["value"] += card["value"]
         c["items"].append(card)
-    for j in db.all_rows("jobs", "stage NOT IN ('closed','canceled')"):
+    for j in db.all_rows("jobs", "department=? AND stage NOT IN ('closed','canceled')", (dept,)):
         step = constants.lifecycle_step("job", j.get("stage") or "")
         c = cols[step]
         c["count"] += 1

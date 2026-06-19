@@ -161,8 +161,8 @@ def new():
                                 "Estimate %s auto-created from %s template (with upgrades)" % (
                                     (e or {}).get("number", ""), data["work_type"]))
                 est_msg = " . estimate %s drafted" % (e or {}).get("number", "")
-            except Exception:
-                pass
+            except Exception as _ee:
+                current_app.logger.warning("Auto-estimate build failed for lead %s: %s", lid, _ee)
         # Populate the Communications tab with the intake details (verified facts only),
         # so the timeline starts with a record of what came in at lead entry.
         bits = []
@@ -280,10 +280,12 @@ def new():
                                         "drive_id": drive_id})
                 db.add_activity("lead", lid, "note",
                                 "Intake document uploaded: %s (%s)" % (f.filename, doc_type))
+
                 if doc_type == "Drawing/Plans":
                     has_drawings = True
-            except Exception:
-                pass
+            except Exception as _fe:
+                current_app.logger.warning("Intake file upload failed (%s) for lead %s: %s",
+                                           f.filename if f else "?", lid, _fe)
         if has_drawings:
             db.add_activity("lead", lid, "automation",
                             "Drawing files uploaded at intake - estimator ready to auto-generate scope, estimate, and permit forms.")
