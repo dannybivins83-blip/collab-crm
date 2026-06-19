@@ -136,12 +136,22 @@ def detail(report_id):
 
 @bp.route("/<int:report_id>/takeoff")
 def takeoff(report_id):
-    """Redirect to the engine takeoff tool, injecting the API key server-side so
-    it never sits in the report page source. (Engine should move to a short-lived
-    token so the key never lands in the browser at all — flagged to roofengine.)"""
+    """Proxy the engine takeoff page server-side — API key never touches the browser."""
     if not _configured():
         return redirect(url_for("roof_reports.detail", report_id=report_id))
-    return redirect("%s/takeoff?api_key=%s" % (ENGINE_URL, ENGINE_KEY))
+    # Never put the API key in a redirect URL (ends up in browser history + server logs).
+    # Proxy through the CRM instead: fetch the engine page with the key in a header,
+    # stream it back to the browser.
+    try:
+        import urllib.request as _ur
+        req = _ur.Request(ENGINE_URL + "/takeoff",
+                          headers={"X-API-Key": ENGINE_KEY, "Accept": "text/html"})
+        with _ur.urlopen(req, timeout=10) as resp:
+            body = resp.read()
+            ct = resp.headers.get("Content-Type", "text/html")
+        return body, 200, {"Content-Type": ct}
+    except Exception:
+        return redirect(url_for("roof_reports.detail", report_id=report_id))
 
 
 @bp.route("/<int:report_id>/status")
