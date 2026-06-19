@@ -129,7 +129,8 @@ def login():
     if session.get("user_id"):
         return redirect(url_for("dashboard.home"))
     if request.method == "POST":
-        ip = request.remote_addr or "unknown"
+        ip = (request.headers.get("X-Forwarded-For", request.remote_addr or "unknown")
+              .split(",")[0].strip())
         if _is_rate_limited(ip):
             flash("Too many failed attempts — please wait 60 seconds.", "error")
         else:

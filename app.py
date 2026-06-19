@@ -22,6 +22,13 @@ from datetime import timedelta
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
+
+# ProxyFix: when running behind Render's reverse proxy the real client IP is in
+# X-Forwarded-For, not remote_addr. Without this, rate limiting and logging
+# see the proxy IP (127.0.0.1) for every request.
+if config.IS_PROD:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024  # 64 MB uploads
 app.config["TEMPLATES_AUTO_RELOAD"] = True  # pick up template edits without a restart
 # Session/CSRF hardening (audit #7): SameSite=Lax stops the session cookie riding
@@ -37,6 +44,13 @@ app.jinja_env.auto_reload = True
 
 db.init_db()
 theme.register(app)
+
+
+@app.after_request
+def _strip_server_header(resp):
+    """Remove the Server header so Werkzeug/Python version is not disclosed."""
+    resp.headers.pop("Server", None)
+    return resp
 from modules import gdrive  # noqa: E402 — ensures drive_id columns + enables Drive storage
 
 # Blueprints (one per module).
