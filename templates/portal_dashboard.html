@@ -381,25 +381,8 @@
     </div>
   </div>
 
-  <!-- NEXT STEPS (guided, off the welcome banner) -->
-  <div class="card">
-    <div class="h">Your next steps</div>
-    <a class="nextstep" href="{{ url_for('portal.learn', token=token) }}">
-      <span class="ns-n">1</span>
-      <span class="ns-t"><b>Learn about your roof</b><span class="muted">Roof School — systems, materials &amp; your Roof IQ</span></span>
-      <span class="ns-a">→</span>
-    </a>
-    <a class="nextstep" href="{{ url_for('portal.seminar', token=token) }}">
-      <span class="ns-n">2</span>
-      <span class="ns-t"><b>Host an HOA Lunch &amp; Learn</b><span class="muted">We bring lunch + answers for your board or community</span></span>
-      <span class="ns-a">→</span>
-    </a>
-    <a class="nextstep" href="#refGame">
-      <span class="ns-n">3</span>
-      <span class="ns-t"><b>Refer &amp; win</b><span class="muted">Share your link, level up, earn rewards</span></span>
-      <span class="ns-a">→</span>
-    </a>
-  </div>
+  <!-- UNIFIED JOURNEY ROADMAP (same component the prospect portal shows) -->
+  {% include "_journey.html" %}
 
   <!-- MILESTONE CELEBRATION (confetti once per new step) -->
   {% if celebrate %}

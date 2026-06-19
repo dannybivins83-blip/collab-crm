@@ -1,0 +1,68 @@
+{# Unified homeowner roadmap — rendered identically in the lead portal and the job
+   dashboard. Expects: journey (list from portal.journey_steps), progress (dict).
+   Self-contained styles (jrn- prefix) so it looks the same wherever it's included. #}
+{% from "_portal_icons.html" import pic %}
+{% set journey = journey or [] %}
+{% set progress = progress or {'done': 0, 'total': journey|length, 'pct': 0} %}
+{% if journey %}
+<style>
+  .jrn{--jrn-accent:{{ company.color_masthead or '#0B2B40' }};--jrn-green:#1f9d6b;--jrn-gold:#d98a16;
+       --jrn-line:#e3e9f0;--jrn-mut:#6a7686;background:#fff;border:1px solid var(--jrn-line);
+       border-radius:16px;padding:20px 20px 8px;margin:14px 0;box-shadow:0 1px 4px rgba(20,40,80,.05)}
+  .jrn-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .jrn-hd h2{margin:0;font-size:19px;color:#15212e}
+  .jrn-prog{font-size:13px;color:var(--jrn-mut);font-weight:600}
+  .jrn-bar{height:8px;background:#eef2f7;border-radius:6px;overflow:hidden;margin:12px 0 6px}
+  .jrn-bar>i{display:block;height:100%;background:var(--jrn-green);border-radius:6px;transition:width .4s}
+  .jrn-list{list-style:none;margin:8px 0 0;padding:0}
+  .jrn-step{display:flex;gap:13px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--jrn-line)}
+  .jrn-step:first-child{border-top:0}
+  .jrn-num{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+           font-weight:800;font-size:14px;background:#eef2f7;color:var(--jrn-mut);border:2px solid transparent}
+  .jrn-step.done .jrn-num{background:var(--jrn-green);color:#fff}
+  .jrn-step.current .jrn-num{background:#fff;color:var(--jrn-accent);border-color:var(--jrn-accent)}
+  .jrn-bd{flex:1;min-width:0}
+  .jrn-t{font-weight:700;color:#1b2733;font-size:15px;display:flex;align-items:center;gap:7px}
+  .jrn-t .pic{color:var(--jrn-accent)}
+  .jrn-step.done .jrn-t,.jrn-step.upcoming .jrn-t{color:#566270}
+  .jrn-bl{color:var(--jrn-mut);font-size:13.5px;margin-top:2px}
+  .jrn-pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+            padding:2px 8px;border-radius:20px;margin-top:7px}
+  .jrn-step.done .jrn-pill{background:#e8f7f0;color:#137a55}
+  .jrn-step.current .jrn-pill{background:#fff3df;color:#a8690a}
+  .jrn-step.upcoming .jrn-pill{background:#eef2f7;color:#76828f}
+  .jrn-cta{flex:none;align-self:center}
+  .jrn-cta a{display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:var(--jrn-accent);
+             color:#fff;font-weight:700;font-size:13px;padding:9px 14px;border-radius:9px;white-space:nowrap}
+  .jrn-cta a.ghost{background:#fff;color:var(--jrn-accent);border:1.5px solid var(--jrn-accent)}
+  .jrn-done-mk{color:var(--jrn-green);font-weight:800;font-size:13px;display:inline-flex;align-items:center;gap:5px}
+  .jrn-lock{color:#9aa6b3;display:inline-flex;align-items:center;gap:5px;font-size:12.5px}
+  @media(max-width:520px){.jrn-cta a{padding:8px 11px}.jrn-bl{font-size:13px}}
+</style>
+<div class="jrn">
+  <div class="jrn-hd">
+    <h2>Your Roadmap</h2>
+    <span class="jrn-prog">{{ progress.done }} of {{ progress.total }} steps complete</span>
+  </div>
+  <div class="jrn-bar"><i style="width:{{ progress.pct }}%"></i></div>
+  <ol class="jrn-list">
+    {% for s in journey %}
+    <li class="jrn-step {{ s.status }}{{ ' locked' if s.locked and s.status != 'done' }}">
+      <span class="jrn-num">{% if s.status == 'done' %}{{ pic('check',16) }}{% else %}{{ s.n }}{% endif %}</span>
+      <div class="jrn-bd">
+        <div class="jrn-t">{{ pic(s.icon,16) }} {{ s.title }}</div>
+        <div class="jrn-bl">{{ s.blurb }}</div>
+        {% if s.status == 'done' %}<span class="jrn-pill">Done</span>
+        {% elif s.status == 'current' %}<span class="jrn-pill">Do this next</span>
+        {% else %}<span class="jrn-pill">Up next</span>{% endif %}
+      </div>
+      <div class="jrn-cta">
+        {% if s.status == 'done' %}<span class="jrn-done-mk">{{ pic('check',15) }} Done</span>
+        {% elif s.locked %}<span class="jrn-lock">{{ pic('lock',14) }}</span>
+        {% else %}<a class="{{ '' if s.status == 'current' else 'ghost' }}" href="{{ s.cta_url }}">{{ s.cta_label }} {{ pic('arrow',14) }}</a>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+{% endif %}

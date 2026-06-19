@@ -140,6 +140,137 @@ VALUE_STEPS = [
     (5, "Delivered your warranty documents"),
     (5, "Made sure you're 100% happy and asked how we did"),
 ]
+
+# ---------------------------------------------------------------------------
+# Unified homeowner JOURNEY — one continuous, numbered, accountable roadmap that
+# spans prospect -> approved job. Both the lead portal and the job dashboard render
+# the SAME roadmap (templates/_journey.html); status is computed per record so the
+# experience flows identically as a homeowner moves from lead to job. Steps the
+# homeowner must DO are highlighted; overdue ones drive gated reminder drafts.
+# ---------------------------------------------------------------------------
+def journey_steps(kind, rec, token):
+    """Return the 10-step roadmap for `rec` with per-step status.
+    status: done | current | upcoming | na.  locked = not yet actionable (prospect)."""
+    from modules import signups
+    rid = rec["id"]
+    is_job = (kind == "job")
+    phase = _phase_index(rec.get("stage")) if is_job else -1
+    if is_job:
+        ests = db.all_rows("estimates", "job_id=?", (rid,))
+        signed = any(e.get("status") == "signed" for e in ests)
+        unsigned = any(e.get("status") != "signed" for e in ests)
+        docs = db.all_rows("documents", "job_id=?", (rid,))
+        permit_to_sign = any(d.get("category") == "Permit" and d.get("needs_sign")
+                             and not d.get("signed_at") for d in docs)
+        has_contract = any(d.get("category") == "Contract" for d in docs)
+        has_payment = bool(db.all_rows("payments", "job_id=?", (rid,)))
+        packet = signups.open_packet_for_job(rid)
+    else:
+        signed = unsigned = permit_to_sign = has_contract = has_payment = False
+        packet = None
+    ahj = rec.get("ahj")
+    home = url_for("portal.home", token=token)
+
+    def U(ep, **kw):
+        try:
+            return url_for(ep, token=token, **kw)
+        except Exception:
+            return home
+
+    out = []
+
+    def add(title, blurb, icon, status, cta_label, cta_url, locked=False):
+        out.append({"title": title, "blurb": blurb, "icon": icon, "status": status,
+                    "cta_label": cta_label, "cta_url": cta_url, "locked": locked})
+
+    # 1 Design (available to everyone, prospect or job)
+    add("Design your roof", "Pick your color, system & options — and request free samples.",
+        "palette", "done" if (is_job or rec.get("design_photo")) else "current",
+        "Open Design Studio", U("portal.design"))
+    # 2 Roof School
+    add("Learn about your roof", "Take the 2-minute Roof School tour and test your Roof IQ.",
+        "cap", "done" if is_job else "current", "Open Roof School", U("portal.learn"))
+    # 3 Inspection
+    add("Confirm your inspection", "We measure your roof and finalize your estimate for you.",
+        "calendar", "done" if is_job else "current", "Message us", home + "#message")
+    # 4 Approve proposal
+    s = "done" if signed else ("current" if is_job else "upcoming")
+    add("Review & approve your proposal", "Look over your estimate and e-sign to get started.",
+        "clipboard", s, "Review & sign", home + "#estimate", locked=not is_job)
+    # 5 Sign-up package
+    if not is_job:
+        s = "upcoming"
+    elif phase >= 1 or has_contract:
+        s = "done"
+    elif packet:
+        s = "current"
+    else:
+        s = "upcoming"
+    add("Complete your sign-up package", "Sign your welcome packet so we can open your project file.",
+        "pencil", s, "Open sign-up package",
+        U("signups.portal_view", packet_id=packet["id"]) if packet else home + "#estimate",
+        locked=not is_job)
+    # 6 Permit documents
+    if not is_job:
+        s = "upcoming"
+    elif phase >= 2:
+        s = "done"
+    elif phase >= 1 or permit_to_sign:
+        s = "current"
+    else:
+        s = "upcoming"
+    add("Sign your permit documents", "Sign the permit forms so we can submit to the city.",
+        "doc", s, "Review permit docs", home + "#estimate", locked=not is_job)
+    # 7 HOA approval — only when there's an AHJ/HOA on file
+    if ahj:
+        if not is_job:
+            s = "upcoming"
+        elif phase >= 2:
+            s = "done"
+        elif phase >= 1:
+            s = "current"
+        else:
+            s = "upcoming"
+        add("HOA approval", "If your community requires it, sign the HOA application & upload approval.",
+            "building", s, "Upload HOA docs", home + "#documents", locked=not is_job)
+    # 8 Deposit
+    if not is_job:
+        s = "upcoming"
+    elif has_payment:
+        s = "done"
+    elif phase >= 0:
+        s = "current"
+    else:
+        s = "upcoming"
+    add("Make your deposit", "Submit your deposit to lock in materials & your install date.",
+        "card", s, "Pay online", U("portal.pay"), locked=not is_job)
+    # 9 Watch install
+    if is_job and phase > 3:
+        s = "done"
+    elif is_job and phase == 3:
+        s = "current"
+    else:
+        s = "upcoming"
+    add("Watch your install", "Track your new roof going on — live job-site photos.",
+        "hammer", s, "View job photos", home + "#photos", locked=not is_job)
+    # 10 Final walkthrough + review & refer
+    s = "current" if (is_job and phase >= 5) else "upcoming"
+    add("Final walkthrough, review & refer", "Confirm the nail sweep, leave a review, and share to earn rewards.",
+        "trophy", s, "Share & refer", home + "#refGame", locked=not is_job)
+
+    for i, st in enumerate(out, 1):
+        st["n"] = i
+    return out
+
+
+def journey_progress(steps):
+    done = sum(1 for s in steps if s["status"] == "done")
+    return {"done": done, "total": len(steps),
+            "pct": int(round(done / len(steps) * 100)) if steps else 0}
+
+
+def current_step(steps):
+    return next((s for s in steps if s["status"] == "current"), None)
 # Roof "Design Studio" — curated color palettes + engagement options per system, so a
 # lead can mock up their roof (system + color + choices) and request samples online.
 # Each color entry: {name, hex, mfr}  — mfr groups the picker by manufacturer.
@@ -762,8 +893,10 @@ def home(token):
             nm = re.sub(r"\s*\([^)]*\)", "", nm)
             nm = re.sub(r"\s+L\s*$", "", nm).strip(" -·,")
             rep = next((u for u in db.all_rows("users") if u.get("name") == l.get("rep")), None)
+            jr = journey_steps("lead", l, token)
             return render_template("lead_portal.html", l=l, client=nm or "there",
-                                   rep=rep, company=db.get_company(), token=token)
+                                   rep=rep, company=db.get_company(), token=token,
+                                   journey=jr, progress=journey_progress(jr))
         if _token_is_expired_in_db(token):
             company = db.get_company()
             return render_template("portal_expired.html", company=company), 410
@@ -866,7 +999,9 @@ def home(token):
                            rep=rep, draws=constants.DRAW_SCHEDULE,
                            checklist=checklist, contract=contract,
                            tutorials=_tutorials(company), product_docs=product_docs, sysk=sysk,
-                           photo_app_url=company.get("photo_app_url"))
+                           photo_app_url=company.get("photo_app_url"),
+                           journey=journey_steps("job", j, token),
+                           progress=journey_progress(journey_steps("job", j, token)))
 
 
 def _record_by_any_token(token):
