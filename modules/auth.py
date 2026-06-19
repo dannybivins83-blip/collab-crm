@@ -47,7 +47,10 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "sync.photo_import", "sync.photo_batch",
           "sync.billing_import", "sync.billing_manifest", "sync.bill_batch",
           "sync.estimate_import", "sync.comm_import", "sync.worksheet_import",
-          "sync.job_guids", "sync.catalog_import",
+          # sync.job_guids removed: it is in _KEY_REQUIRED in acculynx_sync.py
+          # (requires CRM_SYNC_SECRET header) so the session gate is redundant
+          # but we must NOT leave it in PUBLIC — remove to force the sync key check.
+          "sync.catalog_import",
           "portal.home", "portal.invite", "portal.portal_login",
           "portal.message", "portal.sign", "portal.sign_doc", "portal.pay",
           "portal.upload_doc", "portal.upload_photo", "portal.design", "portal.design_request",
@@ -108,7 +111,11 @@ def _after_login_redirect(nxt):
     When the user was interrupted mid-task (?next= set), skip the Gmail autoprompt
     and take them directly back — the OAuth round-trip adds friction and can drop
     the session in Incognito/strict-cookie environments."""
-    target = nxt if (nxt or "").startswith("/") else url_for("dashboard.home")
+    from urllib.parse import urlparse as _urlparse
+    _p = _urlparse(nxt or "")
+    if _p.netloc or _p.scheme or not (nxt or "").startswith("/"):
+        nxt = url_for("dashboard.home")
+    target = nxt
     # Only autoprompt on plain dashboard landings, not on redirect-back flows
     if not nxt:
         try:
@@ -239,7 +246,7 @@ def google_callback():
     return _after_login_redirect(_nxt)
 
 
-@bp.route("/logout")
+@bp.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     return redirect(url_for("auth.login"))
@@ -286,7 +293,7 @@ _CSRF_EXEMPT = PUBLIC | {
     "dbadmin.import_job_expenses", # token-gated CSV import (X-Restore-Token)
     "dbadmin.import_workflow_status",
     "dbadmin.link_estimates_to_job",  # token-gated OR admin session
-    "auth.logout",      # GET link, not a state-changing form
+    # auth.logout is now POST-only and CSRF-validated; removed from exempt list.
     # Permit API key management — these are session-authenticated but called from the
     # Settings page via JS fetch without a CSRF token in the request body/header.
     # They perform their own session-user gate inside the handler.

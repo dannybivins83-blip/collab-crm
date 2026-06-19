@@ -85,7 +85,10 @@
     {{ current_user.name if current_user else (company.qualifier or 'Admin') }}
     <a href="{{ url_for('auth.account') }}" style="color:#cdd9e8" title="My account">{{ icon('user') }}</a>
     <a href="{{ url_for('settings.index') }}" style="color:#cdd9e8" title="Settings">{{ icon('gear') }}</a>
-    <a href="{{ url_for('auth.logout') }}" style="color:#cdd9e8" title="Sign out">{{ icon('power') }}</a>
+    <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <button type="submit" style="background:none;border:none;padding:0;cursor:pointer;color:#cdd9e8" title="Sign out">{{ icon('power') }}</button>
+    </form>
   </span>
 </header>
 
