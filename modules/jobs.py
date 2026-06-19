@@ -271,6 +271,29 @@ def _skip_warning(job, from_stage, to_stage):
         "was" if n == 1 else "were")
 
 
+def _write_stage_history(job_id, stage):
+    """Write a job_stage_history row for CRM-native stage transitions.
+    Closes the previous open row (no ended_at) and opens a new one.
+    Keeps the history panel populated for jobs never synced from AccuLynx."""
+    from flask import session as _sess
+    u = db.get("users", _sess.get("user_id")) or {}
+    today = db.today()
+    # Close the most recent open entry for this job.
+    try:
+        db.execute(
+            "UPDATE job_stage_history SET ended_at=? WHERE job_id=? AND (ended_at IS NULL OR ended_at='')",
+            (today, job_id),
+        )
+    except Exception:
+        pass
+    db.insert("job_stage_history", {
+        "job_id": job_id,
+        "status_name": constants.job_stage(stage)["name"],
+        "started_at": today,
+        "set_by": u.get("name") or u.get("email") or "CRM",
+    })
+
+
 @bp.route("/<int:job_id>/stage", methods=["POST"])
 def set_stage(job_id):
     stage = request.form.get("stage")
@@ -280,6 +303,7 @@ def set_stage(job_id):
         warn = _skip_warning(job, _old, stage)
         db.update("jobs", job_id, stage=stage, stage_since=db.today())
         db.add_activity("job", job_id, "stage", "Moved to %s" % constants.job_stage(stage)["name"])
+        _write_stage_history(job_id, stage)
         _notify_phase(job_id, _old, stage)
         if request.form.get("ajax"):
             return jsonify({"ok": True, "stage": stage, "warning": warn})
@@ -301,6 +325,7 @@ def advance(job_id):
             warn = _skip_warning(j, j["stage"], nxt)
             db.update("jobs", job_id, stage=nxt, stage_since=db.today())
             db.add_activity("job", job_id, "stage", "Advanced to %s" % constants.job_stage(nxt)["name"])
+            _write_stage_history(job_id, nxt)
             _notify_phase(job_id, j["stage"], nxt)
             name = constants.job_stage(nxt)["name"]
             flash(("Advanced to %s. ⚠️ %s" % (name, warn)) if warn
@@ -316,6 +341,7 @@ def move(job_id):
         warn = _skip_warning(job, job.get("stage"), stage)
         db.update("jobs", job_id, stage=stage, stage_since=db.today())
         db.add_activity("job", job_id, "stage", "Moved to %s" % constants.job_stage(stage)["name"])
+        _write_stage_history(job_id, stage)
         return jsonify({"ok": True, "warning": warn})
     return jsonify({"ok": False}), 400
 
@@ -392,6 +418,16 @@ def delete(job_id):
         conn.execute("DELETE FROM photos WHERE job_id=?", (job_id,))
         conn.execute("DELETE FROM appointments WHERE job_id=?", (job_id,))
         conn.execute("DELETE FROM activities WHERE entity_type='job' AND entity_id=?", (job_id,))
+        # Cascade tables identified in 30-agent audit (job_expenses, job_stage_history,
+        # commissions, notifications, payments, roof_reports, custom_values, portal_updates).
+        conn.execute("DELETE FROM job_expenses WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM job_stage_history WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM commissions WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM notifications WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM payments WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM roof_reports WHERE job_id=?", (job_id,))
+        conn.execute("DELETE FROM custom_values WHERE entity_type='job' AND entity_id=?", (job_id,))
+        conn.execute("DELETE FROM portal_updates WHERE job_id=?", (job_id,))
         conn.execute("DELETE FROM jobs WHERE id=?", (job_id,))
         conn.commit()
     except Exception:

@@ -1240,8 +1240,17 @@ def upload_doc(token):
     j = _job_by_token(token)
     if not j:
         abort(404)
+    _DOC_ALLOWED = {
+        "pdf", "doc", "docx", "xls", "xlsx", "csv", "txt", "rtf",
+        "jpg", "jpeg", "png", "gif", "webp", "heic",
+        "zip", "tar", "gz",
+    }
     f = request.files.get("file")
     if f and f.filename:
+        ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
+        if ext not in _DOC_ALLOWED:
+            flash("File type not allowed. Upload PDF, Word, Excel, image, or ZIP files only.", "err")
+            return redirect(url_for("portal.home", token=token) + "#documents")
         fn = "%d_%s" % (int(time.time() * 1000), re.sub(r"[^A-Za-z0-9._-]+", "_", f.filename))
         path = os.path.join(config.DOC_DIR, fn)
         f.save(path)

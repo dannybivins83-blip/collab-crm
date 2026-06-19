@@ -47,9 +47,27 @@ theme.register(app)
 
 
 @app.after_request
-def _strip_server_header(resp):
-    """Remove the Server header so Werkzeug/Python version is not disclosed."""
+def _security_headers(resp):
+    """Harden every response with essential security headers."""
     resp.headers.pop("Server", None)
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "SAMEORIGIN"
+    resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # HSTS — only send over TLS (Render + Cloudflare always serve HTTPS in prod).
+    if app.config.get("SESSION_COOKIE_SECURE"):
+        resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # CSP: allow same-origin scripts/styles + Google Fonts/CDN used by the app.
+    # 'unsafe-inline' is required for the Jinja-rendered inline JS blocks until
+    # those are moved to nonce-gated script tags (a future hardening pass).
+    resp.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+        "img-src 'self' data: blob: https:; "
+        "frame-src 'self' https://sitecam-web.onrender.com; "
+        "connect-src 'self';"
+    )
     return resp
 from modules import gdrive  # noqa: E402 — ensures drive_id columns + enables Drive storage
 

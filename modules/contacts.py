@@ -23,7 +23,7 @@ FIELDS = ["kind", "first_name", "last_name", "company", "email", "phone",
 # Tables that point at a contact via contact_id, plus the activity timeline which
 # uses (entity_type='contact', entity_id). Used by the merge tool to re-home a
 # duplicate's history onto the surviving GC record.
-_CONTACT_FK_TABLES = ["leads", "jobs", "estimates", "appointments"]
+_CONTACT_FK_TABLES = ["leads", "jobs", "estimates", "appointments", "invoices", "materials"]
 
 
 def _form_data():
@@ -271,9 +271,9 @@ def note(contact_id):
 
 @bp.route("/<int:contact_id>/delete", methods=["POST"])
 def delete(contact_id):
-    # Null out FK references in leads and jobs so they don't become orphans.
-    db.execute("UPDATE leads SET contact_id=NULL WHERE contact_id=?", (contact_id,))
-    db.execute("UPDATE jobs SET contact_id=NULL WHERE contact_id=?", (contact_id,))
+    # Null out FK references in all tables that point at this contact.
+    for _t in ("leads", "jobs", "estimates", "appointments"):
+        db.execute("UPDATE %s SET contact_id=NULL WHERE contact_id=?" % _t, (contact_id,))
     db.execute("DELETE FROM activities WHERE entity_type='contact' AND entity_id=?", (contact_id,))
     db.delete("contacts", contact_id)
     flash("Contact deleted.", "ok")

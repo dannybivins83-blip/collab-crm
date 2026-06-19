@@ -234,7 +234,7 @@
 <script>
 /* Apply white-label UI label renames typed in Customize (display text only). */
 (function(){
-  var L; try{ L = {{ (company.labels or '{}')|safe }}; }catch(e){ L = {}; }
+  var L; try{ L = JSON.parse({{ (company.labels or '{}')|tojson }}); }catch(e){ L = {}; }
   var keys = Object.keys(L||{}); if(!keys.length) return;
   function relabel(el){
     el.querySelectorAll('.nlbl, .navitem, .dropdown a, h1, .page-title, .jtab, .side a').forEach(function(n){

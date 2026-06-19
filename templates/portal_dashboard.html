@@ -556,7 +556,7 @@
   {% if company.portal_perks %}
   <div class="card">
     <div class="h">{{ pic('party',16) }} Perks, Giveaways &amp; Events</div>
-    <div style="line-height:1.6">{{ company.portal_perks|safe }}</div>
+    <div style="line-height:1.6;white-space:pre-wrap">{{ company.portal_perks }}</div>
   </div>
   {% endif %}
   <script>
