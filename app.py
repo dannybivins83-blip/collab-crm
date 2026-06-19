@@ -122,6 +122,18 @@ from modules.acculynx_sync import start_auto_sync
 start_auto_sync(app)
 
 
+@app.errorhandler(404)
+def _not_found(e):
+    from flask import render_template as _rt
+    return _rt("error.html", code=404, msg="Page not found."), 404
+
+
+@app.errorhandler(500)
+def _server_error(e):
+    from flask import render_template as _rt
+    return _rt("error.html", code=500, msg="Something went wrong."), 500
+
+
 # Extensions we'll let render inline; everything else (e.g. .html/.svg/.js) downloads
 # instead of executing — closes the stored-XSS surface from served-back uploads (audit #12).
 _INLINE_OK = {"png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "pdf"}

@@ -323,6 +323,8 @@ def move(job_id):
 @bp.route("/<int:job_id>/check", methods=["POST"])
 def check(job_id):
     j = db.get("jobs", job_id)
+    if not j:
+        abort(404)
     checks = db.load_json(j.get("checks"), {})
     key = request.form.get("key")
     checks[key] = not checks.get(key)
@@ -335,6 +337,8 @@ def check(job_id):
 @bp.route("/<int:job_id>/pay", methods=["POST"])
 def pay(job_id):
     j = db.get("jobs", job_id)
+    if not j:
+        abort(404)
     payments = db.load_json(j.get("payments"), {})
     key = request.form.get("key")
     if key == "woodAmt":

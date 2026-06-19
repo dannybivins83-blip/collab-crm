@@ -11,6 +11,7 @@ No financial credentials are ever entered by the assistant — the OAuth consent
 is performed by the signed-in user on Intuit's own screen.
 """
 import json
+import secrets
 import time
 import base64
 import urllib.parse
@@ -66,7 +67,7 @@ def connect():
         return redirect(url_for("quickbooks.settings"))
     ruri = _redirect_uri()
     db.save_integrations({"qbo_redirect_uri": ruri})
-    state = base64.urlsafe_b64encode(str(time.time()).encode()).decode()
+    state = secrets.token_urlsafe(32)
     session["qbo_state"] = state
     params = {"client_id": cfg()["qbo_client_id"], "response_type": "code",
               "scope": SCOPE, "redirect_uri": ruri, "state": state}
@@ -75,7 +76,7 @@ def connect():
 
 @bp.route("/callback")
 def callback():
-    if request.args.get("state") != session.get("qbo_state"):
+    if request.args.get("state") != session.pop("qbo_state", None):
         flash("QuickBooks: state mismatch, please retry Connect.", "error")
         return redirect(url_for("quickbooks.settings"))
     code = request.args.get("code")

@@ -231,13 +231,13 @@ def reconcile_docs():
     """
     from flask import session, jsonify as _json
     if session.get("user_role") != "admin":
-        return _json({"ok": False, "error": "admin only"}), 403
+        return jsonify({"ok": False, "error": "admin only"}), 403
     if db.IS_PG:
-        return _json({"ok": False, "error": "not applicable on Postgres host"}), 400
+        return jsonify({"ok": False, "error": "not applicable on Postgres host"}), 400
 
     doc_dir = config.DOC_DIR
     if not os.path.exists(doc_dir):
-        return _json({"ok": True, "deleted": 0, "registered": 0, "already_ok": 0,
+        return jsonify({"ok": True, "deleted": 0, "registered": 0, "already_ok": 0,
                       "note": "DOC_DIR does not exist"})
 
     # Build set of filenames already in DB.
@@ -276,7 +276,7 @@ def reconcile_docs():
                 })
             registered += 1
 
-    return _json({"ok": True, "dry_run": dry,
+    return jsonify({"ok": True, "dry_run": dry,
                   "deleted_stubs": deleted,
                   "registered_orphans": registered,
                   "already_ok": already_ok})
@@ -312,7 +312,7 @@ def import_job_expenses():
     import csv, io
     f = request.files.get("file")
     if not f:
-        return _json({"ok": False, "error": "no file"}), 400
+        return jsonify({"ok": False, "error": "no file"}), 400
     text = f.read().decode("utf-8-sig", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
     job_map = _job_map_cached()
@@ -340,7 +340,7 @@ def import_job_expenses():
             "rep": (row.get("Company Representative") or "").strip(),
         })
         added += 1
-    return _json({"ok": True, "imported": added, "unmatched": unmatched})
+    return jsonify({"ok": True, "imported": added, "unmatched": unmatched})
 
 
 @bp.route("/import-workflow-status", methods=["POST"])
@@ -355,7 +355,7 @@ def import_workflow_status():
     import csv, io
     f = request.files.get("file")
     if not f:
-        return _json({"ok": False, "error": "no file"}), 400
+        return jsonify({"ok": False, "error": "no file"}), 400
     text = f.read().decode("utf-8-sig", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
     job_map = _job_map_cached()
@@ -384,7 +384,7 @@ def import_workflow_status():
             "checklist_done": (row.get("Checklist Completed") or "").strip(),
         })
         added += 1
-    return _json({"ok": True, "imported": added, "unmatched": unmatched})
+    return jsonify({"ok": True, "imported": added, "unmatched": unmatched})
 
 
 @bp.route("/link-estimates-to-job", methods=["POST"])
@@ -401,7 +401,7 @@ def link_estimates_to_job():
     admin_ok = _sess.get("user_role") == "admin"
     if not token_ok and not admin_ok:
         abort(403)
-    data = request.get_json(silent=True) or {}
+    data = request.getjsonify(silent=True) or {}
     lead_id = data.get("lead_id")
     job_id = data.get("job_id")
     if not lead_id or not job_id:

@@ -75,7 +75,7 @@ function dropCard(e,stage){
   document.querySelectorAll('.col').forEach(c=>c.classList.remove('dragover'));
   const id=e.dataTransfer.getData('text/plain');
   fetch('{{ url_for("leads.board") }}'+id+'/move',{
-    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stage:stage})
+    method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify({stage:stage})
   }).then(r=>r.json()).then(d=>{if(d.ok)location.reload()});
 }
 </script>

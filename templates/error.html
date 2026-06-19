@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — Error{% endblock %}
+{% block content %}
+<div style="text-align:center;padding:80px 20px">
+  <h1 style="font-size:64px;color:#c0c7d0;margin:0">{{ code }}</h1>
+  <p style="color:#5b6b86;font-size:16px;margin:12px 0 24px">{{ msg }}</p>
+  <a href="{{ url_for('dashboard.home') }}" style="color:#2e6da4">← Back to dashboard</a>
+</div>
+{% endblock %}

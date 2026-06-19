@@ -37,6 +37,8 @@ def _record_failure(ip: str) -> None:
 # No hardcoded default password (Fix 2, audit #critical-2).
 # Users without a password_hash cannot log in; an admin must set their password.
 # On first-run with no admin account, CRM_DEFAULT_PASSWORD env var is required.
+# This constant is set at import time from the env var so settings.py can reference it.
+DEFAULT_PASSWORD = os.environ.get("CRM_DEFAULT_PASSWORD", "").strip()
 # Endpoints reachable without being logged in.
 PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "static", "uploads", "favicon", "leads.import_leads",
@@ -73,7 +75,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "dbadmin.import_workflow_status",
           "sitecam.gallery_link"}
 # Endpoints only admins may hit (prefix match on the path).
-ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow")
+ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow", "/quickbooks")
 
 
 def _ensure_schema():
@@ -83,14 +85,24 @@ def _ensure_schema():
     except Exception:
         pass
     db._COLCACHE.clear()
-    # Fix 2: do NOT seed a default password. Users without a password_hash cannot log in.
-    # An admin must explicitly set each user's password via /account or the Settings page.
+    # Seed NULL-hash users from CRM_DEFAULT_PASSWORD on first run.
+    # An admin MUST change this password via /account after first login.
     for u in db.all_rows("users"):
         if not u.get("password_hash"):
-            _logging.warning(
-                "CRM: user id=%s (%s) has no password_hash — they cannot log in until "
-                "an admin sets their password.", u.get("id"), u.get("email") or u.get("name")
-            )
+            if DEFAULT_PASSWORD:
+                try:
+                    set_password(u["id"], DEFAULT_PASSWORD)
+                    _logging.info(
+                        "CRM: seeded password for user id=%s (%s) from CRM_DEFAULT_PASSWORD.",
+                        u.get("id"), u.get("email") or u.get("name"),
+                    )
+                except Exception as _e:
+                    _logging.error("CRM: failed to seed password for user id=%s: %s", u.get("id"), _e)
+            else:
+                _logging.warning(
+                    "CRM: user id=%s (%s) has no password_hash — set CRM_DEFAULT_PASSWORD env var "
+                    "or have an admin set their password.", u.get("id"), u.get("email") or u.get("name")
+                )
 
 
 def current_user():

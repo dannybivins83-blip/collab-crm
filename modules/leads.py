@@ -595,7 +595,9 @@ def strip_lead_marker():
 def set_stage(lead_id):
     stage = request.form.get("stage")
     if stage in constants.LEAD_STAGE_INDEX:
-        db.update("leads", lead_id, stage=stage, stage_since=db.today())
+        closed = stage in ("won", "lost")
+        db.update("leads", lead_id, stage=stage, stage_since=db.today(),
+                  **({"last_contact": db.today()} if closed else {}))
         db.add_activity("lead", lead_id, "stage", "Moved to %s" % constants.lead_stage(stage)["name"])
         if request.form.get("ajax"):
             return jsonify({"ok": True})
@@ -608,7 +610,9 @@ def move(lead_id):
     """Drag-to-advance endpoint (AJAX)."""
     stage = (request.get_json(silent=True) or {}).get("stage") or request.form.get("stage")
     if stage in constants.LEAD_STAGE_INDEX:
-        db.update("leads", lead_id, stage=stage, stage_since=db.today())
+        closed = stage in ("won", "lost")
+        db.update("leads", lead_id, stage=stage, stage_since=db.today(),
+                  **({"last_contact": db.today()} if closed else {}))
         db.add_activity("lead", lead_id, "stage", "Moved to %s" % constants.lead_stage(stage)["name"])
         return jsonify({"ok": True})
     return jsonify({"ok": False}), 400
@@ -758,6 +762,8 @@ def send_portal_invite(lead_id):
 @bp.route("/<int:lead_id>/check", methods=["POST"])
 def check(lead_id):
     l = db.get("leads", lead_id)
+    if not l:
+        abort(404)
     checks = db.load_json(l.get("checks"), {})
     key = request.form.get("key")
     checks[key] = not checks.get(key)
@@ -852,7 +858,7 @@ def convert(lead_id):
         if m.get("squares"):
             db.update("jobs", jid, area=str(m.get("squares")), slope=m.get("pitch") or "")
     db.execute("UPDATE documents SET job_id=? WHERE lead_id=?", (jid, lead_id))
-    db.update("leads", lead_id, stage="won", stage_since=db.today())
+    db.update("leads", lead_id, stage="won", stage_since=db.today(), last_contact=db.today())
     db.add_activity("lead", lead_id, "stage", "Won - converted to Job #%d" % jid)
     db.add_activity("job", jid, "stage", "Job created from Lead #%d" % lead_id)
     flash("Converted to job.", "ok")

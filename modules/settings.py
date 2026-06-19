@@ -56,13 +56,16 @@ def clear_logo():
 @bp.route("/users/new", methods=["POST"])
 def user_new():
     from modules import auth
+    pw = request.form.get("password", "").strip() or auth.DEFAULT_PASSWORD
+    if not pw:
+        flash("Password is required — type one or set CRM_DEFAULT_PASSWORD in the environment.", "err")
+        return redirect(url_for("settings.index"))
     uid = db.insert("users", {"name": request.form.get("name", "").strip(),
                               "email": request.form.get("email", "").strip(),
                               "role": request.form.get("role", "sales"), "active": 1})
-    # Give the new user a usable login (provided password or the shared default).
-    auth.set_password(uid, request.form.get("password", "").strip() or auth.DEFAULT_PASSWORD)
-    flash("User added. Default password: %s (have them change it under My Account)." % (
-        request.form.get("password", "").strip() or auth.DEFAULT_PASSWORD), "ok")
+    auth.set_password(uid, pw)
+    shown = pw if request.form.get("password", "").strip() else "(from CRM_DEFAULT_PASSWORD)"
+    flash("User added. Password: %s — have them change it under My Account." % shown, "ok")
     return redirect(url_for("settings.index"))
 
 
