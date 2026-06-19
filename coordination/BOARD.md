@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-19):** `4b573f2` on `agent/gc-consolidation` · `main` still at `17a9ad0`
-- **Last board update:** 2026-06-19 ET — crm-ui: **7-wave security/perf audit sweep** (`ed29403`→`4b573f2`). Wave 1-2 (prior session): auth fix, dbadmin NameError, QuickBooks CSRF, portal upload allowlist, XSS fixes, security headers, error pages, CSRF on drag-drop, mobile viewport. Wave 3: IDOR ownership guards on leads (14 routes), jobs (9 routes), estimates (6 routes), orders (6 routes). Wave 4: dashboard N+1 eliminated (batch name lookup + throttled overdue sweep), portal /learn N+1 fixed (5-min TTL cache). Wave 5: uploads path traversal guard, invoice double-pay guard, lead.convert idempotency. Wave 6: pipeline board department scoping, leads.new silent failure logging. Wave 7: contacts search LOWER() for Postgres case-insensitivity.
+- **Git tip (verified 2026-06-19):** `dfeda4f` on `agent/gc-consolidation` · `main` still at `17a9ad0`
+- **Last board update:** 2026-06-19 ET — crm-ui: (1) `/sync` 500 fix — premature `</script>` removed (`c1b9bce`); (2) root CRM 500 fix — `csrf_token()→csrf_token` in base.html (`e97abd8`); (3) `roof_reports.py` URL key leak patched — server-side proxy, key never in browser (`5d2f156`), ROOF_ENGINE_API_KEY rotation escalated to overlord; (4) emoji→icon sweep across 13 templates (`dfeda4f`); (5) roofengine coordination — MEASURE unblocked, 401 fix deployed, consolidation=fold-into-takeoff proposed via bus.
 
 ---
 
@@ -19,7 +19,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 | 🔌 AppConnect | SB CRM-clone MAIN APPCONNECT CODER | integration glue / takeoff | idle |
 | 🔁 Sync | (Sync coder) | `acculynx_sync.py` bridges | folded into Security #1 |
 | 📐 Measurement | SeaBreeze roof measurement specialist | measurement ingest | idle |
-| 🛰️ Roof Engine | SB CRM-clone MAIN DEV ROOFENGINE CODER | engine VM, `/api/takeoff` push | waiting on `MEASURE_CRM_WEBHOOK_SECRET` |
+| 🛰️ Roof Engine | SB CRM-clone MAIN DEV ROOFENGINE CODER | engine VM, `/api/takeoff` push | MEASURE ✅ unblocked (rotated). 401 fix deployed — URL key leak patched + ROOF_ENGINE_API_KEY rotation escalated to overlord. Consolidation=fold-into-takeoff proposed. |
 | 📷 SiteCam | SB CRM SiteCam-clone MAIN DEV UI CODER | sitecam-api, SSO verify | waiting on `SEABREEZE` rotation + SEED_FORCE |
 | 🧮 Takeoff | SB CRM-clone TAKEOFFBUILDER CODER | estimator envelope · audit | ✅ #9 + #11 verified (`093dfa2`,`d122361`); ▶ now on db.insert() conn-leak fix (P2) |
 | 📧 Gmail Alias | Gmail alias automation Chrome Extension | per-account Gmail alias/draft automation | active |
@@ -75,6 +75,9 @@ update your row → push. One pusher at a time. Don't route status through the o
 | **D20** | **La Gala gov-portal pipeline — provide FEIN + drop docs, then 3 final clicks** | la-gala lane signed up 5 master portals (Bonfire, OpenGov, DemandStar, BidNet, + PBC) covering 30+ municipalities, and pre-filled 3 more to the final click. **Master unlock = FEIN/EIN** — gates MFMP (all FL state agencies), BidNet final, Bids&Tenders Boynton, Boca eSourcing. Also needs a doc drop (W-9, license PDF, COI, comp cert, articles) into `la gala\portal-signups\docs\`. Owner-actions, in order: (1) drop FEIN + docs; (2) click activation emails to Danny@lagalacon.com for the 5 created accounts; (3) final-click the 3 pre-filled (PBC VSS, Bids&Tenders Boynton, Boca Raton eSourcing). Heavy lifts deferred: SAM.gov UEI check, FDOT pre-qual. Full click-order playbook: `C:\Users\kjburnz\la gala\portal-signups\HANDOFF.md`. | la-gala audit 2026-06-12T1645 (flagged by overlord 2026-06-13) |
 | **D21** | **Cloudflare R2 migration — say "go" to approve** | One R2 bucket (`collab-cdn`) replaces Google Drive mirror + Render ephemeral disk for CRM uploads (618 files, 2.5 GB). Cost: **$0/mo** at current volume (10 GB R2 free tier; $0 egress always). Plan: reconcile documents table (8 DB rows vs 618 disk files), upload to R2, update CRM URLs, retire Drive mirror, remove 2.5 GB from Render disk. Keys: overlord's lifecycle (RULE 1 — Danny never touches). Danny's action = one word **"go"** in chat. | crm-ui 2026-06-15 |
 | **D22** | **CRM_DEFAULT_PASSWORD — set on Render dashboard** | Users with no password_hash can't log in on fresh deploy. Set `CRM_DEFAULT_PASSWORD` to a temporary password in Render → Environment. Any user without a password will be able to log in with it and must change it. Danny chooses the value (not a generated secret — it's a password he owns). | crm-ui 2026-06-19 |
+| **D23** | **GOOGLE_OAUTH_CLIENT_SECRET — one-click rotation via GCP** | Secret was burned (screenshot leak). GCP OAuth 2.0 client secrets require a UI click to regenerate — cannot be rotated via CLI per RULE 1. crm-coord has prepped: (1) GCP Credentials tab open, (2) Render env tab open. Danny's two steps: click "Add Secret" in GCP → copy → paste into Render `GOOGLE_OAUTH_CLIENT_SECRET` → Save → Redeploy. Value never touches chat. Escalated to overlord 2026-06-19T09:45Z. Gmail widget stays disabled until confirmed. | crm-ui 2026-06-19 |
+| **D24** | **CRM_INTAKE_TOKEN — set on Render + Vercel** | Intake webhooks (`/leads/intake`, `/email`, `/ringcentral`) return 503 until this is set. appconnect owns the intake; set the token on both hosts. Use Render "Generate" button. Do NOT paste value in chat. | crm-qa-ux→appconnect 2026-06-19 |
+| **D25** | **Google OAuth redirect URIs — add both CRM domains** | GCP OAuth consent screen needs `https://crm.collaborativeconceptsfl.com/auth/google/callback` AND `https://collab-crm-bwsl.onrender.com/auth/google/callback` added as authorized redirect URIs. One-time GCP console click. Part of D23 rotation session — do both at once. | crm-qa-ux→appconnect 2026-06-19 |
 
 ---
 
