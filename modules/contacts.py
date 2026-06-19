@@ -38,10 +38,15 @@ def _form_data():
 def index():
     q = request.args.get("q", "").strip()
     if q:
-        like = "%" + q + "%"
-        rows = db.all_rows("contacts",
-                           "first_name LIKE ? OR last_name LIKE ? OR company LIKE ? OR email LIKE ? OR phone LIKE ? OR address LIKE ?",
-                           (like, like, like, like, like, like), "last_name, company")
+        # LOWER() on both sides for case-insensitive search across SQLite and Postgres
+        # (Postgres LIKE is case-sensitive; SQLite LIKE is case-insensitive for ASCII only).
+        like = "%" + q.lower() + "%"
+        rows = db.all_rows(
+            "contacts",
+            "LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? OR "
+            "LOWER(company) LIKE ? OR LOWER(email) LIKE ? OR phone LIKE ? OR "
+            "LOWER(address) LIKE ?",
+            (like, like, like, like, like, like), "last_name, company")
     else:
         rows = db.all_rows("contacts", order="last_name, company")
     return render_template("contacts.html", contacts=rows, q=q)
