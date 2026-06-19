@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Order Manager{% endblock %}
 {% block body %}
 <div class="page-head">
-  <h1>📦 Order Manager</h1>
+  <h1>{{ icon('box') }} Order Manager</h1>
   <span class="sub">{{ orders|length }} of {{ total }}</span>
   <div class="grow"></div>
   <a class="btn" href="{{ url_for('orders.vendors') }}">Vendors</a>

@@ -23,15 +23,15 @@
   </div>
   <div class="jh-ring" style="--p:{{ paid }}">{{ paid }}%</div>
   {% set purl = portal_link(j.id) %}
-  <a class="btn" href="{{ purl }}" target="_blank" title="Open the homeowner portal">🏠 Portal</a>
-  <button class="btn" type="button" onclick="navigator.clipboard.writeText('{{ purl }}');this.textContent='✓ Link copied'" title="Copy the homeowner's private portal link">🔗 Copy link</button>
+  <a class="btn" href="{{ purl }}" target="_blank" title="Open the homeowner portal">{{ icon('home') }} Portal</a>
+  <button class="btn" type="button" onclick="navigator.clipboard.writeText('{{ purl }}');this.textContent='✓ Link copied'" title="Copy the homeowner's private portal link">{{ icon('clipboard') }} Copy link</button>
   {% if constants.job_bucket(j.stage).key in ('completed', 'invoiced') %}
   <a class="btn accent" href="{{ closeout_email(j) }}" target="_blank"
-     title="Draft a closeout email: warranty + Certificate of Completion in the portal, plus the final payment link">📦 Send Closeout</a>
+     title="Draft a closeout email: warranty + Certificate of Completion in the portal, plus the final payment link">{{ icon('box') }} Send Closeout</a>
   {% else %}
   <form method="post" action="{{ url_for('signups.create', job_id=j.id) }}" style="display:inline-flex;gap:4px" title="Send the pre-filled sign-up package for the homeowner to initial + sign in their portal">
     <select name="system" style="width:auto">{% for s in ['shingle','tile','metal','flat'] %}<option value="{{ s }}" {{ 'selected' if (j.system or '')|lower==s }}>{{ s|capitalize }}</option>{% endfor %}</select>
-    <button class="btn accent" type="submit">📋 Send Sign-Up</button>
+    <button class="btn accent" type="submit">{{ icon('clipboard') }} Send Sign-Up</button>
   </form>
   {% endif %}
   <a class="btn" href="{{ url_for('jobs.edit', job_id=j.id) }}">Edit</a>
@@ -116,7 +116,7 @@ function lcGate(form,pct){
     <div class="tabpane" data-pane="work" style="display:none">
       {% set pa = job_profit(j.id) %}
       <div class="card">
-        <div class="panel-head"><span>📈 Profit Analysis</span><a class="btn sm primary" href="{{ url_for('worksheet.view', job_id=j.id) }}">📒 Open Worksheet</a></div>
+        <div class="panel-head"><span>{{ icon('sliders') }} Profit Analysis</span><a class="btn sm primary" href="{{ url_for('worksheet.view', job_id=j.id) }}">{{ icon('book') }} Open Worksheet</a></div>
         <div class="kpis" style="margin-bottom:0">
           <div class="kpi"><div class="v">{{ money(pa.contract_value) }}</div><div class="l">Contract value</div></div>
           <div class="kpi"><div class="v">{{ money(pa.actual_cost) }}</div><div class="l">Actual cost</div></div>
@@ -126,7 +126,7 @@ function lcGate(form,pct){
         {% if not pa.has_ws %}<div class="muted" style="margin-top:8px">No worksheet yet — opening it seeds budget + actual from the signed estimate.</div>{% endif %}
       </div>
       <div class="card">
-        <h2>💵 Draw Schedule — {{ j.contract_value or '(set value)' }} · {{ paid }}% collected</h2>
+        <h2>{{ icon('dollar') }} Draw Schedule — {{ j.contract_value or '(set value)' }} · {{ paid }}% collected</h2>
         {% for p in draws %}
         <label class="check {{ 'done' if j._payments.get(p.key) }}" style="justify-content:space-between">
           <form method="post" action="{{ url_for('jobs.pay', job_id=j.id) }}" style="display:flex;align-items:center;gap:9px;flex:1">
@@ -152,7 +152,7 @@ function lcGate(form,pct){
       <div class="card">
         <div class="panel-head"><span>Orders (Material + Labor)</span>
           <form method="post" action="{{ url_for('orders.generate', job_id=j.id) }}" style="display:inline">
-            <button class="btn sm primary" type="submit">⚙ Generate from estimate</button>
+            <button class="btn sm primary" type="submit">{{ icon('gear') }} Generate from estimate</button>
           </form>
         </div>
         {% for o in job_orders(j.id) %}
@@ -165,9 +165,9 @@ function lcGate(form,pct){
     <!-- PHOTOS -->
     <div class="tabpane" data-pane="photo" style="display:none">
       <div class="card">
-        <h2>📷 Photos</h2>
+        <h2>{{ icon('camera') }} Photos</h2>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-          <a href="{{ url_for('sitecam.index') }}" class="primary" style="text-decoration:none;padding:7px 16px;border-radius:6px;font-size:0.9em;display:inline-flex;align-items:center;gap:6px">📸 Open SiteCam</a>
+          <a href="{{ url_for('sitecam.index') }}" class="primary" style="text-decoration:none;padding:7px 16px;border-radius:6px;font-size:0.9em;display:inline-flex;align-items:center;gap:6px">{{ icon('camera') }} Open SiteCam</a>
           {% if j.sitecam_url %}<a href="{{ j.sitecam_url }}" target="_blank" style="font-size:0.88em;color:var(--accent)">View client gallery →</a>{% endif %}
         </div>
         <form method="post" action="{{ url_for('files.upload_photo', job_id=j.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
@@ -184,7 +184,7 @@ function lcGate(form,pct){
     <!-- DOCUMENTS -->
     <div class="tabpane" data-pane="doc" style="display:none">
       <div class="card">
-        <h2>📄 Documents</h2>
+        <h2>{{ icon('book') }} Documents</h2>
         <form method="post" action="{{ url_for('files.upload_doc', job_id=j.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end">
           <input type="file" name="file" required style="flex:1">
           <select name="category" style="width:auto"><option>Contract</option><option>Permit</option><option>COI</option><option>NOA</option><option>Measurement</option><option>HOA</option><option>Other</option></select>
@@ -194,11 +194,11 @@ function lcGate(form,pct){
         <div id="drow-{{ d.id }}" class="rowline" style="display:flex;align-items:center;gap:8px">
           <span class="badge">{{ d.category }}</span>
           <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank" style="flex:1;word-break:break-all">{{ d.original_name }}</a>
-          <button type="button" onclick="docEdit({{ d.id }})" class="btn sm" title="Edit name or type" style="flex:none">✏️</button>
-          <form method="post" action="{{ url_for('files.delete_doc', doc_id=d.id) }}" style="margin:0" onsubmit="return confirm('Delete this document?')"><button class="btn sm" type="submit" title="Delete document" style="flex:none">🗑️</button></form>
+          <button type="button" onclick="docEdit({{ d.id }})" class="btn sm" title="Edit name or type" style="flex:none">{{ icon('gear') }}</button>
+          <form method="post" action="{{ url_for('files.delete_doc', doc_id=d.id) }}" style="margin:0" onsubmit="return confirm('Delete this document?')"><button class="btn sm" type="submit" title="Delete document" style="flex:none">{{ icon('box') }}</button></form>
           {% if d.signed_at %}<span class="badge" style="color:var(--ok)">✓ signed {{ d.signed_name }}</span>
           {% elif d.needs_sign %}<span class="badge" style="color:var(--warn)">awaiting signature</span>
-          {% else %}<form method="post" action="{{ url_for('files.request_sign', doc_id=d.id) }}" style="margin:0"><button class="btn sm" type="submit" title="Ask the homeowner to e-sign this in their portal">✍️ Request signature</button></form>{% endif %}
+          {% else %}<form method="post" action="{{ url_for('files.request_sign', doc_id=d.id) }}" style="margin:0"><button class="btn sm" type="submit" title="Ask the homeowner to e-sign this in their portal">{{ icon('check') }} Request signature</button></form>{% endif %}
         </div>
         <div id="dedit-{{ d.id }}" style="display:none;padding:4px 0 10px 0">
           <form method="post" action="{{ url_for('files.update_doc', doc_id=d.id) }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -226,10 +226,10 @@ function lcGate(form,pct){
     <!-- MEASUREMENTS -->
     <div class="tabpane" data-pane="meas" id="meas" style="display:none">
       <div class="card">
-        <div class="panel-head"><span>📐 Roof Measurements (RoofGraf)</span>
+        <div class="panel-head"><span>{{ icon('clipboard') }} Roof Measurements (RoofGraf)</span>
           <div style="display:flex;gap:6px">
             {% if measurement and measurement.report_file %}<a class="btn sm" href="{{ url_for('uploads', subpath=measurement.report_file) }}" target="_blank">View report</a>{% endif %}
-            <a class="btn sm primary" href="{{ url_for('roof_reports.new') }}?job_id={{ j.id }}&address={{ (j.address or '')|urlencode }}&city={{ (j.city or '')|urlencode }}&zip={{ (j.zip or '')|urlencode }}">🏠 Order aerial report</a>
+            <a class="btn sm primary" href="{{ url_for('roof_reports.new') }}?job_id={{ j.id }}&address={{ (j.address or '')|urlencode }}&city={{ (j.city or '')|urlencode }}&zip={{ (j.zip or '')|urlencode }}">{{ icon('home') }} Order aerial report</a>
           </div>
         </div>
         <form method="post" action="{{ url_for('measurements.upload_job', job_id=j.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
@@ -254,7 +254,7 @@ function lcGate(form,pct){
             <div class="field"><label>Step flash LF</label><input name="step_flash_lf" type="number" step="0.1" value="{{ m.step_flash_lf or '' }}"></div>
           </div>
           <div class="field"><label>Notes</label><input name="notes" value="{{ m.notes or '' }}"></div>
-          <button class="primary" type="submit">💾 Save measurements</button>
+          <button class="primary" type="submit">{{ icon('save') }} Save measurements</button>
           <span class="muted" style="margin-left:10px">These feed estimate quantities — open an estimate and click <b>Apply measurements</b>.</span>
         </form>
       </div>
@@ -351,15 +351,15 @@ function lcGate(form,pct){
       <h2>Job details</h2>
       <div class="muted" style="line-height:1.9">
         {% if j.phone %}<div><a href="tel:{{ j.phone }}">{{ icon('phone') }} {{ j.phone }}</a></div>{% endif %}
-        {% if j.email %}<div>✉️ <a href="mailto:{{ j.email }}">{{ j.email }}</a></div>{% endif %}
-        <div>🔨 {{ j.work_type }}</div>
-        {% if j.rep %}<div>👤 {{ j.rep }}</div>{% endif %}
-        {% if j.ahj %}<div>🏛️ AHJ: {{ j.ahj }} ({{ j.county }})</div>{% endif %}
-        {% if j.area %}<div>📐 {{ j.area }} sq · {{ j.slope }}</div>{% endif %}
+        {% if j.email %}<div>{{ icon('mail') }} <a href="mailto:{{ j.email }}">{{ j.email }}</a></div>{% endif %}
+        <div>{{ icon('gear') }} {{ j.work_type }}</div>
+        {% if j.rep %}<div>{{ icon('user') }} {{ j.rep }}</div>{% endif %}
+        {% if j.ahj %}<div>{{ icon('building') }} AHJ: {{ j.ahj }} ({{ j.county }})</div>{% endif %}
+        {% if j.area %}<div>{{ icon('clipboard') }} {{ j.area }} sq · {{ j.slope }}</div>{% endif %}
       </div>
     </div>
     <div class="card">
-      <div class="panel-head"><span>🏛️ Permits</span><a class="btn sm" href="{{ url_for('permits.new') }}?job_id={{ j.id }}">+ Add</a></div>
+      <div class="panel-head"><span>{{ icon('building') }} Permits</span><a class="btn sm" href="{{ url_for('permits.new') }}?job_id={{ j.id }}">+ Add</a></div>
       {% for p in permits %}<div class="rowline"><a href="{{ url_for('permits.detail', permit_id=p.id) }}">{{ p.ahj }} — {{ p.system }}</a> <span class="badge">{{ p.status }}</span></div>{% else %}<div class="muted">None.</div>{% endfor %}
     </div>
     <form method="post" action="{{ url_for('jobs.delete', job_id=j.id) }}" onsubmit="return confirm('Delete this job?')">

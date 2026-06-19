@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}{{ e.number }}{% endblock %}
 {% block body %}
 <div class="page-head">
@@ -95,11 +96,11 @@
 
   <div>
     <div class="card">
-      <h2>💵 Draw schedule (on total)</h2>
+      <h2>{{ icon('dollar') }} Draw schedule (on total)</h2>
       {% for d in draws %}<div class="row" style="justify-content:space-between"><span>{{ d.label }}</span><b class="draw-amt" data-pct="{{ '%.2f'|format((d.amount/totals.total) if (d.amount and totals.total) else 0) }}">{{ money(d.amount) if d.amount is not none else '—' }}</b></div>{% endfor %}
     </div>
     <div class="card">
-      <h2>📐 Roof Measurements</h2>
+      <h2>{{ icon('clipboard') }} Roof Measurements</h2>
       {% if measurement %}
         {% set m = measurement %}
         <div class="meas-grid">
@@ -120,18 +121,18 @@
     </div>
 
     <div class="card">
-      <h2>📚 Product Data & Color Selectors</h2>
+      <h2>{{ icon('book') }} Product Data & Color Selectors</h2>
       <div class="muted" style="margin-bottom:8px">Share with the customer for their {{ e.work_type or 'roof' }} color/material selection.</div>
       {% for r in constants.resources_for(e.work_type) %}
         <a class="rowline" href="{{ r.url }}" target="_blank" rel="noopener" style="display:block;padding:6px 0">
-          {{ '🎨' if r.digital else '📄' }} {{ r.name }} ↗
+          {{ icon('palette') if r.digital else icon('book') }} {{ r.name }} ↗
         </a>
       {% endfor %}
-      <div class="muted" style="margin-top:6px">🎨 = digital color visualizer · 📄 = data sheet / brochure</div>
+      <div class="muted" style="margin-top:6px">{{ icon('palette') }} = digital color visualizer · {{ icon('book') }} = data sheet / brochure</div>
     </div>
 
     <div class="card">
-      <h2>✍️ E-signature</h2>
+      <h2>{{ icon('user') }} E-signature</h2>
       {% if e.status=='signed' %}
         <div class="muted">Signed by <b>{{ e.signed_name }}</b> on {{ e.signed_at }}</div>
         {% if e.signature %}<img src="{{ e.signature }}" style="max-width:100%;border:1px solid var(--line);border-radius:8px;margin-top:8px">{% endif %}

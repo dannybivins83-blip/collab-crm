@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}New Estimate{% endblock %}
 {% block body %}
 <div class="page-head">
   <a class="btn ghost" href="javascript:history.back()">← Back</a>
-  <h1>📝 New Estimate</h1>
+  <h1>{{ icon('clipboard') }} New Estimate</h1>
 </div>
 <form method="post" class="card" style="max-width:640px">
   <input type="hidden" name="lead_id" value="{{ pre.lead_id or '' }}">

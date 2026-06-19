@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Reports{% endblock %}
 {% block body %}
-<div class="page-head"><h1>📈 Reports & Dashboards</h1></div>
+<div class="page-head"><h1>{{ icon('sliders') }} Reports & Dashboards</h1></div>
 <div class="kpis">
   <div class="kpi"><div class="v accent">{{ money_k(pipeline_value) }}</div><div class="l">Open sales pipeline</div></div>
   <div class="kpi"><div class="v">{{ money_k(job_value) }}</div><div class="l">Active job value</div></div>
@@ -27,7 +28,7 @@
   </div>
   <div>
     <div class="card">
-      <h2>🏆 Salesperson leaderboard</h2>
+      <h2>{{ icon('check') }} Salesperson leaderboard</h2>
       <table class="grid"><tr><th>Rep</th><th class="right">Deals</th><th class="right">Won $</th></tr>
         {% for rep, v in leaderboard %}<tr><td>{{ rep }}</td><td class="right">{{ v.deals }}</td><td class="right">{{ money(v.won) }}</td></tr>
         {% else %}<tr><td colspan="3" class="muted">No won deals yet.</td></tr>{% endfor %}

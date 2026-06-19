@@ -1,14 +1,15 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Sync from AccuLynx{% endblock %}
 {% block body %}
-<div class="page-head"><h1>🔄 Sync from AccuLynx</h1>
+<div class="page-head"><h1>{{ icon('refresh') }} Sync from AccuLynx</h1>
   <span class="sub">{% if company.acculynx_last_sync %}Last sync: {{ company.acculynx_last_sync }}{% else %}Never synced{% endif %}</span>
 </div>
 
 <div class="card" style="border:2px solid var(--accent2);background:linear-gradient(180deg,#fff,#f4f9ff)">
-  <h2>📥 Install all sync bookmarks at once</h2>
+  <h2>{{ icon('download') }} Install all sync bookmarks at once</h2>
   <p class="muted">Instead of dragging each button below to your bookmarks bar one at a time, download them <b>all in one folder</b>. Re-download anytime to <b>update</b> them to the latest version.</p>
-  <button type="button" class="btn lg accent" onclick="downloadBookmarkFolder()">📥 Download all 10 bookmarks as a folder</button>
+  <button type="button" class="btn lg accent" onclick="downloadBookmarkFolder()">{{ icon('download') }} Download all 10 bookmarks as a folder</button>
   <ol style="font-size:13px;line-height:1.8;margin:10px 0 0 18px">
     <li>Click the button — it saves <code>acculynx-crm-bookmarks.html</code>.</li>
     <li>In Chrome open <b>⋮ → Bookmarks &amp; lists → Bookmark manager</b> (or <code>chrome://bookmarks</code>).</li>
@@ -31,7 +32,7 @@
         <div class="muted" style="margin-top:6px">Default: {{ default_base }} — change only if AccuLynx gives you a different host.</div>
       </div>
       <label class="check" style="max-width:360px"><input type="checkbox" name="acculynx_auto" {{ 'checked' if company.acculynx_auto }}> <span>Enable scheduled auto-sync</span></label>
-      <button class="primary" type="submit">💾 Save connection</button>
+      <button class="primary" type="submit">{{ icon('save') }} Save connection</button>
     </form>
   </div>
 
@@ -39,9 +40,9 @@
     <h2>Run a sync</h2>
     <p class="muted">Pulls your <b>active pipeline</b> from AccuLynx — Assigned, Prospect, Approved, Completed &amp; Invoiced (~800 records). The huge historical Closed/Canceled buckets are skipped on purpose. Matches by AccuLynx job ID, then name, so re-syncs update the same record instead of duplicating.</p>
     <form method="post" action="{{ url_for('sync.run') }}">
-      <button class="accent" type="submit" {{ '' if company.acculynx_api_key else 'disabled' }}>🔄 Sync now</button>
-      {% if company.acculynx_api_key %}<a class="btn ghost" href="{{ url_for('sync.test') }}" style="margin-left:8px">🔌 Test connection</a>{% endif %}
-      <a class="btn ghost" href="{{ url_for('sync.log') }}" style="margin-left:8px">📋 Sync log</a>
+      <button class="accent" type="submit" {{ '' if company.acculynx_api_key else 'disabled' }}>{{ icon('refresh') }} Sync now</button>
+      {% if company.acculynx_api_key %}<a class="btn ghost" href="{{ url_for('sync.test') }}" style="margin-left:8px">{{ icon('power') }} Test connection</a>{% endif %}
+      <a class="btn ghost" href="{{ url_for('sync.log') }}" style="margin-left:8px">{{ icon('clipboard') }} Sync log</a>
       {% if not company.acculynx_api_key %}<div class="muted" style="margin-top:8px">Save an API key first.</div>{% endif %}
       <div class="muted" style="margin-top:8px">Each click pulls for ~20 seconds (several batches) and remembers where it left off. The flash message tells you when a <b>full pass is complete</b> — for the first import, click <b>Sync now</b> a couple of times until it says so.</div>
       <div class="muted" style="margin-top:8px">If anything looks off, click <b>Test connection</b> — it shows exactly what AccuLynx returned and how each field maps.</div>
@@ -51,62 +52,62 @@
     </div>
     <form method="post" action="{{ url_for('sync.dedupe') }}" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px"
           onsubmit="return confirm('Remove duplicate synced records? Keeps one of each — safe to run anytime.');">
-      <button class="btn ghost" type="submit">🧹 Remove duplicates</button>
+      <button class="btn ghost" type="submit">{{ icon('shuffle') }} Remove duplicates</button>
       <div class="muted" style="margin-top:6px">Cleans up leftover copies from earlier imports so the L/P/A/C/I counts line up with AccuLynx. Jobs are matched by AccuLynx ID; leads by ID then name (the AccuLynx-linked copy is always the one kept).</div>
     </form>
   </div>
 </div>
 
 <div class="card">
-  <h2>🔌 Sync Tools — AccuLynx → CRM</h2>
+  <h2>{{ icon('power') }} Sync Tools — AccuLynx → CRM</h2>
   <p class="muted">Each tool is a <b>browser bookmark</b>. Easiest: use <b>📥 Download all</b> above to install them in one folder — or drag any tool below to your bookmarks bar. Then, on a logged-in <b>my.acculynx.com</b> page, click the tool; a live banner shows progress. <b>↺</b> resets a tool's resumable cursor.</p>
   <table class="grid synctools">
     <tr><th style="width:42%">Tool <span class="muted" style="font-weight:400">(drag to bookmarks bar)</span></th><th>What it pulls into the CRM</th><th></th></tr>
 
     <tr><td colspan="3" class="grp">Core</td></tr>
-    <tr><td><a id="bm" class="btn accent sm" href="#" onclick="return false">📥 AccuLynx Records → CRM</a></td>
+    <tr><td><a id="bm" class="btn accent sm" href="#" onclick="return false">{{ icon('download') }} AccuLynx Records → CRM</a></td>
         <td>Leads &amp; jobs + their <b>exact milestone</b> — no API key. Run once per milestone list.</td><td></td></tr>
-    <tr><td><a id="bmall" class="btn accent sm" href="#" onclick="return false">⭐ AccuLynx Sync All → CRM</a></td>
+    <tr><td><a id="bmall" class="btn accent sm" href="#" onclick="return false">{{ icon('refresh') }} AccuLynx Sync All → CRM</a></td>
         <td>One click: <b>billing + estimates + communications</b> for the open Jobs list.</td><td></td></tr>
 
     <tr><td colspan="3" class="grp">Financials</td></tr>
-    <tr><td><a id="bmbillwalk" class="btn accent sm" href="#" onclick="return false">💳 AccuLynx Billing (all buckets) → CRM</a></td>
+    <tr><td><a id="bmbillwalk" class="btn accent sm" href="#" onclick="return false">{{ icon('card') }} AccuLynx Billing (all buckets) → CRM</a></td>
         <td>Value, invoices, <b>payments &amp; balance</b> — walks <b>every bucket</b> incl. full Closed, 25/click. <em>Best for full payment history.</em></td>
         <td><form method="post" action="{{ url_for('sync.bill_reset') }}"><button class="btn ghost sm" title="Reset cursor">↺</button></form></td></tr>
-    <tr><td><a id="bmbill" class="btn accent sm" href="#" onclick="return false">💵 AccuLynx Billing → CRM</a></td>
+    <tr><td><a id="bmbill" class="btn accent sm" href="#" onclick="return false">{{ icon('dollar') }} AccuLynx Billing → CRM</a></td>
         <td>Same, for the <b>currently open list</b> (scroll-based).</td><td></td></tr>
-    <tr><td><a id="bmestws" class="btn accent sm" href="#" onclick="return false">📊 AccuLynx Est+WS → CRM (whole list)</a></td>
+    <tr><td><a id="bmestws" class="btn accent sm" href="#" onclick="return false">{{ icon('sliders') }} AccuLynx Est+WS → CRM (whole list)</a></td>
         <td>Each estimate's <b>line items + a cost/profit worksheet</b> for the open list.</td>
         <td><button class="btn sm" onclick="_runEstWsOnAccuLynx(0)">▶ Run now (Approved)</button></td></tr>
-    <tr><td><a id="bmestws50" class="btn accent sm" href="#" onclick="return false">📊 AccuLynx Est+WS → CRM (first 50)</a></td>
+    <tr><td><a id="bmestws50" class="btn accent sm" href="#" onclick="return false">{{ icon('sliders') }} AccuLynx Est+WS → CRM (first 50)</a></td>
         <td>Same, capped to the <b>50 most recent</b> (use on Invoiced, sorted newest).</td>
         <td><button class="btn sm" onclick="_runEstWsOnAccuLynx(50)">▶ Run now (Approved, 50)</button></td></tr>
-    <tr><td><a id="bmestlines" class="btn accent sm" href="#" onclick="return false">🧾 AccuLynx Estimate Lines → CRM</a></td>
+    <tr><td><a id="bmestlines" class="btn accent sm" href="#" onclick="return false">{{ icon('clipboard') }} AccuLynx Estimate Lines → CRM</a></td>
         <td>Exact estimate <b>line items</b> only (no worksheet).</td><td></td></tr>
-    <tr><td><a id="bmest" class="btn accent sm" href="#" onclick="return false">📝 AccuLynx Estimates → CRM</a></td>
+    <tr><td><a id="bmest" class="btn accent sm" href="#" onclick="return false">{{ icon('clipboard') }} AccuLynx Estimates → CRM</a></td>
         <td>Estimate <b>headers</b> — name, total, status, date.</td><td></td></tr>
 
     <tr><td colspan="3" class="grp">Files &amp; media</td></tr>
-    <tr><td><a id="bmalldocs" class="btn accent sm" href="#" onclick="return false">📂 AccuLynx Documents → CRM</a></td>
+    <tr><td><a id="bmalldocs" class="btn accent sm" href="#" onclick="return false">{{ icon('book') }} AccuLynx Documents → CRM</a></td>
         <td><b>Every file in every folder</b> per job, 20/click, resumable.</td>
         <td><form method="post" action="{{ url_for('sync.doc_reset') }}"><button class="btn ghost sm" title="Reset cursor">↺</button></form></td></tr>
-    <tr><td><a id="bmroof" class="btn accent sm" href="#" onclick="return false">📐 AccuLynx Roof Reports → CRM</a></td>
+    <tr><td><a id="bmroof" class="btn accent sm" href="#" onclick="return false">{{ icon('clipboard') }} AccuLynx Roof Reports → CRM</a></td>
         <td>RoofGraf PDFs → <b>Measurements</b>, auto-parsed (squares/pitch). 20/click.</td>
         <td><form method="post" action="{{ url_for('sync.roofreport_reset') }}"><button class="btn ghost sm" title="Reset cursor">↺</button></form></td></tr>
-    <tr><td><a id="bmphotos" class="btn accent sm" href="#" onclick="return false">📸 AccuLynx Photos → CRM</a></td>
+    <tr><td><a id="bmphotos" class="btn accent sm" href="#" onclick="return false">{{ icon('camera') }} AccuLynx Photos → CRM</a></td>
         <td>Site photos → job <b>photo gallery</b>. 20/click.</td>
         <td><form method="post" action="{{ url_for('sync.photo_reset') }}"><button class="btn ghost sm" title="Reset cursor">↺</button></form></td></tr>
-    <tr><td><a id="bmdocs" class="btn accent sm" href="#" onclick="return false">📎 AccuLynx Permits → CRM</a></td>
+    <tr><td><a id="bmdocs" class="btn accent sm" href="#" onclick="return false">{{ icon('book') }} AccuLynx Permits → CRM</a></td>
         <td>Permit / NOC / inspection docs for the open list.</td><td></td></tr>
 
     <tr><td colspan="3" class="grp">Communications</td></tr>
-    <tr><td><a id="bmcomm" class="btn accent sm" href="#" onclick="return false">💬 AccuLynx Comms → CRM</a></td>
+    <tr><td><a id="bmcomm" class="btn accent sm" href="#" onclick="return false">{{ icon('message') }} AccuLynx Comms → CRM</a></td>
         <td>Notes &amp; messages → job activity (newest 200 per run).</td><td></td></tr>
 
     <tr><td colspan="3" class="grp">Insurance &amp; Orders</td></tr>
-    <tr><td><a id="bminsurance" class="btn accent sm" href="#" onclick="return false">🏠 AccuLynx Insurance → CRM</a></td>
+    <tr><td><a id="bminsurance" class="btn accent sm" href="#" onclick="return false">{{ icon('home') }} AccuLynx Insurance → CRM</a></td>
         <td>Claim #, adjuster, carrier, deductible &amp; mortgage info — 20 jobs/click.</td><td></td></tr>
-    <tr><td><a id="bmorders" class="btn accent sm" href="#" onclick="return false">📦 AccuLynx Orders → CRM</a></td>
+    <tr><td><a id="bmorders" class="btn accent sm" href="#" onclick="return false">{{ icon('box') }} AccuLynx Orders → CRM</a></td>
         <td>Order Manager / POs → CRM orders table — 20 jobs/click.</td><td></td></tr>
   </table>
 </div>

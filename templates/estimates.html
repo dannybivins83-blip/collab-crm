@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Estimates{% endblock %}
 {% block body %}
 <div class="page-head">
-  <h1>📝 Estimates & Proposals</h1>
+  <h1>{{ icon('clipboard') }} Estimates & Proposals</h1>
   <div class="grow"></div>
   <a class="btn primary" href="{{ url_for('estimates.new') }}">+ New Estimate</a>
 </div>

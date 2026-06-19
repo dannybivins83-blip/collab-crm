@@ -1,14 +1,15 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}{{ o.po_number or 'Order' }}{% endblock %}
 {% block body %}
 <div class="page-head">
   <a class="btn ghost" href="{{ url_for('orders.index') }}">← Order Manager</a>
-  <h1>📦 {{ o.po_number or 'Order #' ~ o.id }} <span class="badge">{{ o.type }}</span></h1>
+  <h1>{{ icon('box') }} {{ o.po_number or 'Order #' ~ o.id }} <span class="badge">{{ o.type }}</span></h1>
   <span class="pill" style="background:var(--accent)22;color:var(--accent)">{{ o.status|capitalize }}</span>
   {% if job %}<a class="muted" href="{{ url_for('jobs.detail', job_id=job.id) }}">· {{ job.name }}</a>{% endif %}
   <div class="grow"></div>
-  <a class="btn" target="_blank" href="{{ url_for('orders.print_view', order_id=o.id) }}">🖨 Print PO</a>
-  <button class="primary" onclick="saveOrder()">💾 Save</button>
+  <a class="btn" target="_blank" href="{{ url_for('orders.print_view', order_id=o.id) }}">{{ icon('printer') }} Print PO</a>
+  <button class="primary" onclick="saveOrder()">{{ icon('save') }} Save</button>
 </div>
 
 <div class="detail">

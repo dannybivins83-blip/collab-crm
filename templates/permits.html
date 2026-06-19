@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Permits{% endblock %}
 {% block body %}
 <div class="page-head">
-  <h1>🏛️ Permits</h1>
+  <h1>{{ icon('building') }} Permits</h1>
   <div class="grow"></div>
   <a class="btn primary" href="{{ url_for('permits.new') }}">+ New Permit</a>
 </div>
