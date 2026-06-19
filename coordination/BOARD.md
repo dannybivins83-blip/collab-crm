@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-16):** `17a9ad0` on `agent/gc-consolidation` AND `main`
-- **Last board update:** 2026-06-16 ET — crm-ui: **D14 DONE** — `agent/gc-consolidation` fast-forward merged → `main` (115 commits, 92 files, clean FF, pushed to origin). `main` now at `17a9ad0`, same as working branch. WIP unified-journey roadmap (portal.py + portal_dashboard.html + _journey.html) stashed during merge, restored to `agent/gc-consolidation` — not yet committed.
+- **Git tip (verified 2026-06-19):** `309872c` on `agent/gc-consolidation` · `main` still at `17a9ad0`
+- **Last board update:** 2026-06-19 ET — crm-ui: **Stress-test bug fixes deployed** (`309872c`). Fixed: 404 on invalid job/estimate/lead/roof-report IDs (was 200+flash-storm); brute-force login guard (5 attempts/60s); `/dashboard` → `/` redirect alias; `/reports/system-map` owner-flag re-seed. Deployed to Render via `agent/gc-consolidation` push.
 
 ---
 
