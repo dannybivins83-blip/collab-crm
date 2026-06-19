@@ -384,10 +384,15 @@ def sync_documents(base, key, ajid, crm_job_id):
                 f.write(r.read())
         except Exception:
             continue
+        _did = _drive_mirror(path)
+        _sz = os.path.getsize(path) if os.path.exists(path) else 0
+        if _did:
+            try: os.remove(path)
+            except Exception: pass
         db.insert("documents", {"job_id": crm_job_id, "category": category,
                                 "filename": fn, "original_name": name,
-                                "size": os.path.getsize(path) if os.path.exists(path) else 0,
-                                "notes": "Synced from AccuLynx", "drive_id": _drive_mirror(path)})
+                                "size": _sz,
+                                "notes": "Synced from AccuLynx", "drive_id": _did})
         have.add(name.lower())  # guard against in-call repeats if the API ignores paging
         saved += 1
     if saved:
@@ -1044,10 +1049,14 @@ def _finalize_doc(guid, folder, name, src_path):
         return _cors({"ok": True, "skipped": "duplicate", "name": name, "job": rec.get("name")})
     for d in same:
         db.delete("documents", d["id"])  # drop dead duplicate so this re-import is clean
+    _did = _drive_mirror(src_path)
+    if _did:
+        try: os.remove(src_path)
+        except Exception: pass
     db.insert("documents", {id_col: rec_id, "category": folder,
                             "filename": os.path.basename(src_path), "original_name": name,
                             "size": size, "notes": "Permit doc synced from AccuLynx",
-                            "drive_id": _drive_mirror(src_path)})
+                            "drive_id": _did})
     db.add_activity(kind, rec_id, "note",
                     "Permit document synced from AccuLynx: %s (%s)" % (name, folder))
     return _cors({"ok": True, "added": True, "job": rec.get("name"), "folder": folder, "name": name})
@@ -2188,6 +2197,9 @@ def _finalize_roofreport(guid, folder, name, src_path, scan_name="", scan_addr="
         parsed = _meas._try_parse(src_path)
     except Exception:
         parsed = {}
+    if drive_id:
+        try: os.remove(src_path)
+        except Exception: pass
 
     link_col = "job_id" if kind == "job" else "lead_id"
     mdata = {"report_file": "measurements/" + base_fn, "source": "RoofGraf"}
@@ -2477,10 +2489,14 @@ def _finalize_photo(guid, name, caption, src_path):
     if same:
         _drop()
         return _cors({"ok": True, "skipped": "duplicate", "name": name, "job": job.get("name")})
+    _did = _drive_mirror(src_path)
+    if _did:
+        try: os.remove(src_path)
+        except Exception: pass
     db.insert("photos", {"job_id": job["id"], "album": "AccuLynx",
                          "phase": "during", "caption": caption or "",
                          "filename": os.path.basename(src_path), "original_name": name,
-                         "drive_id": _drive_mirror(src_path)})
+                         "drive_id": _did})
     return _cors({"ok": True, "added": True, "job": job.get("name"), "name": name})
 
 
