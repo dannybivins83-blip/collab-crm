@@ -258,6 +258,12 @@ def send(inv_id):
 
 @bp.route("/<int:inv_id>/pay", methods=["POST"])
 def pay(inv_id):
+    _inv = db.get("invoices", inv_id)
+    if not _inv:
+        return redirect(url_for("invoices.index"))
+    if _inv.get("status") == "paid":
+        flash("Invoice %s is already marked paid." % _inv.get("number", ""), "info")
+        return redirect(url_for("invoices.detail", inv_id=inv_id))
     db.update("invoices", inv_id, status="paid", paid_date=db.today())
     inv = db.get("invoices", inv_id)
     job = db.get("jobs", inv["job_id"]) if inv.get("job_id") else None

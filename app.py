@@ -181,7 +181,11 @@ def uploads(subpath):
         if not _sess.get("user_id"):
             abort(403)
     full = os.path.normpath(os.path.join(config.UPLOAD_DIR, subpath))
-    if full.startswith(config.UPLOAD_DIR) and os.path.exists(full):
+    # Ensure the resolved path is truly INSIDE UPLOAD_DIR, not merely a string
+    # prefix sibling (e.g. /uploads_backup/). The trailing sep prevents the
+    # prefix-only bypass identified in the 30-agent audit.
+    _upload_prefix = config.UPLOAD_DIR.rstrip(os.sep) + os.sep
+    if full.startswith(_upload_prefix) and os.path.exists(full):
         return _safe_upload_resp(
             send_from_directory(os.path.dirname(full), os.path.basename(full)), subpath)
     # Local miss → try Google Drive (if configured + this file was mirrored).

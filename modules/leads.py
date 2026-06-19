@@ -813,6 +813,18 @@ def assign(lead_id):
 def convert(lead_id):
     """Won — create a production Job from this lead."""
     l = _require_lead(lead_id)
+    # Idempotency: if the lead was already converted (stage=won), find the job
+    # that was created from its estimates and redirect there to prevent double-click
+    # from creating a second job + permit.
+    if l.get("stage") == "won":
+        existing_ests = db.all_rows("estimates", "lead_id=?", (lead_id,))
+        for est in existing_ests:
+            if est.get("job_id"):
+                flash("Lead already converted — redirected to the existing job.", "info")
+                return redirect(url_for("jobs.detail", job_id=est["job_id"]))
+        # Won but no job found (edge case: estimate deleted after convert)
+        flash("Lead already marked won.", "info")
+        return redirect(url_for("leads.detail", lead_id=lead_id))
     parts = [p.strip() for p in (l.get("address") or "").split(",")]
     # Auto-compose the canonical job number + name:  R-YY###: Client (AHJ) (RoofCode+Sq) (Rep)
     from modules import acculynx_sync as S
