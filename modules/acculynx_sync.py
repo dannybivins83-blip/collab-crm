@@ -1030,25 +1030,27 @@ def _finalize_doc(guid, folder, name, src_path):
     if size > 64 * 1024 * 1024:
         _drop()
         return _cors({"ok": False, "reason": "too_large", "size": size, "name": name})
-    job = next((j for j in db.all_rows("jobs") if guid in (j.get("external_url") or "").lower()), None)
-    if not job:
+    kind, rec = _record_by_guid(guid)
+    if not rec:
         _drop()
         return _cors({"ok": False, "reason": "no_job", "guid": guid})
-    same = [d for d in db.all_rows("documents", where="job_id=?", params=(job["id"],))
+    rec_id = rec["id"]
+    id_col = "job_id" if kind == "job" else "lead_id"
+    same = [d for d in db.all_rows("documents", where=id_col + "=?", params=(rec_id,))
             if (d.get("original_name") or "").lower() == name.lower()]
     # Skip only if a LIVE copy already exists; replace ghost (byte-less) records.
     if any(_doc_has_bytes(d) for d in same):
         _drop()
-        return _cors({"ok": True, "skipped": "duplicate", "name": name, "job": job.get("name")})
+        return _cors({"ok": True, "skipped": "duplicate", "name": name, "job": rec.get("name")})
     for d in same:
         db.delete("documents", d["id"])  # drop dead duplicate so this re-import is clean
-    db.insert("documents", {"job_id": job["id"], "category": folder,
+    db.insert("documents", {id_col: rec_id, "category": folder,
                             "filename": os.path.basename(src_path), "original_name": name,
                             "size": size, "notes": "Permit doc synced from AccuLynx",
                             "drive_id": _drive_mirror(src_path)})
-    db.add_activity("job", job["id"], "note",
+    db.add_activity(kind, rec_id, "note",
                     "Permit document synced from AccuLynx: %s (%s)" % (name, folder))
-    return _cors({"ok": True, "added": True, "job": job.get("name"), "folder": folder, "name": name})
+    return _cors({"ok": True, "added": True, "job": rec.get("name"), "folder": folder, "name": name})
 
 
 @bp.route("/doc-manifest")
@@ -1059,17 +1061,18 @@ def doc_manifest():
     guid = (request.args.get("guid") or "").strip().lower()
     if not guid:
         return _cors({"ok": False, "reason": "missing guid"}, 400)
-    job = next((j for j in db.all_rows("jobs") if guid in (j.get("external_url") or "").lower()), None)
-    if not job:
+    kind, rec = _record_by_guid(guid)
+    if not rec:
         return _cors({"ok": False, "reason": "no_job", "guid": guid})
+    id_col = "job_id" if kind == "job" else "lead_id"
     # Only advertise docs we can actually serve (mirrored to Drive or present on
     # local disk). Byte-less ghost records — files lost to the cloud's ephemeral
     # disk before Drive mirroring existed — are omitted so the collector re-fetches
     # them and they get persisted to Drive this time.
     names = [(d.get("original_name") or "") for d in
-             db.all_rows("documents", where="job_id=?", params=(job["id"],))
+             db.all_rows("documents", where=id_col + "=?", params=(rec["id"],))
              if _doc_has_bytes(d)]
-    return _cors({"ok": True, "job": job.get("name"), "names": names})
+    return _cors({"ok": True, "job": rec.get("name"), "names": names})
 
 
 def _doc_has_bytes(d):
