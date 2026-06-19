@@ -332,26 +332,42 @@ def detail(est_id):
 @bp.route("/<int:est_id>/save", methods=["POST"])
 def save(est_id):
     data = request.get_json(silent=True) or {}
-    db.update("estimates", est_id,
-              title=data.get("title", ""),
-              tax_pct=float(data.get("tax_pct") or 0),
-              notes=data.get("notes", ""),
-              terms=data.get("terms", ""))
-    db.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (est_id,))
-    db.execute("DELETE FROM estimate_lines WHERE estimate_id=?", (est_id,))
-    for si, sec in enumerate(data.get("sections", [])):
-        sid = db.insert("estimate_sections", {
-            "estimate_id": est_id, "sort": si, "name": sec.get("name", ""),
-            "scope_text": sec.get("scope_text", ""),
-            "margin_pct": float(sec.get("margin_pct") or 0)})
-        for li, ln in enumerate(sec.get("lines", [])):
-            if not (ln.get("description") or "").strip():
-                continue
-            db.insert("estimate_lines", {
-                "estimate_id": est_id, "section_id": sid, "sort": li,
-                "description": ln.get("description", ""), "unit": ln.get("unit", "EA"),
-                "qty": float(ln.get("qty") or 0), "waste_pct": float(ln.get("waste_pct") or 0),
-                "cost": float(ln.get("cost") or 0), "price": float(ln.get("price") or 0)})
+    # Wrap the multi-step delete → insert in a single BEGIN IMMEDIATE transaction so a
+    # crash mid-save can't leave the estimate with no sections/lines (half-written state).
+    import sqlite3
+    conn = sqlite3.connect(db.DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "UPDATE estimates SET title=?,tax_pct=?,notes=?,terms=? WHERE id=?",
+            (data.get("title", ""), float(data.get("tax_pct") or 0),
+             data.get("notes", ""), data.get("terms", ""), est_id))
+        conn.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (est_id,))
+        conn.execute("DELETE FROM estimate_lines WHERE estimate_id=?", (est_id,))
+        for si, sec in enumerate(data.get("sections", [])):
+            cur = conn.execute(
+                "INSERT INTO estimate_sections (estimate_id,sort,name,scope_text,margin_pct) "
+                "VALUES (?,?,?,?,?)",
+                (est_id, si, sec.get("name", ""), sec.get("scope_text", ""),
+                 float(sec.get("margin_pct") or 0)))
+            sid = cur.lastrowid
+            for li, ln in enumerate(sec.get("lines", [])):
+                if not (ln.get("description") or "").strip():
+                    continue
+                conn.execute(
+                    "INSERT INTO estimate_lines "
+                    "(estimate_id,section_id,sort,description,unit,qty,waste_pct,cost,price) "
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
+                    (est_id, sid, li, ln.get("description", ""), ln.get("unit", "EA"),
+                     float(ln.get("qty") or 0), float(ln.get("waste_pct") or 0),
+                     float(ln.get("cost") or 0), float(ln.get("price") or 0)))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return jsonify({"ok": True})
 
 

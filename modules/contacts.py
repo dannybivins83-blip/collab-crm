@@ -193,21 +193,42 @@ def _merge_plan(survivor_id, dupe_ids):
 def _do_merge(survivor_id, dupe_ids):
     """Re-point every dupe's jobs/leads/estimates/appointments/activities onto the
     survivor, then delete the now-empty dupe contact rows. No job history is lost —
-    only the duplicate *contact* shells are removed."""
+    only the duplicate *contact* shells are removed.
+    Wrapped in a single BEGIN IMMEDIATE transaction so a crash mid-merge can't
+    leave FKs pointing at a deleted contact."""
+    import sqlite3
+    conn = sqlite3.connect(db.DB_PATH)
+    conn.row_factory = sqlite3.Row
     moved = {t: 0 for t in _CONTACT_FK_TABLES}
     moved["activities"] = 0
-    for did in dupe_ids:
-        if did == survivor_id:
-            continue
-        for t in _CONTACT_FK_TABLES:
-            rows = db.all_rows(t, "contact_id=?", (did,))
-            for r in rows:
-                db.update(t, r["id"], contact_id=survivor_id)
-                moved[t] += 1
-        for a in db.entity_activity("contact", did):
-            db.update("activities", a["id"], entity_id=survivor_id)
-            moved["activities"] += 1
-        db.delete("contacts", did)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        for did in dupe_ids:
+            if did == survivor_id:
+                continue
+            for t in _CONTACT_FK_TABLES:
+                rows = conn.execute(
+                    "SELECT id FROM %s WHERE contact_id=?" % t, (did,)).fetchall()
+                for r in rows:
+                    conn.execute(
+                        "UPDATE %s SET contact_id=? WHERE id=?" % t,
+                        (survivor_id, r["id"]))
+                    moved[t] += 1
+            acts = conn.execute(
+                "SELECT id FROM activities WHERE entity_type='contact' AND entity_id=?",
+                (did,)).fetchall()
+            for a in acts:
+                conn.execute(
+                    "UPDATE activities SET entity_id=? WHERE id=?",
+                    (survivor_id, a["id"]))
+                moved["activities"] += 1
+            conn.execute("DELETE FROM contacts WHERE id=?", (did,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return moved
 
 
