@@ -74,15 +74,22 @@ def home():
     win_rate = round(100 * won / decided) if decided else 0
 
     # Gross profit across active jobs with worksheets (SQLite + Postgres compatible).
+    # Fix 4 (audit #critical-4): use a subquery to sum worksheet_lines costs per
+    # worksheet BEFORE joining to jobs, eliminating the Cartesian product that
+    # multiplied contract_value by the number of worksheet lines per job.
     conn = db.connect()
     try:
         gp_row = conn.execute("""
             SELECT
                 COALESCE(SUM(w.contract_value), 0)  AS total_contract,
-                COALESCE(SUM(wl.budget_cost), 0)    AS total_cost
+                COALESCE(SUM(wl_totals.total_cost), 0) AS total_cost
             FROM worksheets w
             JOIN jobs j ON j.id = w.job_id
-            LEFT JOIN worksheet_lines wl ON wl.worksheet_id = w.id
+            LEFT JOIN (
+                SELECT worksheet_id, SUM(actual_cost) AS total_cost
+                FROM worksheet_lines
+                GROUP BY worksheet_id
+            ) wl_totals ON wl_totals.worksheet_id = w.id
             WHERE j.department = ?
               AND j.stage NOT IN ('closed','canceled')
         """, (dept,)).fetchone()

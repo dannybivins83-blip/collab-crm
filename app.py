@@ -121,7 +121,10 @@ def _safe_upload_resp(resp, subpath):
     return resp
 
 
-_UPLOADS_SENSITIVE = ("docs/", "estimates/", "permits/", "photos/", "jobs/")
+# library/ holds company document library files (warranty docs, permit packages,
+# sign-up packages) — must be session-gated (Fix 1, audit #critical-1).
+# branding/ and logos/ remain public (referenced from login page CSS/img tags).
+_UPLOADS_SENSITIVE = ("docs/", "estimates/", "permits/", "photos/", "jobs/", "library/")
 
 
 @app.route("/uploads/<path:subpath>")

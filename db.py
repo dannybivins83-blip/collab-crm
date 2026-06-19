@@ -803,6 +803,69 @@ def _migrate_null_defaults():
 
 
 # ---------------------------------------------------------------------------
+# Fix 6 (audit #critical-6): allowlist for table names and ORDER BY tokens.
+# Prevents raw string interpolation of attacker-controlled table/order values.
+# ---------------------------------------------------------------------------
+import re as _re
+
+# All tables declared in SCHEMA + created by _ensure_* helpers + module-level creates.
+# Fix 6: only names in this set may be interpolated into SQL table-name positions.
+TABLE_ALLOWLIST = {
+    # Core SCHEMA tables
+    "company_settings", "users", "contacts", "leads", "jobs", "activities",
+    "estimates", "estimate_sections", "estimate_lines", "documents", "photos",
+    "roof_reports", "appointments", "invoices", "materials", "measurements",
+    "templates", "permits", "worksheets", "worksheet_lines", "job_expenses",
+    "job_stage_history", "vendors", "orders", "order_lines", "automations",
+    "team_messages",
+    # _ensure_* tables
+    "library_docs", "contractor_profiles", "permit_api_keys", "permit_build_jobs",
+    "portal_accounts", "change_requests", "integrations",
+    # module-level CREATE IF NOT EXISTS tables
+    "notifications", "commissions", "custom_fields", "custom_values",
+    "gmail_accounts", "takeoff_jobs", "demos", "signup_packets",
+    "signup_templates", "payments", "qxo_products", "portal_updates",
+    # additional tables discovered via module scan
+    "lead_sources", "contact_types", "material_catalog", "file_blobs",
+    "acculynx_email_sync", "automation_fires", "submittal_components",
+    "takeoffs",
+}
+
+_SAFE_COL_RE = _re.compile(r'^[a-zA-Z_][a-zA-Z0-9_.]*$')
+
+
+def _assert_table(table):
+    if table not in TABLE_ALLOWLIST:
+        raise ValueError("db: table %r not in TABLE_ALLOWLIST" % table)
+
+
+def _assert_order(order_clause):
+    """Validate an ORDER BY clause: each comma-separated term must be a safe
+    column name optionally followed by ASC, DESC, IS NULL, or IS NOT NULL.
+    Raises ValueError if any term looks unsafe."""
+    if not order_clause:
+        return
+    for part in order_clause.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        tokens = part.split()
+        if not tokens:
+            continue
+        col = tokens[0]
+        if not _SAFE_COL_RE.match(col):
+            raise ValueError("db: unsafe ORDER BY column %r" % col)
+        rest = " ".join(t.upper() for t in tokens[1:])
+        # Allow: (empty) | ASC | DESC | IS NULL | IS NOT NULL | IS NOT NULL ASC | etc.
+        _SAFE_DIRECTION = {"", "ASC", "DESC", "IS NULL", "IS NOT NULL",
+                           "IS NULL ASC", "IS NULL DESC",
+                           "IS NOT NULL ASC", "IS NOT NULL DESC",
+                           "NULLS FIRST", "NULLS LAST"}
+        if rest not in _SAFE_DIRECTION:
+            raise ValueError("db: unsafe ORDER BY direction %r in %r" % (rest, part))
+
+
+# ---------------------------------------------------------------------------
 # Generic helpers
 # ---------------------------------------------------------------------------
 
@@ -816,6 +879,7 @@ def _adapt(v):
 
 def insert(table, data):
     """Insert a dict; auto-stamps created/updated/stage_since when columns exist."""
+    _assert_table(table)
     cols_present = _columns(table)
     data = dict(data)
     if "created" in cols_present and "created" not in data:
@@ -842,6 +906,7 @@ def insert(table, data):
 
 
 def update(table, row_id, **fields):
+    _assert_table(table)
     cols_present = _columns(table)
     if "updated" in cols_present:
         fields["updated"] = now()
@@ -859,6 +924,7 @@ def update(table, row_id, **fields):
 
 
 def get(table, row_id):
+    _assert_table(table)
     conn = connect()
     try:
         row = conn.execute("SELECT * FROM %s WHERE id=?" % table, (row_id,)).fetchone()
@@ -868,6 +934,8 @@ def get(table, row_id):
 
 
 def all_rows(table, where="", params=(), order="id DESC"):
+    _assert_table(table)
+    _assert_order(order)
     conn = connect()
     sql = "SELECT * FROM %s" % table
     if where:
@@ -882,6 +950,7 @@ def all_rows(table, where="", params=(), order="id DESC"):
 
 
 def delete(table, row_id):
+    _assert_table(table)
     conn = connect()
     try:
         conn.execute("DELETE FROM %s WHERE id=?" % table, (row_id,))

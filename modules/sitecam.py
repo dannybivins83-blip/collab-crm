@@ -28,15 +28,27 @@ def url():
 
 
 def _origin(u):
-    """scheme://host for postMessage targeting (locks the SSO handoff to SiteCam)."""
+    """scheme://host for postMessage targeting (locks the SSO handoff to SiteCam).
+
+    Fix 7 (audit #critical-7): never return '*'. A wildcard would broadcast the
+    signed user identity assertion to every frame on the page — including attacker-
+    controlled iframes. If the sitecam URL is empty/malformed, return None so the
+    caller skips the postMessage entirely rather than broadcasting to all origins."""
+    if not u or not u.strip():
+        return None
     p = urlparse(u)
-    return ("%s://%s" % (p.scheme, p.netloc)) if p.scheme and p.netloc else "*"
+    if p.scheme and p.netloc:
+        return "%s://%s" % (p.scheme, p.netloc)
+    return None  # unparseable URL — do NOT fall back to '*'
 
 
 @bp.route("/")
 def index():
     u = url()
-    return render_template("sitecam.html", sitecam_url=u, sitecam_origin=_origin(u))
+    origin = _origin(u)
+    # sitecam_origin=None tells the template to skip the SSO postMessage entirely
+    # (Fix 7: no wildcard broadcast when the URL is unconfigured or malformed).
+    return render_template("sitecam.html", sitecam_url=u, sitecam_origin=origin)
 
 
 # ---------------------------------------------------------------------------

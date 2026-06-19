@@ -34,9 +34,9 @@ def _record_failure(ip: str) -> None:
     hits.append(now)
     _login_attempts[ip] = hits
 
-# Seed/default password. Override in production via the CRM_DEFAULT_PASSWORD env var
-# so the live (real-data) instance never uses the publicly-known default.
-DEFAULT_PASSWORD = os.environ.get("CRM_DEFAULT_PASSWORD", "seabreeze2026")
+# No hardcoded default password (Fix 2, audit #critical-2).
+# Users without a password_hash cannot log in; an admin must set their password.
+# On first-run with no admin account, CRM_DEFAULT_PASSWORD env var is required.
 # Endpoints reachable without being logged in.
 PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "static", "uploads", "favicon", "leads.import_leads",
@@ -74,14 +74,20 @@ ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow")
 
 
 def _ensure_schema():
+    import logging as _logging
     try:
         db.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
     except Exception:
         pass
     db._COLCACHE.clear()
+    # Fix 2: do NOT seed a default password. Users without a password_hash cannot log in.
+    # An admin must explicitly set each user's password via /account or the Settings page.
     for u in db.all_rows("users"):
         if not u.get("password_hash"):
-            db.update("users", u["id"], password_hash=generate_password_hash(DEFAULT_PASSWORD))
+            _logging.warning(
+                "CRM: user id=%s (%s) has no password_hash — they cannot log in until "
+                "an admin sets their password.", u.get("id"), u.get("email") or u.get("name")
+            )
 
 
 def current_user():
@@ -132,11 +138,18 @@ def login():
                          if (u.get("email") or "").lower() == email and u.get("active", 1)), None)
             if user and user.get("password_hash") and check_password_hash(user["password_hash"], pw):
                 _login_attempts.pop(ip, None)
+                # Fix 5 (audit #critical-5): session fixation — clear any attacker-
+                # seeded session data before writing the authenticated user identity.
+                # Preserve only the post-login redirect target (not user-controlled).
+                _nxt = request.args.get("next")
+                session.clear()
                 session.permanent = True
                 session["user_id"] = user["id"]
                 session["user_name"] = user["name"]
                 session["user_role"] = user.get("role", "sales")
-                return _after_login_redirect(request.args.get("next"))
+                # Re-generate CSRF token for the new authenticated session.
+                session["_csrf"] = secrets.token_hex(24)
+                return _after_login_redirect(_nxt)
             _record_failure(ip)
             flash("Invalid email or password.", "error")
     from modules import gmail
@@ -196,12 +209,19 @@ def google_callback():
     if not user:
         flash("No CRM account for %s. Ask an admin to add you first." % (email or "that account"), "error")
         return redirect(url_for("auth.login"))
+    # Fix 5 (audit #critical-5): session fixation — clear before writing user identity.
+    # Preserve the post-login redirect; the Google state nonce was already pop()'d above.
+    _nxt = session.pop("google_login_next", "")
+    session.clear()
+    session.permanent = True
     session["user_id"] = user["id"]
     session["user_name"] = user["name"]
     session["user_role"] = user.get("role", "sales")
+    # Re-generate CSRF token for the new authenticated session.
+    session["_csrf"] = secrets.token_hex(24)
     # Login grants identity only; the Gmail inbox is a separate restricted-scope
     # connect. _after_login_redirect auto-triggers it once so it's seamless.
-    return _after_login_redirect(session.pop("google_login_next", ""))
+    return _after_login_redirect(_nxt)
 
 
 @bp.route("/logout")
@@ -230,7 +250,10 @@ def account():
 
 
 def set_password(user_id, password):
-    db.update("users", user_id, password_hash=generate_password_hash(password or DEFAULT_PASSWORD))
+    # Fix 2: never fall back to a default. Reject falsy passwords explicitly.
+    if not password:
+        raise ValueError("set_password: password must not be empty or None")
+    db.update("users", user_id, password_hash=generate_password_hash(password))
 
 
 def _get_csrf_token():
