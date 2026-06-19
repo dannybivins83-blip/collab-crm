@@ -47,10 +47,9 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "sync.photo_import", "sync.photo_batch",
           "sync.billing_import", "sync.billing_manifest", "sync.bill_batch",
           "sync.estimate_import", "sync.comm_import", "sync.worksheet_import",
-          # sync.job_guids removed: it is in _KEY_REQUIRED in acculynx_sync.py
-          # (requires CRM_SYNC_SECRET header) so the session gate is redundant
-          # but we must NOT leave it in PUBLIC — remove to force the sync key check.
+          # sync.job_guids removed: secured via _KEY_REQUIRED (CRM_SYNC_SECRET).
           "sync.catalog_import",
+          "sync.insurance_import", "sync.orders_import",
           "portal.home", "portal.invite", "portal.portal_login",
           "portal.message", "portal.sign", "portal.sign_doc", "portal.pay",
           "portal.upload_doc", "portal.upload_photo", "portal.design", "portal.design_request",

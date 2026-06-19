@@ -65,6 +65,7 @@ _KEY_REQUIRED = frozenset({
     "sync.billing_manifest", "sync.bill_batch", "sync.estimate_import",
     "sync.comm_import", "sync.roofreport_import", "sync.roofreport_manifest",
     "sync.roofreport_batch", "sync.photo_import", "sync.photo_batch", "sync.job_guids",
+    "sync.insurance_import", "sync.orders_import",
 })
 
 
@@ -2626,3 +2627,162 @@ def photo_reset():
     db.save_company({"acculynx_photo_group": 0, "acculynx_photo_cursor": 0})
     flash("Photo sync cursor reset — the next batch starts at the top of the pipeline.", "ok")
     return redirect(url_for("sync.index"))
+
+
+# ---------------------------------------------------------------------------
+# Insurance fields browser-bridge (COLLECTOR 1)
+# ---------------------------------------------------------------------------
+# Ensure insurance columns exist on jobs (idempotent, module-load convention).
+for _ic in ("insurance_claim_number TEXT", "adjuster_name TEXT",
+            "insurance_company TEXT", "deductible_amount REAL",
+            "mortgage_company TEXT", "mortgage_check_amount REAL"):
+    try:
+        db.execute("ALTER TABLE jobs ADD COLUMN %s" % _ic)
+    except Exception:
+        pass
+db._COLCACHE.clear()
+
+
+@bp.route("/insurance-import", methods=["POST", "OPTIONS"])
+def insurance_import():
+    """CORS-open: receive insurance/mortgage data scraped from AccuLynx job pages
+    and update the matching CRM job rows. Auth: X-CRM-HMAC (same sync secret gate)."""
+    if request.method == "OPTIONS":
+        r = jsonify({"ok": True})
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Sync-Key, X-CRM-HMAC"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    try:
+        payload = request.get_json(force=True, silent=True) or {}
+        jobs_in = payload.get("jobs") or []
+        updated = skipped = 0
+        for item in jobs_in:
+            guid = (item.get("acculynx_guid") or "").strip()
+            if not guid:
+                skipped += 1
+                continue
+            # Match job by AccuLynx GUID embedded in external_url
+            matched = None
+            for j in db.all_rows("jobs"):
+                m = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                              (j.get("external_url") or ""), re.I)
+                if m and m.group(0).lower() == guid.lower():
+                    matched = j
+                    break
+            if not matched:
+                skipped += 1
+                continue
+            upd = {}
+            for src, col in (("claim_number", "insurance_claim_number"),
+                              ("adjuster_name", "adjuster_name"),
+                              ("insurance_company", "insurance_company"),
+                              ("mortgage_company", "mortgage_company")):
+                v = (item.get(src) or "").strip()
+                if v:
+                    upd[col] = v
+            for src, col in (("deductible_amount", "deductible_amount"),
+                              ("mortgage_check_amount", "mortgage_check_amount")):
+                try:
+                    v = float(str(item.get(src) or "").replace(",", "").replace("$", "") or 0)
+                    if v:
+                        upd[col] = v
+                except Exception:
+                    pass
+            if upd:
+                db.update("jobs", matched["id"], **upd)
+                updated += 1
+            else:
+                skipped += 1
+        r = _cors({"ok": True, "updated": updated, "skipped": skipped})
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Sync-Key, X-CRM-HMAC"
+        return r
+    except Exception as e:
+        r = _cors({"ok": False, "error": str(e)}, 500)
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Sync-Key, X-CRM-HMAC"
+        return r
+
+
+# ---------------------------------------------------------------------------
+# Order Manager / PO browser-bridge (COLLECTOR 2)
+# ---------------------------------------------------------------------------
+
+@bp.route("/orders-import", methods=["POST", "OPTIONS"])
+def orders_import():
+    """CORS-open: receive AccuLynx Order Manager data scraped from job pages and
+    upsert CRM orders by (acculynx_guid, order_number). Auth: sync key gate."""
+    if request.method == "OPTIONS":
+        r = jsonify({"ok": True})
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Sync-Key"
+        r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return r
+    try:
+        # Ensure orders table has acculynx_order_number column for upsert dedup.
+        try:
+            db.execute("ALTER TABLE orders ADD COLUMN acculynx_order_number TEXT")
+            db._COLCACHE.clear()
+        except Exception:
+            pass
+        payload = request.get_json(force=True, silent=True) or {}
+        jobs_in = payload.get("jobs") or []
+        inserted = updated = skipped = 0
+        for item in jobs_in:
+            guid = (item.get("acculynx_guid") or "").strip()
+            orders_list = item.get("orders") or []
+            if not guid or not orders_list:
+                skipped += 1
+                continue
+            # Find CRM job by GUID
+            job = None
+            for j in db.all_rows("jobs"):
+                m = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                              (j.get("external_url") or ""), re.I)
+                if m and m.group(0).lower() == guid.lower():
+                    job = j
+                    break
+            if not job:
+                skipped += 1
+                continue
+            job_id = job["id"]
+            dept = job.get("department", "")
+            for o in orders_list:
+                order_num = (o.get("order_number") or "").strip()
+                vendor = (o.get("vendor") or "").strip()
+                description = (o.get("description") or "").strip()
+                status = (o.get("status") or "draft").strip().lower()
+                order_date = (o.get("order_date") or "").strip()
+                try:
+                    amount = float(str(o.get("amount") or "").replace(",", "").replace("$", "") or 0)
+                except Exception:
+                    amount = 0.0
+                # Upsert by job_id + order_number when available
+                existing = None
+                if order_num:
+                    rows = db.all_rows("orders", "job_id=? AND acculynx_order_number=?",
+                                       (job_id, order_num))
+                    existing = rows[0] if rows else None
+                if existing:
+                    db.update("orders", existing["id"],
+                              vendor=vendor or existing.get("vendor"),
+                              notes=description or existing.get("notes"),
+                              status=status or existing.get("status"),
+                              order_date=order_date or existing.get("order_date"))
+                    updated += 1
+                else:
+                    db.insert("orders", {
+                        "job_id": job_id, "department": dept,
+                        "type": "Material", "vendor": vendor, "notes": description,
+                        "status": status, "order_date": order_date,
+                        "acculynx_order_number": order_num,
+                        "number": "PO-ALX-%s" % (order_num or str(job_id)),
+                        "total": amount,
+                    })
+                    inserted += 1
+        r = _cors({"ok": True, "inserted": inserted, "updated": updated, "skipped": skipped})
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Sync-Key"
+        return r
+    except Exception as e:
+        r = _cors({"ok": False, "error": str(e)}, 500)
+        r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Sync-Key"
+        return r

@@ -102,6 +102,12 @@
     <tr><td colspan="3" class="grp">Communications</td></tr>
     <tr><td><a id="bmcomm" class="btn accent sm" href="#" onclick="return false">💬 AccuLynx Comms → CRM</a></td>
         <td>Notes &amp; messages → job activity (newest 200 per run).</td><td></td></tr>
+
+    <tr><td colspan="3" class="grp">Insurance &amp; Orders</td></tr>
+    <tr><td><a id="bminsurance" class="btn accent sm" href="#" onclick="return false">🏠 AccuLynx Insurance → CRM</a></td>
+        <td>Claim #, adjuster, carrier, deductible &amp; mortgage info — 20 jobs/click.</td><td></td></tr>
+    <tr><td><a id="bmorders" class="btn accent sm" href="#" onclick="return false">📦 AccuLynx Orders → CRM</a></td>
+        <td>Order Manager / POs → CRM orders table — 20 jobs/click.</td><td></td></tr>
   </table>
 </div>
 <style>
@@ -632,6 +638,133 @@
   document.getElementById('bmbill').href=bmHref('billing');
   document.getElementById('bmest').href=bmHref('estimate');
   document.getElementById('bmcomm').href=bmHref('comm');
+})();
+</script>
+<script>
+(function(){
+  var BASE={{ request.host_url|tojson }};
+  // bminsurance: scrape insurance + mortgage fields from AccuLynx job detail pages
+  function pullInsuranceBM(cfg){
+    (async function(){
+      var BASE=cfg.BASE,_kk=cfg.KEY;
+      var _kf=window.fetch;window.fetch=function(u,o){try{if(typeof u==='string'&&u.indexOf(BASE)===0)u+=(u.indexOf('?')<0?'?':'&')+'k='+encodeURIComponent(_kk);}catch(e){}return _kf.apply(this,arguments);};
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:440px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      // Collect job GUIDs from the current milestone list
+      var seen={},guids=[];
+      function collect(){[].forEach.call(document.querySelectorAll('a[href*="/jobs/"]'),function(a){var m=(a.getAttribute('href')||'').match(/\/jobs\/([0-9a-f-]{30,})/);if(m&&!seen[m[1]]){seen[m[1]]=1;guids.push(m[1]);}});}
+      function scrollers(){var s=[document.scrollingElement||document.documentElement];[].forEach.call(document.querySelectorAll('div'),function(e){if(e.scrollHeight>e.clientHeight+40)s.push(e);});return s;}
+      collect();var last=-1,stable=0;
+      for(var i=0;i<60&&stable<3;i++){scrollers().forEach(function(e){try{e.scrollTop=e.scrollHeight;}catch(_){}});window.scrollTo(0,document.body.scrollHeight);await sleep(500);collect();setb('Finding jobs… '+guids.length);if(guids.length===last)stable++;else stable=0;last=guids.length;}
+      if(!guids.length){setb('No jobs found — open a Jobs milestone list first.','#c0392b');setTimeout(function(){bn.remove();},6000);return;}
+      var BATCH=20,tot=guids.length,done=0,updated=0,skip=0,fail=0;
+      // Process in batches of 20
+      for(var bi=0;bi<guids.length;bi+=BATCH){
+        var batch=guids.slice(bi,bi+BATCH);
+        var jobs=[];
+        for(var gi=0;gi<batch.length;gi++){
+          var guid=batch[gi];
+          try{
+            // Open the job detail page in a hidden iframe to scrape insurance fields
+            var url='https://my.acculynx.com/jobs/'+guid;
+            var resp=await fetch(url,{headers:{'Accept':'text/html'}});
+            var html=await resp.text();
+            var parser=new DOMParser();
+            var doc=parser.parseFromString(html,'text/html');
+            function tx(sel){var el=doc.querySelector(sel);return el?(el.value||el.textContent||'').trim():'';}
+            var item={acculynx_guid:guid};
+            // Try multiple selector patterns AccuLynx uses for insurance fields
+            item.claim_number=tx('#insuranceClaimNumber')||tx('[data-field="insuranceClaimNumber"]')||tx('.insurance-claim-number')||tx('[name="ClaimNumber"]')||'';
+            item.adjuster_name=tx('#adjusterName')||tx('[data-field="adjusterName"]')||tx('.adjuster-name')||tx('[name="AdjusterName"]')||'';
+            item.insurance_company=tx('#insuranceCompany')||tx('[data-field="insuranceCompany"]')||tx('.insurance-company')||tx('[name="InsuranceCompany"]')||'';
+            item.deductible_amount=tx('#deductibleAmount')||tx('[data-field="deductibleAmount"]')||tx('.deductible-amount')||tx('[name="Deductible"]')||'';
+            item.mortgage_company=tx('#mortgageCompany')||tx('[data-field="mortgageCompany"]')||tx('.mortgage-company')||tx('[name="MortgageCompany"]')||'';
+            item.mortgage_check_amount=tx('#mortgageCheckAmount')||tx('[data-field="mortgageCheckAmount"]')||tx('.mortgage-check-amount')||tx('[name="MortgageCheckAmount"]')||'';
+            var hasData=item.claim_number||item.adjuster_name||item.insurance_company||item.mortgage_company;
+            if(hasData) jobs.push(item); else skip++;
+          }catch(e){fail++;}
+          done++;
+          setb('Scraping '+done+'/'+tot+' jobs…');
+        }
+        if(jobs.length){
+          try{
+            var r=await fetch(BASE+'sync/insurance-import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobs:jobs})});
+            var d=await r.json();
+            if(d.ok){updated+=d.updated||0;skip+=d.skipped||0;}else fail+=jobs.length;
+          }catch(e){fail+=jobs.length;}
+        }
+        setb('Jobs '+done+'/'+tot+' · +'+updated+' updated · '+skip+' skipped'+(fail?' · '+fail+' fail':''));
+      }
+      setb('✓ Done · '+tot+' jobs · '+updated+' insurance records updated · '+skip+' no data'+(fail?' · '+fail+' failed':''),'#2e7d32');
+      setTimeout(function(){bn.remove();},18000);
+    })();
+  }
+  document.getElementById('bminsurance').href='javascript:('+pullInsuranceBM.toString()+')('+JSON.stringify({BASE:BASE,KEY:{{ (sync_key or '')|tojson }}})+')';
+
+  // bmorders: scrape Order Manager / PO data from AccuLynx job detail pages
+  function pullOrdersBM(cfg){
+    (async function(){
+      var BASE=cfg.BASE,_kk=cfg.KEY;
+      var _kf=window.fetch;window.fetch=function(u,o){try{if(typeof u==='string'&&u.indexOf(BASE)===0)u+=(u.indexOf('?')<0?'?':'&')+'k='+encodeURIComponent(_kk);}catch(e){}return _kf.apply(this,arguments);};
+      var bn=document.createElement('div');
+      bn.style.cssText='position:fixed;top:12px;right:12px;z-index:999999;background:#24476C;color:#fff;padding:10px 15px;border-radius:9px;font:600 13px -apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:440px';
+      document.body.appendChild(bn);
+      var setb=function(t,c){bn.textContent=t;if(c)bn.style.background=c;};
+      var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+      var seen={},guids=[];
+      function collect(){[].forEach.call(document.querySelectorAll('a[href*="/jobs/"]'),function(a){var m=(a.getAttribute('href')||'').match(/\/jobs\/([0-9a-f-]{30,})/);if(m&&!seen[m[1]]){seen[m[1]]=1;guids.push(m[1]);}});}
+      function scrollers(){var s=[document.scrollingElement||document.documentElement];[].forEach.call(document.querySelectorAll('div'),function(e){if(e.scrollHeight>e.clientHeight+40)s.push(e);});return s;}
+      collect();var last=-1,stable=0;
+      for(var i=0;i<60&&stable<3;i++){scrollers().forEach(function(e){try{e.scrollTop=e.scrollHeight;}catch(_){}});window.scrollTo(0,document.body.scrollHeight);await sleep(500);collect();setb('Finding jobs… '+guids.length);if(guids.length===last)stable++;else stable=0;last=guids.length;}
+      if(!guids.length){setb('No jobs found — open a Jobs milestone list first.','#c0392b');setTimeout(function(){bn.remove();},6000);return;}
+      var BATCH=20,tot=guids.length,done=0,inserted=0,updated=0,skip=0,fail=0;
+      for(var bi=0;bi<guids.length;bi+=BATCH){
+        var batch=guids.slice(bi,bi+BATCH);
+        var jobs=[];
+        for(var gi=0;gi<batch.length;gi++){
+          var guid=batch[gi];
+          try{
+            // Use AccuLynx Orders API endpoint
+            var r=await fetch('/api/v4/jobs/'+guid+'/orders',{headers:{'Accept':'application/json'}});
+            var data=null;
+            try{data=await r.json();}catch(e){}
+            var orders=[];
+            if(data&&Array.isArray(data)){
+              data.forEach(function(o){
+                orders.push({
+                  order_number:(o.Id||o.OrderNumber||o.id||'').toString(),
+                  vendor:(o.Vendor||o.VendorName||o.vendor||'').toString().trim(),
+                  description:(o.Description||o.Notes||o.description||'').toString().trim(),
+                  amount:(o.Amount||o.Total||o.amount||0).toString(),
+                  status:(o.Status||o.status||'').toString().toLowerCase().trim(),
+                  order_date:(o.OrderDate||o.CreatedDate||o.order_date||'').toString().replace('T',' ').slice(0,10)
+                });
+              });
+            }
+            if(orders.length) jobs.push({acculynx_guid:guid,orders:orders}); else skip++;
+          }catch(e){fail++;}
+          done++;
+          setb('Scraping '+done+'/'+tot+' jobs…');
+        }
+        if(jobs.length){
+          try{
+            var resp=await fetch(BASE+'sync/orders-import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobs:jobs})});
+            var d=await resp.json();
+            if(d.ok){inserted+=d.inserted||0;updated+=d.updated||0;skip+=d.skipped||0;}else fail+=jobs.length;
+          }catch(e){fail+=jobs.length;}
+        }
+        setb('Jobs '+done+'/'+tot+' · +'+inserted+' new · '+updated+' updated · '+skip+' skipped'+(fail?' · '+fail+' fail':''));
+      }
+      setb('✓ Done · '+tot+' jobs · '+inserted+' orders added · '+updated+' updated · '+skip+' no orders'+(fail?' · '+fail+' failed':''),'#2e7d32');
+      setTimeout(function(){bn.remove();},18000);
+    })();
+  }
+  document.getElementById('bmorders').href='javascript:('+pullOrdersBM.toString()+')('+JSON.stringify({BASE:BASE,KEY:{{ (sync_key or '')|tojson }}})+')';
+})();
+</script>
   // ⭐ Combined: billing + estimates + comms per job, one click.
   function pullAll(cfg){
     (async function(){
@@ -692,7 +825,9 @@ function downloadBookmarkFolder(){
     ['bmdocs','📎 AccuLynx Permits → CRM'],
     ['bmalldocs','📂 AccuLynx Documents → CRM'],
     ['bmroof','📐 AccuLynx Roof Reports → CRM'],
-    ['bmphotos','📸 AccuLynx Photos → CRM']
+    ['bmphotos','📸 AccuLynx Photos → CRM'],
+    ['bminsurance','🏠 AccuLynx Insurance → CRM'],
+    ['bmorders','📦 AccuLynx Orders → CRM']
   ];
   function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   var rows=[],missing=0;
