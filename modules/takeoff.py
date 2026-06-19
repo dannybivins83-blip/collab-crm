@@ -179,11 +179,17 @@ def _ingest_envelope(env):
             sid = db.insert("estimate_sections", {"estimate_id": eid, "sort": si, "name": sec,
                                                   "scope_text": "", "margin_pct": 30})
             for li, ln in enumerate([l for l in lines if (l.get("section") or "Takeoff") == sec]):
+                cost = _num(ln.get("unit_price_usd"))
+                # If the envelope provides an explicit sell price, use it; otherwise
+                # apply a 30% default margin: price = cost / (1 - 0.30).
+                if ln.get("sell_price_usd"):
+                    price = _num(ln.get("sell_price_usd"))
+                else:
+                    price = round(cost / (1 - 0.30), 2) if cost else 0.0
                 liids.append(db.insert("estimate_lines", {
                     "estimate_id": eid, "section_id": sid, "sort": li,
                     "description": ln.get("item") or "", "unit": ln.get("unit") or "EA",
-                    "qty": _num(ln.get("qty")), "cost": _num(ln.get("unit_price_usd")),
-                    "price": _num(ln.get("unit_price_usd"))}))
+                    "qty": _num(ln.get("qty")), "cost": cost, "price": price}))
 
     for sc in (env.get("submittal_components") or []):
         scids.append(db.insert("submittal_components", {
