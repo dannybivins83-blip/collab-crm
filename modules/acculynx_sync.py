@@ -2320,6 +2320,30 @@ def roofreport_import():
     return _finalize_roofreport(guid, folder, name, path, scan_name, scan_addr)
 
 
+@bp.route("/pipeline-batch", methods=["POST"])
+def pipeline_batch():
+    """Server-side pipeline sync batch — JSON API, sync-key gated.
+    POST {"batch": 50, "reset_group": "prospect"} to jump to a specific group
+    and run one batch.  reset_group accepts: lead|prospect|approved|completed|invoiced.
+    Returns the same shape as run_sync."""
+    if not sync_authed():
+        return jsonify({"ok": False, "error": "auth"}), 403
+    try:
+        payload = request.get_json(force=True, silent=True) or {}
+        GROUPS = ["lead", "prospect", "approved", "completed", "invoiced"]
+        reset_to = (payload.get("reset_group") or "").lower().strip()
+        if reset_to in GROUPS:
+            db.save_company({"acculynx_group": GROUPS.index(reset_to),
+                             "acculynx_cursor": 0})
+        batch = max(1, min(200, int(payload.get("batch") or 50)))
+        result = run_sync(deep=False, batch=batch)
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e),
+                        "trace": traceback.format_exc()[-400:]}), 500
+
+
 # --------------------------------------------------------------------------
 # Server-side roof-report collector (no browser required).
 # Calls AccuLynx /api/v4/ document-folders with the stored Bearer API key,
