@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-19):** `dfeda4f` on `agent/gc-consolidation` · `main` still at `17a9ad0`
-- **Last board update:** 2026-06-19 ET — crm-ui: (1) `/sync` 500 fix — premature `</script>` removed (`c1b9bce`); (2) root CRM 500 fix — `csrf_token()→csrf_token` in base.html (`e97abd8`); (3) `roof_reports.py` URL key leak patched — server-side proxy, key never in browser (`5d2f156`), ROOF_ENGINE_API_KEY rotation escalated to overlord; (4) emoji→icon sweep across 13 templates (`dfeda4f`); (5) roofengine coordination — MEASURE unblocked, 401 fix deployed, consolidation=fold-into-takeoff proposed via bus.
+- **Git tip (verified 2026-06-19):** `a0cdc03` on `agent/gc-consolidation` (= `main`)
+- **Last board update:** 2026-06-19 ~ET — crm-ui/migration: D14 merged (main=agent/gc-consolidation); disk-crash fix (app.py disk guard); 3 backfill endpoints deployed (reconcile/expenses-import/closed-import); SMTP deployed; ROOF_ENGINE_API_KEY rotated on Render+VM. Migration run: 1,263 invoices marked paid, 1,322 job expenses imported, 1,167 closed jobs backfilled, 1,479+ canceled jobs backfilled (in progress). Bug fixes: canceled→cancelled AccuLynx milestone spelling (`32b27bc`), 416 boundary error in pipeline cursor (`a0cdc03`). RR+doc auto-loops running in browser tabs.
 
 ---
 
