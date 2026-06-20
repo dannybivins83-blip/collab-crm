@@ -83,7 +83,8 @@
         <td>Same, capped to the <b>50 most recent</b> (use on Invoiced, sorted newest).</td>
         <td><button class="btn sm" onclick="_runEstWsOnAccuLynx(50)">▶ Run now (Approved, 50)</button></td></tr>
     <tr><td><a id="bmestlines" class="btn accent sm" href="#" onclick="return false">{{ icon('clipboard') }} AccuLynx Estimate Lines → CRM</a></td>
-        <td>Exact estimate <b>line items</b> only (no worksheet).</td><td></td></tr>
+        <td>Exact estimate <b>line items</b> only (no worksheet).</td>
+        <td><button class="btn sm" onclick="_runEstLinesOnAccuLynx()">▶ Run now (Approved)</button></td></tr>
     <tr><td><a id="bmest" class="btn accent sm" href="#" onclick="return false">{{ icon('clipboard') }} AccuLynx Estimates → CRM</a></td>
         <td>Estimate <b>headers</b> — name, total, status, date.</td><td></td></tr>
 
@@ -419,6 +420,11 @@
     })();
   }
   document.getElementById('bmestlines').href='javascript:('+pullEstimateLinesBM.toString()+')('+JSON.stringify(BASE)+')';
+  window._runEstLinesOnAccuLynx = function() {
+    var raw = '(' + pullEstimateLinesBM.toString() + ')(' + JSON.stringify(BASE) + ')';
+    window.name = raw;
+    window.location = 'https://my.acculynx.com/jobs/?filters=currentMilestoneList:Approved';
+  };
 })();
 </script>
 <script>
@@ -520,6 +526,7 @@
     window.location = 'https://my.acculynx.com/jobs/?filters=currentMilestoneList:Approved';
   };
 })();
+
 </script>
 <script>
 (function(){
