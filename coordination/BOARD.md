@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-20):** `b22d31f` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-20 ~04:00 ET — crm-ui/migration: ✅ **Canceled import DONE** (6,839 total AccuLynx canceled jobs imported; 5,693+ new since last session). ✅ RR collect confirmed complete (pulled=0/15 batches = all PDFs already in CRM). Billing walk active in browser tab. Reconcile: 6,454 invoices paid, 1,665 jobs w/ payments.
+- **Git tip (verified 2026-06-20):** `107a044` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-20 ~ET — crm-ui: ✅ Stage-sync done (~350 leads refreshed; buckets now match AccuLynx). 🔄 Estimates: `estimate-collect` endpoint deployed (7ff6b8a) — tests Bearer auth against Estimatev3; if rejected → fall back to bmestlines bookmarklet (Run-now button added 107a044). Deploy pending Render.
 
 ---
 
