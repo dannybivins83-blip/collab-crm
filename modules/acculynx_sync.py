@@ -2345,9 +2345,14 @@ def _pipeline_next_batch(base, key, n, gkey, ckey, caps=None):
             start = 0
             continue
         page_size = PAGE if cap is None else max(1, min(PAGE, cap - start))
-        data = _api_get(base, "/jobs", key, {
-            "milestones": grp, "pageStartIndex": start, "pageSize": page_size,
-            "sortBy": "MilestoneDate", "sortOrder": "Descending"})
+        try:
+            data = _api_get(base, "/jobs", key, {
+                "milestones": grp, "pageStartIndex": start, "pageSize": page_size,
+                "sortBy": "MilestoneDate", "sortOrder": "Descending"})
+        except Exception as _e:
+            if getattr(_e, "code", None) == 416:  # AccuLynx: cursor past end of group
+                g += 1; start = 0; continue
+            raise
         items = data.get("items") if isinstance(data, dict) else (data or [])
         if not items:
             g += 1
