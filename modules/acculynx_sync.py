@@ -2941,7 +2941,8 @@ def closed_import():
         while True:
             if budget and _t.time() - t0 > budget:
                 break
-            d = _api_get(base, "/jobs", key, {"milestones": group, "pageStartIndex": start,
+            api_group = "cancelled" if group == "canceled" else group
+            d = _api_get(base, "/jobs", key, {"milestones": api_group, "pageStartIndex": start,
                                                "pageSize": PAGE, "sortBy": "MilestoneDate",
                                                "sortOrder": "Descending"})
             items = d.get("items") if isinstance(d, dict) else (d or [])
