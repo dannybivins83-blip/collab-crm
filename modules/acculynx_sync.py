@@ -2805,3 +2805,192 @@ def orders_import():
         r = _cors({"ok": False, "error": str(e)}, 500)
         r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Sync-Key"
         return r
+
+
+# ---------------------------------------------------------------------------
+# Server-side backfill endpoints (sync-key gated, no browser tab needed)
+# ---------------------------------------------------------------------------
+
+@bp.route("/reconcile", methods=["POST"])
+def reconcile_financials():
+    """Roll collected from payments → jobs and mark invoices paid. Sync-key gated."""
+    if not sync_authed():
+        return jsonify({"ok": False, "error": "auth"}), 403
+    try:
+        conn = db.connect()
+        try:
+            # Roll up payments to jobs.collected
+            conn.execute("""
+                UPDATE jobs SET collected = (
+                    SELECT COALESCE(SUM(CAST(REPLACE(REPLACE(COALESCE(amount,'0'),'$',''),',','') AS REAL)), 0)
+                    FROM payments WHERE payments.job_id = jobs.id
+                ) WHERE id IN (SELECT DISTINCT job_id FROM payments WHERE job_id IS NOT NULL)
+            """)
+            # Mark invoices paid where paid_date is populated
+            cur1 = conn.execute("""
+                UPDATE invoices SET status='paid'
+                WHERE (paid_date IS NOT NULL AND paid_date != '')
+                  AND (status IS NULL OR status != 'paid')
+            """)
+            pd_rows = cur1.rowcount
+            # Mark invoices paid where any payment exists for the job
+            cur2 = conn.execute("""
+                UPDATE invoices SET status='paid'
+                WHERE job_id IN (SELECT DISTINCT job_id FROM payments WHERE job_id IS NOT NULL)
+                  AND (status IS NULL OR status != 'paid')
+            """)
+            pay_rows = cur2.rowcount
+            conn.commit()
+            jobs_w_col = conn.execute(
+                "SELECT COUNT(*) FROM jobs WHERE CAST(REPLACE(REPLACE(COALESCE(collected,'0'),'$',''),',','') AS REAL) > 0"
+            ).fetchone()[0]
+            inv_paid = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='paid'").fetchone()[0]
+        finally:
+            conn.close()
+        return jsonify({"ok": True, "invoices_marked_paid": pd_rows + pay_rows,
+                        "jobs_with_collected": jobs_w_col, "total_invoices_paid": inv_paid})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()[-400:]}), 500
+
+
+@bp.route("/expenses-import", methods=["POST"])
+def expenses_import():
+    """Accept AccuLynx Job Expenses CSV and import to job_expenses. Sync-key gated.
+    POST the raw CSV as the request body (Content-Type: text/plain) or as multipart file."""
+    if not sync_authed():
+        return jsonify({"ok": False, "error": "auth"}), 403
+    try:
+        import csv, io
+        if "file" in request.files:
+            text = request.files["file"].read().decode("utf-8-sig")
+        else:
+            text = request.get_data(as_text=True)
+        if not text.strip():
+            return jsonify({"ok": False, "error": "no CSV data"}), 400
+        jobs_list = db.all_rows("jobs")
+        job_map = {(j.get("name") or "").strip(): j["id"] for j in jobs_list if j.get("name")}
+
+        def _m(v):
+            try:
+                return float(str(v).replace(",", "").replace("$", "").strip() or 0)
+            except Exception:
+                return 0.0
+
+        db.execute("DELETE FROM job_expenses")
+        added = unmatched = 0
+        for row in csv.DictReader(io.StringIO(text)):
+            job_name = (row.get("Job Name") or "").strip()
+            job_id = job_map.get(job_name)
+            if not job_id:
+                unmatched += 1
+            db.insert("job_expenses", {
+                "job_id": job_id, "acculynx_job_name": job_name,
+                "payment_date": (row.get("Payment Date") or "").strip(),
+                "payment_type": (row.get("Payment Type") or "").strip(),
+                "amount": _m(row.get("Payment Amount")),
+                "to_method": (row.get("To/Method") or "").strip(),
+                "check_ref": (row.get("Check Number/Reference") or "").strip(),
+                "memo": (row.get("Memo/Notes") or "").strip(),
+                "job_value": _m(row.get("Job Value")),
+                "balance_due": _m(row.get("Balance Due")),
+                "account_type": (row.get("Account Type") or "").strip(),
+                "paid_in_full": (row.get("Paid in Full") or "").strip(),
+                "rep": (row.get("Company Representative") or "").strip(),
+            })
+            added += 1
+        return jsonify({"ok": True, "imported": added, "unmatched": unmatched})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()[-400:]}), 500
+
+
+@bp.route("/closed-import", methods=["POST"])
+def closed_import():
+    """Backfill closed/canceled jobs from AccuLynx API. Sync-key gated.
+    POST JSON: {"group": "closed"|"canceled", "budget": 300}
+    Resumable — re-POST to continue from cursor."""
+    if not sync_authed():
+        return jsonify({"ok": False, "error": "auth"}), 403
+    try:
+        import time as _t
+        payload = request.get_json(force=True, silent=True) or {}
+        group = payload.get("group", "closed")
+        budget = int(payload.get("budget") or 300)
+        company = db.get_company()
+        key = (company.get("acculynx_api_key") or "").strip()
+        if not key:
+            return jsonify({"ok": False, "error": "No AccuLynx API key configured"}), 400
+        base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
+        cur_key = "acculynx_%s_cursor" % group
+        start = int(company.get(cur_key) or 0)
+        jobs_list = db.all_rows("jobs")
+        by_guid, by_name = {}, {}
+        for j in jobs_list:
+            m = re.search(r"/jobs/([0-9a-f-]{30,})", j.get("external_url") or "")
+            if m:
+                by_guid[m.group(1)] = j
+            n = (j.get("name") or "").lower()
+            if n:
+                by_name[n] = j
+        stage = "closed" if group == "closed" else "canceled"
+        added = updated = 0
+        done = False
+        t0 = _t.time()
+        PAGE = 25
+        while True:
+            if budget and _t.time() - t0 > budget:
+                break
+            d = _api_get(base, "/jobs", key, {"milestones": group, "pageStartIndex": start,
+                                               "pageSize": PAGE, "sortBy": "MilestoneDate",
+                                               "sortOrder": "Descending"})
+            items = d.get("items") if isinstance(d, dict) else (d or [])
+            if not items:
+                done = True
+                break
+            for job in items:
+                jid = _g(job, "id", "jobId")
+                name = (_g(job, "jobName", "name", "displayName") or "").strip()
+                if not name:
+                    continue
+                val = _money_val(job)
+                cb = _contact_basics(job, base, key, fetch=False)
+                addr = _flatten_address(_g(job, "locationAddress", "address", "jobAddress", default={}))
+                parts = [p.strip() for p in (addr or "").split(",")]
+                rec = {
+                    "name": name, "rid": _g(job, "jobNumber", "number", "refNumber"),
+                    "phone": cb.get("phone"), "email": cb.get("email"),
+                    "work_type": _name_of(_g(job, "workType", "tradeType")) or _join_list(job.get("tradeTypes")),
+                    "source": _name_of(_g(job, "leadSource", "source")),
+                    "rep": _name_of(_g(job, "salesRep", "assignedTo")) or "Danny Bivins",
+                    "external_url": "https://my.acculynx.com/jobs/%s" % jid if jid else "",
+                    "contract_value": val, "stage": stage, "department": "REROOF Department",
+                    "address": parts[0] if parts else addr,
+                    "city": parts[1] if len(parts) > 1 else "",
+                }
+                existing = by_guid.get(jid) or by_name.get(name.lower())
+                if existing:
+                    db.update("jobs", existing["id"], stage=stage,
+                              external_url=rec["external_url"],
+                              contract_value=val or existing.get("contract_value"))
+                    updated += 1
+                else:
+                    cid = _ensure_contact(name, rec)
+                    nid = db.insert("jobs", {**rec, "contact_id": cid, "stage_since": db.today(),
+                                            "narrative": "Backfilled from AccuLynx (%s)." % group})
+                    rec["id"] = nid
+                    by_guid[jid] = rec
+                    by_name[name.lower()] = rec
+                    added += 1
+            start += len(items)
+            db.save_company({cur_key: start})
+            if len(items) < PAGE:
+                done = True
+                break
+        db.save_company({cur_key: 0 if done else start})
+        return jsonify({"ok": True, "group": group, "added": added, "updated": updated,
+                        "done": done, "cursor": start,
+                        "elapsed_s": round(_t.time() - t0, 1)})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()[-400:]}), 500
