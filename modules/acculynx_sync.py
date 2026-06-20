@@ -2504,6 +2504,132 @@ def _pipeline_next_batch(base, key, n, gkey, ckey, caps=None):
     return out, (_RR_GROUPS[g] if not done else "all"), done
 
 
+# --------------------------------------------------------------------------
+# Server-side estimate collector — tries AccuLynx Estimatev3 API with Bearer.
+# If Bearer auth is rejected (401/403), returns bearer_rejected=True so the
+# caller knows to fall back to the bmestlines browser bookmarklet.
+# --------------------------------------------------------------------------
+
+@bp.route("/estimate-collect", methods=["POST"])
+def estimate_collect():
+    """Server-side estimate pull. Sync-key gated. Tries AccuLynx
+    /api/Estimatev3/GetEstimates/{guid} with stored Bearer API key,
+    then /api/Estimatev3/Get/{id} for full line items.
+    Returns bearer_rejected=True if the API requires session auth instead.
+    POST JSON: {"n": 20, "budget": 60, "reset": false, "force": false}"""
+    if not sync_authed():
+        return jsonify({"ok": False, "error": "auth"}), 403
+    try:
+        payload = request.get_json(force=True, silent=True) or {}
+        n      = max(1, min(50, int(payload.get("n") or 20)))
+        budget = float(payload.get("budget") or 60)
+        force  = bool(payload.get("force"))
+        company = db.get_company()
+        key = (company.get("acculynx_api_key") or "").strip()
+        if not key:
+            return jsonify({"ok": False, "error": "No AccuLynx API key configured"}), 400
+        if payload.get("reset"):
+            db.save_company({"acculynx_est_cursor": 0})
+            company = db.get_company()
+        cursor = int(company.get("acculynx_est_cursor") or 0)
+
+        # Walk all CRM records with an AccuLynx guid (leads first, then jobs).
+        leads = db.all_rows("leads", where="acculynx_guid IS NOT NULL AND acculynx_guid != ''",
+                            order="id ASC")
+        jobs  = db.all_rows("jobs",  where="acculynx_guid IS NOT NULL AND acculynx_guid != ''",
+                            order="id ASC")
+        all_records = [("lead", r) for r in leads] + [("job", r) for r in jobs]
+        chunk = all_records[cursor:cursor + n]
+        done  = (cursor + n) >= len(all_records)
+        new_cursor = 0 if done else cursor + n
+        db.save_company({"acculynx_est_cursor": new_cursor})
+
+        processed = estimates_found = lines_found = skipped = fail = 0
+        bearer_rejected = False
+        t0 = time.time()
+
+        for kind, rec in chunk:
+            if budget and time.time() - t0 > budget:
+                done = False
+                break
+            guid = (rec.get("acculynx_guid") or "").strip()
+            if not guid:
+                continue
+            if not force:
+                existing = db.all_rows("estimates",
+                                       where=("%s_id=?" % kind), params=(rec["id"],))
+                if existing:
+                    skipped += 1
+                    continue
+            try:
+                url = "https://my.acculynx.com/api/Estimatev3/GetEstimates/%s" % guid
+                req = urllib.request.Request(url, headers={
+                    "Authorization": "Bearer " + key,
+                    "Accept": "application/json",
+                })
+                with urllib.request.urlopen(req, timeout=20, context=_SSL_CTX) as r:
+                    est_list = json.loads(r.read().decode("utf-8", errors="replace"))
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 403):
+                    bearer_rejected = True
+                    return jsonify({"ok": False, "bearer_rejected": True,
+                                   "message": "AccuLynx Estimatev3 rejected Bearer auth (HTTP %d). "
+                                              "Use the 'AccuLynx Estimate Lines → CRM' browser "
+                                              "bookmarklet on a logged-in AccuLynx tab instead." % e.code,
+                                   "processed": processed, "estimates": estimates_found,
+                                   "lines": lines_found, "skipped": skipped, "fail": fail})
+                fail += 1
+                continue
+            except Exception:
+                fail += 1
+                continue
+
+            if not isinstance(est_list, list) or not est_list:
+                processed += 1
+                continue
+
+            for est in est_list:
+                eid = (est.get("EstimateID") or est.get("EstimateId")
+                       or est.get("Id") or est.get("id") or "")
+                det = None
+                for det_url in [
+                    "https://my.acculynx.com/api/Estimatev3/Get/%s" % eid,
+                    "https://my.acculynx.com/api/v4/estimates/%s" % eid,
+                ]:
+                    try:
+                        req2 = urllib.request.Request(det_url, headers={
+                            "Authorization": "Bearer " + key,
+                            "Accept": "application/json",
+                        })
+                        with urllib.request.urlopen(req2, timeout=20, context=_SSL_CTX) as r2:
+                            det = json.loads(r2.read().decode("utf-8", errors="replace"))
+                        if det and isinstance(det, dict) and det.get("Sections"):
+                            break
+                    except Exception:
+                        pass
+                # Merge header + detail fields so _apply_estimate sees everything.
+                merged = dict(est)
+                if det and isinstance(det, dict):
+                    merged.update(det)
+                res = _apply_estimate(guid, merged)
+                if res.get("ok"):
+                    estimates_found += 1
+                    lines_found += res.get("lines", 0)
+                else:
+                    fail += 1
+            processed += 1
+
+        return jsonify({"ok": True, "bearer_rejected": False,
+                        "processed": processed, "estimates": estimates_found,
+                        "lines": lines_found, "skipped": skipped, "fail": fail,
+                        "cursor": new_cursor, "total": len(all_records), "done": done,
+                        "elapsed_s": round(time.time() - t0, 1)})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e),
+                        "trace": traceback.format_exc()[-400:]}), 500
+
+
 @bp.route("/roofreport-batch")
 def roofreport_batch():
     """CORS-open: hand the collector the NEXT batch of job GUIDs to pull roof
