@@ -5,7 +5,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
 - **Git tip (verified 2026-06-19):** `a0cdc03` on `agent/gc-consolidation` (= `main`)
-- **Last board update:** 2026-06-19 ~ET — crm-ui/migration: D14 merged (main=agent/gc-consolidation); disk-crash fix (app.py disk guard); 3 backfill endpoints deployed (reconcile/expenses-import/closed-import); SMTP deployed; ROOF_ENGINE_API_KEY rotated on Render+VM. Migration run: 1,263 invoices marked paid, 1,322 job expenses imported, 1,167 closed jobs backfilled, 1,479+ canceled jobs backfilled (in progress). Bug fixes: canceled→cancelled AccuLynx milestone spelling (`32b27bc`), 416 boundary error in pipeline cursor (`a0cdc03`). RR+doc auto-loops running in browser tabs.
+- **Last board update:** 2026-06-19 ~23:00 ET — crm-ui/migration continued: RR loop ✅ COMPLETE (R45, all AccuLynx groups walked); canceled import 8 pages done (cursor 4625+, ~3,600+ new canceled jobs added, still running); doc loop R33+ active; billing walk BW5+ active. Reconcile confirms: 6,454 invoices now paid, 1,665 jobs with collected payments. Doc sync: S3 DONE +1515 new docs total (tab 707). Billing walk will populate contract_value as it reaches approved/closed groups.
 
 ---
 
@@ -87,7 +87,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 - [x] **Live-#1 close path:** owner delegated → **Head Coach call = DNS cutover to Render** (closes the hole + collapses to one vendor, the stated direction). Sequence: set/rotate all Render secrets → verify Render healthy on onrender URL → repoint DNS → keep Vercel as rollback. **Blocked on:** owner's DNS host (for exact records) + Render secrets finished.
 
 ## 🚚 MIGRATION PROGRAM (AccuLynx→CRM · lead: crm-ui) — proof in `docs/PARITY_2026-06-11.md`
-- **A. Data parity** — IN PROGRESS. Counts look migrated (1,231 jobs, 1,952 contacts, 429 invoices…). **Financials NOT:** only 89/1,231 jobs have a contract_value; `collected`=$2,290 / payments $1.008M not rolled up; invoices 0-paid; photos 2; docs 146 (partial); roof_reports 0. **Blockers:** run financial-progress + billing-linkage + photos + docs collectors (owner-gated bookmarklets) + need AccuLynx reference totals. Confirm Render serves the migrated DB (not `crm.db`/25 jobs).
+- **A. Data parity** — IN PROGRESS. **Major progress 2026-06-19:** 1,231+ jobs (+ 3,600+ canceled being added), 1,952+ contacts; invoices: 6,454 paid (was 0); jobs with collected: 1,665 (was 89); docs: 1,515+ new in S3+S2 (was 146); RR loop: ✅ COMPLETE (R45 all groups walked); billing walk running (BW5+, will populate contract_value). Still running: canceled import (cursor 4625+), billing walk, doc loop. **Remaining blockers:** billing walk must reach approved/closed groups to confirm contract_value coverage; confirm roof_report count after RR completion.
 - **B. One vendor** — ✅ DNS cutover DONE (crm.* → Render, verified 2026-06-13); Render secrets all set & in sync. Vercel now only the rollback — can be retired once we're confident. Effectively on one vendor.
 - **C. Integrations** — Roof Engine (MEASURE gate) · SiteCam SSO (SEABREEZE+SEED_FORCE) · Gmail/Drive/QBO/QXO verify each.
 - **D. Tightened** — #1/#2 live; #3/#4 next; then #5/#6/#7; #8–#12 triage.

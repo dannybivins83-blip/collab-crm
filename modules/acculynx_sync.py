@@ -2320,6 +2320,109 @@ def roofreport_import():
     return _finalize_roofreport(guid, folder, name, path, scan_name, scan_addr)
 
 
+# --------------------------------------------------------------------------
+# Server-side roof-report collector (no browser required).
+# Calls AccuLynx /api/v4/ document-folders with the stored Bearer API key,
+# downloads matching PDFs, and runs them through _finalize_roofreport.
+# Fixes the 401-in-browser issue: v4 needs Bearer auth, not session cookies.
+_RR_FILE_RE  = re.compile(r'roof[\s_-]*report|roof[\s_-]*graf|eagleview|roof[\s_-]*measure|premium[\s_-]*roof|measurement', re.I)
+_RR_FOLDER_RE = re.compile(r'roof[\s_-]*report|measurement|roof[\s_-]*graf|eagleview|roof[\s_-]*measure|aerial', re.I)
+
+
+@bp.route("/roofreport-collect", methods=["POST"])
+def roofreport_collect():
+    """Server-side roof-report pull. Sync-key gated. Uses stored AccuLynx API
+    key to call /api/v4/job-documents/{guid}/job-document-folders, picks the
+    best PDF match, downloads it, and calls _finalize_roofreport.
+    POST JSON: {"n": 20, "budget": 60, "reset": false}"""
+    if not sync_authed():
+        return jsonify({"ok": False, "error": "auth"}), 403
+    try:
+        payload = request.get_json(force=True, silent=True) or {}
+        n       = max(1, min(50, int(payload.get("n") or 20)))
+        budget  = float(payload.get("budget") or 60)
+        if payload.get("reset"):
+            db.save_company({"acculynx_rr_group": 0, "acculynx_rr_cursor": 0})
+        company = db.get_company()
+        key = (company.get("acculynx_api_key") or "").strip()
+        if not key:
+            return jsonify({"ok": False, "error": "No AccuLynx API key configured"}), 400
+        base = (company.get("acculynx_api_base") or DEFAULT_BASE).strip()
+
+        batch, group, done = _rr_next_batch(base, key, n)
+        pulled = skipped = nofile = nojob = fail = 0
+        t0 = time.time()
+
+        for it in batch:
+            if budget and time.time() - t0 > budget:
+                done = False
+                break
+            guid = it["guid"]
+            job_name = it.get("name", "")
+            kind, rec, _ = _roofreport_record(guid, job_name)
+            if not rec:
+                nojob += 1
+                continue
+            if _has_roof_report(kind, rec):
+                skipped += 1
+                continue
+            try:
+                v4_url = "https://my.acculynx.com/api/v4/job-documents/%s/job-document-folders" % guid
+                req = urllib.request.Request(v4_url, headers={
+                    "Authorization": "Bearer " + key,
+                    "Accept": "application/json",
+                })
+                with urllib.request.urlopen(req, timeout=20, context=_SSL_CTX) as r:
+                    folders = json.loads(r.read().decode("utf-8", errors="replace"))
+            except Exception:
+                fail += 1
+                continue
+            candidates = []
+            for fld in (folders or []):
+                fn = (fld.get("Name") or "").strip()
+                fm = bool(_RR_FOLDER_RE.search(fn))
+                for fl in (fld.get("Files") or []):
+                    fn2 = fl.get("Name") or ""
+                    name_hit = bool(_RR_FILE_RE.search(fn2))
+                    if name_hit or fm:
+                        score = (2 if name_hit else 0) + (1 if fm else 0)
+                        candidates.append({"folder": fn, "name": fn2,
+                                           "url": fl.get("Url") or fl.get("url") or fl.get("DownloadUrl", ""),
+                                           "score": score})
+            if not candidates:
+                nofile += 1
+                continue
+            candidates.sort(key=lambda x: -x["score"])
+            best = candidates[0]
+            if not best["url"]:
+                nofile += 1
+                continue
+            safe = "%d_rr_%s" % (int(time.time() * 1000), _safe_name(best["name"] or "roof_report.pdf"))
+            path = os.path.join(config.MEAS_DIR, safe)
+            try:
+                req2 = urllib.request.Request(best["url"], headers={"Authorization": "Bearer " + key})
+                with urllib.request.urlopen(req2, timeout=60, context=_SSL_CTX) as r, open(path, "wb") as fh:
+                    fh.write(r.read())
+            except Exception:
+                fail += 1
+                continue
+            result_resp = _finalize_roofreport(guid, best["folder"], best["name"], path, job_name, "")
+            rj = result_resp.get_json() if hasattr(result_resp, "get_json") else {}
+            if rj and rj.get("added"):
+                pulled += 1
+            else:
+                fail += 1
+
+        return jsonify({"ok": True, "pulled": pulled, "skipped": skipped,
+                        "nofile": nofile, "nojob": nojob, "fail": fail,
+                        "group": group, "done": done,
+                        "elapsed_s": round(time.time() - t0, 1)})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e),
+                        "trace": traceback.format_exc()[-400:]}), 500
+
+
 def _rr_next_batch(base, key, n):
     return _pipeline_next_batch(base, key, n, "acculynx_rr_group", "acculynx_rr_cursor")
 
