@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-19):** `a0cdc03` on `agent/gc-consolidation` (= `main`)
-- **Last board update:** 2026-06-19 ~23:00 ET — crm-ui/migration continued: RR loop ✅ COMPLETE (R45, all AccuLynx groups walked); canceled import 8 pages done (cursor 4625+, ~3,600+ new canceled jobs added, still running); doc loop R33+ active; billing walk BW5+ active. Reconcile confirms: 6,454 invoices now paid, 1,665 jobs with collected payments. Doc sync: S3 DONE +1515 new docs total (tab 707). Billing walk will populate contract_value as it reaches approved/closed groups.
+- **Git tip (verified 2026-06-20):** `b22d31f` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-20 ~04:00 ET — crm-ui/migration: ✅ **Canceled import DONE** (6,839 total AccuLynx canceled jobs imported; 5,693+ new since last session). ✅ RR collect confirmed complete (pulled=0/15 batches = all PDFs already in CRM). Billing walk active in browser tab. Reconcile: 6,454 invoices paid, 1,665 jobs w/ payments.
 
 ---
 
