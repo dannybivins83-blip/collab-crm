@@ -453,6 +453,36 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                 except Exception:
                     pass
 
+            # Push the freshly-extracted measurements into the lead/job estimate so
+            # the line quantities + total actually reflect the takeoff — not just a
+            # measurement row sitting unused. (Danny: "extract the data and put the
+            # measurements in the estimate".) Re-apply to the existing estimate when
+            # one is present (the new-lead flow auto-builds one); otherwise build it.
+            if meas_id:
+                try:
+                    from modules import estimates as _est
+                    ents = (db.all_rows("estimates", "job_id=?", (target_job_id,))
+                            if target_job_id
+                            else db.all_rows("estimates", "lead_id=?", (lead_id,)))
+                    if ents:
+                        for _e in ents:
+                            _est._apply_measurement(_e["id"], mdata)
+                        db.add_activity("lead", lead_id, "automation",
+                                        "Takeoff measurements applied to estimate %s."
+                                        % (ents[0].get("number") or ents[0]["id"]))
+                        _progress("Applied measurements to %d estimate(s)." % len(ents))
+                    elif work_type:
+                        _eid = _est.build_estimate(
+                            lead_id=(None if target_job_id else lead_id),
+                            job_id=target_job_id, work_type=work_type, apply_meas=True)
+                        _er = db.get("estimates", _eid)
+                        db.add_activity("lead", lead_id, "automation",
+                                        "Estimate %s built from takeoff measurements."
+                                        % ((_er or {}).get("number") or _eid))
+                        _progress("Built estimate from takeoff measurements.")
+                except Exception as _ae:
+                    _progress("Estimate update skipped: %s" % _ae)
+
             # Activity note on the lead.
             note_parts = ["Plans uploaded: %s" % (fields.get("plan_set_label") or file_name)]
             note_parts.append("System: %s" % work_type)
