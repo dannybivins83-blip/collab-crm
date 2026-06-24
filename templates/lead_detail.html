@@ -3,7 +3,7 @@
 {% from "_lifecycle.html" import lifecycle_bar %}
 {% block title %}{{ l.name }}{% endblock %}
 {% block body %}
-{% set comm_kinds = ['call','email','sms','note','draft'] %}
+{% set comm_kinds = ['call','email','sms','note','draft','automation'] %}
 {% set cur_idx = constants.LEAD_STAGE_INDEX.get(l.stage, 0) %}
 {% set rank = l.rank or 0 %}
 
@@ -108,6 +108,20 @@ function lcGate(form,pct){
 {% endif %}
 
 {% if l.narrative %}<div class="card" style="margin-bottom:18px"><span class="muted">Where it stands:</span> {{ l.narrative }}</div>{% endif %}
+
+{% if l.roof_report_requested %}
+<div class="card" style="margin-bottom:18px;border-left:4px solid var(--accent);padding:14px 18px;display:flex;align-items:center;gap:16px">
+  <div style="font-size:1.4em">🏠</div>
+  <div style="flex:1">
+    <strong>Roof report requested at intake</strong>
+    <div class="muted" style="font-size:.85em;margin-top:2px">Order the aerial measurement report now, or dismiss if not needed.</div>
+  </div>
+  <a class="btn accent sm" href="{{ url_for('roof_reports.new') }}?lead_id={{ l.id }}&address={{ (l.address or '')|urlencode }}&city={{ (l.city or '')|urlencode }}&zip={{ (l.zip or '')|urlencode }}">🏠 Order report</a>
+  <form method="post" action="{{ url_for('leads.dismiss_roof_report', lead_id=l.id) }}" style="margin:0">
+    <button class="btn sm" type="submit" onclick="return confirm('Dismiss roof report request?')">✕ Skip</button>
+  </form>
+</div>
+{% endif %}
 
 <!-- Lead Activity tabs (mirrors Job detail) -->
 <div class="jobtabs" id="leadtabs">

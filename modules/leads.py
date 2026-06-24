@@ -22,6 +22,7 @@ for _col, _decl in [
     ("phone_type", "TEXT"), ("phone_ext", "TEXT"), ("sms_opt", "INTEGER DEFAULT 0"),
     ("phone2", "TEXT"), ("phone2_type", "TEXT"), ("email_type", "TEXT"),
     ("mail_street", "TEXT"), ("mail_city", "TEXT"), ("mail_state", "TEXT"), ("mail_zip", "TEXT"),
+    ("roof_report_requested", "INTEGER DEFAULT 0"),
 ]:
     db._ensure_column("leads", _col, _decl)
 
@@ -294,6 +295,7 @@ def new():
             doc_msg = " . %d file(s) attached" % sum(1 for f in intake_files if f and f.filename)
         # Roof report request flag
         if request.form.get("run_roof_report"):
+            db.update("leads", lid, roof_report_requested=1)
             db.add_activity("lead", lid, "note",
                             "Roof report requested at intake - approve or skip from the lead page.")
             doc_msg += " . roof report requested"
@@ -521,6 +523,14 @@ def detail(lead_id):
                            documents=db.all_rows("documents", "lead_id=?", (lead_id,)),
                            takeoff_jobs=takeoff_jobs,
                            reps=[u["name"] for u in db.all_rows("users", "active=1", order="name")])
+
+
+@bp.route("/<int:lead_id>/dismiss-roof-report", methods=["POST"])
+def dismiss_roof_report(lead_id):
+    _require_lead(lead_id)
+    db.update("leads", lead_id, roof_report_requested=0)
+    db.add_activity("lead", lead_id, "note", "Roof report request dismissed.")
+    return redirect(url_for("leads.detail", lead_id=lead_id))
 
 
 @bp.route("/<int:lead_id>/edit", methods=["GET", "POST"])
