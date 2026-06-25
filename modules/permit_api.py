@@ -157,6 +157,7 @@ def submit_build():
 
     client = {
         "owner":  job_data.get("owner", ""),
+        "name":   job_data.get("name", "") or job_data.get("owner", ""),
         "address": job_data.get("address", ""),
         "city":   job_data.get("city", ""),
         "zip":    job_data.get("zip", ""),

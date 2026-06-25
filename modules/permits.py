@@ -156,7 +156,8 @@ def build_packet(permit_id):
 
     job = db.get("jobs", p["job_id"]) if p.get("job_id") else {}
     job = job or {}
-    client = {"owner": job.get("name", ""), "address": job.get("address", ""),
+    client = {"owner": job.get("name", ""), "name": job.get("name", ""),
+              "address": job.get("address", ""),
               "city": job.get("city", ""), "zip": job.get("zip", ""),
               "phone": job.get("phone", ""), "pcn": job.get("pcn", ""),
               "legal": job.get("legal", ""), "existing": job.get("existing", ""),
