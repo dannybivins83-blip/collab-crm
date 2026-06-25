@@ -196,7 +196,8 @@ def submit_build():
 
     with _JOBS_LOCK:
         _JOBS[job_id] = {"status": "queued", "result_path": None, "error": None,
-                         "fname": fname, "created": time.time()}
+                         "fname": fname, "created": time.time(),
+                         "api_key_id": key_row["id"]}
 
     t = threading.Thread(
         target=_bg_build, daemon=True,
@@ -218,8 +219,14 @@ def build_status(job_id):
         return err, code
     with _JOBS_LOCK:
         job = dict(_JOBS.get(job_id) or {})
-    if not job:
-        rows = db.all_rows("permit_build_jobs", "job_id=?", (job_id,))
+    # Ownership scope: a build job is visible ONLY to the API key that created it.
+    # Without this, any valid key could poll any other tenant's packet (IDOR).
+    if job:
+        if job.get("api_key_id") != key_row["id"]:
+            return jsonify({"ok": False, "error": "Job not found"}), 404
+    else:
+        rows = db.all_rows("permit_build_jobs", "job_id=? AND api_key_id=?",
+                           (job_id, key_row["id"]))
         if not rows:
             return jsonify({"ok": False, "error": "Job not found"}), 404
         job = {"status": rows[0]["status"], "result_path": rows[0].get("result_path"),
@@ -239,8 +246,13 @@ def build_download(job_id):
         return err, code
     with _JOBS_LOCK:
         job = dict(_JOBS.get(job_id) or {})
-    if not job:
-        rows = db.all_rows("permit_build_jobs", "job_id=?", (job_id,))
+    # Ownership scope: only the API key that created the job may download it (no IDOR).
+    if job:
+        if job.get("api_key_id") != key_row["id"]:
+            return jsonify({"ok": False, "error": "Job not found"}), 404
+    else:
+        rows = db.all_rows("permit_build_jobs", "job_id=? AND api_key_id=?",
+                           (job_id, key_row["id"]))
         if not rows:
             return jsonify({"ok": False, "error": "Job not found"}), 404
         job = {"status": rows[0]["status"],

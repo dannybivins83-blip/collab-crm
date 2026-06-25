@@ -65,6 +65,9 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # session guard so external callers reach the route handlers.
           "permit_api.list_ahjs", "permit_api.submit_build",
           "permit_api.build_status", "permit_api.build_download",
+          # Self-contained iframe embed widget — does its own api_key validation,
+          # so it must bypass the session guard to load on a contractor's site.
+          "permits.widget_embed",
           # Branded demo portal (shareable, login-free sales tool). The generator
           # UI (demo.generator/create/delete) is intentionally NOT public.
           "demo.portal", "demo.design", "demo.design_request",

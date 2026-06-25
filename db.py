@@ -1104,31 +1104,56 @@ def save_company(data):
 # ---------------------------------------------------------------------------
 
 def _seed_if_empty():
+    # White-label default: a fresh deploy boots NEUTRAL ("Your Company" + one admin),
+    # NOT branded as the SeaBreeze reference tenant. Set CRM_SEED_DEMO=seabreeze (or 1)
+    # to seed the SeaBreeze brand + sample data for demos/the reference instance.
+    # (The live SeaBreeze instance is already seeded, so this guard never re-runs there.)
+    _demo = os.environ.get("CRM_SEED_DEMO", "").strip().lower() in (
+        "1", "true", "yes", "seabreeze", "demo")
     if not get_company():
-        save_company({
-            "name": "SeaBreeze Roofing & Sheet Metal, Inc.",
-            "legal_name": "SeaBreeze Roofing & Sheet Metal, Inc.",
-            "tagline": "Florida Roofing Done Right",
-            "license": "CCC1328689", "qualifier": "Jacintho Carreiro",
-            "address": "2600 High Ridge Rd", "city": "Boynton Beach",
-            "state": "FL", "zip": "33426",
-            "phone": "(561) 555-0100", "email": "office@seabreezeroofing.com",
-            "website": "seabreezeroofing.com",
-            "color_primary": "#4680BF", "color_accent": "#8CC63F",
-            "color_warn": "#F78300", "color_danger": "#E25050",  # AccuLynx-matched (live-verified)
-            "default_county": "Palm Beach County",
-            "departments": "REROOF Department, Service Department, Warranties",
-            "terms": ("Payment schedule: 30% deposit (covers permit cost, material order & "
-                      "admin); 30% at job start (mobilization); 30% upon passing 2 of 3 "
-                      "inspections; 10% at final inspection. Draws 2-3 are performance-based. "
-                      "All work per Florida Building Code."),
-        })
+        if _demo:
+            save_company({
+                "name": "SeaBreeze Roofing & Sheet Metal, Inc.",
+                "legal_name": "SeaBreeze Roofing & Sheet Metal, Inc.",
+                "tagline": "Florida Roofing Done Right",
+                "license": "CCC1328689", "qualifier": "Jacintho Carreiro",
+                "address": "2600 High Ridge Rd", "city": "Boynton Beach",
+                "state": "FL", "zip": "33426",
+                "phone": "(561) 555-0100", "email": "office@seabreezeroofing.com",
+                "website": "seabreezeroofing.com",
+                "color_primary": "#4680BF", "color_accent": "#8CC63F",
+                "color_warn": "#F78300", "color_danger": "#E25050",  # AccuLynx-matched (live-verified)
+                "default_county": "Palm Beach County",
+                "departments": "REROOF Department, Service Department, Warranties",
+                "terms": ("Payment schedule: 30% deposit (covers permit cost, material order & "
+                          "admin); 30% at job start (mobilization); 30% upon passing 2 of 3 "
+                          "inspections; 10% at final inspection. Draws 2-3 are performance-based. "
+                          "All work per Florida Building Code."),
+            })
+        else:
+            save_company({
+                "name": "Your Company", "legal_name": "Your Company, Inc.",
+                "tagline": "", "state": "FL",
+                "color_primary": "#4680BF", "color_accent": "#8CC63F",
+                "color_warn": "#F78300", "color_danger": "#E25050",
+                "departments": "Sales, Production, Service",
+                "terms": "All work performed per applicable building code.",
+            })
     if not all_rows("users"):
-        insert("users", {"name": "Danny Bivins", "email": "owner@seabreezeroofing.com",
-                         "role": "admin", "active": 1})
-        insert("users", {"name": "Karla", "email": "office@seabreezeroofing.com",
-                         "role": "office", "active": 1})
-    if not all_rows("leads") and not all_rows("jobs"):
+        if _demo:
+            insert("users", {"name": "Danny Bivins", "email": "owner@seabreezeroofing.com",
+                             "role": "admin", "active": 1})
+            insert("users", {"name": "Karla", "email": "office@seabreezeroofing.com",
+                             "role": "office", "active": 1})
+        else:
+            # One generic admin so the deploy is usable; password is seeded from
+            # CRM_DEFAULT_PASSWORD on first boot (see modules/auth.py).
+            insert("users", {"name": "Admin",
+                             "email": (os.environ.get("CRM_ADMIN_EMAIL", "").strip()
+                                       or "admin@example.com"),
+                             "role": "admin", "active": 1})
+    # Sample leads/jobs are demo-only — a real new tenant starts with an empty board.
+    if _demo and not all_rows("leads") and not all_rows("jobs"):
         _seed_samples()
     _seed_templates()
 

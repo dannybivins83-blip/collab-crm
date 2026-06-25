@@ -74,6 +74,18 @@ services:
         sync: false
       - key: CRON_SECRET            # protects /sync/cron (unattended sync trigger)
         sync: false
+      # First-run admin login. The seeded admin user gets THIS password on first boot
+      # (modules/auth.py). REQUIRED for a fresh deploy to be loginnable — set it in the
+      # Render dashboard, then change it via /account after first login. (turn-over blocker #1)
+      - key: CRM_DEFAULT_PASSWORD
+        sync: false
+      # Brand a fresh deploy. Leave UNSET for a neutral "Your Company" white-label boot with
+      # a single admin (CRM_ADMIN_EMAIL). Set CRM_SEED_DEMO=seabreeze to seed the SeaBreeze
+      # reference tenant + sample data. (turn-over blocker #2)
+      - key: CRM_SEED_DEMO
+        sync: false
+      - key: CRM_ADMIN_EMAIL        # email for the auto-seeded admin on a neutral deploy
+        sync: false
     disk:
       name: crm-data
       mountPath: /data
