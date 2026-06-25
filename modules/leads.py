@@ -195,14 +195,15 @@ def new():
             from flask import session as _session
             from modules import gmail as _gmail
             uid = _session.get("user_id")
-            if uid:
-                # Prefer the assigned rep's user email; fall back to company lead_notify_to.
-                rep_user = next((u for u in db.all_rows("users", "active=1")
-                                 if u.get("name") == data.get("rep")), None)
-                rep_email = (rep_user or {}).get("email") or ""
-                notify_to = (rep_email
-                             or db.get_company().get("lead_notify_to")
-                             or "jacin@seabreezeroof.com, dannyb@seabreezeroof.com")
+            # Prefer the assigned rep's user email; fall back to the tenant's configured
+            # lead_notify_to. NEVER hardcode a tenant's address — on a white-label deploy
+            # that would email one tenant's customer PII to another. If neither is set,
+            # skip the notification entirely (the lead is still created + on the board).
+            rep_user = next((u for u in db.all_rows("users", "active=1")
+                             if u.get("name") == data.get("rep")), None)
+            rep_email = (rep_user or {}).get("email") or ""
+            notify_to = (rep_email or db.get_company().get("lead_notify_to") or "").strip()
+            if uid and notify_to:
                 link = url_for("leads.detail", lead_id=lid, _external=True)
                 subj = "New Lead: %s%s%s" % (
                     data.get("name") or "lead",
@@ -1245,18 +1246,21 @@ def gmail_acculynx_sync():
         lid, was_created = _create_lead_from_intake(data)
         if was_created:
             created_count += 1
-            # Notify Danny at dannybivins83@gmail.com.
+            # Notify the tenant's configured lead recipient — never a hardcoded address
+            # (white-label: hardcoding leaks one tenant's lead PII to another). Skip if unset.
             try:
-                lead_url = url_for("leads.detail", lead_id=lid, _external=True)
-                body = (
-                    "New lead auto-created from AccuLynx email:\n\n"
-                    "Name: %s\nPhone: %s\nEmail: %s\nAddress: %s\nWork type: %s\n\n"
-                    "Open in CRM: %s\n\n(Auto-created by Gmail AccuLynx sync)"
-                ) % (data.get("name", "-"), data.get("phone", "-"),
-                     data.get("email", "-"), data.get("address", "-"),
-                     data.get("work_type", "-"), lead_url)
-                _gmail.send_message(uid, "dannybivins83@gmail.com",
-                                    "New CRM Lead: %s" % data.get("name", "Lead"), body)
+                notify_to = (db.get_company().get("lead_notify_to") or "").strip()
+                if notify_to:
+                    lead_url = url_for("leads.detail", lead_id=lid, _external=True)
+                    body = (
+                        "New lead auto-created from AccuLynx email:\n\n"
+                        "Name: %s\nPhone: %s\nEmail: %s\nAddress: %s\nWork type: %s\n\n"
+                        "Open in CRM: %s\n\n(Auto-created by Gmail AccuLynx sync)"
+                    ) % (data.get("name", "-"), data.get("phone", "-"),
+                         data.get("email", "-"), data.get("address", "-"),
+                         data.get("work_type", "-"), lead_url)
+                    _gmail.send_message(uid, notify_to,
+                                        "New CRM Lead: %s" % data.get("name", "Lead"), body)
             except Exception:
                 pass
         else:

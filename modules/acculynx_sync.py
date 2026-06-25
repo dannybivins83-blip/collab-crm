@@ -655,14 +655,21 @@ def run_sync(deep=False, batch=50):
                            "currentMilestoneName", "status")
             if isinstance(milestone, dict):
                 milestone = _g(milestone, "name", "title", "milestoneName")
-            # Trust the milestone GROUP we filtered the API on (reliable), not the
-            # free-text currentMilestone (shape varies and often won't parse).
             _GROUP_MAP = {"lead": ("lead", "assigned"), "prospect": ("lead", "prospect"),
                           "approved": ("job", "approved"), "completed": ("job", "completed"),
                           "invoiced": ("job", "invoiced"), "closed": ("job", "closed"),
                           "cancelled": ("job", "canceled"), "dead": ("lead", "lost")}
             grp = job.get("__group")
-            if grp in _GROUP_MAP:
+            # Prefer the GRANULAR AccuLynx milestone when it maps to a known CRM stage
+            # name (so 'Permit Applied For', 'Tear Off Started', 'Needs Final Inspection',
+            # … land in their real pipeline column instead of collapsing into the coarse
+            # group bucket). Fall back to the reliable group bucket only when the milestone
+            # string is absent or unrecognized — so this can only sharpen placement, never
+            # regress it. (Fixes Danny's "wrong jobs in the milestone pipeline".)
+            m_norm = (milestone or "").strip().lower()
+            if m_norm and (m_norm in _LEAD_BY_NAME or m_norm in _JOB_BY_NAME):
+                kind, stage = _resolve_stage(milestone)
+            elif grp in _GROUP_MAP:
                 kind, stage = _GROUP_MAP[grp]
             else:
                 kind, stage = _resolve_stage(milestone)
