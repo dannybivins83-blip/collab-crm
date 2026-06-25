@@ -135,7 +135,7 @@
       </div>
       <div class="row">
         <div class="field"><label>Work type *</label>
-          <select name="work_type">{% for w in constants.WORK_TYPES %}<option {{ 'selected' if lead.work_type==w }}>{{ w }}</option>{% endfor %}</select>
+          <select name="work_type" required><option value="">— select —</option>{% for w in constants.WORK_TYPES %}<option {{ 'selected' if lead.work_type==w }}>{{ w }}</option>{% endfor %}</select>
         </div>
         <div class="field"><label>Lead source *</label>
           <select name="source"><option value=""></option>{% for s in db_lead_sources() or constants.LEAD_SOURCES %}<option {{ 'selected' if lead.source==s }}>{{ s }}</option>{% endfor %}</select>
@@ -307,7 +307,7 @@
       </div>
       <div class="row">
         <div class="field"><label>Work type *</label>
-          <select name="work_type">{% for w in constants.WORK_TYPES %}<option {{ 'selected' if lead.work_type==w }}>{{ w }}</option>{% endfor %}</select>
+          <select name="work_type" required><option value="">— select —</option>{% for w in constants.WORK_TYPES %}<option {{ 'selected' if lead.work_type==w }}>{{ w }}</option>{% endfor %}</select>
         </div>
         <div class="field"><label>Lead source *</label>
           <select name="source"><option value=""></option>{% for s in db_lead_sources() or constants.LEAD_SOURCES %}<option {{ 'selected' if lead.source==s }}>{{ s }}</option>{% endfor %}</select>

@@ -347,7 +347,8 @@ def init_auth(app):
                 if not expected or not presented or not secrets.compare_digest(
                         str(expected), str(presented)):
                     flash("Request expired or invalid — please try again.", "error")
-                    return redirect(request.referrer or url_for("dashboard.home"))
+                    # Fixed route, never request.referrer (attacker-controllable → open redirect).
+                    return redirect(url_for("dashboard.home"))
 
     @app.context_processor
     def _inject_user():

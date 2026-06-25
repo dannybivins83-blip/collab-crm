@@ -222,7 +222,7 @@
     document.addEventListener('click', function(e){ if(!form.contains(e.target)) close(); });
   })();
   </script>
-  <a class="navitem help" href="https://support.acculynx.com" target="_blank">Help</a>
+  {% if company.support_url %}<a class="navitem help" href="{{ company.support_url }}" target="_blank" rel="noopener">Help</a>{% endif %}
 </nav>
 
 <main class="content">
