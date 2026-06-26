@@ -524,21 +524,13 @@ def delete(job_id):
     # leaving orphan rows if the process is interrupted mid-way (dual-engine).
     conn = db.begin_immediate()
     try:
-        eids = [r["id"] for r in conn.execute(
-            "SELECT id FROM estimates WHERE job_id=?", (job_id,)).fetchall()]
-        for eid in eids:
-            conn.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (eid,))
-            conn.execute("DELETE FROM estimate_lines WHERE estimate_id=?", (eid,))
+        # Subquery DELETEs replace N+1 fetch-then-loop patterns.
+        conn.execute("DELETE FROM estimate_sections WHERE estimate_id IN (SELECT id FROM estimates WHERE job_id=?)", (job_id,))
+        conn.execute("DELETE FROM estimate_lines WHERE estimate_id IN (SELECT id FROM estimates WHERE job_id=?)", (job_id,))
         conn.execute("DELETE FROM estimates WHERE job_id=?", (job_id,))
-        wsids = [r["id"] for r in conn.execute(
-            "SELECT id FROM worksheets WHERE job_id=?", (job_id,)).fetchall()]
-        for wsid in wsids:
-            conn.execute("DELETE FROM worksheet_lines WHERE worksheet_id=?", (wsid,))
+        conn.execute("DELETE FROM worksheet_lines WHERE worksheet_id IN (SELECT id FROM worksheets WHERE job_id=?)", (job_id,))
         conn.execute("DELETE FROM worksheets WHERE job_id=?", (job_id,))
-        oids = [r["id"] for r in conn.execute(
-            "SELECT id FROM orders WHERE job_id=?", (job_id,)).fetchall()]
-        for oid in oids:
-            conn.execute("DELETE FROM order_lines WHERE order_id=?", (oid,))
+        conn.execute("DELETE FROM order_lines WHERE order_id IN (SELECT id FROM orders WHERE job_id=?)", (job_id,))
         conn.execute("DELETE FROM orders WHERE job_id=?", (job_id,))
         conn.execute("DELETE FROM permits WHERE job_id=?", (job_id,))
         conn.execute("DELETE FROM invoices WHERE job_id=?", (job_id,))
