@@ -8,31 +8,57 @@ import theme
 bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 
 
-def _label(t):
-    et, eid = t.get("entity_type"), t.get("entity_id")
-    if et == "lead":
-        r = db.get("leads", eid)
-        return ("lead", r["name"], url_for("leads.detail", lead_id=eid)) if r else (et, "?", "#")
-    if et == "job":
-        r = db.get("jobs", eid)
-        return ("job", r["name"], url_for("jobs.detail", job_id=eid)) if r else (et, "?", "#")
-    if et == "contact":
-        r = db.get("contacts", eid)
-        return ("contact", "%s %s" % (r["first_name"], r["last_name"]), url_for("contacts.detail", contact_id=eid)) if r else (et, "?", "#")
-    return (et or "—", "", "#")
-
-
 @bp.route("/")
 def index():
     dept = theme.current_department()
-    tasks = db.open_tasks()
+    dept_leads = db.all_rows("leads", "department=?", (dept,), "name")
+    dept_jobs = db.all_rows("jobs", "department=?", (dept,), "name")
+    dept_lead_ids = {l["id"] for l in dept_leads}
+    dept_job_ids = {j["id"] for j in dept_jobs}
+    all_tasks = db.open_tasks()
     today = db.today()
+    # Scope to this dept — contacts are cross-tenant so always shown.
+    tasks = [t for t in all_tasks if
+             (t.get("entity_type") == "lead" and t.get("entity_id") in dept_lead_ids) or
+             (t.get("entity_type") == "job" and t.get("entity_id") in dept_job_ids) or
+             t.get("entity_type") not in ("lead", "job")]
+    # Batch-load entity names to avoid one db.get() per task row.
+    _t_lead_ids = tuple({t["entity_id"] for t in tasks if t.get("entity_type") == "lead"})
+    _t_job_ids = tuple({t["entity_id"] for t in tasks if t.get("entity_type") == "job"})
+    _t_con_ids = tuple({t["entity_id"] for t in tasks if t.get("entity_type") == "contact"})
+    _lmap, _jmap, _cmap = {}, {}, {}
+    if _t_lead_ids:
+        ph = ",".join("?" * len(_t_lead_ids))
+        for r in db.all_rows("leads", "id IN (%s)" % ph, _t_lead_ids):
+            _lmap[r["id"]] = r
+    if _t_job_ids:
+        ph = ",".join("?" * len(_t_job_ids))
+        for r in db.all_rows("jobs", "id IN (%s)" % ph, _t_job_ids):
+            _jmap[r["id"]] = r
+    if _t_con_ids:
+        ph = ",".join("?" * len(_t_con_ids))
+        for r in db.all_rows("contacts", "id IN (%s)" % ph, _t_con_ids):
+            _cmap[r["id"]] = r
     for t in tasks:
-        t["_link"] = _label(t)
+        et, eid = t.get("entity_type"), t.get("entity_id")
         t["_overdue"] = bool(t.get("due")) and t["due"] <= today
+        if et == "lead":
+            r = _lmap.get(eid)
+            t["_link"] = ("lead", r["name"] if r else "?",
+                          url_for("leads.detail", lead_id=eid) if r else "#")
+        elif et == "job":
+            r = _jmap.get(eid)
+            t["_link"] = ("job", r["name"] if r else "?",
+                          url_for("jobs.detail", job_id=eid) if r else "#")
+        elif et == "contact":
+            r = _cmap.get(eid)
+            t["_link"] = ("contact",
+                          ("%s %s" % (r["first_name"], r["last_name"])).strip() if r else "?",
+                          url_for("contacts.detail", contact_id=eid) if r else "#")
+        else:
+            t["_link"] = (et or "—", "", "#")
     return render_template("tasks.html", tasks=tasks,
-                           leads=db.all_rows("leads", "department=?", (dept,), "name"),
-                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
+                           leads=dept_leads, jobs=dept_jobs,
                            users=db.all_rows("users", order="name"))
 
 
