@@ -79,6 +79,7 @@ def restore():
             if t not in payload or t not in have:
                 continue
             rows = payload[t] or []
+            db._assert_table(t)
             db.execute("DELETE FROM %s" % t)
             for r in rows:
                 r = {k: v for k, v in r.items() if k not in _SECRET_COLS}

@@ -333,6 +333,7 @@ def note(contact_id):
 def delete(contact_id):
     # Null out FK references in all tables that point at this contact.
     for _t in ("leads", "jobs", "estimates", "appointments"):
+        db._assert_table(_t)  # validates against TABLE_ALLOWLIST before interpolating
         db.execute("UPDATE %s SET contact_id=NULL WHERE contact_id=?" % _t, (contact_id,))
     db.execute("DELETE FROM activities WHERE entity_type='contact' AND entity_id=?", (contact_id,))
     db.delete("contacts", contact_id)
