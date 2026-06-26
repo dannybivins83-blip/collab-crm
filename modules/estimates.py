@@ -134,22 +134,28 @@ def index():
     id_ph = ",".join("?" * len(est_ids))
     conn = db.connect()
     try:
-        # Sum price per section, grouped by estimate, excluding option sections.
-        section_rows = conn.execute(
-            "SELECT es.estimate_id, es.scope_text, "
-            "       COALESCE(SUM(el.qty * el.cost / (1.0 - COALESCE(es.margin_pct,0)/100.0)), 0) AS sec_price "
-            "FROM estimate_sections es "
-            "LEFT JOIN estimate_lines el ON el.section_id = es.id "
-            "WHERE es.estimate_id IN (%s) "
-            "GROUP BY es.id" % id_ph, est_ids
-        ).fetchall()
+        # Fetch all sections + lines for these estimates in 2 queries (vs 1+2N before).
+        all_sections = conn.execute(
+            "SELECT * FROM estimate_sections WHERE estimate_id IN (%s) ORDER BY sort, id" % id_ph,
+            est_ids).fetchall()
+        sec_ids = [s["id"] for s in all_sections]
+        all_lines = {}
+        if sec_ids:
+            line_ph = ",".join("?" * len(sec_ids))
+            for ln in conn.execute(
+                "SELECT * FROM estimate_lines WHERE section_id IN (%s) ORDER BY sort, id" % line_ph,
+                sec_ids).fetchall():
+                all_lines.setdefault(ln["section_id"], []).append(ln)
     finally:
         conn.close()
-    # Roll up per estimate, skip option sections (scope_text contains 'Declined').
+    # Roll up totals in Python using the same line_cost / line_price logic.
     price_map = {}
-    for r in section_rows:
-        if "Declined" not in (r["scope_text"] or ""):
-            price_map[r["estimate_id"]] = price_map.get(r["estimate_id"], 0.0) + float(r["sec_price"] or 0)
+    for s in all_sections:
+        if "Declined" in (s["scope_text"] or ""):
+            continue  # option section — excluded from total
+        lines = all_lines.get(s["id"], [])
+        sec_price = sum(line_price(dict(ln), s["margin_pct"]) for ln in lines)
+        price_map[s["estimate_id"]] = price_map.get(s["estimate_id"], 0.0) + sec_price
     for e in estimates:
         subtotal = price_map.get(e["id"], 0.0)
         tax = subtotal * (e.get("tax_pct") or 0) / 100.0
