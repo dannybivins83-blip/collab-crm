@@ -70,6 +70,8 @@ def home():
         if fs["level"] != "ok":
             overdue.append(("job", j, sd, fs))
     overdue.sort(key=lambda x: (0 if x[3]["level"] == "hot" else 1, -x[3]["days"]))
+    overdue_lead_ct = sum(1 for k, _, _, _ in overdue if k == "lead")
+    overdue_job_ct  = sum(1 for k, _, _, _ in overdue if k == "job")
 
     # Recent activity feed (newest across all entities).
     # Fetch only the 80 most recent rows from the DB (activities grows to 10k+ with
@@ -145,7 +147,9 @@ def home():
         key=lambda j: (j.get("name") or "").lower()
     )
     return render_template("dashboard.html", pipeline=pipeline, active_jobs=active_jobs,
-                           overdue=overdue, feed=feed, win_rate=win_rate, won=won, lost=lost,
+                           overdue=overdue, overdue_lead_ct=overdue_lead_ct,
+                           overdue_job_ct=overdue_job_ct,
+                           feed=feed, win_rate=win_rate, won=won, lost=lost,
                            outstanding=outstanding, outstanding_total=outstanding_total,
                            qbo_connected=qb.is_connected(),
                            gp_dollars=gp_dollars, gp_margin=gp_margin,

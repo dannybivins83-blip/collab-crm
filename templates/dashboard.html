@@ -69,7 +69,7 @@
         </div>
       {% endfor %}
       </div>
-      {% if overdue|length > 12 %}<div style="padding:6px 2px;font-size:12px;border-top:1px solid var(--line,#eef1f6);margin-top:6px"><a href="{{ url_for('leads.list_view') }}?overdue=1">View all {{ overdue|length }} overdue →</a></div>{% endif %}
+      {% if overdue|length > 12 %}<div style="padding:6px 2px;font-size:12px;border-top:1px solid var(--line,#eef1f6);margin-top:6px;display:flex;gap:14px">{% if overdue_lead_ct %}<a href="{{ url_for('leads.list_view') }}?overdue=1">Leads ({{ overdue_lead_ct }}) →</a>{% endif %}{% if overdue_job_ct %}<a href="{{ url_for('jobs.list_view') }}?overdue=1">Jobs ({{ overdue_job_ct }}) →</a>{% endif %}</div>{% endif %}
     </div>
 
     <div class="card">

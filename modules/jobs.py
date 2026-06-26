@@ -127,10 +127,13 @@ def list_view():
         rows.sort(key=lambda j: (j.get("rid") or "").lower())
     else:  # date — newest first
         rows.sort(key=lambda j: -(j.get("id") or 0))
+    overdue_f = request.args.get("overdue") == "1"
+    if overdue_f:
+        rows = [j for j in rows if j["_fs"]["level"] != "ok" and j["stage"] not in constants.JOB_INACTIVE]
     reps = sorted({(j.get("rep") or "").strip() for j in jobs if (j.get("rep") or "").strip()})
     return render_template("jobs_list.html", rows=rows, counts=counts, stage_f=stage_f,
                            bucket=bucket, q=q, total=len(jobs), sort=sort, rep_f=rep_f, reps=reps,
-                           stages=constants.JOB_STAGES, buckets=constants.BUCKETS)
+                           stages=constants.JOB_STAGES, buckets=constants.BUCKETS, overdue_f=overdue_f)
 
 
 @bp.route("/new", methods=["GET", "POST"])
