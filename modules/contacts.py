@@ -110,10 +110,18 @@ def gcs():
     """List of all General Contractors with job counts + totals."""
     import theme
     rows = db.all_rows("contacts", "is_gc=1", order="last_name, company")
+    if not rows:
+        return render_template("gc_list.html", gcs=rows)
+    gc_ids = [g["id"] for g in rows]
+    id_ph = ",".join("?" * len(gc_ids))
+    all_jobs = db.all_rows("jobs", "contact_id IN (%s)" % id_ph, tuple(gc_ids))
+    jobs_by_contact = {}
+    for j in all_jobs:
+        jobs_by_contact.setdefault(j["contact_id"], []).append(j)
     for g in rows:
-        jobs = db.all_rows("jobs", "contact_id=?", (g["id"],))
-        g["_job_count"] = len(jobs)
-        g["_value"] = sum(theme.est_num(j.get("contract_value")) for j in jobs)
+        gc_jobs = jobs_by_contact.get(g["id"], [])
+        g["_job_count"] = len(gc_jobs)
+        g["_value"] = sum(theme.est_num(j.get("contract_value")) for j in gc_jobs)
     return render_template("gc_list.html", gcs=rows)
 
 
