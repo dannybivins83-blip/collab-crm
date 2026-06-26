@@ -553,6 +553,8 @@ CREATE INDEX IF NOT EXISTS idx_leads_phone      ON leads(phone);
 CREATE INDEX IF NOT EXISTS idx_contacts_email_ci ON contacts(LOWER(TRIM(COALESCE(email,''))));
 CREATE INDEX IF NOT EXISTS idx_contacts_phone   ON contacts(phone);
 CREATE INDEX IF NOT EXISTS idx_users_name       ON users(name);
+CREATE INDEX IF NOT EXISTS idx_users_email_ci   ON users(LOWER(COALESCE(email,'')));
+CREATE INDEX IF NOT EXISTS idx_jobs_rid_ci      ON jobs(LOWER(COALESCE(rid,'')));
 """
     # Run each CREATE INDEX statement in its own connection so a Postgres
     # transaction-abort on one failure does not poison all subsequent statements.

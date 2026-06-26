@@ -173,7 +173,7 @@ def login():
         else:
             email = request.form.get("email", "").strip().lower()
             pw = request.form.get("password", "")
-            _candidates = db.all_rows("users", "LOWER(email)=? AND (active IS NULL OR active=1)", (email,))
+            _candidates = db.all_rows("users", "LOWER(email)=? AND (active IS NULL OR active=1)", (email,), limit=1)
             user = _candidates[0] if _candidates else None
             if user and user.get("password_hash") and check_password_hash(user["password_hash"], pw):
                 _login_attempts.pop(ip, None)
@@ -243,7 +243,7 @@ def google_callback():
         flash("Google sign-in failed. Please try again.", "error")
         return redirect(url_for("auth.login"))
     email = gmail.userinfo_email(tok["access_token"]).lower()
-    _candidates = db.all_rows("users", "LOWER(email)=? AND (active IS NULL OR active=1)", (email,))
+    _candidates = db.all_rows("users", "LOWER(email)=? AND (active IS NULL OR active=1)", (email,), limit=1)
     user = _candidates[0] if _candidates else None
     if not user:
         flash("No CRM account for %s. Ask an admin to add you first." % (email or "that account"), "error")

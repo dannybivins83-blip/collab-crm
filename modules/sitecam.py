@@ -77,23 +77,34 @@ def _zip5(s):
 
 def _match_job(data):
     """Find the CRM job a SiteCam project belongs to. Confident matches only:
-    1) crm_job_id == jobs.id, 2) rid (R-number) exact, 3) street# AND zip both equal."""
-    jobs = db.all_rows("jobs")
+    1) crm_job_id == jobs.id, 2) rid (R-number) exact, 3) street# AND zip both equal.
+    Each pass hits only a tiny SQL-filtered candidate set instead of a full-table scan."""
+    # 1. Direct ID lookup
     jid = str(data.get("crm_job_id") or "").strip()
-    if jid:
-        for j in jobs:
-            if str(j["id"]) == jid:
-                return j, "crm_job_id"
-    rid = re.sub(r"[^a-z0-9]", "", (data.get("rid") or "").lower())
-    if rid:
-        for j in jobs:
-            if re.sub(r"[^a-z0-9]", "", (j.get("rid") or "").lower()) == rid:
-                return j, "rid"
+    if jid.isdigit():
+        j = db.get("jobs", int(jid))
+        if j:
+            return j, "crm_job_id"
+    # 2. rid match — case-insensitive exact first; digit-suffix LIKE fallback for
+    #    punctuation differences (e.g. "R25179" vs "R-25179")
+    raw_rid = (data.get("rid") or "").strip()
+    if raw_rid:
+        rows = db.all_rows("jobs", "LOWER(COALESCE(rid,''))=?", (raw_rid.lower(),), limit=1)
+        if rows:
+            return rows[0], "rid"
+        rid_norm = re.sub(r"[^a-z0-9]", "", raw_rid.lower())
+        rid_digits = re.sub(r"\D", "", raw_rid)
+        if rid_digits:
+            for j in db.all_rows("jobs", "rid LIKE ?", ("%" + rid_digits[-5:] + "%",)):
+                if re.sub(r"[^a-z0-9]", "", (j.get("rid") or "").lower()) == rid_norm:
+                    return j, "rid"
+    # 3. Address match: push street# and zip filter to SQL, verify extracted values in Python
     addr = data.get("address") or ""
     snum = _street_num(addr.split(",")[0])
     szip = (data.get("zip") or "")[:5] or _zip5(addr)
     if snum and szip:
-        for j in jobs:
+        for j in db.all_rows("jobs", "address LIKE ? AND SUBSTR(COALESCE(zip,''),1,5)=?",
+                             (snum + "%", szip)):
             if _street_num(j.get("address")) == snum and (j.get("zip") or "")[:5] == szip:
                 return j, "address"
     return None, None

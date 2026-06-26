@@ -190,7 +190,13 @@ def _gmail():
         configured = _env_set("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET")
     connected = 0
     try:
-        connected = len(db.all_rows("gmail_accounts", "refresh_token!=''", ()))
+        _ic = db.connect()
+        try:
+            connected = (_ic.execute(
+                "SELECT COUNT(*) FROM gmail_accounts WHERE refresh_token!=''"
+            ).fetchone() or (0,))[0]
+        finally:
+            _ic.close()
     except Exception:
         connected = 0
     if not configured:
