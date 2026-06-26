@@ -189,36 +189,58 @@ def _merge_plan(survivor_id, dupe_ids):
     moves = {t: 0 for t in _LEAD_FK_TABLES}
     moves["activities"] = 0
     detail = []
-    for did in dupe_ids:
-        d = db.get("leads", did)
-        if not d:
-            continue
-        row = {"lead": d, "tables": {}}
-        for t in _LEAD_FK_TABLES:
-            n = len(db.all_rows(t, "lead_id=?", (did,)))
-            moves[t] += n
-            row["tables"][t] = n
-        acts = len(db.entity_activity("lead", did))
-        moves["activities"] += acts
-        row["tables"]["activities"] = acts
-        detail.append(row)
+    _conn = db.connect()
+    try:
+        for did in dupe_ids:
+            d = db.get("leads", did)
+            if not d:
+                continue
+            row = {"lead": d, "tables": {}}
+            for t in _LEAD_FK_TABLES:
+                db._assert_table(t)
+                n = (_conn.execute(
+                    "SELECT COUNT(*) FROM %s WHERE lead_id=?" % t, (did,)
+                ).fetchone() or (0,))[0]
+                moves[t] += n
+                row["tables"][t] = n
+            acts = (_conn.execute(
+                "SELECT COUNT(*) FROM activities WHERE entity_type='lead' AND entity_id=?",
+                (did,)).fetchone() or (0,))[0]
+            moves["activities"] += acts
+            row["tables"]["activities"] = acts
+            detail.append(row)
+    finally:
+        _conn.close()
     return moves, detail
 
 
 def _do_merge(survivor_id, dupe_ids):
+    """Re-point all FK references from each dupe onto the survivor, then delete
+    the dupe shell. Uses bulk UPDATE per table (one statement per dupe × table)
+    instead of per-row SELECTs+UPDATEs, wrapped in one IMMEDIATE transaction."""
     moved = {t: 0 for t in _LEAD_FK_TABLES}
     moved["activities"] = 0
-    for did in dupe_ids:
-        if did == survivor_id:
-            continue
-        for t in _LEAD_FK_TABLES:
-            for r in db.all_rows(t, "lead_id=?", (did,)):
-                db.update(t, r["id"], lead_id=survivor_id)
-                moved[t] += 1
-        for a in db.entity_activity("lead", did):
-            db.update("activities", a["id"], entity_id=survivor_id)
-            moved["activities"] += 1
-        db.delete("leads", did)
+    conn = db.begin_immediate()
+    try:
+        for did in dupe_ids:
+            if did == survivor_id:
+                continue
+            for t in _LEAD_FK_TABLES:
+                db._assert_table(t)
+                r = conn.execute(
+                    "UPDATE %s SET lead_id=? WHERE lead_id=?" % t, (survivor_id, did))
+                moved[t] += r.rowcount
+            r = conn.execute(
+                "UPDATE activities SET entity_id=? WHERE entity_type='lead' AND entity_id=?",
+                (survivor_id, did))
+            moved["activities"] += r.rowcount
+            conn.execute("DELETE FROM leads WHERE id=?", (did,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return moved
 
 

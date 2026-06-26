@@ -188,8 +188,14 @@ def callsheet():
             return fs["level"] == "hot"
         return fs["level"] != "ok"              # due = due-soon + overdue
 
-    all_leads = db.all_rows("leads", "department=?", (dept,))
-    all_jobs = db.all_rows("jobs", "department=?", (dept,))
+    _li_ph = ",".join("?" * len(constants.LEAD_INACTIVE))
+    _ji_ph = ",".join("?" * len(constants.JOB_INACTIVE))
+    all_leads = db.all_rows("leads",
+                            "department=? AND stage NOT IN (%s)" % _li_ph,
+                            (dept,) + tuple(constants.LEAD_INACTIVE))
+    all_jobs = db.all_rows("jobs",
+                           "department=? AND stage NOT IN (%s)" % _ji_ph,
+                           (dept,) + tuple(constants.JOB_INACTIVE))
     items = []
     for l in all_leads:
         if l["stage"] in constants.LEAD_INACTIVE:
