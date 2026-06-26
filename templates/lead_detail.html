@@ -120,6 +120,11 @@ function lcGate(form,pct){
 </div>
 {% endif %}
 
+{% if l.todo %}<div class="card" style="margin-bottom:12px;border-left:4px solid var(--warn,#f59e0b);padding:10px 16px;display:flex;align-items:center;gap:10px">
+  <span style="font-size:1.2em">☐</span>
+  <div style="flex:1"><span class="lbl">Next action:</span> <b>{{ l.todo }}</b></div>
+  <a class="btn sm" href="{{ url_for('leads.edit', lead_id=l.id) }}">Edit</a>
+</div>{% endif %}
 {% if l.narrative %}<div class="card" style="margin-bottom:18px"><span class="muted">Where it stands:</span> {{ l.narrative }}</div>{% endif %}
 
 {% if l.roof_report_requested %}
