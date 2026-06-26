@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `2450ddc` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 2) — crm-ui: Continued dept-scoping sweep: new() form dropdowns in invoices/materials/permits now dept-scoped; roof_reports index+new scoped (reports list filtered by dept lead/job IDs); library index jobs dropdown scoped. Dashboard activity feed was cross-tenant (loaded 80 global activities) — fixed with IN() clause from dept lead/job IDs. jobs list view N+1 profit analysis fixed: was calling job_profit(id) per row (2 queries/row) → replaced with single aggregated JOIN query + j._pa on each row. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
+- **Git tip (verified 2026-06-26):** `cc6688a` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 2) — crm-ui: Completed dept-scoping sweep across ALL modules: new() form dropdowns (invoices/materials/permits); roof_reports index+new; library index; dashboard activity feed (IN() clause fix); estimates statuses (was global query); commissions reps (was global query); reports invoices revenue; tasks list (cross-dept + N+1 _label fix); calendar appointments; comms log. Performance: jobs list N+1 profit (batch JOIN); orders N+1 line totals + 3 redundant queries; tasks N+1 entity-name lookups (batch IN()); comms redundant lead/job loads. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed. Tip `cc6688a`.
 
 ---
 
