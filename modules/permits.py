@@ -75,8 +75,12 @@ def index():
     _dept_jobs = db.all_rows("jobs", "department=?", (dept,))
     dept_job_ids = {j["id"] for j in _dept_jobs}
     job_map = {j["id"]: j for j in _dept_jobs}
-    all_permits = db.all_rows("permits", order="id DESC")
-    rows = [p for p in all_permits if not p.get("job_id") or p["job_id"] in dept_job_ids]
+    if dept_job_ids:
+        _id_ph = ",".join("?" * len(dept_job_ids))
+        rows = db.all_rows("permits", "job_id IS NULL OR job_id IN (%s)" % _id_ph,
+                           tuple(dept_job_ids), "id DESC")
+    else:
+        rows = db.all_rows("permits", "job_id IS NULL", order="id DESC")
     for p in rows:
         p["_job"] = job_map.get(p["job_id"])
     q = request.args.get("q", "").strip().lower()

@@ -40,8 +40,12 @@ def index():
     _dept_jobs = db.all_rows("jobs", "department=?", (dept,))
     dept_job_ids = {j["id"] for j in _dept_jobs}
     job_map = {j["id"]: j for j in _dept_jobs}
-    all_mats = db.all_rows("materials", order="id DESC")
-    rows = [m for m in all_mats if not m.get("job_id") or m["job_id"] in dept_job_ids]
+    if dept_job_ids:
+        _id_ph = ",".join("?" * len(dept_job_ids))
+        rows = db.all_rows("materials", "job_id IS NULL OR job_id IN (%s)" % _id_ph,
+                           tuple(dept_job_ids), "id DESC")
+    else:
+        rows = db.all_rows("materials", "job_id IS NULL", order="id DESC")
     for m in rows:
         m["_job"] = job_map.get(m["job_id"])
         m["_items"] = db.load_json(m.get("items"), [])

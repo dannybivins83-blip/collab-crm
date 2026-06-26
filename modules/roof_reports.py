@@ -62,13 +62,21 @@ def _job_address(job):
 @bp.route("/")
 def index():
     dept = theme.current_department()
-    dept_job_ids = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
-    dept_lead_ids = {l["id"] for l in db.all_rows("leads", "department=?", (dept,))}
-    all_reports = db.all_rows("roof_reports", order="created DESC")
-    reports = [r for r in all_reports if
-               (not r.get("job_id") and not r.get("lead_id")) or
-               r.get("job_id") in dept_job_ids or
-               r.get("lead_id") in dept_lead_ids]
+    jobs = db.all_rows("jobs", "department=?", (dept,), "name")
+    leads = db.all_rows("leads", "department=?", (dept,), "name")
+    dept_job_ids = {j["id"] for j in jobs}
+    dept_lead_ids = {l["id"] for l in leads}
+    # Filter roof_reports at query time to avoid loading all reports cross-dept.
+    _parts, _params = ["(job_id IS NULL AND lead_id IS NULL)"], []
+    if dept_job_ids:
+        _ph = ",".join("?" * len(dept_job_ids))
+        _parts.append("job_id IN (%s)" % _ph)
+        _params.extend(dept_job_ids)
+    if dept_lead_ids:
+        _ph = ",".join("?" * len(dept_lead_ids))
+        _parts.append("lead_id IN (%s)" % _ph)
+        _params.extend(dept_lead_ids)
+    reports = db.all_rows("roof_reports", " OR ".join(_parts), tuple(_params), "created DESC")
     q = request.args.get("q", "").strip().lower()
     status_f = request.args.get("status", "").strip()
     statuses = sorted({r.get("status") for r in reports if r.get("status")})
@@ -76,8 +84,6 @@ def index():
         reports = [r for r in reports if q in (r.get("address") or "").lower()]
     if status_f:
         reports = [r for r in reports if r.get("status") == status_f]
-    leads = db.all_rows("leads", "department=?", (dept,), "name")
-    jobs = db.all_rows("jobs", "department=?", (dept,), "name")
     return render_template("roof_reports_index.html", reports=reports,
                            configured=_configured(), leads=leads, jobs=jobs,
                            q=q, status_f=status_f, statuses=statuses)
