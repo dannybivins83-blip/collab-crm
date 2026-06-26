@@ -122,10 +122,16 @@ def index():
     dept = current_department()
     dept_leads = {l["id"] for l in db.all_rows("leads", "department=?", (dept,))}
     dept_jobs = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
-    estimates = [e for e in db.all_rows("estimates", order="id DESC")
-                 if not (e.get("lead_id") or e.get("job_id"))  # orphan — always show
-                 or e.get("lead_id") in dept_leads
-                 or e.get("job_id") in dept_jobs]
+    _parts, _params = ["(lead_id IS NULL AND job_id IS NULL)"], []
+    if dept_leads:
+        _ph = ",".join("?" * len(dept_leads))
+        _parts.append("lead_id IN (%s)" % _ph)
+        _params.extend(dept_leads)
+    if dept_jobs:
+        _ph = ",".join("?" * len(dept_jobs))
+        _parts.append("job_id IN (%s)" % _ph)
+        _params.extend(dept_jobs)
+    estimates = db.all_rows("estimates", " OR ".join(_parts), tuple(_params), "id DESC")
     if not estimates:
         return render_template("estimates.html", estimates=[], q="", status_f="", statuses=[])
     # Batch-compute totals with a single IN() query per table instead of one
