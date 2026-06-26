@@ -416,13 +416,14 @@ _BC02_STAMPS=[
  (0, 176, 554, 'owner',   8, 250),   # 3a. Owner Name
 ]
 _BC03_STAMPS=[
- # Page index 1 = Section A of the 5-page HVHZ Roofing Application
- (1, 137, 633, 'addrfull',       8, 390),  # Job Address (street, city, ST zip on one line)
+ # Page index 1 = Section A of the 5-page HVHZ Roofing Application.
+ # Coords: PDF y_baseline = 792 - pdfplumber_top - 6 (Helvetica 8pt cap-height offset).
+ (1, 137, 627, 'addrfull',       8, 390),  # Job Address (street, city, ST zip on one line)
  # Roof Category checkboxes — only the matching system gets 'X'; others evaluate to '' and are skipped
- (1,  39, 581, 'cat_flat_x',     8,  10),  # Low Slope
- (1,  39, 559, 'cat_shingle_x',  8,  10),  # Asphaltic Shingles
- (1, 183, 559, 'cat_metal_x',    8,  10),  # Metal Panel / Shingles
- (1, 183, 581, 'cat_tile_mech_x',8,  10),  # Mechanically Fastened Tile
+ (1,  39, 575, 'cat_flat_x',     8,  10),  # Low Slope
+ (1,  39, 553, 'cat_shingle_x',  8,  10),  # Asphaltic Shingles
+ (1, 183, 553, 'cat_metal_x',    8,  10),  # Metal Panel / Shingles
+ (1, 183, 575, 'cat_tile_mech_x',8,  10),  # Mechanically Fastened Tile
 ]
 # Flat Section C template variants — deck type -> filename.
 # 'WoodDeck' is the residential reroof default; pass sysd['deck'] to select a different one.
@@ -435,10 +436,25 @@ _FLAT_SECTION_C={
  'HotMopConcrete': 'HVHZ_Section_C_Flat_HotMop_BUR_ConcreteDeck_TEMPLATE.pdf',
 }
 _FLAT_SECTION_C_DEFAULT='WoodDeck'
+_BC06_STAMPS=[
+ # Page 0 = FDEP Asbestos Notification (2-page form). Contractor (Section III) is pre-filled.
+ # Section I: Facility = the job property
+ (0, 102, 611, 'owner', 8, 450),  # I.   Facility Name (owner name as facility identifier)
+ (0,  65, 598, 'addr',  8, 450),  # I.   Address
+ (0,  55, 585, 'city',  8, 115),  # I.   City
+ (0, 200, 585, 'st',    8,  20),  # I.   State
+ (0, 256, 585, 'zip',   8,  50),  # I.   Zip
+ # Section II: Facility Owner  ("Owner" label ends at x1=103.5; stamp starts after it)
+ (0, 108, 515, 'owner', 8, 160),  # II.  Facility Owner name
+ (0,  65, 502, 'addr',  8, 450),  # II.  Address
+ (0,  55, 489, 'city',  8, 190),  # II.  City
+ (0, 360, 489, 'zip',   8,  55),  # II.  Zip
+]
 _BROWARD_STAMP_FORMS={
  'BC_01_Uniform_Building_Permit_Application_PREFILLED.pdf': _BC01_STAMPS,
  'BC_02_Notice_of_Commencement_PREFILLED.pdf': _BC02_STAMPS,
  'BC_03_HVHZ_Uniform_Roofing_Application_PREFILLED.pdf': _BC03_STAMPS,
+ 'BC_06_FDEP_Asbestos_Notification_PREFILLED.pdf': _BC06_STAMPS,
 }
 
 def _broward_values(client, ahj, system=None):

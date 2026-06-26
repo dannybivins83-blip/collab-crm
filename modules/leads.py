@@ -1166,8 +1166,8 @@ for _col in ("acculynx_email_last_sync TEXT",):
 @bp.route("/gmail-acculynx-sync", methods=["POST"])
 def gmail_acculynx_sync():
     """Search the connected Gmail inbox for AccuLynx 'Lead Assigned' emails and
-    auto-create CRM leads for any new ones. Sends a confirmation to
-    dannybivins83@gmail.com for each new lead created."""
+    auto-create CRM leads for any new ones. Sends a confirmation to the tenant's
+    configured lead_notify_to recipient (skipped when unset)."""
     from modules import gmail as _gmail, lead_intake as _li
     import re as _re
 
