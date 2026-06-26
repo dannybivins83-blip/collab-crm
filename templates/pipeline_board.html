@@ -26,8 +26,13 @@
           <div class="pcard-top">
             <span class="pcard-kind {{ card.kind }}">{{ 'L' if card.kind=='lead' else 'J' }}</span>
             <span class="pcard-name">{{ card.rid ~ ' · ' if card.rid }}{{ card.name }}</span>
+            {% if card.fs.level != 'ok' %}
+              {% if card.fs.get('snoozed') %}<span title="Snoozed until {{ card.snooze_until }}" style="font-size:11px">💤</span>
+              {% else %}<span style="color:{{ 'var(--danger)' if card.fs.level=='hot' else 'var(--warn)' }};font-size:11px;font-weight:600" title="{{ card.fs.days }}d overdue">⚠</span>{% endif %}
+            {% endif %}
           </div>
-          {% if card.address %}<div class="pcard-sub">{{ card.address }}</div>{% endif %}
+          {% if card.todo and not card.todo.startswith('Milestone:') %}<div class="pcard-sub" style="font-size:11px">☐ {{ card.todo[:55] }}{% if card.todo|length > 55 %}…{% endif %}</div>
+          {% elif card.address %}<div class="pcard-sub">{{ card.address }}</div>{% endif %}
           <div class="pcard-foot">
             <span class="pill" style="background:{{ card.color }}22;color:{{ card.color }}">{{ card.stage_name }}</span>
             {% if card.value %}<span class="pcard-val">{{ money_k(card.value) }}</span>{% endif %}

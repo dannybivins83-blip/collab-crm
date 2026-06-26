@@ -19,6 +19,8 @@ def _card(kind, r):
     stage = r.get("stage") or ""
     sd = constants.lead_stage(stage) if kind == "lead" else constants.job_stage(stage)
     val = theme.est_num(r.get("estimate") if kind == "lead" else r.get("contract_value"))
+    clock = r.get("last_contact") or r.get("created") if kind == "lead" else r.get("stage_since") or r.get("created")
+    fs = theme.follow_status(sd, clock, r.get("snooze_until"))
     # Current-stage checklist as quick-toggle tasks.
     checks = db.load_json(r.get("checks"), {})
     items = sd.get("checklist", [])
@@ -43,6 +45,8 @@ def _card(kind, r):
         "address": (r.get("address") or ""), "since": r.get("stage_since") or r.get("created") or "",
         "href": href, "tasks": tasks, "next": ns, "check_url": check_url,
         "advance_url": advance_url, "done_count": sum(1 for t in tasks if t["done"]),
+        "fs": fs, "snooze_until": r.get("snooze_until") or "",
+        "todo": (r.get("todo") or "").strip(),
     }
 
 
