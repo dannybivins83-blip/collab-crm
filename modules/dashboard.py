@@ -169,17 +169,3 @@ def home():
                            gp_dollars=gp_dollars, gp_margin=gp_margin,
                            gp_contract=gp_contract,
                            active_job_list=active_job_list)
-
-
-def _activity_name(a):
-    et, eid = a.get("entity_type"), a.get("entity_id")
-    if et == "lead":
-        r = db.get("leads", eid)
-        return r["name"] if r else ""
-    if et == "job":
-        r = db.get("jobs", eid)
-        return r["name"] if r else ""
-    if et == "contact":
-        r = db.get("contacts", eid)
-        return "%s %s" % (r["first_name"], r["last_name"]) if r else ""
-    return ""
