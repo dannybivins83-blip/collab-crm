@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `be747a7` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET — crm-ui: Render issue investigation + 4 new fixes pushed: (1) Smart-todos milestone filter (8e9bc3b) — was flooding widget with 40 AccuLynx "Milestone:" entries; (2) AccuLynx sync no longer overwrites user's `todo` field (3a7e6c7) — was destroying real next-actions on every sync; (3) Dashboard perf: activity feed LIMIT pushed to SQL (was fetching ~10k rows into Python), contacts scoped to feed-referenced IDs only (be747a7); (4) SiteCam iframe cross-browser fix: removed zoom:0.85+width:118% hack → width:100% (be747a7). OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
+- **Git tip (verified 2026-06-26):** `e1a8341` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET — crm-ui: 7 new fixes this session: (1) Smart-todos milestone filter + AccuLynx sync no longer overwrites todo field; (2) Dashboard perf: activity LIMIT/scoped contacts, SiteCam iframe cross-browser fix; (3) Comms N+1 batched (was 200 individual db.get() calls → 3 IN() queries); (4) Intake dedup scoped to non-null rows; (5) Next Action visible on lead detail + option badge on estimate sections; (6) Overdue system: badge→link, View-all footer, ?overdue=1 filter on leads+jobs lists, 💤 snooze-30d buttons on dashboard/list/detail (7d/30d/clear); (7) AccuLynx sync GUID lookups: SQL LIKE instead of Python linear scan, insurance+orders imports O(n²)→O(n) via pre-built dicts. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
 
 ---
 
