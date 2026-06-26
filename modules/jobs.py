@@ -127,19 +127,24 @@ def list_view():
         _w.append("stage=?");  _p.append(stage_f)
     if rep_f:
         _w.append("rep=?");    _p.append(rep_f)
+    if q:
+        import re as _re
+        _qd = _re.sub(r"\D", "", q)
+        _like = "%" + q + "%"
+        _qparts = ["LOWER(name) LIKE ?", "LOWER(address) LIKE ?", "LOWER(rid) LIKE ?",
+                   "LOWER(work_type) LIKE ?", "LOWER(email) LIKE ?"]
+        _qp = [_like] * len(_qparts)
+        if _qd and len(_qd) >= 7:
+            _qparts.append(
+                "REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'(',''),')',''),'-','') LIKE ?")
+            _qp.append("%" + _qd + "%")
+        _w.append("(%s)" % " OR ".join(_qparts))
+        _p.extend(_qp)
     jobs = [_decorate(j) for j in db.all_rows("jobs", " AND ".join(_w), tuple(_p))]
 
     rows = jobs
     if bucket:
         rows = [j for j in rows if j["_stage"].get("bucket") == bucket]
-    if q:
-        import re as _re
-        _qd = _re.sub(r"\D", "", q)
-        rows = [j for j in rows if
-                q in ((j.get("name") or "") + (j.get("address") or "") +
-                      (j.get("rid") or "") + (j.get("work_type") or "") +
-                      (j.get("email") or "")).lower()
-                or (_qd and len(_qd) >= 7 and _qd in _re.sub(r"\D", "", (j.get("phone") or "")))]
     if overdue_f:
         rows = [j for j in rows if j["_fs"]["level"] != "ok" and j["stage"] not in constants.JOB_INACTIVE]
     # Sort options for the bucket views.

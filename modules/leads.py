@@ -146,17 +146,24 @@ def list_view():
         _w.append("stage != 'lost'")
     if rep_f:
         _w.append("rep=?");         _p.append(rep_f)
+    if q:
+        _qd = re.sub(r"\D", "", q)
+        _like = "%" + q + "%"
+        _qparts = ["LOWER(name) LIKE ?", "LOWER(address) LIKE ?",
+                   "LOWER(rid) LIKE ?", "LOWER(email) LIKE ?"]
+        _qp = [_like] * len(_qparts)
+        if _qd and len(_qd) >= 7:
+            _phone_strip = "REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'(',''),')',''),'-','')"
+            _phone2_strip = "REPLACE(REPLACE(REPLACE(REPLACE(phone2,' ',''),'(',''),')',''),'-','')"
+            _qparts.append("(%s LIKE ? OR %s LIKE ?)" % (_phone_strip, _phone2_strip))
+            _qp.extend(["%" + _qd + "%", "%" + _qd + "%"])
+        _w.append("(%s)" % " OR ".join(_qparts))
+        _p.extend(_qp)
     leads = [_decorate(l) for l in db.all_rows("leads", " AND ".join(_w), tuple(_p))]
 
     rows = leads
     if bucket:
         rows = [l for l in rows if l["_stage"].get("bucket") == bucket]
-    if q:
-        _qd = re.sub(r"\D", "", q)  # digit-only version for phone search
-        rows = [l for l in rows if
-                q in ((l.get("name") or "") + (l.get("address") or "") +
-                      (l.get("rid") or "") + (l.get("email") or "")).lower()
-                or (_qd and len(_qd) >= 7 and _qd in re.sub(r"\D", "", (l.get("phone") or "") + (l.get("phone2") or "")))]
     if overdue_f:
         rows = [l for l in rows if l["_fs"]["level"] != "ok"]
     if sort == "value":
