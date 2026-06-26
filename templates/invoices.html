@@ -20,13 +20,27 @@
   .pill.overdue{background:color-mix(in srgb,var(--danger) 18%,#fff);color:#b32d2d;margin-left:4px}
   .pill.sent{background:var(--panel2);color:var(--mut)}
 </style>
-<div class="page-head"><h1>💵 Invoicing & Payments</h1><div class="grow"></div>
+<div class="page-head"><h1>💵 Invoicing & Payments</h1>
+  <span class="sub">{{ invoices|length }} shown</span>
+  <div class="grow"></div>
   {% if overdue_n %}
   <form method="post" action="{{ url_for('invoices.remind_overdue') }}" style="margin:0"
         onsubmit="return confirm('Draft a payment reminder in your Gmail for all {{ overdue_n }} overdue invoice(s)?')">
     <button class="btn danger" type="submit">✉️ Draft reminders for {{ overdue_n }} overdue</button>
   </form>{% endif %}
   <a class="btn primary" href="{{ url_for('invoices.new') }}">+ New Invoice</a></div>
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search invoice number, job name, notes…" style="flex:1">
+  <select name="status" onchange="this.form.submit()" style="min-width:120px">
+    <option value="">All statuses</option>
+    <option value="unpaid" {{ 'selected' if status_f=='unpaid' }}>Unpaid</option>
+    <option value="partial" {{ 'selected' if status_f=='partial' }}>Partial</option>
+    <option value="paid" {{ 'selected' if status_f=='paid' }}>Paid</option>
+    <option value="overdue" {{ 'selected' if status_f=='overdue' }}>Overdue only</option>
+  </select>
+  <button class="btn" type="submit">Search</button>
+  {% if q or status_f %}<a class="btn" href="{{ url_for('invoices.index') }}">✕ Clear</a>{% endif %}
+</form>
 <div class="kpis inv-stats">
   <div class="kpi"><div class="v" title="{{ money(total) }}">{{ money_abbr(total) }}</div><div class="l">Invoiced</div></div>
   <div class="kpi"><div class="v accent" title="{{ money(paid) }}">{{ money_abbr(paid) }}</div><div class="l">Collected</div></div>

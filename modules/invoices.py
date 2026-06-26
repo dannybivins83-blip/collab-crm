@@ -159,12 +159,26 @@ def index():
         inv["_job"] = job_map.get(inv["job_id"])
         inv["_overdue"] = _is_overdue(inv)
     sweep_overdue_automations(rows)
+    # Totals are always across the full scoped set (before query filtering).
     total = sum(i["amount"] or 0 for i in rows)
     paid = sum(i["amount"] or 0 for i in rows if i["status"] == "paid")
     overdue = sum(i["amount"] or 0 for i in rows if i["_overdue"])
     overdue_n = sum(1 for i in rows if i["_overdue"])
+    # Client-side search + status filter (after totals are computed).
+    q = request.args.get("q", "").strip().lower()
+    status_f = request.args.get("status", "").strip()
+    if q:
+        rows = [i for i in rows if
+                q in (i.get("number") or "").lower() or
+                q in ((i["_job"] or {}).get("name") or "").lower() or
+                q in (i.get("notes") or "").lower()]
+    if status_f == "overdue":
+        rows = [i for i in rows if i["_overdue"]]
+    elif status_f:
+        rows = [i for i in rows if i.get("status") == status_f]
     return render_template("invoices.html", invoices=rows, total=total, paid=paid,
-                           due=total - paid, overdue=overdue, overdue_n=overdue_n)
+                           due=total - paid, overdue=overdue, overdue_n=overdue_n,
+                           q=q, status_f=status_f)
 
 
 @bp.route("/new", methods=["GET", "POST"])
