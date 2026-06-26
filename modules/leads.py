@@ -94,19 +94,45 @@ def board():
 @bp.route("/list")
 def list_view():
     """AccuLynx 'Assigned Leads & Jobs' style list with a milestone filter sidebar."""
-    leads = [_decorate(l) for l in db.all_rows("leads", "department=?", (current_department(),))]
-    stage_f = request.args.get("stage")
-    bucket = request.args.get("bucket")
-    q = (request.args.get("q") or "").strip().lower()
-    counts = {s["key"]: 0 for s in constants.LEAD_STAGES}
-    for l in leads:
-        counts[l["stage"]] = counts.get(l["stage"], 0) + 1
+    dept      = current_department()
+    stage_f   = request.args.get("stage")
+    bucket    = request.args.get("bucket")
+    q         = (request.args.get("q") or "").strip().lower()
+    overdue_f = request.args.get("overdue") == "1"
+    rep_f     = request.args.get("rep")
     show_lost = request.args.get("show_lost") == "1"
-    rows = leads
+    sort      = request.args.get("sort", "days")
+
+    # Aggregate queries for sidebar counts + rep list (no full-table fan-out).
+    _conn = db.connect()
+    try:
+        _sc = _conn.execute(
+            "SELECT stage, COUNT(*) n FROM leads WHERE department=? GROUP BY stage",
+            (dept,)).fetchall()
+        _rr = _conn.execute(
+            "SELECT DISTINCT rep FROM leads WHERE department=?"
+            " AND rep IS NOT NULL AND rep != '' ORDER BY rep",
+            (dept,)).fetchall()
+        total = (_conn.execute(
+            "SELECT COUNT(*) n FROM leads WHERE department=?",
+            (dept,)).fetchone() or {}).get("n", 0)
+    finally:
+        _conn.close()
+    counts = {s["key"]: 0 for s in constants.LEAD_STAGES}
+    counts.update({r["stage"]: r["n"] for r in _sc})
+    reps = [r["rep"] for r in _rr]
+
+    # Push SQL-safe filters to the DB; Python-only filters applied after _decorate.
+    _w, _p = ["department=?"], [dept]
     if stage_f:
-        rows = [l for l in rows if l["stage"] == stage_f]
+        _w.append("stage=?");       _p.append(stage_f)
     elif not show_lost:
-        rows = [l for l in rows if l["stage"] != "lost"]
+        _w.append("stage != 'lost'")
+    if rep_f:
+        _w.append("rep=?");         _p.append(rep_f)
+    leads = [_decorate(l) for l in db.all_rows("leads", " AND ".join(_w), tuple(_p))]
+
+    rows = leads
     if bucket:
         rows = [l for l in rows if l["_stage"].get("bucket") == bucket]
     if q:
@@ -115,13 +141,8 @@ def list_view():
                 q in ((l.get("name") or "") + (l.get("address") or "") +
                       (l.get("rid") or "") + (l.get("email") or "")).lower()
                 or (_qd and len(_qd) >= 7 and _qd in re.sub(r"\D", "", (l.get("phone") or "") + (l.get("phone2") or "")))]
-    overdue_f = request.args.get("overdue") == "1"
     if overdue_f:
         rows = [l for l in rows if l["_fs"]["level"] != "ok"]
-    rep_f = request.args.get("rep")
-    if rep_f:
-        rows = [l for l in rows if (l.get("rep") or "") == rep_f]
-    sort = request.args.get("sort", "days")
     if sort == "value":
         rows.sort(key=lambda l: -theme.est_num(l.get("estimate")))
     elif sort == "name":
@@ -132,9 +153,8 @@ def list_view():
         rows.sort(key=lambda l: -(l.get("id") or 0))
     else:  # days — most overdue first
         rows.sort(key=lambda l: -l["_fs"]["days"])
-    reps = sorted({(l.get("rep") or "").strip() for l in leads if (l.get("rep") or "").strip()})
     return render_template("leads_list.html", rows=rows, counts=counts, stage_f=stage_f, q=q,
-                           total=len(leads), show_lost=show_lost, overdue_f=overdue_f,
+                           total=total, show_lost=show_lost, overdue_f=overdue_f,
                            rep_f=rep_f, reps=reps, sort=sort)
 
 

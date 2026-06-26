@@ -94,16 +94,42 @@ def board():
 @bp.route("/list")
 def list_view():
     """AccuLynx jobs list with the full milestone-pipeline filter sidebar."""
-    jobs = [_decorate(j) for j in db.all_rows("jobs", "department=?", (current_department(),))]
-    stage_f = request.args.get("stage")
-    bucket = request.args.get("bucket")
-    q = (request.args.get("q") or "").strip().lower()
+    dept      = current_department()
+    stage_f   = request.args.get("stage")
+    bucket    = request.args.get("bucket")
+    q         = (request.args.get("q") or "").strip().lower()
+    rep_f     = request.args.get("rep")
+    overdue_f = request.args.get("overdue") == "1"
+    sort      = request.args.get("sort", "date")
+
+    # Aggregate queries: counts + reps + total without loading every row.
+    _conn = db.connect()
+    try:
+        _sc = _conn.execute(
+            "SELECT stage, COUNT(*) n FROM jobs WHERE department=? GROUP BY stage",
+            (dept,)).fetchall()
+        _rr = _conn.execute(
+            "SELECT DISTINCT rep FROM jobs WHERE department=?"
+            " AND rep IS NOT NULL AND rep != '' ORDER BY rep",
+            (dept,)).fetchall()
+        total = (_conn.execute(
+            "SELECT COUNT(*) n FROM jobs WHERE department=?",
+            (dept,)).fetchone() or {}).get("n", 0)
+    finally:
+        _conn.close()
     counts = {s["key"]: 0 for s in constants.JOB_STAGES}
-    for j in jobs:
-        counts[j["stage"]] = counts.get(j["stage"], 0) + 1
-    rows = jobs
+    counts.update({r["stage"]: r["n"] for r in _sc})
+    reps = [r["rep"] for r in _rr]
+
+    # Push SQL-safe filters to the DB; Python-only filters applied after _decorate.
+    _w, _p = ["department=?"], [dept]
     if stage_f:
-        rows = [j for j in rows if j["stage"] == stage_f]
+        _w.append("stage=?");  _p.append(stage_f)
+    if rep_f:
+        _w.append("rep=?");    _p.append(rep_f)
+    jobs = [_decorate(j) for j in db.all_rows("jobs", " AND ".join(_w), tuple(_p))]
+
+    rows = jobs
     if bucket:
         rows = [j for j in rows if j["_stage"].get("bucket") == bucket]
     if q:
@@ -114,11 +140,9 @@ def list_view():
                       (j.get("rid") or "") + (j.get("work_type") or "") +
                       (j.get("email") or "")).lower()
                 or (_qd and len(_qd) >= 7 and _qd in _re.sub(r"\D", "", (j.get("phone") or "")))]
-    rep_f = request.args.get("rep")
-    if rep_f:
-        rows = [j for j in rows if (j.get("rep") or "") == rep_f]
+    if overdue_f:
+        rows = [j for j in rows if j["_fs"]["level"] != "ok" and j["stage"] not in constants.JOB_INACTIVE]
     # Sort options for the bucket views.
-    sort = request.args.get("sort", "date")
     if sort == "recent":
         rows.sort(key=lambda j: (j.get("stage_since") or j.get("created") or ""), reverse=True)
     elif sort == "days":
@@ -131,10 +155,6 @@ def list_view():
         rows.sort(key=lambda j: (j.get("rid") or "").lower())
     else:  # date — newest first
         rows.sort(key=lambda j: -(j.get("id") or 0))
-    overdue_f = request.args.get("overdue") == "1"
-    if overdue_f:
-        rows = [j for j in rows if j["_fs"]["level"] != "ok" and j["stage"] not in constants.JOB_INACTIVE]
-    reps = sorted({(j.get("rep") or "").strip() for j in jobs if (j.get("rep") or "").strip()})
     # Batch-load profit analysis for visible rows to avoid N+1 (one ws + lines query per row).
     if rows:
         _ids = [j["id"] for j in rows]
@@ -165,7 +185,7 @@ def list_view():
             else:
                 j["_pa"] = {"has_ws": False}
     return render_template("jobs_list.html", rows=rows, counts=counts, stage_f=stage_f,
-                           bucket=bucket, q=q, total=len(jobs), sort=sort, rep_f=rep_f, reps=reps,
+                           bucket=bucket, q=q, total=total, sort=sort, rep_f=rep_f, reps=reps,
                            stages=constants.JOB_STAGES, buckets=constants.BUCKETS, overdue_f=overdue_f)
 
 
