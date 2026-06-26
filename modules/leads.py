@@ -1046,10 +1046,9 @@ def convert(lead_id):
 @bp.route("/<int:lead_id>/delete", methods=["POST"])
 def delete(lead_id):
     _require_lead(lead_id)
-    # Cascade-delete child records to prevent FK orphans.
-    for eid in [r["id"] for r in db.all_rows("estimates", "lead_id=?", (lead_id,))]:
-        db.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (eid,))
-        db.execute("DELETE FROM estimate_lines WHERE estimate_id=?", (eid,))
+    # Cascade-delete child records. Subquery replaces N+1 (was 2 deletes per estimate).
+    db.execute("DELETE FROM estimate_sections WHERE estimate_id IN (SELECT id FROM estimates WHERE lead_id=?)", (lead_id,))
+    db.execute("DELETE FROM estimate_lines WHERE estimate_id IN (SELECT id FROM estimates WHERE lead_id=?)", (lead_id,))
     db.execute("DELETE FROM estimates WHERE lead_id=?", (lead_id,))
     db.execute("DELETE FROM measurements WHERE lead_id=?", (lead_id,))
     db.execute("DELETE FROM documents WHERE lead_id=?", (lead_id,))
