@@ -1,7 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Commissions{% endblock %}
 {% block body %}
-<div class="page-head"><h1>💰 Commissions</h1><span class="sub">Pre-commission on sale → approved on completion → paid</span></div>
+<div class="page-head"><h1>💰 Commissions</h1><span class="sub">{{ rows|length }} shown · pre-commission on sale → approved on completion → paid</span></div>
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <select name="status" onchange="this.form.submit()" style="min-width:130px">
+    <option value="">All statuses</option>
+    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s==status_f }}>{{ s|capitalize }}</option>{% endfor %}
+  </select>
+  <select name="rep" onchange="this.form.submit()" style="min-width:130px">
+    <option value="">All reps</option>
+    {% for r in reps %}<option {{ 'selected' if r==rep_f }}>{{ r }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  {% if status_f or rep_f %}<a class="btn" href="{{ url_for('commissions.index') }}">✕ Clear</a>{% endif %}
+</form>
 
 <div class="card">
   <h2>Per-rep summary</h2>
@@ -19,12 +31,7 @@
 </div>
 
 <div class="card">
-  <div class="panel-head"><span>All commissions</span>
-    <span>
-      <a class="btn sm {{ 'primary' if not status_f }}" href="{{ url_for('commissions.index') }}">All</a>
-      {% for s in statuses %}<a class="btn sm {{ 'primary' if status_f==s }}" href="{{ url_for('commissions.index') }}?status={{ s }}">{{ s|capitalize }}</a>{% endfor %}
-    </span>
-  </div>
+  <h2>All commissions</h2>
   <table class="grid">
     <tr><th>Job</th><th>Rep</th><th>Basis</th><th class="right">Rate</th><th class="right">Amount</th><th>Status</th><th></th></tr>
     {% for c in rows %}
