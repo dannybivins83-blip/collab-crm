@@ -33,7 +33,7 @@ Secrets kept leaking by being **pasted into chat**. So:
 | `SMTP_PASSWORD` | Gmail App Password for `SMTP_FROM` account | Render | 🔴 Missing — generate at myaccount.google.com/apppasswords |
 | `ANTHROPIC_API_KEY` | Claude AI — ZIP/PDF parse-zip + AI Plans Takeoff (`/leads/<id>/takeoff`) | Render, Vercel | ✅ Set on Render. Set on Vercel before next deploy. |
 | `CRM_INTAKE_TOKEN` | Enables `/leads/intake*` (503 until set) | Render, Vercel | ⬜ Optional — set when you want intake live. |
-| `ROOF_ENGINE_URL`, `ROOF_ENGINE_API_KEY`, `ROOF_BRAND` | Roof-report engine link | Render, Vercel | 🔴 API key **leaked — rotate**; URL/brand not secret. |
+| `ROOF_ENGINE_URL`, `ROOF_ENGINE_API_KEY`, `ROOF_BRAND` | Roof-report engine link | Render, Vercel | 🟢 **rotated 2026-06-26** (fresh token_urlsafe; old leaked key dead). Engine reads `ROOF_API_KEYS` on the VM = this value; insecure dev-key fallback closed. URL/brand not secret. |
 | `CRON_SECRET` | Guards `/sync/cron` | Render | ⬜ Set if using the background cron. |
 | `QXO_API_BASE`, `QXO_API_KEY` | QXO/Beacon materials (dark scaffold) | — | ⬜ Not live. Fill only after `go.qxo.com/qxoapi` partner access. |
 
