@@ -54,8 +54,12 @@ def line_price(l, margin_pct):
 
 
 def estimate_totals(est, sections):
-    cost = sum(s["_cost"] for s in sections)
-    subtotal = sum(s["_price"] for s in sections)
+    # Upgrade OPTION groups are a customer-facing menu — priced for display but kept
+    # OUT of the running total until a rep explicitly accepts one (otherwise auto-filled
+    # upgrade lines silently inflate the estimate). Base scope only drives the total.
+    base = [s for s in sections if not s.get("_is_option")]
+    cost = sum(s["_cost"] for s in base)
+    subtotal = sum(s["_price"] for s in base)
     tax = subtotal * (est.get("tax_pct") or 0) / 100.0
     total = subtotal + tax
     net = total - cost
@@ -74,6 +78,10 @@ def _load_sections(est_id):
         s["_lines"] = lines
         s["_cost"] = sum(l["_cost"] for l in lines)
         s["_price"] = sum(l["_price"] for l in lines)
+        # Option/upgrade groups carry the "Declined / Accepted" marker in their scope_text
+        # (added to every upgrade group in build_estimate). Flag them so estimate_totals
+        # keeps the priced menu out of the running total.
+        s["_is_option"] = "Declined" in (s.get("scope_text") or "")
     return sections
 
 
