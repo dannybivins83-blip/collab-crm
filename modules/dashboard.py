@@ -73,12 +73,26 @@ def home():
     overdue_lead_ct = sum(1 for k, _, _, _ in overdue if k == "lead")
     overdue_job_ct  = sum(1 for k, _, _, _ in overdue if k == "job")
 
-    # Recent activity feed (newest across all entities).
-    # Fetch only the 80 most recent rows from the DB (activities grows to 10k+ with
-    # AccuLynx imports — fetching all and slicing in Python is very slow).
-    feed = db.all_rows("activities", order="id DESC", limit=80)
-    # Build a name lookup from already-loaded leads/jobs; for contacts only fetch
-    # the ones actually referenced in this 80-row feed rather than the full table.
+    # Recent activity feed — scoped to this dept's leads + jobs.
+    # Build the IN lists from already-loaded dept data so no extra query is needed.
+    _lead_ids = tuple(l["id"] for l in leads)
+    _job_ids  = tuple(j["id"] for j in jobs)
+    _parts, _params = [], []
+    if _lead_ids:
+        _parts.append("(entity_type='lead' AND entity_id IN (%s))" % ",".join("?"*len(_lead_ids)))
+        _params.extend(_lead_ids)
+    if _job_ids:
+        _parts.append("(entity_type='job' AND entity_id IN (%s))" % ",".join("?"*len(_job_ids)))
+        _params.extend(_job_ids)
+    _parts.append("entity_type NOT IN ('lead','job')")
+    _feed_conn = db.connect()
+    try:
+        _feed_where = " OR ".join(_parts)
+        feed = [dict(r) for r in _feed_conn.execute(
+            "SELECT * FROM activities WHERE %s ORDER BY id DESC LIMIT 80" % _feed_where,
+            tuple(_params)).fetchall()]
+    finally:
+        _feed_conn.close()
     _name_cache = {}
     for _l in leads:
         _name_cache[("lead", _l["id"])] = _l.get("name") or ""
