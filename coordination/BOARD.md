@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `f2ecadc` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET — crm-ui: 20+ improvements this session: Snooze (leads+jobs): route/UI in dashboard/lists/boards/detail with 7d/30d/clear + days=0=clear; Overdue: badge→link, view-all footer, ?overdue=1 filter, indicators on leads+jobs lists; Search: phone strip-formatting, email, rep filter+sort options on leads list, filter persistence on search; Perf: SQL LIKE GUID lookup, O(n²)→O(n) batch imports (insurance/orders), estimate index 1+2N→2 queries; Boards: Next Action + snooze badge on leads/jobs kanban + pipeline cards, rep shown in footer. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
+- **Git tip (verified 2026-06-26):** `0725a38` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET — crm-ui: Multi-tenant dept scoping sweep (reports, invoices, calendar, permits, materials, orders, commissions, tasks, comms, search typeahead, invoices remind_overdue — all now filter by current_department); Search bars added to contacts/estimates/invoices/permits/materials list views (all were missing UI widgets); Phone digit-stripping in contacts.py + global typeahead; GC list N+1 batch fix; estimates list status filter + count badge. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
 
 ---
 
