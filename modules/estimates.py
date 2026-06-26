@@ -127,7 +127,7 @@ def index():
                  or e.get("lead_id") in dept_leads
                  or e.get("job_id") in dept_jobs]
     if not estimates:
-        return render_template("estimates.html", estimates=[])
+        return render_template("estimates.html", estimates=[], q="", status_f="", statuses=[])
     # Batch-compute totals with a single IN() query per table instead of one
     # _load_sections() call per estimate (was 1 + 2×N queries for N estimates).
     est_ids = [e["id"] for e in estimates]
@@ -160,7 +160,19 @@ def index():
         subtotal = price_map.get(e["id"], 0.0)
         tax = subtotal * (e.get("tax_pct") or 0) / 100.0
         e["_total"] = subtotal + tax
-    return render_template("estimates.html", estimates=estimates)
+    # Client-side filter by query and/or status
+    q = request.args.get("q", "").strip().lower()
+    status_f = request.args.get("status", "").strip()
+    if q:
+        estimates = [e for e in estimates if
+                     q in (e.get("number") or "").lower() or
+                     q in (e.get("title") or "").lower() or
+                     q in (e.get("work_type") or "").lower()]
+    if status_f:
+        estimates = [e for e in estimates if e.get("status") == status_f]
+    statuses = sorted({e.get("status") for e in db.all_rows("estimates", order="id DESC") if e.get("status")})
+    return render_template("estimates.html", estimates=estimates,
+                           q=q, status_f=status_f, statuses=statuses)
 
 
 def _resolve_template(template_id, work_type):

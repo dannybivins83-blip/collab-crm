@@ -4,9 +4,19 @@
 {% block body %}
 <div class="page-head">
   <h1>{{ icon('clipboard') }} Estimates & Proposals</h1>
+  <span class="sub">{{ estimates|length }} shown</span>
   <div class="grow"></div>
   <a class="btn primary" href="{{ url_for('estimates.new') }}">+ New Estimate</a>
 </div>
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search number, title, work type…" style="flex:1">
+  <select name="status" onchange="this.form.submit()" style="min-width:120px">
+    <option value="">All statuses</option>
+    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s==status_f }}>{{ s|capitalize }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Search</button>
+  {% if q or status_f %}<a class="btn" href="{{ url_for('estimates.index') }}">✕ Clear</a>{% endif %}
+</form>
 <table class="grid est-grid">
   <tr><th>Number</th><th>Title</th><th>Work type</th><th>Status</th><th class="right">Total</th><th>Created</th></tr>
   {% for e in estimates %}
