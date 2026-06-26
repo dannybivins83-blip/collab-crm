@@ -50,8 +50,12 @@ def index():
         qd = _re.sub(r"\D", "", q)
         if qd and len(qd) >= 7:
             found_ids = {r["id"] for r in rows}
-            for c in db.all_rows("contacts", order="last_name, company"):
-                if c["id"] not in found_ids and qd in _re.sub(r"\D", "", c.get("phone") or ""):
+            _dlike = "%" + qd + "%"
+            _phone_clause = (
+                "REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'(',''),')',''),'-','') LIKE ?"
+            )
+            for c in db.all_rows("contacts", _phone_clause, (_dlike,), "last_name, company"):
+                if c["id"] not in found_ids:
                     rows.append(c)
     else:
         rows = db.all_rows("contacts", order="last_name, company")

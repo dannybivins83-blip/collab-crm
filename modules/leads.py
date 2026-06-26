@@ -63,7 +63,13 @@ def _decorate(l):
 
 @bp.route("/")
 def board():
-    leads = [_decorate(l) for l in db.all_rows("leads", "department=?", (current_department(),))]
+    show_lost = request.args.get("show_lost") == "1"
+    dept = current_department()
+    _w = ["department=?"]
+    _p = [dept]
+    if not show_lost:
+        _w.append("stage != 'lost'")
+    leads = [_decorate(l) for l in db.all_rows("leads", " AND ".join(_w), tuple(_p))]
     sort = request.args.get("sort", "clock")
     if sort == "est":
         leads.sort(key=lambda l: -theme.est_num(l.get("estimate")))
@@ -71,7 +77,6 @@ def board():
         leads.sort(key=lambda l: (l.get("name") or "").lower())
     else:
         leads.sort(key=lambda l: -l["_fs"]["days"])
-    show_lost = request.args.get("show_lost") == "1"
     cols = []
     grand = 0
     overdue = 0
