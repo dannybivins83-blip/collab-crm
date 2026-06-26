@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `ea370ec` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 5) — crm-ui: Dashboard outstanding-invoice query now targeted (status!=paid AND job_id IN dept-set) — eliminates loading all 6,454+ paid invoices on every page load. Full module audit complete: all ~50 modules scanned; qxo.py/r2.py/sso.py/orders.py/tasks.py/comms.py/calendar.py/automations.py/notifications.py/search.py/settings.py/templates_mgr.py confirmed clean (batch IN() queries, correct dept scoping). Session 4 recap: library.py −15 queries; commissions.py −2 queries; GC list search bar; dbadmin.py get_json fix; leads.py security (admin-gate + dept-scope backfill routes). Commits: `cdd8cdf`, `c440190`, `a498d22`, `61a7073`, `ea370ec`. All pushes to main → Render auto-deploy.
+- **Git tip (verified 2026-06-26):** `a2f5ce9` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 5) — crm-ui: Systematic SQL-scope sweep eliminated 6,454-row full-table scans in dashboard, invoices.index, invoices.remind_overdue, materials.index, permits.index, roof_reports.index, reports.index. Additional: auth.py login now uses WHERE email=? (was scan-all-users); tools.py callsheet reduced 4→2 queries; templates_mgr.py, contacts._dupe_candidates batch-patched; roof_reports −3 redundant loads. All ~50 modules audited clean. Session 4 recap: library.py −15 queries; commissions.py −2 queries; GC list search; dbadmin.py bug; leads.py security (admin-gate). Commits this session: `ea370ec`→`a2f5ce9`. All pushes to main → Render auto-deploy.
 
 ---
 
