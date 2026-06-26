@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `c953edd` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 8 cont'd, resumed x2) — crm-ui: Full sweep of ALL 50 modules + all templates complete. Final batch: autofocus on 6 remaining search pages (comms/estimates/invoices/materials/permits/leads_list), leads_dedupe bulk UPDATE + COUNT(*), tools callsheet inactive SQL filter, commissions N+1 worksheet batch (2N→2 queries), library O(n×m) category grouping→O(n), qxo COUNT, reports O(n×m)+invoice SQL agg, auth LIMIT 1, integrations COUNT, sitecam targeted SQL. Total session: ~20 improvements, 8 commits `c27bdc3`→`c953edd`. Bus inbox empty. CODEBASE NOW COMPREHENSIVELY OPTIMIZED.
+- **Git tip (verified 2026-06-26):** `96e517a` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 8 cont'd, fully complete) — crm-ui: Comprehensive sweep done. ALL 50 modules + all templates audited. Final round: portal.py cross-tenant scoping (similar_job_photos / one_photo_per_system / latest_system_job_photos now accept dept param + cache includes dept), commissions batch worksheet, leads_dedupe bulk UPDATE, tools callsheet SQL filter, signups+dbadmin COUNT fixes. Total session x2: 12 commits `c27bdc3`→`96e517a`. Bus inbox empty. FULLY OPTIMIZED.
 
 ---
 
