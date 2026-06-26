@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `5becd93` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 8 continued) — crm-ui: Full-codebase perf audit complete. All 50 modules swept. Highlights: portal N+1→IN() batch, sync dedupe COUNT, permits O(n×m), library/gc_list autofocus, measurements/comms/templates_mgr SQL, worksheet N+1, smart_todos inactive filter, intake email/phone SQL dedup, contacts _dupe_candidates SQL, ringcentral phone suffix filter, leads/jobs delete cascade N+1→subquery. Commits: `0a3cd46`→`5becd93` (10 commits this session). Bus inbox empty.
+- **Git tip (verified 2026-06-26):** `b422214` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 8 cont'd, resumed) — crm-ui: Extended perf sweep. auth email lookup LIMIT 1 + expression index, integrations gmail COUNT, sitecam full-jobs-scan→3 targeted SQL queries (id/rid/address), library O(n×m) category grouping→O(n) dict, qxo count via SELECT COUNT, reports O(n×m) stage grouping→O(n) dicts + invoice aggregate SQL, _ensure_owner_flag fast-exit. +2 expression indexes (users email, jobs rid). 2 commits: `c27bdc3`→`b422214`. Bus inbox empty.
 
 ---
 
