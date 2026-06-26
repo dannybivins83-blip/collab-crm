@@ -78,7 +78,18 @@ def index():
     job_map = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
     for p in rows:
         p["_job"] = job_map.get(p["job_id"])
-    return render_template("permits.html", permits=rows, status_list=PERMIT_STATUS)
+    q = request.args.get("q", "").strip().lower()
+    status_f = request.args.get("status", "").strip()
+    if q:
+        rows = [p for p in rows if
+                q in (p.get("permit_number") or "").lower() or
+                q in (p.get("ahj") or "").lower() or
+                q in (p.get("county") or "").lower() or
+                q in ((p["_job"] or {}).get("name") or "").lower()]
+    if status_f:
+        rows = [p for p in rows if p.get("status") == status_f]
+    return render_template("permits.html", permits=rows, status_list=PERMIT_STATUS,
+                           q=q, status_f=status_f)
 
 
 @bp.route("/new", methods=["GET", "POST"])

@@ -44,7 +44,17 @@ def index():
     for m in rows:
         m["_job"] = job_map.get(m["job_id"])
         m["_items"] = db.load_json(m.get("items"), [])
-    return render_template("materials.html", orders=rows)
+    q = request.args.get("q", "").strip().lower()
+    status_f = request.args.get("status", "").strip()
+    statuses = sorted({m.get("status") for m in rows if m.get("status")})
+    if q:
+        rows = [m for m in rows if
+                q in (m.get("supplier") or "").lower() or
+                q in ((m["_job"] or {}).get("name") or "").lower() or
+                q in (m.get("notes") or "").lower()]
+    if status_f:
+        rows = [m for m in rows if m.get("status") == status_f]
+    return render_template("materials.html", orders=rows, q=q, status_f=status_f, statuses=statuses)
 
 
 @bp.route("/new", methods=["GET", "POST"])

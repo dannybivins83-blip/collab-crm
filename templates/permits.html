@@ -4,9 +4,19 @@
 {% block body %}
 <div class="page-head">
   <h1>{{ icon('building') }} Permits</h1>
+  <span class="sub">{{ permits|length }} shown</span>
   <div class="grow"></div>
   <a class="btn primary" href="{{ url_for('permits.new') }}">+ New Permit</a>
 </div>
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search job, AHJ, county, permit #…" style="flex:1">
+  <select name="status" onchange="this.form.submit()" style="min-width:120px">
+    <option value="">All statuses</option>
+    {% for s in status_list %}<option value="{{ s }}" {{ 'selected' if s==status_f }}>{{ s|capitalize }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Search</button>
+  {% if q or status_f %}<a class="btn" href="{{ url_for('permits.index') }}">✕ Clear</a>{% endif %}
+</form>
 <table class="grid">
   <tr><th>Job</th><th>AHJ</th><th>County</th><th>System</th><th>Permit #</th><th>Status</th><th>Submitted</th><th>Approved</th></tr>
   {% for p in permits %}
