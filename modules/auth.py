@@ -59,6 +59,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "portal.upload_doc", "portal.upload_photo", "portal.design", "portal.design_request",
           "portal.referral_land", "portal.refer_share", "portal.refer_msg",
           "portal.learn", "portal.seminar", "portal.design_photo", "portal.proposal",
+          "portal.portal_file",
           "signups.portal_view", "signups.portal_complete",
           "measurements.ingest", "takeoff.create",
           # Permit REST API — key-gated via X-Permit-API-Key; must bypass the
