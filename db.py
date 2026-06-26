@@ -1125,12 +1125,26 @@ def open_tasks(entity_type=None, entity_id=None):
 # ---------------------------------------------------------------------------
 
 def get_company():
+    # Cache per Flask request via g to avoid repeated single-row fetches.
+    try:
+        from flask import g as _g
+        _c = _g.get("_company_cache")
+        if _c is not None:
+            return _c
+    except RuntimeError:
+        pass  # outside request context (CLI, background jobs)
     conn = connect()
     try:
         row = conn.execute("SELECT * FROM company_settings WHERE id=1").fetchone()
     finally:
         conn.close()
-    return dict(row) if row else {}
+    result = dict(row) if row else {}
+    try:
+        from flask import g as _g
+        _g._company_cache = result
+    except RuntimeError:
+        pass
+    return result
 
 
 def save_company(data):
