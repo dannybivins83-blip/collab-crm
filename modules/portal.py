@@ -557,20 +557,26 @@ def similar_job_photos(system, exclude_id, cap=24):
         return result
     from modules import ahj as ahj_mod
     groups = {"Tear-off": [], "Installation": [], "Finished": []}
-    n = 0
-    for j in db.all_rows("jobs"):
-        if j["id"] == exclude_id:
-            continue
-        jsys = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
-        if jsys != (system or "").lower():
-            continue
-        for ph in db.all_rows("photos", "job_id=?", (j["id"],), "id DESC"):
+    target_sys = (system or "").lower()
+    # Collect matching job IDs in one pass (no DB calls inside loop).
+    matching_ids = [
+        j["id"] for j in db.all_rows("jobs")
+        if j["id"] != exclude_id
+        and (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower() == target_sys
+    ]
+    if matching_ids:
+        # Batch-load photos for ALL matching jobs in ONE query (was N+1).
+        ph_rows = db.all_rows("photos",
+                              "job_id IN (%s)" % ",".join("?" * len(matching_ids)),
+                              tuple(matching_ids), "id DESC")
+        n = 0
+        for ph in ph_rows:
             b = _photo_bucket(ph.get("phase"))
             if len(groups[b]) < 8:
                 groups[b].append(ph.get("filename"))
                 n += 1
-        if n >= cap:
-            break
+            if n >= cap:
+                break
     result = {k: v for k, v in groups.items() if v}
     _cache_set(cache_key, result)
     return result
@@ -596,12 +602,30 @@ def one_photo_per_system():
                     out[s] = ph[0]
             except Exception:
                 pass
-    for j in db.all_rows("jobs"):
-        s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
-        if s and s not in out:
-            ph = db.all_rows("photos", "job_id=?", (j["id"],), "id DESC")
-            if ph:
-                out[s] = ph[0].get("filename")
+    needed = set(systems) - set(out.keys())
+    if needed:
+        # Collect one matching job_id per needed system (no photo queries yet).
+        jobs_by_system = {}
+        for j in db.all_rows("jobs", order="id ASC"):
+            s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
+            if s in needed and s not in jobs_by_system:
+                jobs_by_system[s] = j["id"]
+            if len(jobs_by_system) == len(needed):
+                break
+        if jobs_by_system:
+            # Batch-load photos for all candidate jobs in ONE query (was N+1).
+            cand_ids = tuple(jobs_by_system.values())
+            ph_rows = db.all_rows("photos",
+                                  "job_id IN (%s)" % ",".join("?" * len(cand_ids)),
+                                  cand_ids, "id DESC")
+            photo_by_job = {}
+            for ph in ph_rows:
+                jid = ph.get("job_id")
+                if jid not in photo_by_job:
+                    photo_by_job[jid] = ph.get("filename")
+            for s, jid in jobs_by_system.items():
+                if jid in photo_by_job and s not in out:
+                    out[s] = photo_by_job[jid]
     _cache_set("one_photo_per_system", out)
     return out
 
@@ -624,9 +648,12 @@ def product_docs_for(sysk):
     """Real company product data sheets / color charts / warranties relevant to a system
     (system-specific first, then generic). Pulled from the Document Library."""
     cats = ("Product & Color Charts", "Warranties")
-    docs = [d for d in db.all_rows("library_docs")
-            if d.get("category") in cats and ((sysk in _doc_systems(d.get("original_name")))
-                                              or not _doc_systems(d.get("original_name")))]
+    # SQL-filter by category first (was a full-table scan); Python handles keyword matching.
+    cat_docs = db.all_rows("library_docs",
+                           "category IN (%s)" % ",".join("?" * len(cats)),
+                           cats)
+    docs = [d for d in cat_docs
+            if (sysk in _doc_systems(d.get("original_name"))) or not _doc_systems(d.get("original_name"))]
     docs.sort(key=lambda d: 0 if _doc_systems(d.get("original_name")) else 1)
     return docs[:16]
 
@@ -639,9 +666,12 @@ def latest_system_job_photos(sysk, cap=18):
     if sc:
         return {"sitecam_url": None, "photos": [{"filename": u, "caption": ""} for u in sc]}
     from modules import ahj as ahj_mod
-    for j in sorted(db.all_rows("jobs"), key=lambda x: x.get("id", 0), reverse=True):
+    sysk_lower = (sysk or "").lower()
+    # SQL ORDER BY id DESC eliminates the Python sort over all jobs.
+    # Check direct system-column matches first, then fall through to work_type mapping.
+    for j in db.all_rows("jobs", order="id DESC"):
         s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
-        if s != (sysk or "").lower():
+        if s != sysk_lower:
             continue
         ph = db.all_rows("photos", "job_id=?", (j["id"],), "id DESC")
         if ph:
@@ -992,7 +1022,8 @@ def home(token):
             nm = re.sub(r"^\s*[A-Za-z]?-?\d{3,}\s*[:\-]\s*", "", (l.get("name") or ""))
             nm = re.sub(r"\s*\([^)]*\)", "", nm)
             nm = re.sub(r"\s+L\s*$", "", nm).strip(" -·,")
-            rep = next((u for u in db.all_rows("users") if u.get("name") == l.get("rep")), None)
+            _rep_rows = db.all_rows("users", "name=?", (l.get("rep") or "",), limit=1)
+            rep = _rep_rows[0] if _rep_rows else None
             jr = journey_steps("lead", l, token)
             return render_template("lead_portal.html", l=l, client=nm or "there",
                                    rep=rep, company=db.get_company(), token=token,

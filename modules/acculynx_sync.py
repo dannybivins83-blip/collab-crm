@@ -791,10 +791,16 @@ def dedupe_records():
     - Leads: by GUID, then by name. On a name collision we keep the record that
       carries the AccuLynx link (GUID) over a link-less old import.
     Keeps exactly one of each. Returns before/after counts."""
-    before_l, before_j = len(db.all_rows("leads")), len(db.all_rows("jobs"))
+    conn = db.connect()
+    try:
+        before_l = (conn.execute("SELECT COUNT(*) FROM leads").fetchone() or [0])[0]
+        before_j = (conn.execute("SELECT COUNT(*) FROM jobs").fetchone() or [0])[0]
+    finally:
+        conn.close()
     removed = {"jobs_guid": 0, "leads_guid": 0, "leads_name": 0}
+    deleted_lead_ids = set()
 
-    def _collapse(table, rows, keyfn):
+    def _collapse(table, rows, keyfn, deleted_set=None):
         seen, dele = set(), []
         for r in rows:
             k = keyfn(r)
@@ -806,17 +812,21 @@ def dedupe_records():
                 seen.add(k)
         for rid in dele:
             db.delete(table, rid)
+            if deleted_set is not None:
+                deleted_set.add(rid)
         return len(dele)
 
-    removed["jobs_guid"] = _collapse("jobs", db.all_rows("jobs", order="id ASC"),
-                                     lambda r: _guid_of_url(r.get("external_url")))
-    removed["leads_guid"] = _collapse("leads", db.all_rows("leads", order="id ASC"),
-                                      lambda r: _guid_of_url(r.get("external_url")))
-    # Name pass: GUID-bearing rows first so the linked record survives the collision.
-    lead_rows = sorted(db.all_rows("leads"), key=lambda r: (0 if _guid_of_url(r.get("external_url")) else 1, r["id"]))
+    jobs_rows  = db.all_rows("jobs",  order="id ASC")
+    leads_rows = db.all_rows("leads", order="id ASC")
+    removed["jobs_guid"]  = _collapse("jobs",  jobs_rows,  lambda r: _guid_of_url(r.get("external_url")))
+    removed["leads_guid"] = _collapse("leads", leads_rows, lambda r: _guid_of_url(r.get("external_url")), deleted_lead_ids)
+    # Name pass: reuse leads_rows (excluding GUID-deleted), GUID-bearing rows first.
+    surviving = [r for r in leads_rows if r["id"] not in deleted_lead_ids]
+    lead_rows = sorted(surviving, key=lambda r: (0 if _guid_of_url(r.get("external_url")) else 1, r["id"]))
     removed["leads_name"] = _collapse("leads", lead_rows, lambda r: (r.get("name") or "").strip().lower() or None)
 
-    after_l, after_j = len(db.all_rows("leads")), len(db.all_rows("jobs"))
+    after_l = before_l - removed["leads_guid"] - removed["leads_name"]
+    after_j = before_j - removed["jobs_guid"]
     return {"before_leads": before_l, "before_jobs": before_j,
             "after_leads": after_l, "after_jobs": after_j, "removed": removed}
 
