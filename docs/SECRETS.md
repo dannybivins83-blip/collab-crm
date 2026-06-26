@@ -21,7 +21,7 @@ Secrets kept leaking by being **pasted into chat**. So:
 | `CRM_SECRET` | Flask session signing | Render, Vercel | ⚠️ **Audit #5** — falls back to public `white-label-crm-dev-secret` if unset (forgeable admin cookies). Set it. |
 | `CRM_SYNC_SECRET` | Gates `/sync/*` bookmarklet bridge (Critical #1) | Render, Vercel | 🔴 Code shipped (fail-closed in prod). **Set on Render now**, Vercel before its next deploy. Reinstall bookmarklets after. |
 | `MEASURE_CRM_WEBHOOK_SECRET` | HMAC for `/api/takeoff` + `/measurements/ingest`; **must match the engine VM** | Render, Vercel, **engine VM** | 🔴 **PENDING.** Earlier value was leaked in chat = burned. Generate fresh, set identical CRM+VM. Nothing live-signs yet, so safe to set anytime. |
-| `SEABREEZE_CRM_WEBHOOK_SECRET` | HMAC for SSO / SiteCam | Render, Vercel, **sitecam-api** | 🔴 **LEAKED — rotate.** Fresh value on both sides, then redeploy sitecam-api once with `SEED_FORCE=true`. |
+| `SEABREEZE_CRM_WEBHOOK_SECRET` | HMAC for SSO / SiteCam | Render, Vercel, **sitecam-api** | 🟢 **Rotated 2026-06-26** (fresh 64-char hex; SEED_FORCE=true applied on sitecam-api in same deploy, then removed). Sitecam lane to verify SSO end-to-end. |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Gmail + Google sign-in | Render, Vercel | 🔴 **LEAKED (screenshot) — rotate** in Google Console, then update env. |
 | `GOOGLE_OAUTH_CLIENT_ID` | OAuth client id (not secret, but paired) | Render, Vercel | ✅ Set. |
 | `R2_ACCOUNT_ID` | Cloudflare R2 account ID (32-char hex) | Render | ⬜ **Pending** — create bucket at dash.cloudflare.com/r2, then set |
