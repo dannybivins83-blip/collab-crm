@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `a2f5ce9` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 5) — crm-ui: Systematic SQL-scope sweep eliminated 6,454-row full-table scans in dashboard, invoices.index, invoices.remind_overdue, materials.index, permits.index, roof_reports.index, reports.index. Additional: auth.py login now uses WHERE email=? (was scan-all-users); tools.py callsheet reduced 4→2 queries; templates_mgr.py, contacts._dupe_candidates batch-patched; roof_reports −3 redundant loads. All ~50 modules audited clean. Session 4 recap: library.py −15 queries; commissions.py −2 queries; GC list search; dbadmin.py bug; leads.py security (admin-gate). Commits this session: `ea370ec`→`a2f5ce9`. All pushes to main → Render auto-deploy.
+- **Git tip (verified 2026-06-26):** `93e32b1` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 6) — crm-ui: Continued autonomous improvement loop. Highlights: (1) estimates.index SQL-scope fix (was loading ALL estimates, now IN(dept_lead_ids, dept_job_ids)); (2) typeahead search.py → SQL-side LIKE (was loading all 3 full tables per keystroke); (3) leads.py 4× redundant get_company() in new() POST hoisted to 1; Gmail sync loop reuses comp instead of get_company() per iteration; (4) portal.py learn page: 6 sequential SiteCam urlopen(timeout=4) now run in parallel via ThreadPoolExecutor (cold-start: ~4s instead of ~24s); (5) Postgres empty-string literal fix in db.py appointment backfill; (6) _ensure_column() for invoices.py ALTER TABLE cleanup; (7) _assert_table() guard added to contacts.delete and tools.restore before table-name interpolation; (8) search bars added to commissions + orders list views (last two that were missing them); (9) All AUDIT items verified — all CRITICAL+HIGH+MEDIUM items addressed or confirmed already fixed. Commits this session: `ff875f6`→`93e32b1`.
 
 ---
 
