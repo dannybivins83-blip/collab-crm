@@ -121,11 +121,21 @@ def list_view():
     rep_f = request.args.get("rep")
     if rep_f:
         rows = [l for l in rows if (l.get("rep") or "") == rep_f]
-    rows.sort(key=lambda l: -l["_fs"]["days"])
+    sort = request.args.get("sort", "days")
+    if sort == "value":
+        rows.sort(key=lambda l: -theme.est_num(l.get("estimate")))
+    elif sort == "name":
+        rows.sort(key=lambda l: (l.get("name") or "").lower())
+    elif sort == "rid":
+        rows.sort(key=lambda l: (l.get("rid") or "").lower())
+    elif sort == "date":
+        rows.sort(key=lambda l: -(l.get("id") or 0))
+    else:  # days — most overdue first
+        rows.sort(key=lambda l: -l["_fs"]["days"])
     reps = sorted({(l.get("rep") or "").strip() for l in leads if (l.get("rep") or "").strip()})
     return render_template("leads_list.html", rows=rows, counts=counts, stage_f=stage_f, q=q,
                            total=len(leads), show_lost=show_lost, overdue_f=overdue_f,
-                           rep_f=rep_f, reps=reps)
+                           rep_f=rep_f, reps=reps, sort=sort)
 
 
 @bp.route("/new", methods=["GET", "POST"])

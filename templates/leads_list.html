@@ -54,6 +54,21 @@
   </aside>
 
   <div class="results">
+    <form method="get" style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      {% if stage_f %}<input type="hidden" name="stage" value="{{ stage_f }}">{% endif %}
+      {% if overdue_f %}<input type="hidden" name="overdue" value="1">{% endif %}
+      {% if show_lost %}<input type="hidden" name="show_lost" value="1">{% endif %}
+      {% if rep_f %}<input type="hidden" name="rep" value="{{ rep_f }}">{% endif %}
+      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+      <select name="sort" onchange="this.form.submit()" style="padding:6px 10px;border:1px solid #c7d0de;border-radius:8px;font-size:13px;background:#fff">
+        <option value="days"  {{ 'selected' if sort=='days' or not sort }}>Most overdue</option>
+        <option value="date"  {{ 'selected' if sort=='date' }}>Newest first</option>
+        <option value="value" {{ 'selected' if sort=='value' }}>Value (high→low)</option>
+        <option value="name"  {{ 'selected' if sort=='name' }}>Name A–Z</option>
+        <option value="rid"   {{ 'selected' if sort=='rid' }}>Lead #</option>
+      </select>
+      <span class="muted" style="font-size:12px">{{ rows|length }} leads</span>
+    </form>
     {% for l in rows %}
     {% set col = 'var(--danger)' if l._fs.level=='hot' else ('var(--warn)' if l._fs.level=='stalled' else 'var(--ok)') %}
     <div style="position:relative">
