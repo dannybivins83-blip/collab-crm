@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `a498d22` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 4) — crm-ui: Search/filter bars added to Tasks/Calendar/Comms/Commissions/Roof Reports/GC List. Performance: library.py eliminated 15 redundant queries (per-category counts now computed from already-loaded list); commissions.py eliminated 2 duplicate dept loads; notifications N+1 fixed. Security: leads.py backfill_ahj + strip_lead_marker now admin-gated + dept-scoped (was leaking cross-dept writes to any user). Bug fix: dbadmin.py request.getjsonify → request.get_json (AttributeError on link_estimates_to_job). Commits: `cdd8cdf`, `c440190`, `a498d22`. All pushes to main → Render auto-deploy.
+- **Git tip (verified 2026-06-26):** `ea370ec` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 5) — crm-ui: Dashboard outstanding-invoice query now targeted (status!=paid AND job_id IN dept-set) — eliminates loading all 6,454+ paid invoices on every page load. Full module audit complete: all ~50 modules scanned; qxo.py/r2.py/sso.py/orders.py/tasks.py/comms.py/calendar.py/automations.py/notifications.py/search.py/settings.py/templates_mgr.py confirmed clean (batch IN() queries, correct dept scoping). Session 4 recap: library.py −15 queries; commissions.py −2 queries; GC list search bar; dbadmin.py get_json fix; leads.py security (admin-gate + dept-scope backfill routes). Commits: `cdd8cdf`, `c440190`, `a498d22`, `61a7073`, `ea370ec`. All pushes to main → Render auto-deploy.
 
 ---
 
