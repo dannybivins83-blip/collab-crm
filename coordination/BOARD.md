@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `e1a8341` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET — crm-ui: 7 new fixes this session: (1) Smart-todos milestone filter + AccuLynx sync no longer overwrites todo field; (2) Dashboard perf: activity LIMIT/scoped contacts, SiteCam iframe cross-browser fix; (3) Comms N+1 batched (was 200 individual db.get() calls → 3 IN() queries); (4) Intake dedup scoped to non-null rows; (5) Next Action visible on lead detail + option badge on estimate sections; (6) Overdue system: badge→link, View-all footer, ?overdue=1 filter on leads+jobs lists, 💤 snooze-30d buttons on dashboard/list/detail (7d/30d/clear); (7) AccuLynx sync GUID lookups: SQL LIKE instead of Python linear scan, insurance+orders imports O(n²)→O(n) via pre-built dicts. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
+- **Git tip (verified 2026-06-26):** `f2ecadc` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET — crm-ui: 20+ improvements this session: Snooze (leads+jobs): route/UI in dashboard/lists/boards/detail with 7d/30d/clear + days=0=clear; Overdue: badge→link, view-all footer, ?overdue=1 filter, indicators on leads+jobs lists; Search: phone strip-formatting, email, rep filter+sort options on leads list, filter persistence on search; Perf: SQL LIKE GUID lookup, O(n²)→O(n) batch imports (insurance/orders), estimate index 1+2N→2 queries; Boards: Next Action + snooze badge on leads/jobs kanban + pipeline cards, rep shown in footer. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
 
 ---
 
