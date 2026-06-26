@@ -153,9 +153,13 @@ def index():
     _dept_jobs = db.all_rows("jobs", "department=?", (dept,))
     dept_job_ids = {j["id"] for j in _dept_jobs}
     job_map = {j["id"]: j for j in _dept_jobs}
-    all_inv = db.all_rows("invoices", order="id DESC")
-    # Scope invoices to the department: keep those tied to a dept job, or unattached.
-    rows = [i for i in all_inv if not i.get("job_id") or i["job_id"] in dept_job_ids]
+    # Scope invoices to this dept at query time — avoids loading all paid/cross-dept rows.
+    if dept_job_ids:
+        _id_ph = ",".join("?" * len(dept_job_ids))
+        rows = db.all_rows("invoices", "job_id IS NULL OR job_id IN (%s)" % _id_ph,
+                           tuple(dept_job_ids), "id DESC")
+    else:
+        rows = db.all_rows("invoices", "job_id IS NULL", order="id DESC")
     for inv in rows:
         inv["_job"] = job_map.get(inv["job_id"])
         inv["_overdue"] = _is_overdue(inv)
