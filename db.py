@@ -706,7 +706,7 @@ def _migrate_columns():
         for old, new in legacy.items():
             try:
                 conn.execute('UPDATE appointments SET %s="%s" '
-                             'WHERE (%s IS NULL OR %s="") AND "%s" IS NOT NULL'
+                             "WHERE (%s IS NULL OR %s='') AND \"%s\" IS NOT NULL"
                              % (new, old, new, new, old))
             except Exception:
                 pass  # legacy column doesn't exist (fresh schema) — nothing to copy

@@ -8,17 +8,8 @@ import constants
 
 bp = Blueprint("invoices", __name__, url_prefix="/invoices")
 
-# Track when a homeowner payment reminder was last drafted (module-load convention).
-try:
-    db.execute("ALTER TABLE invoices ADD COLUMN reminded_at TEXT")
-except Exception:
-    pass
-# First time an invoice is observed overdue we let the workflow engine fire once.
-try:
-    db.execute("ALTER TABLE invoices ADD COLUMN overdue_fired_at TEXT")
-except Exception:
-    pass
-db._COLCACHE.clear()
+db._ensure_column("invoices", "reminded_at", "TEXT")
+db._ensure_column("invoices", "overdue_fired_at", "TEXT")
 
 
 def _next_number():
