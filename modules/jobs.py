@@ -94,6 +94,7 @@ def board():
 @bp.route("/list")
 def list_view():
     """AccuLynx jobs list with the full milestone-pipeline filter sidebar."""
+    import re as _re
     dept      = current_department()
     stage_f   = request.args.get("stage")
     bucket    = request.args.get("bucket")
@@ -101,6 +102,8 @@ def list_view():
     rep_f     = request.args.get("rep")
     overdue_f = request.args.get("overdue") == "1"
     sort      = request.args.get("sort", "date")
+    page      = max(1, int(request.args.get("page") or 1))
+    PER_PAGE  = 50
 
     # Aggregate queries: counts + reps + total without loading every row.
     _conn = db.connect()
@@ -121,14 +124,20 @@ def list_view():
     counts.update({r["stage"]: r["n"] for r in _sc})
     reps = [r["rep"] for r in _rr]
 
-    # Push SQL-safe filters to the DB; Python-only filters applied after _decorate.
+    # Build WHERE clause — push all SQL-safe filters to the DB.
     _w, _p = ["department=?"], [dept]
     if stage_f:
-        _w.append("stage=?");  _p.append(stage_f)
+        _w.append("stage=?"); _p.append(stage_f)
+    elif bucket:
+        # Push bucket→stages so LIMIT/OFFSET is applied to the filtered set.
+        _bstages = [s["key"] for s in constants.JOB_STAGES if s.get("bucket") == bucket]
+        if _bstages:
+            _w.append("stage IN (%s)" % ",".join("?" * len(_bstages)))
+            _p.extend(_bstages)
+            bucket = None  # SQL handles it; clear so Python skip it below
     if rep_f:
-        _w.append("rep=?");    _p.append(rep_f)
+        _w.append("rep=?"); _p.append(rep_f)
     if q:
-        import re as _re
         _qd = _re.sub(r"\D", "", q)
         _like = "%" + q + "%"
         _qparts = ["LOWER(name) LIKE ?", "LOWER(address) LIKE ?", "LOWER(rid) LIKE ?",
@@ -140,33 +149,67 @@ def list_view():
             _qp.append("%" + _qd + "%")
         _w.append("(%s)" % " OR ".join(_qparts))
         _p.extend(_qp)
-    jobs = [_decorate(j) for j in db.all_rows("jobs", " AND ".join(_w), tuple(_p))]
 
-    rows = jobs
-    if bucket:
-        rows = [j for j in rows if j["_stage"].get("bucket") == bucket]
-    if overdue_f:
-        rows = [j for j in rows if j["_fs"]["level"] != "ok" and j["stage"] not in constants.JOB_INACTIVE]
-    # Sort options for the bucket views.
-    if sort == "recent":
-        rows.sort(key=lambda j: (j.get("stage_since") or j.get("created") or ""), reverse=True)
-    elif sort == "days":
-        rows.sort(key=lambda j: -j["_fs"]["days"])
-    elif sort == "value":
-        rows.sort(key=lambda j: -theme.est_num(j.get("contract_value")))
-    elif sort == "name":
-        rows.sort(key=lambda j: (j.get("name") or "").lower())
-    elif sort == "rid":
-        rows.sort(key=lambda j: (j.get("rid") or "").lower())
-    else:  # date — newest first
-        rows.sort(key=lambda j: -(j.get("id") or 0))
-    # Batch-load profit analysis for visible rows to avoid N+1 (one ws + lines query per row).
+    _where = " AND ".join(_w)
+    _params = tuple(_p)
+
+    # Hardcoded SQL sort expressions (safe — no user data, allowlisted here).
+    _SORT_SQL = {
+        "date":   "id DESC",
+        "name":   "LOWER(COALESCE(name,'')) ASC, id DESC",
+        "value":  "CAST(REPLACE(REPLACE(COALESCE(contract_value,'0'),'$',''),',','') AS REAL) DESC, id DESC",
+        "rid":    "LOWER(COALESCE(rid,'')) ASC, id DESC",
+        "recent": "COALESCE(stage_since, created) DESC, id DESC",
+    }
+    # 'days' sort and overdue filter both require decorated fields — can't paginate.
+    can_paginate = not overdue_f and sort in _SORT_SQL
+
+    if can_paginate:
+        _order_sql = _SORT_SQL[sort]
+        _conn2 = db.connect()
+        try:
+            matching_n = (_conn2.execute(
+                "SELECT COUNT(*) n FROM jobs WHERE " + _where, _params
+            ).fetchone() or {}).get("n", 0)
+            _page_rows = [dict(r) for r in _conn2.execute(
+                "SELECT * FROM jobs WHERE %s ORDER BY %s LIMIT %d OFFSET %d" % (
+                    _where, _order_sql, PER_PAGE, (page - 1) * PER_PAGE),
+                _params).fetchall()]
+        finally:
+            _conn2.close()
+        jobs = [_decorate(j) for j in _page_rows]
+        total_pages = max(1, (matching_n + PER_PAGE - 1) // PER_PAGE)
+        rows = jobs  # bucket was already pushed to SQL; no Python bucket filter needed
+    else:
+        # 'days' sort or overdue_f: load all matching records.
+        jobs = [_decorate(j) for j in db.all_rows("jobs", _where, _params)]
+        if bucket:
+            jobs = [j for j in jobs if j["_stage"].get("bucket") == bucket]
+        if overdue_f:
+            jobs = [j for j in jobs if j["_fs"]["level"] != "ok" and j["stage"] not in constants.JOB_INACTIVE]
+        if sort == "days":
+            jobs.sort(key=lambda j: -j["_fs"]["days"])
+        elif sort == "recent":
+            jobs.sort(key=lambda j: (j.get("stage_since") or j.get("created") or ""), reverse=True)
+        elif sort == "value":
+            jobs.sort(key=lambda j: -theme.est_num(j.get("contract_value")))
+        elif sort == "name":
+            jobs.sort(key=lambda j: (j.get("name") or "").lower())
+        elif sort == "rid":
+            jobs.sort(key=lambda j: (j.get("rid") or "").lower())
+        rows = jobs
+        matching_n = len(rows)
+        page = 1
+        total_pages = 1
+
+    # Batch-load profit analysis for visible rows only (50 rows on paginated view
+    # vs the full 1231 before; single IN() query either way).
     if rows:
         _ids = [j["id"] for j in rows]
         _ph = ",".join("?" * len(_ids))
-        _conn = db.connect()
+        _conn3 = db.connect()
         try:
-            _ws_agg = _conn.execute(
+            _ws_agg = _conn3.execute(
                 "SELECT w.job_id, w.contract_value, "
                 "COALESCE(SUM(wl.actual_cost),0) AS actual_cost, "
                 "COALESCE(SUM(wl.budget_cost),0) AS budget_cost "
@@ -175,7 +218,7 @@ def list_view():
                 "WHERE w.job_id IN (%s) GROUP BY w.job_id, w.id ORDER BY w.id DESC" % _ph,
                 tuple(_ids)).fetchall()
         finally:
-            _conn.close()
+            _conn3.close()
         _ws_by_job = {}
         for _ws in _ws_agg:
             if _ws["job_id"] not in _ws_by_job:
@@ -191,7 +234,9 @@ def list_view():
                 j["_pa"] = {"has_ws": False}
     return render_template("jobs_list.html", rows=rows, counts=counts, stage_f=stage_f,
                            bucket=bucket, q=q, total=total, sort=sort, rep_f=rep_f, reps=reps,
-                           stages=constants.JOB_STAGES, buckets=constants.BUCKETS, overdue_f=overdue_f)
+                           stages=constants.JOB_STAGES, buckets=constants.BUCKETS,
+                           overdue_f=overdue_f, page=page, total_pages=total_pages,
+                           matching_n=matching_n, per_page=PER_PAGE)
 
 
 @bp.route("/new", methods=["GET", "POST"])

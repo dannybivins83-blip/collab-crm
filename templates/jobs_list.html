@@ -3,7 +3,7 @@
 {% block body %}
 <div class="page-head">
   <h1>Jobs</h1>
-  <span class="sub">{{ rows|length }} of {{ total }}</span>
+  <span class="sub">{{ rows|length }} of {{ matching_n }}{% if total != matching_n %} · {{ total }} total{% endif %}</span>
   <div class="grow"></div>
   <div class="viewtoggle">
     <a class="on">☰ List</a>
@@ -80,6 +80,13 @@
       {% endif %}
     </div>
     {% else %}<div class="empty">No jobs match{% if q %} for "{{ q }}"{% endif %}.{% if not q and not stage_f and not bucket %} <a class="btn primary" style="margin-left:8px" href="{{ url_for('jobs.new') }}">+ New Job</a>{% endif %}</div>{% endfor %}
+    {% if total_pages > 1 %}
+    <div class="pagination" style="display:flex;align-items:center;gap:10px;padding:14px 4px;justify-content:center">
+      {% if page > 1 %}<button class="btn sm" onclick="goPage({{ page-1 }})">← Prev</button>{% endif %}
+      <span class="muted" style="font-size:13px">Page {{ page }} of {{ total_pages }}{% if matching_n %} ({{ matching_n }} jobs){% endif %}</span>
+      {% if page < total_pages %}<button class="btn sm" onclick="goPage({{ page+1 }})">Next →</button>{% endif %}
+    </div>
+    {% endif %}
   </div>
 </div>
 <style>
@@ -91,6 +98,7 @@
   .stage-sel.saved{outline:2px solid var(--ok);outline-offset:1px}
 </style>
 <script>
+function goPage(p){var u=new URL(window.location);u.searchParams.set('page',p);window.location=u;}
 function changeStage(sel){
   var id=sel.dataset.job, prev=sel.dataset.prev||sel.value;
   sel.disabled=true;

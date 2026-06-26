@@ -118,6 +118,8 @@ def list_view():
     rep_f     = request.args.get("rep")
     show_lost = request.args.get("show_lost") == "1"
     sort      = request.args.get("sort", "days")
+    page      = max(1, int(request.args.get("page") or 1))
+    PER_PAGE  = 50
 
     # Aggregate queries for sidebar counts + rep list (no full-table fan-out).
     _conn = db.connect()
@@ -138,14 +140,20 @@ def list_view():
     counts.update({r["stage"]: r["n"] for r in _sc})
     reps = [r["rep"] for r in _rr]
 
-    # Push SQL-safe filters to the DB; Python-only filters applied after _decorate.
+    # Build WHERE clause — push all SQL-safe filters.
     _w, _p = ["department=?"], [dept]
     if stage_f:
-        _w.append("stage=?");       _p.append(stage_f)
+        _w.append("stage=?"); _p.append(stage_f)
     elif not show_lost:
         _w.append("stage != 'lost'")
+    if bucket and not stage_f:
+        _bstages = [s["key"] for s in constants.LEAD_STAGES if s.get("bucket") == bucket]
+        if _bstages:
+            _w.append("stage IN (%s)" % ",".join("?" * len(_bstages)))
+            _p.extend(_bstages)
+            bucket = None  # SQL handles it
     if rep_f:
-        _w.append("rep=?");         _p.append(rep_f)
+        _w.append("rep=?"); _p.append(rep_f)
     if q:
         _qd = re.sub(r"\D", "", q)
         _like = "%" + q + "%"
@@ -159,26 +167,61 @@ def list_view():
             _qp.extend(["%" + _qd + "%", "%" + _qd + "%"])
         _w.append("(%s)" % " OR ".join(_qparts))
         _p.extend(_qp)
-    leads = [_decorate(l) for l in db.all_rows("leads", " AND ".join(_w), tuple(_p))]
 
-    rows = leads
-    if bucket:
-        rows = [l for l in rows if l["_stage"].get("bucket") == bucket]
-    if overdue_f:
-        rows = [l for l in rows if l["_fs"]["level"] != "ok"]
-    if sort == "value":
-        rows.sort(key=lambda l: -theme.est_num(l.get("estimate")))
-    elif sort == "name":
-        rows.sort(key=lambda l: (l.get("name") or "").lower())
-    elif sort == "rid":
-        rows.sort(key=lambda l: (l.get("rid") or "").lower())
-    elif sort == "date":
-        rows.sort(key=lambda l: -(l.get("id") or 0))
-    else:  # days — most overdue first
-        rows.sort(key=lambda l: -l["_fs"]["days"])
+    _where  = " AND ".join(_w)
+    _params = tuple(_p)
+
+    # Hardcoded SQL sort expressions (safe — no user data, allowlisted here).
+    _SORT_SQL = {
+        "date":  "id DESC",
+        "name":  "LOWER(COALESCE(name,'')) ASC, id DESC",
+        "value": "CAST(REPLACE(REPLACE(COALESCE(estimate,'0'),'$',''),',','') AS REAL) DESC, id DESC",
+        "rid":   "LOWER(COALESCE(rid,'')) ASC, id DESC",
+    }
+    # 'days' sort and overdue filter require decorated fields — cannot paginate.
+    can_paginate = not overdue_f and sort in _SORT_SQL
+
+    if can_paginate:
+        _order_sql = _SORT_SQL[sort]
+        _conn2 = db.connect()
+        try:
+            matching_n = (_conn2.execute(
+                "SELECT COUNT(*) n FROM leads WHERE " + _where, _params
+            ).fetchone() or {}).get("n", 0)
+            _page_rows = [dict(r) for r in _conn2.execute(
+                "SELECT * FROM leads WHERE %s ORDER BY %s LIMIT %d OFFSET %d" % (
+                    _where, _order_sql, PER_PAGE, (page - 1) * PER_PAGE),
+                _params).fetchall()]
+        finally:
+            _conn2.close()
+        rows = [_decorate(l) for l in _page_rows]
+        total_pages = max(1, (matching_n + PER_PAGE - 1) // PER_PAGE)
+    else:
+        # 'days' sort or overdue_f: load all matching records.
+        leads = [_decorate(l) for l in db.all_rows("leads", _where, _params)]
+        if bucket:
+            leads = [l for l in leads if l["_stage"].get("bucket") == bucket]
+        if overdue_f:
+            leads = [l for l in leads if l["_fs"]["level"] != "ok"]
+        if sort == "value":
+            leads.sort(key=lambda l: -theme.est_num(l.get("estimate")))
+        elif sort == "name":
+            leads.sort(key=lambda l: (l.get("name") or "").lower())
+        elif sort == "rid":
+            leads.sort(key=lambda l: (l.get("rid") or "").lower())
+        elif sort == "date":
+            leads.sort(key=lambda l: -(l.get("id") or 0))
+        else:  # days — most overdue first (default)
+            leads.sort(key=lambda l: -l["_fs"]["days"])
+        rows = leads
+        matching_n = len(rows)
+        page = 1
+        total_pages = 1
+
     return render_template("leads_list.html", rows=rows, counts=counts, stage_f=stage_f, q=q,
                            total=total, show_lost=show_lost, overdue_f=overdue_f,
-                           rep_f=rep_f, reps=reps, sort=sort)
+                           rep_f=rep_f, reps=reps, sort=sort, page=page,
+                           total_pages=total_pages, matching_n=matching_n, per_page=PER_PAGE)
 
 
 @bp.route("/new", methods=["GET", "POST"])

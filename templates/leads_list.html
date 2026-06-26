@@ -68,7 +68,7 @@
         <option value="name"  {{ 'selected' if sort=='name' }}>Name A–Z</option>
         <option value="rid"   {{ 'selected' if sort=='rid' }}>Lead #</option>
       </select>
-      <span class="muted" style="font-size:12px">{{ rows|length }} leads</span>
+      <span class="muted" style="font-size:12px">{{ rows|length }}{% if total_pages > 1 %} of {{ matching_n }}{% endif %} leads</span>
     </form>
     {% for l in rows %}
     {% set col = 'var(--danger)' if l._fs.level=='hot' else ('var(--warn)' if l._fs.level=='stalled' else 'var(--ok)') %}
@@ -104,9 +104,17 @@
       </div>
     </div>
     {% else %}<div class="empty">No leads match{% if q %} for "{{ q }}"{% endif %}.{% if not q %} <a class="btn primary" style="margin-left:8px" href="{{ url_for('leads.new') }}">+ New Lead</a>{% endif %}</div>{% endfor %}
+    {% if total_pages > 1 %}
+    <div class="pagination" style="display:flex;align-items:center;gap:10px;padding:14px 4px;justify-content:center">
+      {% if page > 1 %}<button class="btn sm" onclick="goPage({{ page-1 }})">← Prev</button>{% endif %}
+      <span class="muted" style="font-size:13px">Page {{ page }} of {{ total_pages }} ({{ matching_n }} leads)</span>
+      {% if page < total_pages %}<button class="btn sm" onclick="goPage({{ page+1 }})">Next →</button>{% endif %}
+    </div>
+    {% endif %}
   </div>
 </div>
 <script>
+function goPage(p){var u=new URL(window.location);u.searchParams.set('page',p);window.location=u;}
 function setRank(id,n,el){
   fetch('{{ url_for("customfields.set_rank", lead_id=0) }}'.replace('/0','/'+id),
     {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'rank='+n+'&ajax=1'})

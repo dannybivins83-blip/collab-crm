@@ -985,7 +985,7 @@ def get(table, row_id):
     return dict(row) if row else None
 
 
-def all_rows(table, where="", params=(), order="id DESC", limit=None):
+def all_rows(table, where="", params=(), order="id DESC", limit=None, offset=None):
     _assert_table(table)
     _assert_order(order)
     conn = connect()
@@ -996,6 +996,8 @@ def all_rows(table, where="", params=(), order="id DESC", limit=None):
         sql += " ORDER BY " + order
     if limit is not None:
         sql += " LIMIT %d" % int(limit)
+        if offset is not None:
+            sql += " OFFSET %d" % int(offset)
     try:
         rows = conn.execute(sql, params).fetchall()
     finally:
