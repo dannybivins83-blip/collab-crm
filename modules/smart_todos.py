@@ -152,8 +152,10 @@ def _intent_todos(records, acts_by_entity):
                            "activity_id": latest.get("id"), "at": cstamp},
             })
         # An explicit non-empty `todo` field is itself an open next action.
+        # Skip AccuLynx sync metadata (e.g. "Milestone: Prospect (as of 2026-06-22)") — that's
+        # status info written by the sync, not an actionable task.
         todo_field = (rec.get("todo") or "").strip()
-        if todo_field:
+        if todo_field and not todo_field.startswith("Milestone:"):
             todos.append({
                 "id": "todofield:%s:%s" % (et, eid),
                 "priority": "medium",
