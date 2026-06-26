@@ -487,8 +487,9 @@ CREATE INDEX IF NOT EXISTS idx_order_lines_order_id ON order_lines(order_id);
 CREATE INDEX IF NOT EXISTS idx_measurements_job_id  ON measurements(job_id);
 CREATE INDEX IF NOT EXISTS idx_measurements_lead_id ON measurements(lead_id);
 
--- roof_reports: per-job
+-- roof_reports: per-job, per-lead
 CREATE INDEX IF NOT EXISTS idx_roof_reports_job_id  ON roof_reports(job_id);
+CREATE INDEX IF NOT EXISTS idx_roof_reports_lead_id ON roof_reports(lead_id);
 
 -- appointments: per-lead, per-job, per-contact
 CREATE INDEX IF NOT EXISTS idx_appointments_lead_id    ON appointments(lead_id);
