@@ -2,6 +2,24 @@
 {% block title %}Tasks{% endblock %}
 {% block body %}
 <div class="page-head"><h1>✅ Tasks & Follow-ups</h1><span class="sub">{{ tasks|length }} open</span></div>
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search task text or linked name…" style="flex:1">
+  <select name="type" onchange="this.form.submit()" style="min-width:110px">
+    <option value="">All types</option>
+    <option value="lead" {{ 'selected' if type_f=='lead' }}>Lead</option>
+    <option value="job" {{ 'selected' if type_f=='job' }}>Job</option>
+    <option value="contact" {{ 'selected' if type_f=='contact' }}>Contact</option>
+  </select>
+  <select name="assignee" onchange="this.form.submit()" style="min-width:120px">
+    <option value="">All assignees</option>
+    {% for a in assignees %}<option {{ 'selected' if a==assignee_f }}>{{ a }}</option>{% endfor %}
+  </select>
+  <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:.85rem">
+    <input type="checkbox" name="overdue" value="1" {{ 'checked' if overdue_f }} onchange="this.form.submit()"> Overdue only
+  </label>
+  <button class="btn" type="submit">Search</button>
+  {% if q or type_f or assignee_f or overdue_f %}<a class="btn" href="{{ url_for('tasks.index') }}">✕ Clear</a>{% endif %}
+</form>
 <div class="detail">
   <div class="card">
     <h2>Open tasks</h2>

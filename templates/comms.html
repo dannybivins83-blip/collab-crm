@@ -1,7 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Communications{% endblock %}
 {% block body %}
-<div class="page-head"><h1>💬 Communication Log</h1><span class="sub">Calls / emails / texts · draft emails for review (never auto-sent)</span></div>
+<div class="page-head"><h1>💬 Communication Log</h1><span class="sub">{{ logs|length }} shown · calls / emails / texts · draft emails for review (never auto-sent)</span></div>
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search name or message content…" style="flex:1">
+  <select name="kind" onchange="this.form.submit()" style="min-width:110px">
+    <option value="">All types</option>
+    <option value="call" {{ 'selected' if kind_f=='call' }}>Calls</option>
+    <option value="sms" {{ 'selected' if kind_f=='sms' }}>SMS/Text</option>
+    <option value="email" {{ 'selected' if kind_f=='email' }}>Email</option>
+    <option value="draft" {{ 'selected' if kind_f=='draft' }}>Drafts</option>
+  </select>
+  <button class="btn" type="submit">Search</button>
+  {% if q or kind_f %}<a class="btn" href="{{ url_for('comms.index') }}">✕ Clear</a>{% endif %}
+</form>
 <div class="detail">
   <div class="card">
     <h2>History</h2>

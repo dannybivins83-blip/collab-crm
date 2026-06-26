@@ -2,6 +2,18 @@
 {% block title %}Calendar{% endblock %}
 {% block body %}
 <div class="page-head"><h1>📅 Calendar & Scheduling</h1></div>
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <select name="kind" onchange="this.form.submit()" style="min-width:160px">
+    <option value="">All types</option>
+    {% for k in kinds %}<option {{ 'selected' if k==kind_f }}>{{ k }}</option>{% endfor %}
+  </select>
+  <select name="assignee" onchange="this.form.submit()" style="min-width:130px">
+    <option value="">All assignees</option>
+    {% for a in assignees %}<option {{ 'selected' if a==assignee_f }}>{{ a }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  {% if kind_f or assignee_f %}<a class="btn" href="{{ url_for('calendar.index') }}">✕ Clear</a>{% endif %}
+</form>
 <div class="detail">
   <div>
     <div class="card">

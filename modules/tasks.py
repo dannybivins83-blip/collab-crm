@@ -57,9 +57,26 @@ def index():
                           url_for("contacts.detail", contact_id=eid) if r else "#")
         else:
             t["_link"] = (et or "—", "", "#")
+    # Search/filter params (applied after _link/_overdue enrichment).
+    q = request.args.get("q", "").strip().lower()
+    assignee_f = request.args.get("assignee", "").strip()
+    type_f = request.args.get("type", "").strip()
+    overdue_f = request.args.get("overdue", "")
+    assignees = sorted({t.get("assignee") for t in tasks if t.get("assignee")})
+    if q:
+        tasks = [t for t in tasks if q in (t.get("text") or "").lower()
+                 or q in t["_link"][1].lower()]
+    if assignee_f:
+        tasks = [t for t in tasks if (t.get("assignee") or "") == assignee_f]
+    if type_f:
+        tasks = [t for t in tasks if t["_link"][0] == type_f]
+    if overdue_f:
+        tasks = [t for t in tasks if t["_overdue"]]
     return render_template("tasks.html", tasks=tasks,
                            leads=dept_leads, jobs=dept_jobs,
-                           users=db.all_rows("users", order="name"))
+                           users=db.all_rows("users", order="name"),
+                           q=q, assignee_f=assignee_f, type_f=type_f, overdue_f=overdue_f,
+                           assignees=assignees)
 
 
 @bp.route("/new", methods=["POST"])

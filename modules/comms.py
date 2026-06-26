@@ -63,9 +63,18 @@ def index():
         elif et == "job":     a["_who"] = _jmap.get(eid, "?")
         elif et == "contact": a["_who"] = _cmap.get(eid, "?")
         else:                 a["_who"] = "?"
+    # Search/filter (applied after _who enrichment).
+    q = request.args.get("q", "").strip().lower()
+    kind_f = request.args.get("kind", "").strip()
+    if q:
+        rows = [a for a in rows if q in (a.get("_who") or "").lower()
+                or q in (a.get("text") or "").lower()]
+    if kind_f:
+        rows = [a for a in rows if a.get("kind") == kind_f]
     return render_template("comms.html", logs=rows,
                            leads=dept_leads_list, jobs=dept_jobs_list,
-                           contacts=db.all_rows("contacts", order="last_name"))
+                           contacts=db.all_rows("contacts", order="last_name"),
+                           q=q, kind_f=kind_f)
 
 
 @bp.route("/log", methods=["POST"])
