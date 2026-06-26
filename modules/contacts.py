@@ -123,14 +123,22 @@ def _dupe_candidates(gc):
     key = _name_key(gc)
     phone = (gc.get("phone") or "").strip()
     email = (gc.get("email") or "").strip().lower()
-    out = []
-    for c in db.all_rows("contacts", "id<>?", (gc["id"],)):
-        if c.get("is_gc"):
-            continue
-        if (_name_key(c) == key and any(key)) \
-           or (phone and (c.get("phone") or "").strip() == phone) \
-           or (email and (c.get("email") or "").strip().lower() == email):
-            out.append(c)
+    # Push all three match criteria to SQL (was full-table scan + Python filter).
+    _conds, _params = [], [gc["id"]]
+    if any(key):
+        _conds.append("(LOWER(TRIM(COALESCE(first_name,'')))=? AND LOWER(TRIM(COALESCE(last_name,'')))=?)")
+        _params.extend([key[0], key[1]])
+    if phone:
+        _conds.append("TRIM(COALESCE(phone,''))=?")
+        _params.append(phone)
+    if email:
+        _conds.append("LOWER(TRIM(COALESCE(email,'')))=?")
+        _params.append(email)
+    if not _conds:
+        return []
+    out = db.all_rows("contacts",
+                      "id<>? AND COALESCE(is_gc,0)=0 AND (%s)" % " OR ".join(_conds),
+                      tuple(_params))
     if out:
         _ids = tuple(c["id"] for c in out)
         _ph = ",".join("?" * len(_ids))

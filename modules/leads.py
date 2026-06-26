@@ -1097,16 +1097,16 @@ def _create_lead_from_intake(data):
     # Dedupe: same email, or same name+phone, already in the pipeline.
     # Scope to non-null email/phone rows only to avoid a full-table scan on every webhook.
     if email:
-        match = db.all_rows("leads", "email != '' AND email IS NOT NULL", limit=5000)
-        for l in match:
-            if (l.get("email") or "").strip().lower() == email:
-                return l["id"], False
+        # SQL case-insensitive match replaces load-5000-rows + Python loop.
+        match = db.all_rows("leads", "LOWER(TRIM(COALESCE(email,'')))=?", (email,), limit=1)
+        if match:
+            return match[0]["id"], False
     if name and phone:
-        match = db.all_rows("leads", "phone != '' AND phone IS NOT NULL", limit=5000)
-        for l in match:
-            if (l.get("name") or "").strip().lower() == name.lower() \
-                    and (l.get("phone") or "").strip() == phone:
-                return l["id"], False
+        match = db.all_rows("leads",
+                            "LOWER(COALESCE(name,''))=? AND TRIM(COALESCE(phone,''))=?",
+                            (name.lower(), phone), limit=1)
+        if match:
+            return match[0]["id"], False
     dept = _default_intake_department()
     parts = [p.strip() for p in (data.get("address") or "").split(",")]
     cid = db.insert("contacts", {
@@ -1312,14 +1312,14 @@ def intake_ringcentral():
     # Try to link to an existing lead, then contact, by last-10-digits of phone.
     def _digits(v):
         return "".join(ch for ch in (v or "") if ch.isdigit())[-10:]
-    # Scan only rows that have a phone number — avoids loading full table for every inbound call.
-    lead = next((l for l in db.all_rows("leads", "phone IS NOT NULL AND phone != ''")
-                 if _digits(l.get("phone")) == digits and digits), None)
+    # Suffix LIKE filter cuts scan from all rows to likely candidates; Python _digits() confirms.
+    lead_cands = db.all_rows("leads", "phone LIKE ?", ("%" + digits[-7:] + "%",)) if digits else []
+    lead = next((l for l in lead_cands if _digits(l.get("phone")) == digits), None)
     if lead:
         db.add_activity("lead", lead["id"], "call", data["notes"])
         return _cors(jsonify({"ok": True, "linked": "lead", "lead_id": lead["id"]}))
-    contact = next((c for c in db.all_rows("contacts", "phone IS NOT NULL AND phone != ''")
-                    if _digits(c.get("phone")) == digits and digits), None)
+    contact_cands = db.all_rows("contacts", "phone LIKE ?", ("%" + digits[-7:] + "%",)) if digits else []
+    contact = next((c for c in contact_cands if _digits(c.get("phone")) == digits), None)
     if contact:
         db.add_activity("contact", contact["id"], "call", data["notes"])
         # Surface the call as a fresh lead too, so it lands in the pipeline.
