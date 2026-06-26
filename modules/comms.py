@@ -73,7 +73,7 @@ def index():
         rows = [a for a in rows if a.get("kind") == kind_f]
     return render_template("comms.html", logs=rows,
                            leads=dept_leads_list, jobs=dept_jobs_list,
-                           contacts=db.all_rows("contacts", order="last_name"),
+                           contacts=db.all_rows("contacts", order="last_name", limit=200),
                            q=q, kind_f=kind_f)
 
 

@@ -127,7 +127,7 @@ def sync_acculynx():
                 "cost": float(li.get("unitPrice") or li.get("price") or li.get("cost") or 0),
             })
         # Only insert if no template with that name already exists.
-        existing = [t for t in db.all_rows("templates") if t.get("name", "").strip() == name]
+        existing = db.all_rows("templates", "name=?", (name,), limit=1)
         if existing:
             continue
         db.insert("templates", {

@@ -289,12 +289,14 @@ def _match_record(b):
             return "lead", l
     ref = str(b.get("external_ref") or "").strip().lower()
     if ref:
-        for j in db.all_rows("jobs"):
-            if ref in (j.get("external_url") or "").lower():
-                return "job", j
-        for l in db.all_rows("leads"):
-            if ref in (l.get("external_url") or "").lower():
-                return "lead", l
+        # SQL LIKE replaces full-table scan + Python substring check (was O(n) per webhook).
+        _ref_like = "%" + ref + "%"
+        j_ext = db.all_rows("jobs",  "LOWER(COALESCE(external_url,'')) LIKE ?", (_ref_like,), limit=1)
+        if j_ext:
+            return "job", j_ext[0]
+        l_ext = db.all_rows("leads", "LOWER(COALESCE(external_url,'')) LIKE ?", (_ref_like,), limit=1)
+        if l_ext:
+            return "lead", l_ext[0]
     addr = b.get("address")
     name = str(b.get("name") or "").strip().lower()
     if addr or name:
