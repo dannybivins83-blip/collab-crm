@@ -117,9 +117,20 @@ def _next_number():
 
 @bp.route("/")
 def index():
-    rows = db.all_rows("estimates", order="id DESC")
-    for e in rows:
+    # Scope to the current department via each estimate's parent lead/job — without
+    # this, every user saw all estimates (customer names + dollar totals) regardless
+    # of department. Two set lookups instead of an N+1 per-row join.
+    from theme import current_department
+    dept = current_department()
+    dept_leads = {l["id"] for l in db.all_rows("leads", "department=?", (dept,))}
+    dept_jobs = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
+    rows = []
+    for e in db.all_rows("estimates", order="id DESC"):
+        lid, jid = e.get("lead_id"), e.get("job_id")
+        if (lid or jid) and not (lid in dept_leads or jid in dept_jobs):
+            continue  # belongs to another department's lead/job
         e["_total"] = estimate_totals(e, _load_sections(e["id"]))["total"]
+        rows.append(e)
     return render_template("estimates.html", estimates=rows)
 
 
