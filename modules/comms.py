@@ -26,8 +26,29 @@ def _name_for(et, eid):
 @bp.route("/")
 def index():
     rows = db.all_rows("activities", "kind IN ('call','email','sms','draft')", order="id DESC", limit=200)
+    # Batch-load referenced entities to avoid N+1 db.get() calls (one per activity row).
+    _lead_ids = {a["entity_id"] for a in rows if a.get("entity_type") == "lead"}
+    _job_ids  = {a["entity_id"] for a in rows if a.get("entity_type") == "job"}
+    _con_ids  = {a["entity_id"] for a in rows if a.get("entity_type") == "contact"}
+    _lmap = {}; _jmap = {}; _cmap = {}
+    if _lead_ids:
+        ph = ",".join("?" * len(_lead_ids))
+        for r in db.all_rows("leads", "id IN (%s)" % ph, tuple(_lead_ids)):
+            _lmap[r["id"]] = r.get("name") or "?"
+    if _job_ids:
+        ph = ",".join("?" * len(_job_ids))
+        for r in db.all_rows("jobs", "id IN (%s)" % ph, tuple(_job_ids)):
+            _jmap[r["id"]] = r.get("name") or "?"
+    if _con_ids:
+        ph = ",".join("?" * len(_con_ids))
+        for r in db.all_rows("contacts", "id IN (%s)" % ph, tuple(_con_ids)):
+            _cmap[r["id"]] = ("%s %s" % (r.get("first_name", ""), r.get("last_name", ""))).strip() or "?"
     for a in rows:
-        a["_who"] = _name_for(a["entity_type"], a["entity_id"])
+        et, eid = a.get("entity_type"), a.get("entity_id")
+        if et == "lead":      a["_who"] = _lmap.get(eid, "?")
+        elif et == "job":     a["_who"] = _jmap.get(eid, "?")
+        elif et == "contact": a["_who"] = _cmap.get(eid, "?")
+        else:                 a["_who"] = "?"
     return render_template("comms.html", logs=rows,
                            leads=db.all_rows("leads", order="name"),
                            jobs=db.all_rows("jobs", order="name"),

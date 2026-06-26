@@ -1095,7 +1095,13 @@ def import_leads():
                 records = json.loads(request.get_data(as_text=True) or "[]")
             except Exception:
                 records = []
-        existing = {(l.get("name") or "").strip().lower() for l in db.all_rows("leads")}
+        # Load only the name column for dedup — avoids pulling all columns for 1k+ rows.
+        _conn = db.connect()
+        try:
+            existing = {r[0] for r in _conn.execute(
+                "SELECT LOWER(TRIM(COALESCE(name,''))) FROM leads WHERE name IS NOT NULL AND name != ''").fetchall()}
+        finally:
+            _conn.close()
         added = 0
         for rec in (records or []):
             name = (rec.get("name") or "").strip()
@@ -1160,11 +1166,14 @@ def intake_ringcentral():
     # Try to link to an existing lead, then contact, by last-10-digits of phone.
     def _digits(v):
         return "".join(ch for ch in (v or "") if ch.isdigit())[-10:]
-    lead = next((l for l in db.all_rows("leads") if _digits(l.get("phone")) == digits and digits), None)
+    # Scan only rows that have a phone number — avoids loading full table for every inbound call.
+    lead = next((l for l in db.all_rows("leads", "phone IS NOT NULL AND phone != ''")
+                 if _digits(l.get("phone")) == digits and digits), None)
     if lead:
         db.add_activity("lead", lead["id"], "call", data["notes"])
         return _cors(jsonify({"ok": True, "linked": "lead", "lead_id": lead["id"]}))
-    contact = next((c for c in db.all_rows("contacts") if _digits(c.get("phone")) == digits and digits), None)
+    contact = next((c for c in db.all_rows("contacts", "phone IS NOT NULL AND phone != ''")
+                    if _digits(c.get("phone")) == digits and digits), None)
     if contact:
         db.add_activity("contact", contact["id"], "call", data["notes"])
         # Surface the call as a fresh lead too, so it lands in the pipeline.
