@@ -66,28 +66,37 @@ function lcGate(form,pct){
 }
 </script>
 
-<!-- Primary Contact + Location Info (dashboard parity) -->
+<!-- Primary Contact + Location Info (dashboard parity) — large type + 2D line icons -->
+<style>
+  .infocard h2{display:flex;align-items:center;gap:10px;font-size:1.5rem;margin-bottom:12px}
+  .infocard .ic{width:24px;height:24px;flex:none;color:var(--accent)}
+  .inforows{display:flex;flex-direction:column;gap:12px;font-size:1.25rem;line-height:1.4}
+  .inforows>div{display:flex;align-items:center;gap:12px}
+  .inforows .ic{width:22px;height:22px;flex:none;color:var(--muted)}
+  .inforows a{color:var(--txt)}
+  .inforows .lbl{color:var(--muted)}
+</style>
 <div class="detail" style="grid-template-columns:1fr 1fr;margin-bottom:18px">
-  <div class="card" style="margin:0">
-    <h2>👤 Primary Contact</h2>
-    <div class="muted" style="line-height:2">
-      <div><b style="color:var(--txt)">{{ l.name }}</b>{% if l.company %} · {{ l.company }}{% endif %}</div>
-      {% if l.phone %}<div><a href="tel:{{ l.phone }}">{{ icon('phone') }} {{ l.phone }}</a>{% if l.phone_ext %} x{{ l.phone_ext }}{% endif %}{% if l.phone_type %} · {{ l.phone_type }}{% endif %}{% if l.sms_opt %} · <span class="badge" style="color:var(--ok)">SMS ✓</span>{% endif %}</div>{% endif %}
-      {% if l.phone2 %}<div><a href="tel:{{ l.phone2 }}">{{ icon('phone') }} {{ l.phone2 }}</a>{% if l.phone2_type %} · {{ l.phone2_type }}{% endif %}</div>{% endif %}
-      {% if l.email %}<div>✉️ <a href="mailto:{{ l.email }}">{{ l.email }}</a>{% if l.email_type %} · {{ l.email_type }}{% endif %}</div>{% endif %}
-      <div>📬 Mailing: {% if l.mail_street or l.mail_city %}{{ l.mail_street }}{{ ', ' ~ l.mail_city if l.mail_city }} {{ l.mail_state or '' }} {{ l.mail_zip or '' }}{% else %}<span class="muted">Same as property</span>{% endif %}</div>
-      {% if l.cross_ref %}<div>🔖 Cross Ref: {{ l.cross_ref }}</div>{% endif %}
+  <div class="card infocard" style="margin:0">
+    <h2>{{ icon('user') }} Primary Contact</h2>
+    <div class="inforows">
+      <div><b>{{ l.name }}</b>{% if l.company %} <span class="lbl">· {{ l.company }}</span>{% endif %}</div>
+      {% if l.phone %}<div>{{ icon('phone') }} <a href="tel:{{ l.phone }}">{{ l.phone }}</a>{% if l.phone_ext %} <span class="lbl">x{{ l.phone_ext }}</span>{% endif %}{% if l.phone_type %} <span class="lbl">· {{ l.phone_type }}</span>{% endif %}{% if l.sms_opt %} <span class="badge" style="color:var(--ok)">SMS ✓</span>{% endif %}</div>{% endif %}
+      {% if l.phone2 %}<div>{{ icon('phone') }} <a href="tel:{{ l.phone2 }}">{{ l.phone2 }}</a>{% if l.phone2_type %} <span class="lbl">· {{ l.phone2_type }}</span>{% endif %}</div>{% endif %}
+      {% if l.email %}<div>{{ icon('mail') }} <a href="mailto:{{ l.email }}">{{ l.email }}</a>{% if l.email_type %} <span class="lbl">· {{ l.email_type }}</span>{% endif %}</div>{% endif %}
+      <div>{{ icon('home') }} <span><span class="lbl">Mailing:</span> {% if l.mail_street or l.mail_city %}{{ l.mail_street }}{{ ', ' ~ l.mail_city if l.mail_city }} {{ l.mail_state or '' }} {{ l.mail_zip or '' }}{% else %}<span class="lbl">Same as property</span>{% endif %}</span></div>
+      {% if l.cross_ref %}<div>{{ icon('clipboard') }} <span><span class="lbl">Cross Ref:</span> {{ l.cross_ref }}</span></div>{% endif %}
     </div>
   </div>
-  <div class="card" style="margin:0">
-    <h2>📍 Location Info</h2>
-    <div class="muted" style="line-height:2">
-      <div>🏠 {{ l.address or '—' }}</div>
-      <div>🔨 Work type: <b style="color:var(--txt)">{{ l.work_type or '—' }}</b></div>
-      {% if l.source %}<div>📣 Lead source: {{ l.source }}</div>{% endif %}
-      {% if l.rep %}<div>👤 Rep: {{ l.rep }}</div>{% endif %}
-      {% if l.ahj %}<div>🏛️ AHJ: {{ l.ahj }}{% if l.county %} ({{ l.county }}){% endif %}{% if l.system %} · {{ l.system }} system{% endif %}</div>{% endif %}
-      {% if l.estimate %}<div>💲 Estimate: <b class="est">{{ l.estimate }}</b></div>{% endif %}
+  <div class="card infocard" style="margin:0">
+    <h2>{{ icon('building') }} Location Info</h2>
+    <div class="inforows">
+      <div>{{ icon('home') }} <span>{{ l.address or '—' }}</span></div>
+      <div>{{ icon('box') }} <span><span class="lbl">Work type:</span> <b>{{ l.work_type or '—' }}</b></span></div>
+      {% if l.source %}<div>{{ icon('message') }} <span><span class="lbl">Lead source:</span> {{ l.source }}</span></div>{% endif %}
+      {% if l.rep %}<div>{{ icon('user') }} <span><span class="lbl">Rep:</span> {{ l.rep }}</span></div>{% endif %}
+      {% if l.ahj %}<div>{{ icon('building') }} <span><span class="lbl">AHJ:</span> {{ l.ahj }}{% if l.county %} ({{ l.county }}){% endif %}{% if l.system %} · {{ l.system }} system{% endif %}</span></div>{% endif %}
+      {% if l.estimate %}<div>{{ icon('dollar') }} <span><span class="lbl">Estimate:</span> <b class="est">{{ l.estimate }}</b></span></div>{% endif %}
     </div>
   </div>
 </div>

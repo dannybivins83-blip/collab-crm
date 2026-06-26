@@ -192,17 +192,23 @@ _UPLOADS_SENSITIVE = ("docs/", "documents/", "estimates/", "permits/", "photos/"
 def uploads(subpath):
     """Serve uploaded files (photos, docs, logos, estimate/permit PDFs).
     Falls back to Google Drive when the local copy is missing (serverless hosts).
-    Sensitive subdirs (docs/estimates/permits/photos) require an active session."""
-    if any(subpath.startswith(p) for p in _UPLOADS_SENSITIVE):
+    Sensitive subdirs (documents/estimates/permits/photos/...) require an active
+    staff session; homeowners reach their own files via /portal/<token>/file."""
+    # Resolve FIRST, then enforce containment + the sensitive gate on the NORMALIZED
+    # path. Checking the RAW subpath let './documents/x' and 'a/../documents/x' slip
+    # past the startswith() test while still normalizing to a real sensitive file —
+    # an unauthenticated read of customer docs. Gate the resolved relative path.
+    full = os.path.normpath(os.path.join(config.UPLOAD_DIR, subpath))
+    _root = config.UPLOAD_DIR.rstrip(os.sep)
+    _upload_prefix = _root + os.sep
+    if full != _root and not full.startswith(_upload_prefix):
+        abort(404)  # path traversal — resolved outside UPLOAD_DIR
+    rel = full[len(_upload_prefix):].replace(os.sep, "/") if full.startswith(_upload_prefix) else ""
+    if any(rel.startswith(p) for p in _UPLOADS_SENSITIVE):
         from flask import session as _sess
         if not _sess.get("user_id"):
             abort(403)
-    full = os.path.normpath(os.path.join(config.UPLOAD_DIR, subpath))
-    # Ensure the resolved path is truly INSIDE UPLOAD_DIR, not merely a string
-    # prefix sibling (e.g. /uploads_backup/). The trailing sep prevents the
-    # prefix-only bypass identified in the 30-agent audit.
-    _upload_prefix = config.UPLOAD_DIR.rstrip(os.sep) + os.sep
-    if full.startswith(_upload_prefix) and os.path.exists(full):
+    if os.path.exists(full):
         return _safe_upload_resp(
             send_from_directory(os.path.dirname(full), os.path.basename(full)), subpath)
     # Local miss → try Google Drive (if configured + this file was mirrored).
