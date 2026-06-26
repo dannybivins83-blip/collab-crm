@@ -42,8 +42,12 @@ def order_total(order_id):
 
 
 def _next_po(otype):
-    rows = db.all_rows("orders", order="id DESC")
-    n = (rows[0]["id"] + 1) if rows else 1
+    conn = db.connect()
+    try:
+        row = conn.execute("SELECT MAX(id) AS mx FROM orders").fetchone()
+        n = ((row["mx"] or 0) + 1) if row else 1
+    finally:
+        conn.close()
     return "PO-%s-%04d" % (otype[0].upper(), n)
 
 
