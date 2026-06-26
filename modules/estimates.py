@@ -117,21 +117,44 @@ def _next_number():
 
 @bp.route("/")
 def index():
-    # Scope to the current department via each estimate's parent lead/job — without
-    # this, every user saw all estimates (customer names + dollar totals) regardless
-    # of department. Two set lookups instead of an N+1 per-row join.
+    # Scope to the current department via each estimate's parent lead/job.
     from theme import current_department
     dept = current_department()
     dept_leads = {l["id"] for l in db.all_rows("leads", "department=?", (dept,))}
     dept_jobs = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
-    rows = []
-    for e in db.all_rows("estimates", order="id DESC"):
-        lid, jid = e.get("lead_id"), e.get("job_id")
-        if (lid or jid) and not (lid in dept_leads or jid in dept_jobs):
-            continue  # belongs to another department's lead/job
-        e["_total"] = estimate_totals(e, _load_sections(e["id"]))["total"]
-        rows.append(e)
-    return render_template("estimates.html", estimates=rows)
+    estimates = [e for e in db.all_rows("estimates", order="id DESC")
+                 if not (e.get("lead_id") or e.get("job_id"))  # orphan — always show
+                 or e.get("lead_id") in dept_leads
+                 or e.get("job_id") in dept_jobs]
+    if not estimates:
+        return render_template("estimates.html", estimates=[])
+    # Batch-compute totals with a single IN() query per table instead of one
+    # _load_sections() call per estimate (was 1 + 2×N queries for N estimates).
+    est_ids = [e["id"] for e in estimates]
+    id_ph = ",".join("?" * len(est_ids))
+    conn = db.connect()
+    try:
+        # Sum price per section, grouped by estimate, excluding option sections.
+        section_rows = conn.execute(
+            "SELECT es.estimate_id, es.scope_text, "
+            "       COALESCE(SUM(el.qty * el.cost / (1.0 - COALESCE(es.margin_pct,0)/100.0)), 0) AS sec_price "
+            "FROM estimate_sections es "
+            "LEFT JOIN estimate_lines el ON el.section_id = es.id "
+            "WHERE es.estimate_id IN (%s) "
+            "GROUP BY es.id" % id_ph, est_ids
+        ).fetchall()
+    finally:
+        conn.close()
+    # Roll up per estimate, skip option sections (scope_text contains 'Declined').
+    price_map = {}
+    for r in section_rows:
+        if "Declined" not in (r["scope_text"] or ""):
+            price_map[r["estimate_id"]] = price_map.get(r["estimate_id"], 0.0) + float(r["sec_price"] or 0)
+    for e in estimates:
+        subtotal = price_map.get(e["id"], 0.0)
+        tax = subtotal * (e.get("tax_pct") or 0) / 100.0
+        e["_total"] = subtotal + tax
+    return render_template("estimates.html", estimates=estimates)
 
 
 def _resolve_template(template_id, work_type):
