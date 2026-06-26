@@ -205,6 +205,14 @@ def qxo_id_for_material(material_id):
     return rows[0]["qxo_product_id"] if rows else None
 
 
+def _count_mapped_skus():
+    _c = db.connect()
+    try:
+        return (_c.execute("SELECT COUNT(*) FROM qxo_products").fetchone() or (0,))[0]
+    finally:
+        _c.close()
+
+
 # ---------------------------------------------------------------------------
 # Routes (minimal) — status only for now; ordering/pricing wire-ins come with the
 # real spec so they aren't built against guessed shapes.
@@ -221,4 +229,4 @@ def status():
         _, err = _request("GET", "account")
         reachable = err is None
     return jsonify({"configured": configured(), "reachable": reachable,
-                    "mapped_skus": len(db.all_rows("qxo_products"))})
+                    "mapped_skus": _count_mapped_skus()})

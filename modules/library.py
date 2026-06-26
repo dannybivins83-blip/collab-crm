@@ -52,14 +52,15 @@ def index():
                                          (r.get("system") or "") + (r.get("category") or "")).lower()]
     if cat:
         rows = [r for r in rows if r["category"] == cat]
+    _by_cat = {}
+    for r in rows:
+        _by_cat.setdefault(r.get("category") or "", []).append(r)
     groups = []
     for c in CATEGORY_ORDER:
-        items = [r for r in rows if r["category"] == c]
+        items = _by_cat.pop(c, [])
         if items:
             groups.append((c, items))
-    # any uncategorized leftovers
-    known = set(CATEGORY_ORDER)
-    extra = [r for r in rows if r["category"] not in known]
+    extra = [r for leftover in _by_cat.values() for r in leftover]
     if extra:
         groups.append(("Other", extra))
     dept = _theme.current_department()

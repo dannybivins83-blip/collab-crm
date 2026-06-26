@@ -20,8 +20,10 @@ bp = Blueprint("reports", __name__, url_prefix="/reports")
 def _ensure_owner_flag():
     try:
         db._ensure_column("users", "is_owner", "INTEGER DEFAULT 0")
+        if db.all_rows("users", "is_owner=1", limit=1):
+            return
         users = db.all_rows("users")
-        if users and not any(u.get("is_owner") for u in users):
+        if users:
             admins = sorted((u for u in users if u.get("role") == "admin"),
                             key=lambda u: u["id"])
             target = admins[0] if admins else sorted(users, key=lambda u: u["id"])[0]
@@ -47,35 +49,54 @@ def index():
     dept = theme.current_department()
     leads = db.all_rows("leads", "department=?", (dept,))
     jobs = db.all_rows("jobs", "department=?", (dept,))
-    dept_job_ids = {j["id"] for j in jobs}
-    if dept_job_ids:
-        _id_ph = ",".join("?" * len(dept_job_ids))
-        invoices = db.all_rows("invoices", "job_id IS NULL OR job_id IN (%s)" % _id_ph, tuple(dept_job_ids))
-    else:
-        invoices = db.all_rows("invoices", "job_id IS NULL")
+
+    # Single-pass grouping by stage (O(n)) replaces per-stage list comprehensions (O(n×m)).
+    leads_by_stage = {}
+    for l in leads:
+        leads_by_stage.setdefault(l["stage"], []).append(l)
+    jobs_by_stage = {}
+    for j in jobs:
+        jobs_by_stage.setdefault(j["stage"], []).append(j)
 
     # Pipeline by lead stage.
     lead_rows = []
     for s in constants.LEAD_STAGES:
-        items = [l for l in leads if l["stage"] == s["key"]]
+        items = leads_by_stage.get(s["key"], [])
         lead_rows.append({"name": s["name"], "count": len(items),
                           "value": sum(theme.est_num(l.get("estimate")) for l in items)})
 
     # Production by job stage.
     job_rows = []
     for s in constants.JOB_STAGES:
-        items = [j for j in jobs if j["stage"] == s["key"]]
+        items = jobs_by_stage.get(s["key"], [])
         job_rows.append({"name": s["name"], "count": len(items),
                          "value": sum(theme.est_num(j.get("contract_value")) for j in items)})
 
-    won = [l for l in leads if l["stage"] == "won"]
-    lost = [l for l in leads if l["stage"] == "lost"]
+    won = leads_by_stage.get("won", [])
+    lost = leads_by_stage.get("lost", [])
     decided = len(won) + len(lost)
     win_rate = round(100 * len(won) / decided) if decided else 0
 
-    # Revenue: collected invoices + won contract value.
-    revenue_collected = sum(i["amount"] or 0 for i in invoices if i["status"] == "paid")
-    outstanding = sum(i["amount"] or 0 for i in invoices if i["status"] != "paid")
+    # Revenue: SQL aggregate — skip loading all invoice rows since they aren't rendered.
+    dept_job_ids = tuple(j["id"] for j in jobs)
+    _rev_conn = db.connect()
+    try:
+        if dept_job_ids:
+            _id_ph = ",".join("?" * len(dept_job_ids))
+            _rev = _rev_conn.execute(
+                "SELECT COALESCE(SUM(CASE WHEN status='paid' THEN amount ELSE 0 END),0) AS collected,"
+                " COALESCE(SUM(CASE WHEN status!='paid' THEN amount ELSE 0 END),0) AS outstanding"
+                " FROM invoices WHERE job_id IS NULL OR job_id IN (%s)" % _id_ph,
+                dept_job_ids).fetchone()
+        else:
+            _rev = _rev_conn.execute(
+                "SELECT COALESCE(SUM(CASE WHEN status='paid' THEN amount ELSE 0 END),0) AS collected,"
+                " COALESCE(SUM(CASE WHEN status!='paid' THEN amount ELSE 0 END),0) AS outstanding"
+                " FROM invoices WHERE job_id IS NULL").fetchone()
+    finally:
+        _rev_conn.close()
+    revenue_collected = float(_rev["collected"]) if _rev else 0.0
+    outstanding = float(_rev["outstanding"]) if _rev else 0.0
 
     # Leaderboard by rep (won value + active job value).
     board = {}
