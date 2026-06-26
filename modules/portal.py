@@ -542,11 +542,11 @@ def _cache_set(key, value):
     _photo_cache[key] = (time.time() + _PHOTO_CACHE_TTL, value)
 
 
-def similar_job_photos(system, exclude_id, cap=24):
+def similar_job_photos(system, exclude_id, dept=None, cap=24):
     """Real field photos from OTHER jobs of the same roof system. Prefers SiteCam's
     R2-hosted photos (the standalone source); falls back to locally-synced photos.
     Anonymized — photos only, no names/addresses."""
-    cache_key = ("similar", system, exclude_id, cap)
+    cache_key = ("similar", system, exclude_id, dept, cap)
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached
@@ -559,8 +559,11 @@ def similar_job_photos(system, exclude_id, cap=24):
     groups = {"Tear-off": [], "Installation": [], "Finished": []}
     target_sys = (system or "").lower()
     # Collect matching job IDs in one pass (no DB calls inside loop).
+    # Scope to the record's own department so cross-company tenants stay isolated.
+    _j_where = "department=?" if dept else None
+    _j_params = (dept,) if dept else ()
     matching_ids = [
-        j["id"] for j in db.all_rows("jobs")
+        j["id"] for j in db.all_rows("jobs", _j_where, _j_params)
         if j["id"] != exclude_id
         and (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower() == target_sys
     ]
@@ -582,10 +585,11 @@ def similar_job_photos(system, exclude_id, cap=24):
     return result
 
 
-def one_photo_per_system():
+def one_photo_per_system(dept=None):
     """A single representative REAL field photo per roof system (for the Roof School
     cards). Prefers a SiteCam R2 photo; falls back to a locally-synced filename."""
-    cached = _cache_get("one_photo_per_system")
+    cache_key = ("one_photo_per_system", dept)
+    cached = _cache_get(cache_key)
     if cached is not None:
         return cached
     from modules import ahj as ahj_mod
@@ -604,9 +608,11 @@ def one_photo_per_system():
                 pass
     needed = set(systems) - set(out.keys())
     if needed:
-        # Collect one matching job_id per needed system (no photo queries yet).
+        # Collect one matching job_id per needed system — scope to dept for multi-tenant safety.
+        _j_where = "department=?" if dept else None
+        _j_params = (dept,) if dept else ()
         jobs_by_system = {}
-        for j in db.all_rows("jobs", order="id ASC"):
+        for j in db.all_rows("jobs", _j_where, _j_params, "id ASC"):
             s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
             if s in needed and s not in jobs_by_system:
                 jobs_by_system[s] = j["id"]
@@ -626,7 +632,7 @@ def one_photo_per_system():
             for s, jid in jobs_by_system.items():
                 if jid in photo_by_job and s not in out:
                     out[s] = photo_by_job[jid]
-    _cache_set("one_photo_per_system", out)
+    _cache_set(cache_key, out)
     return out
 
 
@@ -658,7 +664,7 @@ def product_docs_for(sysk):
     return docs[:16]
 
 
-def latest_system_job_photos(sysk, cap=18):
+def latest_system_job_photos(sysk, dept=None, cap=18):
     """The newest documented job of this system — returns its photos (newest first) so
     Roof School can show a real, recently-documented job of the homeowner's exact system.
     Prefers SiteCam's R2 photos; falls back to locally-synced job photos."""
@@ -667,9 +673,10 @@ def latest_system_job_photos(sysk, cap=18):
         return {"sitecam_url": None, "photos": [{"filename": u, "caption": ""} for u in sc]}
     from modules import ahj as ahj_mod
     sysk_lower = (sysk or "").lower()
-    # SQL ORDER BY id DESC eliminates the Python sort over all jobs.
-    # Check direct system-column matches first, then fall through to work_type mapping.
-    for j in db.all_rows("jobs", order="id DESC"):
+    # SQL ORDER BY id DESC eliminates the Python sort over all jobs; dept filter for multi-tenant.
+    _j_where = "department=?" if dept else None
+    _j_params = (dept,) if dept else ()
+    for j in db.all_rows("jobs", _j_where, _j_params, "id DESC"):
         s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
         if s != sysk_lower:
             continue
@@ -1282,11 +1289,12 @@ def learn(token):
     my_system = next((s for s in ROOF_EDU if s["key"] == sysk), ROOF_EDU[0])
     import concurrent.futures as _cf
     excl = rec["id"] if kind == "job" else -1
+    rec_dept = rec.get("department")
     # Fire SiteCam calls + one_photo_per_system in parallel — cold SiteCam can take up to 4s each.
     with _cf.ThreadPoolExecutor(max_workers=3) as _pool:
-        _gf = _pool.submit(similar_job_photos, sysk, excl)
-        _lf = _pool.submit(latest_system_job_photos, sysk)
-        _pf = _pool.submit(one_photo_per_system)
+        _gf = _pool.submit(similar_job_photos, sysk, excl, rec_dept)
+        _lf = _pool.submit(latest_system_job_photos, sysk, rec_dept)
+        _pf = _pool.submit(one_photo_per_system, rec_dept)
         try:
             gallery = _gf.result(timeout=6)
         except Exception:
