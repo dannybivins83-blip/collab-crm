@@ -52,7 +52,7 @@
     </div>
 
     <div class="card">
-      <div class="panel-head"><span>Overdue Follow-Ups</span><span class="badge">{{ overdue|length }}</span></div>
+      <div class="panel-head"><span>Overdue Follow-Ups</span><a class="badge" href="{{ url_for('leads.list_view') }}?overdue=1" title="View all overdue leads">{{ overdue|length }}</a></div>
       {% if not overdue %}<div class="muted">All clear — nothing past its follow-up window.</div>{% endif %}
       <div class="feed-scroll">
       {% for kind, r, sd, fs in overdue[:12] %}
@@ -69,6 +69,7 @@
         </div>
       {% endfor %}
       </div>
+      {% if overdue|length > 12 %}<div style="padding:6px 2px;font-size:12px;border-top:1px solid var(--line,#eef1f6);margin-top:6px"><a href="{{ url_for('leads.list_view') }}?overdue=1">View all {{ overdue|length }} overdue →</a></div>{% endif %}
     </div>
 
     <div class="card">

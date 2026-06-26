@@ -112,9 +112,12 @@ def list_view():
     if q:
         rows = [l for l in rows if q in ((l.get("name") or "") + (l.get("address") or "") +
                                          (l.get("rid") or "")).lower()]
+    overdue_f = request.args.get("overdue") == "1"
+    if overdue_f:
+        rows = [l for l in rows if l["_fs"]["level"] != "ok"]
     rows.sort(key=lambda l: -l["_fs"]["days"])
     return render_template("leads_list.html", rows=rows, counts=counts, stage_f=stage_f, q=q,
-                           total=len(leads), show_lost=show_lost)
+                           total=len(leads), show_lost=show_lost, overdue_f=overdue_f)
 
 
 @bp.route("/new", methods=["GET", "POST"])
