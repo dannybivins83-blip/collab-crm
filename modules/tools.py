@@ -187,8 +187,10 @@ def callsheet():
             return fs["level"] == "hot"
         return fs["level"] != "ok"              # due = due-soon + overdue
 
+    all_leads = db.all_rows("leads", "department=?", (dept,))
+    all_jobs = db.all_rows("jobs", "department=?", (dept,))
     items = []
-    for l in db.all_rows("leads", "department=?", (dept,)):
+    for l in all_leads:
         if l["stage"] in constants.LEAD_INACTIVE:
             continue
         sd = constants.lead_stage(l["stage"])
@@ -199,7 +201,7 @@ def callsheet():
         fs = theme.follow_status(sd, l.get("last_contact") or l.get("created"), l.get("snooze_until"))
         if keep(fs):
             items.append(_card("Lead", l, sd, fs))
-    for j in db.all_rows("jobs", "department=?", (dept,)):
+    for j in all_jobs:
         if j["stage"] in constants.JOB_INACTIVE:
             continue
         sd = constants.job_stage(j["stage"])
@@ -213,7 +215,7 @@ def callsheet():
     items.sort(key=lambda x: (0 if x["fs"]["level"] == "hot" else 1, -x["fs"]["days"]))
 
     # Per-bucket headcounts for the big buttons + the active set's stage choices.
-    counts = _bucket_counts(dept, due)
+    counts = _bucket_counts(all_leads, all_jobs, due)
     stage_opts = []
     if bucket:
         for s in constants.LEAD_STAGES:
@@ -227,7 +229,7 @@ def callsheet():
                            sel_due=due, stage_opts=stage_opts)
 
 
-def _bucket_counts(dept, due):
+def _bucket_counts(leads, jobs, due):
     """How many calls each bucket would yield under the current due filter — shown
     as a badge on each big button so the rep sees where the work is."""
     def keep(fs):
@@ -238,7 +240,7 @@ def _bucket_counts(dept, due):
         return fs["level"] != "ok"
     counts = {b["key"]: 0 for b in constants.BUCKETS}
     counts["_all"] = 0
-    for l in db.all_rows("leads", "department=?", (dept,)):
+    for l in leads:
         if l["stage"] in constants.LEAD_INACTIVE:
             continue
         sd = constants.lead_stage(l["stage"])
@@ -246,7 +248,7 @@ def _bucket_counts(dept, due):
         if keep(fs):
             counts[sd["bucket"]] = counts.get(sd["bucket"], 0) + 1
             counts["_all"] += 1
-    for j in db.all_rows("jobs", "department=?", (dept,)):
+    for j in jobs:
         if j["stage"] in constants.JOB_INACTIVE:
             continue
         sd = constants.job_stage(j["stage"])
