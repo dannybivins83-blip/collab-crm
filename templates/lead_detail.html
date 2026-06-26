@@ -93,7 +93,11 @@ function lcGate(form,pct){
     <div class="inforows">
       <div>{{ icon('home') }} <span>{{ l.address or '—' }}</span></div>
       <div>{{ icon('box') }} <span><span class="lbl">Work type:</span> <b>{{ l.work_type or '—' }}</b></span></div>
-      {% if l.source %}<div>{{ icon('message') }} <span><span class="lbl">Lead source:</span> {{ l.source }}</span></div>{% endif %}
+      {% if l.source %}<div>{{ icon('message') }} <span><span class="lbl">Lead source:</span> {{ l.source }}{% if l.source|lower == 'drive_by' %} <span style="background:#f59e0b;color:#fff;font-size:11px;padding:1px 7px;border-radius:12px;font-weight:700;vertical-align:middle;margin-left:4px">🚗 Drive-By</span>{% endif %}</span></div>{% endif %}
+      {% if l.owner_name %}<div>{{ icon('user') }} <span><span class="lbl">Appraiser owner:</span> {{ l.owner_name }}</span></div>{% endif %}
+      {% if l.mailing_address %}<div>{{ icon('map-pin') }} <span><span class="lbl">Mailing address:</span> {{ l.mailing_address }}</span></div>{% endif %}
+      {% if l.property_manager %}<div>{{ icon('briefcase') }} <span><span class="lbl">Property manager:</span> {{ l.property_manager }}</span></div>{% endif %}
+      {% if l.parcel_id %}<div>{{ icon('hash') }} <span><span class="lbl">Parcel ID:</span> {{ l.parcel_id }}</span></div>{% endif %}
       {% if l.rep %}<div>{{ icon('user') }} <span><span class="lbl">Rep:</span> {{ l.rep }}</span></div>{% endif %}
       {% if l.ahj %}<div>{{ icon('building') }} <span><span class="lbl">AHJ:</span> {{ l.ahj }}{% if l.county %} ({{ l.county }}){% endif %}{% if l.system %} · {{ l.system }} system{% endif %}</span></div>{% endif %}
       {% if l.estimate %}<div>{{ icon('dollar') }} <span><span class="lbl">Estimate:</span> <b class="est">{{ l.estimate }}</b></span></div>{% endif %}

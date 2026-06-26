@@ -65,10 +65,10 @@ def _labeled(body, *labels):
 
 def normalize(payload):
     """Clean a structured dict (from a web form / webhook JSON) into a lead dict."""
-    name = (payload.get("name") or "").strip()
+    name = (payload.get("name") or payload.get("owner_name") or "").strip()
     if not name and (payload.get("first_name") or payload.get("last_name")):
         name = ("%s %s" % (payload.get("first_name", ""), payload.get("last_name", ""))).strip()
-    return {
+    out = {
         "name": name,
         "phone": clean_phone(payload.get("phone") or payload.get("phone_number") or ""),
         "email": (payload.get("email") or "").strip().lower(),
@@ -76,7 +76,16 @@ def normalize(payload):
         "work_type": (payload.get("work_type") or payload.get("service")
                       or _guess_work_type(payload.get("message") or "")).strip(),
         "source": (payload.get("source") or "Web Form").strip(),
+        "notes": (payload.get("notes") or "").strip(),
+        "rep": (payload.get("rep") or "").strip(),
     }
+    # Drive-by lead fields — pass through when present (source="drive_by").
+    for _f in ("owner_name", "mailing_address", "property_manager",
+               "property_type", "parcel_id", "county", "photo_url"):
+        v = (payload.get(_f) or "").strip()
+        if v:
+            out[_f] = v
+    return out
 
 
 # --- email parsing ---------------------------------------------------------

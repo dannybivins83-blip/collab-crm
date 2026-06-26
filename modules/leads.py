@@ -23,6 +23,12 @@ for _col, _decl in [
     ("phone2", "TEXT"), ("phone2_type", "TEXT"), ("email_type", "TEXT"),
     ("mail_street", "TEXT"), ("mail_city", "TEXT"), ("mail_state", "TEXT"), ("mail_zip", "TEXT"),
     ("roof_report_requested", "INTEGER DEFAULT 0"),
+    # Drive-by lead fields (sitecam field-capture + county-appraiser lookup)
+    ("owner_name", "TEXT"),       # legal owner from county appraiser
+    ("mailing_address", "TEXT"),  # owner mailing address (may differ from property)
+    ("property_manager", "TEXT"), # LLC registered-agent / property manager (appconnect step 6)
+    ("property_type", "TEXT"),    # residential | commercial
+    ("parcel_id", "TEXT"),        # appraiser parcel ID
 ]:
     db._ensure_column("leads", _col, _decl)
 
@@ -965,24 +971,43 @@ def _create_lead_from_intake(data):
         "city": parts[1] if len(parts) > 1 else "",
         "state": "FL", "source": data.get("source", ""), "tags": "Auto-intake",
         "department": dept})
-    lid = db.insert("leads", {
+    is_driveby = (data.get("source") or "").lower() == "drive_by"
+    lead_row = {
         "contact_id": cid, "name": name, "phone": phone, "email": email,
         "address": data.get("address", ""), "work_type": data.get("work_type", ""),
         "rep": data.get("rep") or "", "source": data.get("source", ""),
         "stage": constants.LEAD_DEFAULT_STAGE, "stage_since": db.today(),
         "last_contact": db.today(), "checks": "{}", "department": dept,
-        "notes": data.get("notes", "")})
-    db.add_activity("lead", lid, "automation",
-                    "Lead auto-captured from %s" % (data.get("source") or "intake"))
-    # AHJ + roof system, mirroring leads.new.
+        "notes": data.get("notes", "")}
+    for _f in ("owner_name", "mailing_address", "property_manager", "property_type", "parcel_id"):
+        if data.get(_f):
+            lead_row[_f] = data[_f]
+    lid = db.insert("leads", lead_row)
+    activity_note = "Lead auto-captured from %s" % (data.get("source") or "intake")
+    if is_driveby:
+        parts = []
+        if data.get("county"):
+            parts.append("county: %s" % data["county"])
+        if data.get("parcel_id"):
+            parts.append("parcel: %s" % data["parcel_id"])
+        if data.get("owner_name"):
+            parts.append("appraiser owner: %s" % data["owner_name"])
+        if parts:
+            activity_note += " — " + ", ".join(parts)
+    db.add_activity("lead", lid, "automation", activity_note)
+    # AHJ + roof system — use county from payload if provided, else company default.
     try:
         from modules import ahj as ahj_mod
-        county = db.get_company().get("default_county", "")
+        county = data.get("county") or db.get_company().get("default_county", "")
         resolved = ahj_mod.resolve_ahj(data.get("address", ""), "", county)
         system = ahj_mod.work_type_to_system(data.get("work_type", ""))
         db.update("leads", lid, ahj=resolved, county=county, system=system)
     except Exception:
         pass
+    # Drive-by photo: if a photo_url was provided (R2 link from sitecam), log it as a note.
+    if data.get("photo_url"):
+        db.add_activity("lead", lid, "note",
+                        "📸 Drive-by photo: %s" % data["photo_url"])
     # Auto-starter estimate when a work type came through.
     if data.get("work_type"):
         try:
