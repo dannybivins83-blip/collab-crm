@@ -143,8 +143,14 @@ def home():
     from modules import quickbooks as qb
     from modules import invoices as invmod
     job_ids = {j["id"] for j in jobs}
-    outstanding = [inv for inv in db.all_rows("invoices", order="id DESC")
-                   if inv["status"] != "paid" and (inv.get("job_id") in job_ids or not inv.get("job_id"))]
+    if job_ids:
+        _id_ph = ",".join("?" * len(job_ids))
+        outstanding = db.all_rows(
+            "invoices",
+            "status != 'paid' AND (job_id IS NULL OR job_id IN (%s))" % _id_ph,
+            tuple(job_ids), "id DESC")
+    else:
+        outstanding = db.all_rows("invoices", "status != 'paid' AND job_id IS NULL", order="id DESC")
     job_by_id = {j["id"]: j for j in jobs}
     for inv in outstanding:
         inv["_job"] = job_by_id.get(inv.get("job_id"))
