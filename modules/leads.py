@@ -77,15 +77,26 @@ def board():
         leads.sort(key=lambda l: (l.get("name") or "").lower())
     else:
         leads.sort(key=lambda l: -l["_fs"]["days"])
+    # When show_lost=False, lost leads weren't loaded — fetch count cheaply.
+    if not show_lost:
+        _lc = db.connect()
+        try:
+            lost_count = (_lc.execute(
+                "SELECT COUNT(*) n FROM leads WHERE department=? AND stage='lost'",
+                (dept,)).fetchone() or {}).get("n", 0)
+        finally:
+            _lc.close()
+    else:
+        lost_count = 0
     cols = []
     grand = 0
     overdue = 0
-    lost_count = 0
     for s in constants.LEAD_STAGES:
         items = [l for l in leads if l["stage"] == s["key"]]
         tot = sum(theme.est_num(l.get("estimate")) for l in items)
         if s["key"] == "lost":
-            lost_count = len(items)
+            if show_lost:
+                lost_count = len(items)
             if not show_lost:
                 continue
         if s["key"] not in ("won", "lost"):
