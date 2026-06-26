@@ -72,17 +72,22 @@ def home():
     overdue.sort(key=lambda x: (0 if x[3]["level"] == "hot" else 1, -x[3]["days"]))
 
     # Recent activity feed (newest across all entities).
-    # Build a name lookup from already-loaded leads+jobs + one contacts query to avoid
-    # an N+1 (up to 80 individual db.get calls, one per activity row).
+    # Fetch only the 80 most recent rows from the DB (activities grows to 10k+ with
+    # AccuLynx imports — fetching all and slicing in Python is very slow).
+    feed = db.all_rows("activities", order="id DESC", limit=80)
+    # Build a name lookup from already-loaded leads/jobs; for contacts only fetch
+    # the ones actually referenced in this 80-row feed rather than the full table.
     _name_cache = {}
     for _l in leads:
         _name_cache[("lead", _l["id"])] = _l.get("name") or ""
     for _j in jobs:
         _name_cache[("job", _j["id"])] = _j.get("name") or ""
-    for _c in db.all_rows("contacts"):
-        _name_cache[("contact", _c["id"])] = (
-            "%s %s" % (_c.get("first_name", ""), _c.get("last_name", ""))).strip()
-    feed = db.all_rows("activities", order="id DESC")[:80]  # show ~15, scroll the rest
+    contact_ids = {a["entity_id"] for a in feed if a.get("entity_type") == "contact"}
+    if contact_ids:
+        id_ph = ",".join("?" * len(contact_ids))
+        for _c in db.all_rows("contacts", "id IN (%s)" % id_ph, tuple(contact_ids)):
+            _name_cache[("contact", _c["id"])] = (
+                "%s %s" % (_c.get("first_name", ""), _c.get("last_name", ""))).strip()
     for a in feed:
         a["_who"] = _name_cache.get((a.get("entity_type"), a.get("entity_id")), "")
 
