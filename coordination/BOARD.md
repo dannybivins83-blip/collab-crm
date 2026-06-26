@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `210e5d6` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 7) — crm-ui: Continued autonomous improvement loop. Highlights: (1) flash auto-dismiss JS in base.html (5s/10s, click-to-dismiss); (2) Contextual empty states + autofocus on search inputs across 8 list-view templates (jobs, leads, contacts, commissions, roof_reports, permits, estimates, invoices, materials); (3) jobs.list_view + leads.list_view: stage/rep filters pushed to SQL WHERE, counts/reps from aggregate queries — _decorate() only runs on filtered subset (was 1231 jobs / 500+ leads per page load, now only the visible stage slice); (4) leads.board: stage != 'lost' pushed to SQL when show_lost=False, lost_count via cheap COUNT; (5) contacts.index: secondary phone search replaced full-table Python scan with SQL REPLACE() LIKE; (6) db.py: composite indexes (department, stage) added for leads + jobs to accelerate the new combined WHERE filters. Commits this session: `02fb993`→`210e5d6`.
+- **Git tip (verified 2026-06-26):** `b64588a` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 8) — crm-ui: Autonomous perf loop continued. Session 7: pagination (jobs/leads 50/page), commissions N+1, db offset param, sync log/contact SQL, calendar SQL. Session 8: (1) portal.py — similar_job_photos + one_photo_per_system N+1→IN() batch, product_docs_for full-scan→SQL category WHERE, latest_system_job_photos Python sort→SQL ORDER BY, home() users full-load→WHERE name LIMIT 1; (2) acculynx_sync.dedupe_records — 4 COUNT full-loads→SELECT COUNT(*)+arithmetic; (3) gc_list.html autofocus. Commits: `0a3cd46`→`b64588a`.
 
 ---
 
