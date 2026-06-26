@@ -72,8 +72,10 @@ def new():
         flash("Material order created.", "ok")
         return redirect(url_for("materials.detail", order_id=mid))
     job_id = request.args.get("job_id", "")
+    dept = _theme.current_department()
     return render_template("material_form.html", job=db.get("jobs", job_id) if job_id else None,
-                           jobs=db.all_rows("jobs", order="name"), status_list=STATUS)
+                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
+                           status_list=STATUS)
 
 
 @bp.route("/<int:order_id>")

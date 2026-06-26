@@ -22,6 +22,7 @@ from flask import (Blueprint, render_template, request, redirect, url_for,
                    flash, jsonify, Response, abort)
 
 import db
+import theme
 
 try:
     import certifi
@@ -60,9 +61,16 @@ def _job_address(job):
 
 @bp.route("/")
 def index():
-    reports = db.all_rows("roof_reports", order="created DESC")
-    leads = db.all_rows("leads", order="name ASC")
-    jobs = db.all_rows("jobs", order="name ASC")
+    dept = theme.current_department()
+    dept_job_ids = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
+    dept_lead_ids = {l["id"] for l in db.all_rows("leads", "department=?", (dept,))}
+    all_reports = db.all_rows("roof_reports", order="created DESC")
+    reports = [r for r in all_reports if
+               (not r.get("job_id") and not r.get("lead_id")) or
+               r.get("job_id") in dept_job_ids or
+               r.get("lead_id") in dept_lead_ids]
+    leads = db.all_rows("leads", "department=?", (dept,), "name")
+    jobs = db.all_rows("jobs", "department=?", (dept,), "name")
     return render_template("roof_reports_index.html", reports=reports,
                            configured=_configured(), leads=leads, jobs=jobs)
 
@@ -115,10 +123,12 @@ def new():
 
     pre = {k: request.args.get(k, "") for k in ("address", "city", "zip", "lead_id", "job_id")}
     pre["state"] = request.args.get("state", "FL")
+    dept = theme.current_department()
     return render_template("roof_reports_new.html",
-                           jobs=db.all_rows("jobs", order="created DESC"),
-                           leads=db.all_rows("leads", "stage NOT IN ('lost','canceled')",
-                                             order="created DESC"),
+                           jobs=db.all_rows("jobs", "department=?", (dept,), "created DESC"),
+                           leads=db.all_rows("leads",
+                                             "department=? AND stage NOT IN ('lost','canceled')",
+                                             (dept,), "created DESC"),
                            pre=pre)
 
 

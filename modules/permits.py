@@ -114,7 +114,9 @@ def new():
     if job:
         pre = {"job_id": job["id"], "ahj": job.get("ahj"), "county": job.get("county"),
                "system": job.get("system")}
-    return render_template("permit_form.html", permit=pre, jobs=db.all_rows("jobs", order="name"),
+    dept = _theme.current_department()
+    return render_template("permit_form.html", permit=pre,
+                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
                            systems=PERMIT_SYSTEMS, mode="new",
                            company=db.get_company())
 

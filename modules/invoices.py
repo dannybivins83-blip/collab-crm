@@ -197,7 +197,9 @@ def new():
         return redirect(url_for("invoices.detail", inv_id=iid))
     job_id = request.args.get("job_id", "")
     job = db.get("jobs", job_id) if job_id else None
-    return render_template("invoice_form.html", job=job, jobs=db.all_rows("jobs", order="name"),
+    dept = theme.current_department()
+    return render_template("invoice_form.html", job=job,
+                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
                            draws=constants.DRAW_SCHEDULE)
 
 

@@ -12,6 +12,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 import config
 import db
+import theme as _theme
 
 bp = Blueprint("library", __name__, url_prefix="/library")
 
@@ -55,9 +56,10 @@ def index():
     if extra:
         groups.append(("Other", extra))
     counts = {c: len(db.all_rows("library_docs", "category=?", (c,))) for c in CATEGORY_ORDER}
+    dept = _theme.current_department()
     return render_template("library.html", groups=groups, counts=counts, q=q, cat=cat,
                            total=len(db.all_rows("library_docs")),
-                           jobs=db.all_rows("jobs", order="name"))
+                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"))
 
 
 @bp.route("/upload", methods=["POST"])
