@@ -63,8 +63,9 @@
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex:none">
             <span class="pill" style="background:{{ 'var(--danger)22' if fs.level=='hot' else 'var(--warn)22' }};color:{{ 'var(--danger)' if fs.level=='hot' else 'var(--warn)' }}">{{ fs.label }}</span>
-            {% if r.email %}<a class="btn sm accent" href="{{ followup_email(kind, r) }}" target="_blank" title="Draft a follow-up email with balance + payment options">{{ icon('mail') }}Email</a>
+            {% if r.email %}<a class="btn sm accent" href="{{ followup_email(kind, r) }}" target="_blank" title="Draft a follow-up email">{{ icon('mail') }}Email</a>
             {% elif r.phone %}<a class="btn sm" href="tel:{{ r.phone }}" title="Call {{ r.phone }}">{{ icon('phone') }}</a>{% endif %}
+            {% if kind == 'lead' %}<form method="post" action="{{ url_for('leads.snooze', lead_id=r.id) }}" style="margin:0"><input type="hidden" name="days" value="30"><button class="btn sm" type="submit" title="Snooze 30 days">💤</button></form>{% endif %}
           </div>
         </div>
       {% endfor %}

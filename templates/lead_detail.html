@@ -335,6 +335,19 @@ function lcGate(form,pct){
         <button type="submit">Assign</button>
       </form>
       <form method="post" action="{{ url_for('leads.touch', lead_id=l.id) }}"><button class="primary" style="width:100%" type="submit">✓ Log touch (today)</button></form>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <form method="post" action="{{ url_for('leads.snooze', lead_id=l.id) }}" style="flex:1">
+          <input type="hidden" name="days" value="7">
+          <button class="btn" style="width:100%" type="submit" title="Hide from overdue list for 7 days">💤 7d</button>
+        </form>
+        <form method="post" action="{{ url_for('leads.snooze', lead_id=l.id) }}" style="flex:1">
+          <input type="hidden" name="days" value="30">
+          <button class="btn" style="width:100%" type="submit" title="Hide from overdue list for 30 days">💤 30d</button>
+        </form>
+        {% if l.snooze_until %}<form method="post" action="{{ url_for('leads.touch', lead_id=l.id) }}" style="flex:none">
+          <button class="btn sm" type="submit" title="Clear snooze (snoozed until {{ l.snooze_until }})">✕ snooze</button>
+        </form>{% endif %}
+      </div>
       <a class="btn" style="width:100%;margin-top:8px;text-align:center" href="{{ followup_email('lead', l) }}" target="_blank">✉️ Draft follow-up email</a>
       <a class="btn" style="width:100%;margin-top:8px;text-align:center" href="{{ url_for('estimates.new') }}?lead_id={{ l.id }}">📝 New Estimate</a>
       <form method="post" action="{{ url_for('leads.send_portal_invite', lead_id=l.id) }}" style="margin-top:8px">

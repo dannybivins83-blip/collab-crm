@@ -661,6 +661,21 @@ def touch(lead_id):
     return redirect(url_for("leads.detail", lead_id=lead_id))
 
 
+@bp.route("/<int:lead_id>/snooze", methods=["POST"])
+def snooze(lead_id):
+    """Suppress overdue follow-up alerts for N days (default 30). Does not
+    log a touch — the lead's last_contact clock keeps running; the snooze
+    only hides it from the overdue list until the date passes."""
+    _require_lead(lead_id)
+    import datetime as _dt
+    days = max(1, min(365, int(request.form.get("days", 30))))
+    until = (_dt.date.today() + _dt.timedelta(days=days)).isoformat()
+    db.update("leads", lead_id, snooze_until=until)
+    db.add_activity("lead", lead_id, "note", "Snoozed follow-up for %d days (until %s)." % (days, until))
+    flash("Snoozed for %d days — won't appear overdue until %s." % (days, until), "ok")
+    return redirect(url_for("leads.detail", lead_id=lead_id))
+
+
 @bp.route("/<int:lead_id>/takeoff", methods=["POST"])
 def run_takeoff(lead_id):
     """Accept a plan PDF or ZIP upload, spawn async AI takeoff, return job_token."""
