@@ -48,12 +48,14 @@
         {% if l._fs.level!='ok' %}<div class="flag">{{ '🔴' if l._fs.level=='hot' else '🟠' }}</div>{% endif %}
         {% if l.rid %}<div class="rid">{{ l.rid }}</div>{% endif %}
         <div class="nm">{{ l.name }}</div>
+        {% if l.todo and not l.todo.startswith('Milestone:') %}<div class="ktodo" title="Next action">☐ {{ l.todo[:60] }}{% if l.todo|length > 60 %}…{% endif %}</div>{% endif %}
         <div class="wt">{{ l.work_type or 'Roofing' }}{% if l.estimate %} · <span class="est">{{ l.estimate }}</span>{% endif %}</div>
         <div class="prog"><i style="width:{{ l._pct }}%"></i></div>
         <div class="foot">
           {% set col = 'var(--danger)' if l._fs.level=='hot' else ('var(--warn)' if l._fs.level=='stalled' else 'var(--ok)') %}
-          <span class="spill" style="background:{{ col }}22;color:{{ col }}">{{ l._fs.days }}d</span>
-          <span class="muted">{{ l.source or '' }}</span>
+          {% if l._fs.get('snoozed') %}<span class="spill" style="background:#6b728022;color:#6b7280" title="Snoozed until {{ l.snooze_until }}">💤</span>
+          {% else %}<span class="spill" style="background:{{ col }}22;color:{{ col }}">{{ l._fs.days }}d</span>{% endif %}
+          <span class="muted">{{ l.rep or l.source or '' }}</span>
         </div>
         <div class="qa">
           <form method="post" action="{{ url_for('leads.touch', lead_id=l.id) }}" style="display:inline">
@@ -68,6 +70,7 @@
   {% endfor %}
 </div>
 
+<style>.ktodo{font-size:11px;color:var(--fg-muted,#6b7280);margin:2px 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}</style>
 <script>
 function dragCard(e,id){e.dataTransfer.setData('text/plain',id);e.target.classList.add('dragging')}
 function dropCard(e,stage){
