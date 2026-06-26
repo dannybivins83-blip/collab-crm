@@ -63,18 +63,45 @@ def index():
 # ---------------------------------------------------------------------------
 
 def _gc_jobs(contact_id):
-    """All jobs for a GC (shared contact_id) with profit pulled from the job's
-    worksheet, plus rolled-up totals."""
-    from modules import worksheet
+    """All jobs for a GC (shared contact_id) with profit from a single batch
+    worksheet JOIN, plus rolled-up totals."""
     import theme
     jobs = db.all_rows("jobs", "contact_id=?", (contact_id,), "created DESC")
+    if jobs:
+        _ids = tuple(j["id"] for j in jobs)
+        _ph = ",".join("?" * len(_ids))
+        _conn = db.connect()
+        try:
+            _ws_agg = _conn.execute(
+                "SELECT w.job_id, w.contract_value, "
+                "COALESCE(SUM(wl.actual_cost),0) AS actual_cost "
+                "FROM worksheets w "
+                "LEFT JOIN worksheet_lines wl ON wl.worksheet_id=w.id "
+                "WHERE w.job_id IN (%s) GROUP BY w.job_id, w.id ORDER BY w.id DESC" % _ph,
+                _ids).fetchall()
+        finally:
+            _conn.close()
+        _ws_by_job = {}
+        for _ws in _ws_agg:
+            if _ws["job_id"] not in _ws_by_job:
+                _ws_by_job[_ws["job_id"]] = dict(_ws)
+    else:
+        _ws_by_job = {}
     total_value = total_profit = 0.0
     for j in jobs:
-        pa = worksheet.profit_analysis(j["id"])
-        j["_value"] = pa["contract_value"] or theme.est_num(j.get("contract_value"))
-        j["_profit"] = pa["gross_profit"]
-        j["_has_ws"] = pa["has_ws"]
         j["_stage"] = constants.job_stage(j["stage"])
+        _ws = _ws_by_job.get(j["id"])
+        if _ws:
+            cv = _ws["contract_value"] or 0
+            gp = cv - _ws["actual_cost"]
+            j["_value"] = cv
+            j["_profit"] = gp
+            j["_has_ws"] = True
+        else:
+            cv = theme.est_num(j.get("contract_value"))
+            j["_value"] = cv
+            j["_profit"] = cv
+            j["_has_ws"] = False
         total_value += j["_value"]
         total_profit += j["_profit"]
     return jobs, {"count": len(jobs), "value": total_value, "profit": total_profit}
