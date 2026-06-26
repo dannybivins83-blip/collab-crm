@@ -73,6 +73,9 @@ class _PgConn:
     def commit(self):
         self._raw.commit()
 
+    def rollback(self):
+        self._raw.rollback()
+
     def close(self):
         self._raw.close()
 
@@ -90,6 +93,27 @@ def connect():
         conn.execute("PRAGMA synchronous=NORMAL")
     except Exception:
         pass
+    return conn
+
+
+def begin_immediate(lock_table=None):
+    """Open a connection and start a serialized write transaction, dual-engine.
+
+    SQLite  -> BEGIN IMMEDIATE (acquire the write lock now; gives atomicity +
+               prevents two read-modify-write callers from interleaving).
+    Postgres-> a transaction is already implicit; when lock_table is given (counter
+               generators like EST-/INV-/R- numbering) issue LOCK TABLE … EXCLUSIVE
+               so two callers can't both compute max+1 and collide.
+
+    Returns the connection — the caller commits / rolls back / closes. Replaces the
+    raw `sqlite3.connect(DB_PATH)` blocks so non-SQLite tenants work too.
+    """
+    conn = connect()
+    if IS_PG:
+        if lock_table:
+            conn.execute("LOCK TABLE %s IN EXCLUSIVE MODE" % lock_table)
+    else:
+        conn.execute("BEGIN IMMEDIATE")
     return conn
 
 

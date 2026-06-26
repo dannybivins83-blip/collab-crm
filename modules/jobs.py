@@ -393,13 +393,10 @@ def note(job_id):
 def delete(job_id):
     _require_job(job_id)
     # Cascade-delete child records to prevent FK orphans.
-    # All deletes run in a single BEGIN IMMEDIATE transaction to prevent partial
-    # deletes leaving orphan rows if the process is interrupted mid-way.
-    import sqlite3
-    conn = sqlite3.connect(db.DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # All deletes run in a single serialized transaction to prevent partial deletes
+    # leaving orphan rows if the process is interrupted mid-way (dual-engine).
+    conn = db.begin_immediate()
     try:
-        conn.execute("BEGIN IMMEDIATE")
         eids = [r["id"] for r in conn.execute(
             "SELECT id FROM estimates WHERE job_id=?", (job_id,)).fetchall()]
         for eid in eids:

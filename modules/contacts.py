@@ -201,13 +201,10 @@ def _do_merge(survivor_id, dupe_ids):
     only the duplicate *contact* shells are removed.
     Wrapped in a single BEGIN IMMEDIATE transaction so a crash mid-merge can't
     leave FKs pointing at a deleted contact."""
-    import sqlite3
-    conn = sqlite3.connect(db.DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = db.begin_immediate()
     moved = {t: 0 for t in _CONTACT_FK_TABLES}
     moved["activities"] = 0
     try:
-        conn.execute("BEGIN IMMEDIATE")
         for did in dupe_ids:
             if did == survivor_id:
                 continue

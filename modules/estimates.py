@@ -92,12 +92,9 @@ def _draws(total):
 
 def _next_number():
     # Highest existing EST- number + 1 (not the row id) so deletes can't collide.
-    # Wrapped in BEGIN IMMEDIATE to prevent duplicate numbers under concurrent inserts.
-    import sqlite3
-    conn = sqlite3.connect(db.DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # Serialized write txn prevents duplicate numbers under concurrent inserts (dual-engine).
+    conn = db.begin_immediate(lock_table="estimates")
     try:
-        conn.execute("BEGIN IMMEDIATE")
         mx = 0
         for r in conn.execute("SELECT number FROM estimates").fetchall():
             n = (r["number"] or "")
@@ -360,13 +357,10 @@ def detail(est_id):
 def save(est_id):
     _require_estimate(est_id)
     data = request.get_json(silent=True) or {}
-    # Wrap the multi-step delete → insert in a single BEGIN IMMEDIATE transaction so a
+    # Wrap the multi-step delete → insert in a single serialized transaction so a
     # crash mid-save can't leave the estimate with no sections/lines (half-written state).
-    import sqlite3
-    conn = sqlite3.connect(db.DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = db.begin_immediate()
     try:
-        conn.execute("BEGIN IMMEDIATE")
         conn.execute(
             "UPDATE estimates SET title=?,tax_pct=?,notes=?,terms=? WHERE id=?",
             (data.get("title", ""), float(data.get("tax_pct") or 0),

@@ -24,12 +24,9 @@ db._COLCACHE.clear()
 def _next_number():
     # Derive from the highest existing INV- number (not the row id) so deleting
     # an invoice can't make the next one reuse a number that still exists.
-    # Wrapped in BEGIN IMMEDIATE to prevent duplicate numbers under concurrent inserts.
-    import sqlite3
-    conn = sqlite3.connect(db.DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # Serialized write txn prevents duplicate numbers under concurrent inserts (dual-engine).
+    conn = db.begin_immediate(lock_table="invoices")
     try:
-        conn.execute("BEGIN IMMEDIATE")
         mx = 0
         for r in conn.execute("SELECT number FROM invoices").fetchall():
             n = (r["number"] or "")

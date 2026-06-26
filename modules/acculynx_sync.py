@@ -565,14 +565,11 @@ def compose_job_name(client, ahj="", work_type="", system="", squares="",
 
 def next_job_number(year=None):
     """Next R-YY### number, continuing the highest existing sequence for the year.
-    Wrapped in BEGIN IMMEDIATE to prevent duplicate RIDs under concurrent inserts."""
-    import sqlite3
+    Serialized write txn prevents duplicate RIDs under concurrent inserts (dual-engine)."""
     import db as _db
     yy = (str(year) if year else _db.today()[:4])[-2:]
-    conn = sqlite3.connect(_db.DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = _db.begin_immediate(lock_table="jobs")
     try:
-        conn.execute("BEGIN IMMEDIATE")
         hi = 0
         for j in conn.execute("SELECT rid, name FROM jobs").fetchall():
             m = re.match(r"\s*R-?%s(\d{2,})" % re.escape(yy),
