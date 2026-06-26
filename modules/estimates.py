@@ -160,7 +160,9 @@ def index():
         subtotal = price_map.get(e["id"], 0.0)
         tax = subtotal * (e.get("tax_pct") or 0) / 100.0
         e["_total"] = subtotal + tax
-    # Client-side filter by query and/or status
+    # Statuses from the full dept-scoped set (before search filter) so the dropdown
+    # always shows every reachable status, not just the currently-visible ones.
+    statuses = sorted({e.get("status") for e in estimates if e.get("status")})
     q = request.args.get("q", "").strip().lower()
     status_f = request.args.get("status", "").strip()
     if q:
@@ -170,7 +172,6 @@ def index():
                      q in (e.get("work_type") or "").lower()]
     if status_f:
         estimates = [e for e in estimates if e.get("status") == status_f]
-    statuses = sorted({e.get("status") for e in db.all_rows("estimates", order="id DESC") if e.get("status")})
     return render_template("estimates.html", estimates=estimates,
                            q=q, status_f=status_f, statuses=statuses)
 

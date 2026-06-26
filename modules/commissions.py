@@ -89,9 +89,10 @@ def index():
     jobs = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
     for c in rows:
         c["_job"] = jobs.get(c["job_id"])
+    all_dept_commissions = db.all_rows("commissions", "department=?", (dept,))
     return render_template("commissions.html", rows=rows, summary=summary_by_rep(),
                            statuses=STATUSES, bases=BASES,
-                           reps=sorted({c.get("rep") for c in db.all_rows("commissions") if c.get("rep")}),
+                           reps=sorted({c.get("rep") for c in all_dept_commissions if c.get("rep")}),
                            status_f=status_f, rep_f=rep_f)
 
 
