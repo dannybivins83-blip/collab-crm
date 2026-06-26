@@ -25,6 +25,6 @@
     <td>{{ c.source or '' }}</td>
     <td>{% for t in (c.tags or '').split(',') if t.strip() %}<span class="tag">{{ t.strip() }}</span>{% endfor %}</td>
   </tr>
-  {% else %}<tr><td colspan="7" class="empty">No contacts yet.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="7" class="empty">No contacts{% if q %} matching "{{ q }}"{% endif %}. <a href="{{ url_for('contacts.new') }}">+ Add contact</a></td></tr>{% endfor %}
 </table>
 {% endblock %}

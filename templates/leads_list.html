@@ -103,7 +103,7 @@
         </form>
       </div>
     </div>
-    {% else %}<div class="empty">No leads match.</div>{% endfor %}
+    {% else %}<div class="empty">No leads match{% if q %} for "{{ q }}"{% endif %}.{% if not q %} <a class="btn primary" style="margin-left:8px" href="{{ url_for('leads.new') }}">+ New Lead</a>{% endif %}</div>{% endfor %}
   </div>
 </div>
 <script>

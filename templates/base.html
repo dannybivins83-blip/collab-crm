@@ -255,6 +255,13 @@ document.addEventListener('click', function(e){
     if(!m.parentElement.contains(e.target)) m.classList.remove('open');
   });
 });
+/* Auto-dismiss flash messages after 5 s (errors stay until clicked). */
+document.querySelectorAll('.flash').forEach(function(el){
+  var delay = el.classList.contains('error') ? 10000 : 5000;
+  setTimeout(function(){ el.style.transition='opacity .4s'; el.style.opacity='0'; setTimeout(function(){ el.remove(); }, 420); }, delay);
+  el.style.cursor='pointer';
+  el.addEventListener('click', function(){ el.remove(); });
+});
 /* Wrap wide data tables so they scroll horizontally on small screens
    instead of overflowing the page. */
 document.querySelectorAll('table.grid').forEach(function(t){
