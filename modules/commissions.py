@@ -83,6 +83,7 @@ def index():
     all_rows = db.all_rows("commissions", "department=?", (dept,), "status, id DESC")
     status_f = request.args.get("status")
     rep_f = request.args.get("rep")
+    q = (request.args.get("q") or "").strip().lower()
     rows = all_rows
     if status_f:
         rows = [c for c in rows if c["status"] == status_f]
@@ -91,10 +92,14 @@ def index():
     jobs = {j["id"]: j for j in dept_jobs}
     for c in rows:
         c["_job"] = jobs.get(c["job_id"])
+    if q:
+        rows = [c for c in rows if q in ((c.get("rep") or "") + " " + ((c["_job"] or {}).get("name") or "") +
+                                         " " + ((c["_job"] or {}).get("address") or "") +
+                                         " " + (c.get("notes") or "")).lower()]
     return render_template("commissions.html", rows=rows, summary=summary_by_rep(),
                            statuses=STATUSES, bases=BASES,
                            reps=sorted({c.get("rep") for c in all_rows if c.get("rep")}),
-                           status_f=status_f, rep_f=rep_f)
+                           status_f=status_f, rep_f=rep_f, q=q)
 
 
 @bp.route("/<int:cid>/save", methods=["POST"])

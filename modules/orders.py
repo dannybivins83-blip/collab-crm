@@ -64,6 +64,7 @@ def index():
     status_f = request.args.get("status")
     type_f = request.args.get("type")
     vendor_f = request.args.get("vendor")
+    q = (request.args.get("q") or "").strip().lower()
     rows = all_orders
     if status_f:
         rows = [o for o in rows if o["status"] == status_f]
@@ -85,9 +86,14 @@ def index():
         o["_job"] = jobs.get(o["job_id"])
         _lns = _lines_by_order.get(o["id"], [])
         o["_total"] = sum((l.get("qty") or 0) * (l.get("cost") or 0) for l in _lns)
+    if q:
+        rows = [o for o in rows if q in ((o.get("po_number") or "") + " " +
+                                         ((o["_job"] or {}).get("name") or "") + " " +
+                                         (o.get("vendor") or "") + " " +
+                                         (o.get("notes") or "")).lower()]
     return render_template("orders_index.html", orders=rows, counts=counts, statuses=STATUSES,
                            types=TYPES, vendors=vendors, status_f=status_f, type_f=type_f,
-                           vendor_f=vendor_f, total=total)
+                           vendor_f=vendor_f, total=total, q=q)
 
 
 # ---- generate from estimate -----------------------------------------------

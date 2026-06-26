@@ -9,17 +9,25 @@
   <a class="btn" href="{{ url_for('orders.vendors') }}">Vendors</a>
 </div>
 
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search PO#, job, vendor, notes…" style="flex:1">
+  {% if status_f %}<input type="hidden" name="status" value="{{ status_f }}">{% endif %}
+  {% if type_f %}<input type="hidden" name="type" value="{{ type_f }}">{% endif %}
+  {% if vendor_f %}<input type="hidden" name="vendor" value="{{ vendor_f }}">{% endif %}
+  <button class="btn" type="submit">Search</button>
+  {% if q %}<a class="btn" href="{{ url_for('orders.index', status=status_f or '', type=type_f or '', vendor=vendor_f or '') }}">✕</a>{% endif %}
+</form>
 <div class="listwrap">
   <aside class="filters">
-    <div class="filt-head">Status {% if status_f or type_f or vendor_f %}<a href="{{ url_for('orders.index') }}" class="muted">clear</a>{% endif %}</div>
-    <a class="filt {{ 'on' if not status_f }}" href="{{ url_for('orders.index') }}">All <span>{{ total }}</span></a>
+    <div class="filt-head">Status {% if status_f or type_f or vendor_f or q %}<a href="{{ url_for('orders.index') }}" class="muted">clear all</a>{% endif %}</div>
+    <a class="filt {{ 'on' if not status_f }}" href="{{ url_for('orders.index', q=q) }}">All <span>{{ total }}</span></a>
     {% for s in statuses %}
-    <a class="filt {{ 'on' if status_f==s }}" href="{{ url_for('orders.index') }}?status={{ s }}">{{ s|capitalize }} <span>{{ counts[s] }}</span></a>
+    <a class="filt {{ 'on' if status_f==s }}" href="{{ url_for('orders.index', status=s, q=q) }}">{{ s|capitalize }} <span>{{ counts[s] }}</span></a>
     {% endfor %}
     <div class="filt-head" style="margin-top:12px">Type</div>
-    {% for t in types %}<a class="filt {{ 'on' if type_f==t }}" href="{{ url_for('orders.index') }}?type={{ t }}">{{ t }}</a>{% endfor %}
+    {% for t in types %}<a class="filt {{ 'on' if type_f==t }}" href="{{ url_for('orders.index', type=t, q=q) }}">{{ t }}</a>{% endfor %}
     {% if vendors %}<div class="filt-head" style="margin-top:12px">Vendor</div>
-    {% for v in vendors %}<a class="filt {{ 'on' if vendor_f==v }}" href="{{ url_for('orders.index') }}?vendor={{ v }}">{{ v }}</a>{% endfor %}{% endif %}
+    {% for v in vendors %}<a class="filt {{ 'on' if vendor_f==v }}" href="{{ url_for('orders.index', vendor=v, q=q) }}">{{ v }}</a>{% endfor %}{% endif %}
   </aside>
 
   <div class="results">
