@@ -47,7 +47,9 @@ def index():
     dept = theme.current_department()
     leads = db.all_rows("leads", "department=?", (dept,))
     jobs = db.all_rows("jobs", "department=?", (dept,))
-    invoices = db.all_rows("invoices")
+    dept_job_ids = {j["id"] for j in jobs}
+    all_inv = db.all_rows("invoices")
+    invoices = [i for i in all_inv if not i.get("job_id") or i["job_id"] in dept_job_ids]
 
     # Pipeline by lead stage.
     lead_rows = []
