@@ -30,7 +30,9 @@ def refresh_builtins():
 
 @bp.route("/new", methods=["POST"])
 def new():
-    tid = db.insert("templates", {"tkey": "custom_%d" % (db.all_rows("templates", order="id DESC")[0]["id"] + 1 if db.all_rows("templates") else 1),
+    _existing = db.all_rows("templates", order="id DESC")
+    _next_id = (_existing[0]["id"] + 1) if _existing else 1
+    tid = db.insert("templates", {"tkey": "custom_%d" % _next_id,
                                   "name": request.form.get("name", "New Template"),
                                   "work_type": request.form.get("work_type", ""),
                                   "scope_text": "", "lines": "[]", "is_builtin": 0})
