@@ -691,7 +691,11 @@ def run_sync(deep=False, batch=50):
             crm_id = None
 
             if cur:
-                upd = {"stage": stage, "external_url": url, "todo": progress}
+                # Never overwrite `todo` — it's a user-editable "Next action" field on the lead
+                # form. Earlier syncs set it to "Milestone: Prospect (as of …)" which destroyed
+                # any real action item Danny had typed. Milestone info lives in `stage` + the
+                # activity trail; it must not clobber the task queue.
+                upd = {"stage": stage, "external_url": url}
                 if val:
                     upd[val_col] = val
                 if af.get("address"):  # backfill/repair the full structured address
@@ -717,7 +721,7 @@ def run_sync(deep=False, batch=50):
                     "work_type": _wt,
                     "source": _name_of(_g(job, "leadSource", "source")),
                     "rep": _name_of(_g(job, "salesRep", "assignedTo", "rep")) or "Danny Bivins",
-                    "external_url": url, "department": _department_for(_wt), "todo": progress,
+                    "external_url": url, "department": _department_for(_wt),
                 }
                 if val:
                     rec[val_col] = val
