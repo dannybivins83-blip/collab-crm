@@ -48,8 +48,11 @@ def index():
     leads = db.all_rows("leads", "department=?", (dept,))
     jobs = db.all_rows("jobs", "department=?", (dept,))
     dept_job_ids = {j["id"] for j in jobs}
-    all_inv = db.all_rows("invoices")
-    invoices = [i for i in all_inv if not i.get("job_id") or i["job_id"] in dept_job_ids]
+    if dept_job_ids:
+        _id_ph = ",".join("?" * len(dept_job_ids))
+        invoices = db.all_rows("invoices", "job_id IS NULL OR job_id IN (%s)" % _id_ph, tuple(dept_job_ids))
+    else:
+        invoices = db.all_rows("invoices", "job_id IS NULL")
 
     # Pipeline by lead stage.
     lead_rows = []
