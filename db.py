@@ -437,6 +437,8 @@ CREATE INDEX IF NOT EXISTS idx_leads_department    ON leads(department);
 CREATE INDEX IF NOT EXISTS idx_leads_contact_id    ON leads(contact_id);
 CREATE INDEX IF NOT EXISTS idx_leads_stage         ON leads(stage);
 CREATE INDEX IF NOT EXISTS idx_leads_portal_token  ON leads(portal_token);
+-- composite: department+stage for list/board views that filter both simultaneously
+CREATE INDEX IF NOT EXISTS idx_leads_dept_stage    ON leads(department, stage);
 
 -- jobs: same high-traffic columns
 CREATE INDEX IF NOT EXISTS idx_jobs_department     ON jobs(department);
@@ -444,6 +446,8 @@ CREATE INDEX IF NOT EXISTS idx_jobs_contact_id     ON jobs(contact_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_lead_id        ON jobs(lead_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_stage          ON jobs(stage);
 CREATE INDEX IF NOT EXISTS idx_jobs_portal_token   ON jobs(portal_token);
+-- composite: department+stage for list/board views that filter both simultaneously
+CREATE INDEX IF NOT EXISTS idx_jobs_dept_stage     ON jobs(department, stage);
 
 -- activities: the timeline query filters by (entity_type, entity_id) and kind/done
 CREATE INDEX IF NOT EXISTS idx_activities_entity   ON activities(entity_type, entity_id);
