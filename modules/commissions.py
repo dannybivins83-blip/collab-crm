@@ -97,10 +97,42 @@ def index():
         if created_any else existing
     )
 
-    # Recompute pre-commission amounts in-place (uses jobs_map — no per-job re-fetch).
+    # Batch-load worksheet profit for all pre-commissions with basis="profit" to
+    # avoid calling profit_analysis() per job (2 DB queries each = N+1 pattern).
+    _profit_jids = tuple(
+        c["job_id"] for c in all_commissions
+        if c["status"] == "pre" and c.get("basis", "profit") == "profit"
+        and c["job_id"] in jobs_map
+    )
+    _ws_profit = {}
+    if _profit_jids:
+        _ph = ",".join("?" * len(_profit_jids))
+        _ws_rows = db.all_rows("worksheets", "job_id IN (%s)" % _ph, _profit_jids)
+        if _ws_rows:
+            _ws_ids = tuple(w["id"] for w in _ws_rows)
+            _wl_rows = db.all_rows("worksheet_lines",
+                                   "worksheet_id IN (%s)" % ",".join("?" * len(_ws_ids)),
+                                   _ws_ids)
+            _wl_by_ws = {}
+            for wl in _wl_rows:
+                _wl_by_ws.setdefault(wl["worksheet_id"], []).append(wl)
+            for w in _ws_rows:
+                lines = _wl_by_ws.get(w["id"], [])
+                actual = sum(l.get("actual_cost") or 0 for l in lines)
+                cv = w.get("contract_value") or 0
+                _ws_profit[w["job_id"]] = cv - actual
+        for jid in _profit_jids:
+            if jid not in _ws_profit:
+                _ws_profit[jid] = theme.est_num(jobs_map[jid].get("contract_value"))
+
+    # Recompute pre-commission amounts in-place (uses jobs_map + _ws_profit — no per-job re-fetch).
     for c in all_commissions:
         if c["status"] == "pre" and c["job_id"] in jobs_map:
-            amt = _compute(jobs_map[c["job_id"]], c["basis"], c["rate_pct"])
+            if c.get("basis", "profit") == "profit":
+                base = _ws_profit.get(c["job_id"], 0)
+                amt = round(max(base, 0) * (c["rate_pct"] or 0) / 100.0, 2)
+            else:
+                amt = _compute(jobs_map[c["job_id"]], c["basis"], c["rate_pct"])
             if amt != c["amount"]:
                 db.update("commissions", c["id"], amount=amt)
                 c["amount"] = amt
