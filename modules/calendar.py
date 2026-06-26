@@ -12,16 +12,23 @@ KINDS = ["Inspection", "Estimate Appt", "Production / Crew", "Final Inspection",
 @bp.route("/")
 def index():
     dept = theme.current_department()
-    appts = db.all_rows("appointments", order="start_at")
-    jobs = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
-    leads = {l["id"]: l for l in db.all_rows("leads", "department=?", (dept,))}
+    dept_leads_list = db.all_rows("leads", "department=?", (dept,), "name")
+    dept_jobs_list = db.all_rows("jobs", "department=?", (dept,), "name")
+    jobs = {j["id"]: j for j in dept_jobs_list}
+    leads = {l["id"]: l for l in dept_leads_list}
+    # Scope to this dept — appointments without a lead or job are shown for all depts.
+    all_appts = db.all_rows("appointments", order="start_at")
+    appts = [a for a in all_appts if
+             (not a.get("job_id") and not a.get("lead_id")) or
+             a.get("job_id") in jobs or
+             a.get("lead_id") in leads]
     for a in appts:
         a["_who"] = (jobs.get(a["job_id"], {}) or leads.get(a["lead_id"], {}) or {}).get("name", "")
-    upcoming = [a for a in appts if (a.get("start_at") or "") >= db.today()]
-    past = [a for a in appts if (a.get("start_at") or "") < db.today()]
+    today = db.today()
+    upcoming = [a for a in appts if (a.get("start_at") or "") >= today]
+    past = [a for a in appts if (a.get("start_at") or "") < today]
     return render_template("calendar.html", upcoming=upcoming, past=past, kinds=KINDS,
-                           leads=db.all_rows("leads", "department=?", (dept,), "name"),
-                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
+                           leads=dept_leads_list, jobs=dept_jobs_list,
                            users=db.all_rows("users", order="name"))
 
 
