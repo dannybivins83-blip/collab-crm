@@ -138,7 +138,7 @@ def gcs():
     import theme
     rows = db.all_rows("contacts", "is_gc=1", order="last_name, company")
     if not rows:
-        return render_template("gc_list.html", gcs=rows)
+        return render_template("gc_list.html", gcs=rows, q="")
     gc_ids = [g["id"] for g in rows]
     id_ph = ",".join("?" * len(gc_ids))
     all_jobs = db.all_rows("jobs", "contact_id IN (%s)" % id_ph, tuple(gc_ids))
@@ -149,7 +149,14 @@ def gcs():
         gc_jobs = jobs_by_contact.get(g["id"], [])
         g["_job_count"] = len(gc_jobs)
         g["_value"] = sum(theme.est_num(j.get("contract_value")) for j in gc_jobs)
-    return render_template("gc_list.html", gcs=rows)
+    q = request.args.get("q", "").strip().lower()
+    if q:
+        rows = [g for g in rows if
+                q in ((g.get("first_name") or "") + " " + (g.get("last_name") or "")).lower()
+                or q in (g.get("company") or "").lower()
+                or q in (g.get("phone") or "").lower()
+                or q in (g.get("email") or "").lower()]
+    return render_template("gc_list.html", gcs=rows, q=q)
 
 
 @bp.route("/<int:contact_id>")

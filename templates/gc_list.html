@@ -8,6 +8,11 @@
   <a class="btn" href="{{ url_for('contacts.index') }}">All Contacts</a>
   <a class="btn primary" href="{{ url_for('contacts.new', gc=1) }}">+ New GC</a>
 </div>
+<form class="listbar" method="get">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search by name, company, phone, email…">
+  <button type="submit" class="btn sm">Search</button>
+  {% if q %}<a class="btn sm muted" href="{{ url_for('contacts.gcs') }}">Clear</a>{% endif %}
+</form>
 <table class="grid">
   <tr><th>General Contractor</th><th>Company</th><th>Phone</th><th>Email</th><th>Jobs</th><th style="text-align:right">Total value</th></tr>
   {% for g in gcs %}
