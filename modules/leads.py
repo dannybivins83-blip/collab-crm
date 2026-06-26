@@ -110,8 +110,11 @@ def list_view():
     if bucket:
         rows = [l for l in rows if l["_stage"].get("bucket") == bucket]
     if q:
-        rows = [l for l in rows if q in ((l.get("name") or "") + (l.get("address") or "") +
-                                         (l.get("rid") or "")).lower()]
+        _qd = re.sub(r"\D", "", q)  # digit-only version for phone search
+        rows = [l for l in rows if
+                q in ((l.get("name") or "") + (l.get("address") or "") +
+                      (l.get("rid") or "") + (l.get("email") or "")).lower()
+                or (_qd and len(_qd) >= 7 and _qd in re.sub(r"\D", "", (l.get("phone") or "") + (l.get("phone2") or "")))]
     overdue_f = request.args.get("overdue") == "1"
     if overdue_f:
         rows = [l for l in rows if l["_fs"]["level"] != "ok"]

@@ -107,9 +107,13 @@ def list_view():
     if bucket:
         rows = [j for j in rows if j["_stage"].get("bucket") == bucket]
     if q:
-        rows = [j for j in rows if q in ((j.get("name") or "") + (j.get("address") or "") +
-                                         (j.get("rid") or "") + (j.get("phone") or "") +
-                                         (j.get("work_type") or "")).lower()]
+        import re as _re
+        _qd = _re.sub(r"\D", "", q)
+        rows = [j for j in rows if
+                q in ((j.get("name") or "") + (j.get("address") or "") +
+                      (j.get("rid") or "") + (j.get("work_type") or "") +
+                      (j.get("email") or "")).lower()
+                or (_qd and len(_qd) >= 7 and _qd in _re.sub(r"\D", "", (j.get("phone") or "")))]
     rep_f = request.args.get("rep")
     if rep_f:
         rows = [j for j in rows if (j.get("rep") or "") == rep_f]
