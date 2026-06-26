@@ -3,7 +3,7 @@
 {% block body %}
 <div class="page-head"><h1>💰 Commissions</h1><span class="sub">{{ rows|length }} shown · pre-commission on sale → approved on completion → paid</span></div>
 <form method="get" class="listbar" style="margin-bottom:12px">
-  <input name="q" value="{{ q }}" placeholder="Search rep, job, address, notes…" style="flex:1">
+  <input name="q" value="{{ q }}" placeholder="Search rep, job, address, notes…" style="flex:1" autofocus>
   <select name="status" onchange="this.form.submit()" style="min-width:130px">
     <option value="">All statuses</option>
     {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s==status_f }}>{{ s|capitalize }}</option>{% endfor %}

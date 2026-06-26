@@ -29,7 +29,7 @@
       {% if stage_f %}<input type="hidden" name="stage" value="{{ stage_f }}">{% endif %}
       {% if bucket %}<input type="hidden" name="bucket" value="{{ bucket }}">{% endif %}
       {% if overdue_f %}<input type="hidden" name="overdue" value="1">{% endif %}
-      <input name="q" value="{{ q }}" placeholder="Name, job #, address, phone, email…" class="lb-q">
+      <input name="q" value="{{ q }}" placeholder="Name, job #, address, phone, email…" class="lb-q" autofocus>
       <select name="sort" onchange="this.form.submit()" title="Sort">
         <option value="date"   {{ 'selected' if sort=='date' or not sort }}>Newest first</option>
         <option value="days"   {{ 'selected' if sort=='days' }}>Most overdue</option>
@@ -79,7 +79,7 @@
       </form>
       {% endif %}
     </div>
-    {% else %}<div class="empty">No jobs match.</div>{% endfor %}
+    {% else %}<div class="empty">No jobs match{% if q %} for "{{ q }}"{% endif %}.{% if not q and not stage_f and not bucket %} <a class="btn primary" style="margin-left:8px" href="{{ url_for('jobs.new') }}">+ New Job</a>{% endif %}</div>{% endfor %}
   </div>
 </div>
 <style>

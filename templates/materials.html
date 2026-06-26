@@ -23,6 +23,6 @@
     <td>{{ m._items|length }} line(s)</td><td><span class="badge">{{ m.status }}</span></td>
     <td class="muted">{{ m.ordered_date or '' }}</td><td class="muted">{{ m.delivery_date or '' }}</td>
   </tr>
-  {% else %}<tr><td colspan="6" class="empty">No material orders yet.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="6" class="empty">No material orders yet. Add one from a job's Materials tab.</td></tr>{% endfor %}
 </table>
 {% endblock %}

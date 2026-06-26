@@ -8,7 +8,7 @@
   <a class="btn primary" href="{{ url_for('roof_reports.new') }}">+ New Report</a>
 </div>
 <form method="get" class="listbar" style="margin-bottom:12px">
-  <input name="q" value="{{ q }}" placeholder="Search address…" style="flex:1">
+  <input name="q" value="{{ q }}" placeholder="Search address…" style="flex:1" autofocus>
   <select name="status" onchange="this.form.submit()" style="min-width:130px">
     <option value="">All statuses</option>
     {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s==status_f }}>{{ s|capitalize }}</option>{% endfor %}
@@ -46,7 +46,7 @@
         onclick="openAssign({{ r.id }}, '{{ r.address|replace("'","\\x27") }}')">Assign →</button>
     </td>
   </tr>
-  {% else %}<tr><td colspan="8" class="empty">No reports yet.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="8" class="empty">No reports{% if q %} matching "{{ q }}"{% endif %}. <a href="{{ url_for('roof_reports.new') }}">+ New Report</a></td></tr>{% endfor %}
 </table>
 
 <!-- Assign modal -->

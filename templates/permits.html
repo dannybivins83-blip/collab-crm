@@ -26,6 +26,6 @@
     <td>{{ p.permit_number or '' }}</td><td><span class="badge">{{ p.status }}</span></td>
     <td class="muted">{{ p.submitted_date or '' }}</td><td class="muted">{{ p.approved_date or '' }}</td>
   </tr>
-  {% else %}<tr><td colspan="8" class="empty">No permits yet.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="8" class="empty">No permits yet. Add one from a job's Permits tab.</td></tr>{% endfor %}
 </table>
 {% endblock %}
