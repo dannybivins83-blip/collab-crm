@@ -260,13 +260,10 @@ def portal_accounts():
     from modules import ahj as ahj_mod
     accounts = db.all_rows("portal_accounts", order="platform, ahj")
     portals = ahj_mod._load_portals()
-    # Build a set of known (platform, ahj) pairs from ahj_portals.json for the "add missing" list
-    registered = {(a.get("platform", ""), k) for k, a in portals.items()
-                  for row in accounts if row.get("platform") == a.get("platform") and row.get("ahj") == k}
-    # All unique platforms and AHJs from portals.json that don't have an account record
+    # Pre-compute once (was an O(n×m) set rebuild inside the list comprehension + unused `registered` var).
+    _have = {(r.get("platform", ""), r.get("ahj", "")) for r in accounts}
     missing = [(k, p) for k, p in portals.items()
-               if p.get("online") and (p.get("platform", ""), k) not in
-               {(r.get("platform", ""), r.get("ahj", "")) for r in accounts}]
+               if p.get("online") and (p.get("platform", ""), k) not in _have]
     return render_template("portal_accounts.html", accounts=accounts, missing=missing[:50])
 
 

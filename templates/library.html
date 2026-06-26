@@ -8,7 +8,7 @@
 
 <div class="toolbar">
   <form method="get" style="display:flex;gap:8px;flex:1">
-    <input name="q" value="{{ q }}" placeholder="Search documents, AHJ, system…" style="max-width:340px">
+    <input name="q" value="{{ q }}" placeholder="Search documents, AHJ, system…" style="max-width:340px" autofocus>
     <select name="cat" onchange="this.form.submit()" style="width:auto">
       <option value="">All categories</option>
       {% for c, n in counts.items() %}<option value="{{ c }}" {{ 'selected' if cat==c }}>{{ c }} ({{ n }})</option>{% endfor %}
