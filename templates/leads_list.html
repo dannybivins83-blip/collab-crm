@@ -29,8 +29,9 @@
 <div class="listwrap">
   <aside class="filters">
     <form method="get"><input name="q" value="{{ q }}" placeholder="Search results…" style="margin-bottom:12px"></form>
-    <div class="filt-head">Milestone Pipeline {% if stage_f %}<a href="{{ url_for('leads.list_view') }}" class="muted">clear</a>{% endif %}</div>
-    <a class="filt {{ 'on' if not stage_f and not show_lost }}" href="{{ url_for('leads.list_view') }}">All <span>{{ total - counts.get('lost',0) }}</span></a>
+    <div class="filt-head">Milestone Pipeline {% if stage_f or overdue_f %}<a href="{{ url_for('leads.list_view') }}" class="muted">clear</a>{% endif %}</div>
+    {% if overdue_f %}<div class="filt on" style="color:var(--danger,#e5484d);border-color:var(--danger,#e5484d)22">⚠ Overdue only <span>{{ rows|length }}</span></div>{% endif %}
+    <a class="filt {{ 'on' if not stage_f and not show_lost and not overdue_f }}" href="{{ url_for('leads.list_view') }}">All <span>{{ total - counts.get('lost',0) }}</span></a>
     {% for s in constants.LEAD_STAGES %}{% if s.key != 'lost' %}
     <a class="filt {{ 'on' if stage_f==s.key }}" href="{{ url_for('leads.list_view') }}?stage={{ s.key }}">
       <span class="fdot" style="background:{{ s.color }}"></span>{{ s.name }} <span>{{ counts[s.key] }}</span>
