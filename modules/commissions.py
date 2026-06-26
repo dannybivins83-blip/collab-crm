@@ -76,23 +76,24 @@ def summary_by_rep():
 def index():
     # Ensure every active job in this department has a (pre)commission.
     dept = theme.current_department()
-    for j in db.all_rows("jobs", "department=?", (dept,)):
+    dept_jobs = db.all_rows("jobs", "department=?", (dept,))
+    for j in dept_jobs:
         if j["stage"] not in ("canceled",):
             for_job(j["id"])
-    rows = db.all_rows("commissions", "department=?", (dept,), "status, id DESC")
+    all_rows = db.all_rows("commissions", "department=?", (dept,), "status, id DESC")
     status_f = request.args.get("status")
     rep_f = request.args.get("rep")
+    rows = all_rows
     if status_f:
         rows = [c for c in rows if c["status"] == status_f]
     if rep_f:
         rows = [c for c in rows if (c.get("rep") or "") == rep_f]
-    jobs = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
+    jobs = {j["id"]: j for j in dept_jobs}
     for c in rows:
         c["_job"] = jobs.get(c["job_id"])
-    all_dept_commissions = db.all_rows("commissions", "department=?", (dept,))
     return render_template("commissions.html", rows=rows, summary=summary_by_rep(),
                            statuses=STATUSES, bases=BASES,
-                           reps=sorted({c.get("rep") for c in all_dept_commissions if c.get("rep")}),
+                           reps=sorted({c.get("rep") for c in all_rows if c.get("rep")}),
                            status_f=status_f, rep_f=rep_f)
 
 

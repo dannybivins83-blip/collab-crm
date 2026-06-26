@@ -36,10 +36,17 @@ def _pretty(name):
 def index():
     q = (request.args.get("q") or "").strip().lower()
     cat = request.args.get("cat") or ""
-    rows = db.all_rows("library_docs", order="original_name")
-    for r in rows:
+    all_docs = db.all_rows("library_docs", order="original_name")
+    for r in all_docs:
         r["_pretty"] = _pretty(r["original_name"])
         r["_ext"] = os.path.splitext(r["original_name"])[1].lstrip(".").upper()
+    # Compute counts + total from the unfiltered set before applying search params.
+    counts = {}
+    for r in all_docs:
+        c = r.get("category") or ""
+        counts[c] = counts.get(c, 0) + 1
+    total = len(all_docs)
+    rows = all_docs
     if q:
         rows = [r for r in rows if q in (r["original_name"] + (r.get("ahj") or "") +
                                          (r.get("system") or "") + (r.get("category") or "")).lower()]
@@ -55,10 +62,9 @@ def index():
     extra = [r for r in rows if r["category"] not in known]
     if extra:
         groups.append(("Other", extra))
-    counts = {c: len(db.all_rows("library_docs", "category=?", (c,))) for c in CATEGORY_ORDER}
     dept = _theme.current_department()
     return render_template("library.html", groups=groups, counts=counts, q=q, cat=cat,
-                           total=len(db.all_rows("library_docs")),
+                           total=total,
                            jobs=db.all_rows("jobs", "department=?", (dept,), "name"))
 
 

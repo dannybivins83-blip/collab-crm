@@ -401,7 +401,7 @@ def link_estimates_to_job():
     admin_ok = _sess.get("user_role") == "admin"
     if not token_ok and not admin_ok:
         abort(403)
-    data = request.getjsonify(silent=True) or {}
+    data = request.get_json(silent=True) or {}
     lead_id = data.get("lead_id")
     job_id = data.get("job_id")
     if not lead_id or not job_id:
