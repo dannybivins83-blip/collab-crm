@@ -26,23 +26,36 @@ def _name_for(et, eid):
 
 @bp.route("/")
 def index():
-    rows = db.all_rows("activities", "kind IN ('call','email','sms','draft')", order="id DESC", limit=200)
-    # Batch-load referenced entities to avoid N+1 db.get() calls (one per activity row).
-    _lead_ids = {a["entity_id"] for a in rows if a.get("entity_type") == "lead"}
-    _job_ids  = {a["entity_id"] for a in rows if a.get("entity_type") == "job"}
-    _con_ids  = {a["entity_id"] for a in rows if a.get("entity_type") == "contact"}
-    _lmap = {}; _jmap = {}; _cmap = {}
-    if _lead_ids:
-        ph = ",".join("?" * len(_lead_ids))
-        for r in db.all_rows("leads", "id IN (%s)" % ph, tuple(_lead_ids)):
-            _lmap[r["id"]] = r.get("name") or "?"
-    if _job_ids:
-        ph = ",".join("?" * len(_job_ids))
-        for r in db.all_rows("jobs", "id IN (%s)" % ph, tuple(_job_ids)):
-            _jmap[r["id"]] = r.get("name") or "?"
+    dept = theme.current_department()
+    dept_leads_list = db.all_rows("leads", "department=?", (dept,), "name")
+    dept_jobs_list = db.all_rows("jobs", "department=?", (dept,), "name")
+    _dept_lead_ids = tuple(l["id"] for l in dept_leads_list)
+    _dept_job_ids = tuple(j["id"] for j in dept_jobs_list)
+    # Fetch dept-scoped comms via IN() to avoid cross-tenant contamination.
+    _parts, _params = [], []
+    if _dept_lead_ids:
+        _parts.append("(entity_type='lead' AND entity_id IN (%s))" % ",".join("?" * len(_dept_lead_ids)))
+        _params.extend(_dept_lead_ids)
+    if _dept_job_ids:
+        _parts.append("(entity_type='job' AND entity_id IN (%s))" % ",".join("?" * len(_dept_job_ids)))
+        _params.extend(_dept_job_ids)
+    _parts.append("entity_type NOT IN ('lead','job')")
+    _conn = db.connect()
+    try:
+        _where = "kind IN ('call','email','sms','draft') AND (%s)" % " OR ".join(_parts)
+        rows = [dict(r) for r in _conn.execute(
+            "SELECT * FROM activities WHERE %s ORDER BY id DESC LIMIT 200" % _where,
+            tuple(_params)).fetchall()]
+    finally:
+        _conn.close()
+    # Batch name lookups — only for IDs actually in this result set.
+    _lmap = {l["id"]: l.get("name") or "?" for l in dept_leads_list}
+    _jmap = {j["id"]: j.get("name") or "?" for j in dept_jobs_list}
+    _cmap = {}
+    _con_ids = tuple({a["entity_id"] for a in rows if a.get("entity_type") == "contact"})
     if _con_ids:
         ph = ",".join("?" * len(_con_ids))
-        for r in db.all_rows("contacts", "id IN (%s)" % ph, tuple(_con_ids)):
+        for r in db.all_rows("contacts", "id IN (%s)" % ph, _con_ids):
             _cmap[r["id"]] = ("%s %s" % (r.get("first_name", ""), r.get("last_name", ""))).strip() or "?"
     for a in rows:
         et, eid = a.get("entity_type"), a.get("entity_id")
@@ -50,10 +63,8 @@ def index():
         elif et == "job":     a["_who"] = _jmap.get(eid, "?")
         elif et == "contact": a["_who"] = _cmap.get(eid, "?")
         else:                 a["_who"] = "?"
-    dept = theme.current_department()
     return render_template("comms.html", logs=rows,
-                           leads=db.all_rows("leads", "department=?", (dept,), "name"),
-                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
+                           leads=dept_leads_list, jobs=dept_jobs_list,
                            contacts=db.all_rows("contacts", order="last_name"))
 
 
