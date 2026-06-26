@@ -60,7 +60,8 @@
           <div class="res-sub">{{ j.work_type }}{% if j.rep %} · {{ j.rep }}{% endif %}{% if j.ahj %} · {{ j.ahj }}{% endif %}</div>
         </div>
         <div class="res-meta">
-          <div class="muted" style="margin-top:34px">In status <b>{{ j._fs.days }}d</b></div>
+          {% if j._fs.get('snoozed') %}<span class="pill" style="background:#6b728022;color:#6b7280;font-size:10px" title="Snoozed until {{ j.snooze_until }}">💤 {{ j.snooze_until }}</span>{% endif %}
+          <div class="muted" style="margin-top:6px">In status <b>{{ j._fs.days }}d</b></div>
           {% if j.contract_value %}<div class="est">{{ j.contract_value }}</div>{% endif %}
           {% set pa = job_profit(j.id) %}
           {% if pa.has_ws %}<div class="muted">Profit {{ money(pa.gross_profit) }} · {{ pa.gross_pct|round(0)|int }}%</div>{% endif %}

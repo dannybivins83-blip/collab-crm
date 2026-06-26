@@ -60,6 +60,7 @@
         </div>
         <div class="res-meta">
           <span class="pill" style="background:{{ col }}22;color:{{ col }}">{{ l._stage.name }}</span>
+          {% if l._fs.get('snoozed') %}<span class="pill" style="background:#6b728022;color:#6b7280;font-size:10px" title="Snoozed until {{ l.snooze_until }}">💤 {{ l.snooze_until }}</span>{% endif %}
           <div class="muted" style="margin-top:6px">In status <b>{{ l._fs.days }}d</b></div>
           {% if l.estimate %}<div class="est">{{ l.estimate }}</div>{% endif %}
         </div>
