@@ -586,12 +586,18 @@ def backfill_ahj():
     """One-time maintenance: for leads whose AHJ is blank or the county fallback, scan the
     address for a known municipality, set the city, and re-resolve the permit office.
     Never overrides a hand-set municipal AHJ. Idempotent - safe to run repeatedly."""
+    from modules.auth import current_user as _cu
+    u = _cu() or {}
+    if u.get("role") != "admin":
+        flash("Admin access required.", "error")
+        return redirect(url_for("leads.list_view"))
     from modules import ahj as ahj_mod, acculynx_sync as S
+    dept = current_department()
     county = (db.get_company().get("default_county", "") or "").strip()
     munis = sorted({m for m in (set(ahj_mod._ahj_keys()) | set(S._AHJ_MAP.values())) if m},
                    key=len, reverse=True)  # longest name first (West Palm Beach before Palm Beach)
     updated = cities = 0
-    for l in db.all_rows("leads"):
+    for l in db.all_rows("leads", "department=?", (dept,)):
         addr = (l.get("address") or "").strip()
         if not addr:
             continue
@@ -629,8 +635,14 @@ def backfill_ahj():
 def strip_lead_marker():
     """One-time backfill: remove the old ' L' suffix from any lead names that have it.
     Idempotent - safe to run multiple times."""
+    from modules.auth import current_user as _cu
+    u = _cu() or {}
+    if u.get("role") != "admin":
+        flash("Admin access required.", "error")
+        return redirect(url_for("leads.list_view"))
+    dept = current_department()
     fixed = 0
-    for l in db.all_rows("leads"):
+    for l in db.all_rows("leads", "department=?", (dept,)):
         name = (l.get("name") or "")
         if name.endswith(" L"):
             db.update("leads", l["id"], name=name[:-2])
