@@ -392,6 +392,25 @@ def note(job_id):
     return redirect(url_for("jobs.detail", job_id=job_id))
 
 
+@bp.route("/<int:job_id>/snooze", methods=["POST"])
+def snooze(job_id):
+    _require_job(job_id)
+    raw = request.form.get("days", "30")
+    days = int(raw) if raw.lstrip("-").isdigit() else 30
+    if days <= 0:
+        db.update("jobs", job_id, snooze_until="")
+        db.add_activity("job", job_id, "note", "Cleared follow-up snooze.")
+        flash("Snooze cleared — job will appear in overdue list again.", "ok")
+    else:
+        import datetime as _dt
+        days = min(days, 365)
+        until = (_dt.date.today() + _dt.timedelta(days=days)).isoformat()
+        db.update("jobs", job_id, snooze_until=until)
+        db.add_activity("job", job_id, "note", "Snoozed follow-up for %d days (until %s)." % (days, until))
+        flash("Snoozed for %d days — won't appear overdue until %s." % (days, until), "ok")
+    return redirect(url_for("jobs.detail", job_id=job_id))
+
+
 @bp.route("/<int:job_id>/delete", methods=["POST"])
 def delete(job_id):
     _require_job(job_id)

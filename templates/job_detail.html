@@ -40,6 +40,28 @@
 <!-- Single consolidated pipeline card: lifecycle bar + Next Step + jump-to-stage -->
 <div class="card" style="margin-bottom:14px">
   {{ lifecycle_bar('job', j.stage) }}
+  {% if j._fs.level != 'ok' %}
+  {% set _fc = 'var(--danger,#e5484d)' if j._fs.level=='hot' else 'var(--warn,#f59e0b)' %}
+  <div style="border-left:4px solid {{ _fc }};padding:8px 14px;margin:8px 0 4px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="color:{{ _fc }};font-weight:600;font-size:13px">⚠ Follow-up {{ j._fs.days }}d overdue{% if j.snooze_until %} · snoozed until {{ j.snooze_until }}{% endif %}</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <form method="post" action="{{ url_for('jobs.snooze', job_id=j.id) }}" style="margin:0">
+        <input type="hidden" name="days" value="7">
+        <button class="btn sm" type="submit" title="Snooze follow-up for 7 days">💤 7d</button>
+      </form>
+      <form method="post" action="{{ url_for('jobs.snooze', job_id=j.id) }}" style="margin:0">
+        <input type="hidden" name="days" value="30">
+        <button class="btn sm" type="submit" title="Snooze follow-up for 30 days">💤 30d</button>
+      </form>
+      {% if j.snooze_until %}
+      <form method="post" action="{{ url_for('jobs.snooze', job_id=j.id) }}" style="margin:0">
+        <input type="hidden" name="days" value="0">
+        <button class="btn sm" type="submit" title="Clear snooze (snoozed until {{ j.snooze_until }})">✕ snooze</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
   {% set ns = constants.next_step('job', j.stage) %}
   <div style="display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap">
     {% if ns %}

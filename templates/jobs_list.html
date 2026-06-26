@@ -70,6 +70,13 @@
               onchange="changeStage(this)" style="border-color:{{ col }};color:{{ col }}">
         {% for s in stages %}<option value="{{ s.key }}" {{ 'selected' if s.key==j.stage }}>{{ s.name }}</option>{% endfor %}
       </select>
+      {% if j._fs.level != 'ok' %}
+      <form method="post" action="{{ url_for('jobs.snooze', job_id=j.id) }}"
+            style="position:absolute;bottom:8px;right:16px;margin:0">
+        <input type="hidden" name="days" value="30">
+        <button class="btn sm" type="submit" title="Snooze 30 days" style="padding:3px 6px;font-size:11px">💤</button>
+      </form>
+      {% endif %}
     </div>
     {% else %}<div class="empty">No jobs match.</div>{% endfor %}
   </div>
