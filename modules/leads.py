@@ -157,9 +157,10 @@ def new():
         # Auto-resolve the permit office (AHJ) from the address + the roof system
         # from the work type, so it's ready to drive the permit when this lead sells.
         from modules import ahj as ahj_mod
-        resolved_ahj = ahj_mod.resolve_ahj(data.get("address", ""), data.get("city", ""), db.get_company().get("default_county", ""))
+        _co = db.get_company()
+        resolved_ahj = ahj_mod.resolve_ahj(data.get("address", ""), data.get("city", ""), _co.get("default_county", ""))
         system = ahj_mod.work_type_to_system(data.get("work_type", ""))
-        db.update("leads", lid, ahj=resolved_ahj, county=db.get_company().get("default_county", ""), system=system)
+        db.update("leads", lid, ahj=resolved_ahj, county=_co.get("default_county", ""), system=system)
         if resolved_ahj:
             db.add_activity("lead", lid, "automation",
                             "AHJ auto-set to %s%s" % (resolved_ahj, (" . system: " + system) if system else ""))
@@ -229,7 +230,7 @@ def new():
             rep_user = next((u for u in db.all_rows("users", "active=1")
                              if u.get("name") == data.get("rep")), None)
             rep_email = (rep_user or {}).get("email") or ""
-            notify_to = (rep_email or db.get_company().get("lead_notify_to") or "").strip()
+            notify_to = (rep_email or _co.get("lead_notify_to") or "").strip()
             if uid and notify_to:
                 link = url_for("leads.detail", lead_id=lid, _external=True)
                 subj = "New Lead: %s%s%s" % (
@@ -256,7 +257,7 @@ def new():
             if (data.get("email") or "").strip():
                 from flask import session as _ps
                 from modules import portal as _portal, gmail as _gm
-                comp = db.get_company()
+                comp = _co
                 uid = _ps.get("user_id")
                 link = _portal.lead_portal_link(lid)
                 cname = (data.get("name") or "there").split("(")[0].strip()
@@ -1342,7 +1343,7 @@ def gmail_acculynx_sync():
             # Notify the tenant's configured lead recipient — never a hardcoded address
             # (white-label: hardcoding leaks one tenant's lead PII to another). Skip if unset.
             try:
-                notify_to = (db.get_company().get("lead_notify_to") or "").strip()
+                notify_to = (comp.get("lead_notify_to") or "").strip()
                 if notify_to:
                     lead_url = url_for("leads.detail", lead_id=lid, _external=True)
                     body = (

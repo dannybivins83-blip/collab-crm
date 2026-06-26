@@ -583,11 +583,19 @@ def one_photo_per_system():
     if cached is not None:
         return cached
     from modules import ahj as ahj_mod
+    import concurrent.futures
+    systems = ("shingle", "tile", "metal", "flat")
     out = {}
-    for s in ("shingle", "tile", "metal", "flat"):
-        ph = sitecam_showcase_photos(s, limit=1, per=1)
-        if ph:
-            out[s] = ph[0]
+    # Fetch all 4 systems in parallel so cold-SiteCam doesn't serialize 4 × 4s timeouts.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as _pool:
+        futures = {_pool.submit(sitecam_showcase_photos, s, 1, 1): s for s in systems}
+        for fut, s in futures.items():
+            try:
+                ph = fut.result(timeout=5)
+                if ph:
+                    out[s] = ph[0]
+            except Exception:
+                pass
     for j in db.all_rows("jobs"):
         s = (j.get("system") or ahj_mod.work_type_to_system(j.get("work_type", "")) or "").lower()
         if s and s not in out:
@@ -1241,7 +1249,25 @@ def learn(token):
     from modules import ahj as ahj_mod
     sysk = (rec.get("system") or ahj_mod.work_type_to_system(rec.get("work_type", "")) or "shingle").lower()
     my_system = next((s for s in ROOF_EDU if s["key"] == sysk), ROOF_EDU[0])
-    gallery = similar_job_photos(sysk, rec["id"] if kind == "job" else -1)
+    import concurrent.futures as _cf
+    excl = rec["id"] if kind == "job" else -1
+    # Fire SiteCam calls + one_photo_per_system in parallel — cold SiteCam can take up to 4s each.
+    with _cf.ThreadPoolExecutor(max_workers=3) as _pool:
+        _gf = _pool.submit(similar_job_photos, sysk, excl)
+        _lf = _pool.submit(latest_system_job_photos, sysk)
+        _pf = _pool.submit(one_photo_per_system)
+        try:
+            gallery = _gf.result(timeout=6)
+        except Exception:
+            gallery = {}
+        try:
+            sitecam_job = _lf.result(timeout=6)
+        except Exception:
+            sitecam_job = None
+        try:
+            system_photos = _pf.result(timeout=6)
+        except Exception:
+            system_photos = {}
     # Annotate features with a matching product data sheet (if one exists in the library).
     pdocs = product_docs_for(sysk)
     feats = []
@@ -1252,8 +1278,8 @@ def learn(token):
     return render_template("learn.html", token=token, company=db.get_company(),
                            systems=ROOF_EDU, glossary=GLOSSARY, quiz=ROOF_QUIZ,
                            process=PROCESS_STEPS, gallery=gallery, my_system=my_system, sysk=sysk,
-                           system_photos=one_photo_per_system(), features=feats,
-                           product_docs=pdocs, sitecam_job=latest_system_job_photos(sysk))
+                           system_photos=system_photos, features=feats,
+                           product_docs=pdocs, sitecam_job=sitecam_job)
 
 
 @bp.route("/<token>/seminar", methods=["GET", "POST"])
