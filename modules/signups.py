@@ -238,9 +238,10 @@ def create(job_id):
     if not job:
         abort(404)
     system = (request.form.get("system") or job.get("system") or "shingle").lower()
-    # Attach the matching company sign-up PDF (reference) from the library, if present.
+    # Load Sign-Up Packages once; reuse for both the reference-doc lookup and PDF prefill.
+    _signup_docs = db.all_rows("library_docs", "category=?", ("Sign-Up Packages",))
     libdoc = None
-    for d in db.all_rows("library_docs", "category=?", ("Sign-Up Packages",)):
+    for d in _signup_docs:
         n = (d.get("original_name") or "").lower()
         if system in n and "sign" in n:
             libdoc = d.get("filename")
@@ -253,7 +254,7 @@ def create(job_id):
     ctx = packet_context(job)
     libdir = os.path.join(config.UPLOAD_DIR, "library")
     prefilled = 0
-    for d in db.all_rows("library_docs", "category=?", ("Sign-Up Packages",)):
+    for d in _signup_docs:
         n = (d.get("original_name") or "").lower()
         if not (system in n and ("sign" in n or "confirmation" in n)):
             continue

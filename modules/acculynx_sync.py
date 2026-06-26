@@ -823,9 +823,13 @@ def dedupe_records():
 
 def _ensure_contact(name, rec):
     parts = [p.strip() for p in (rec.get("address") or "").split(",")]
-    for c in db.all_rows("contacts"):
-        if (str(c.get("first_name", "")) + " " + str(c.get("last_name", ""))).strip().lower() == name.lower():
-            return c["id"]
+    # SQL name match replaces full-table scan (was: for c in db.all_rows("contacts")).
+    matches = db.all_rows(
+        "contacts",
+        "LOWER(first_name || ' ' || last_name) = ?",
+        (name.strip().lower(),), limit=1)
+    if matches:
+        return matches[0]["id"]
     return db.insert("contacts", {
         "kind": "person", "first_name": name.split(" ")[0],
         "last_name": " ".join(name.split(" ")[1:]), "email": rec.get("email", ""),
@@ -848,11 +852,16 @@ def index():
 def log():
     """A list of WHAT was synced from AccuLynx — the trail each sync writes (records,
     billing, estimates, comms, documents), newest first, with the record it landed on."""
-    acts = db.all_rows("activities", where="text LIKE ?", params=("%AccuLynx%",), order="id DESC")
-    leads = {l["id"]: l for l in db.all_rows("leads")}
-    jobs = {j["id"]: j for j in db.all_rows("jobs")}
+    acts = db.all_rows("activities", where="text LIKE ?", params=("%AccuLynx%",), order="id DESC", limit=400)
+    # Batch-load only the entities referenced in these 400 rows (was: ALL leads + ALL jobs).
+    _lead_ids = tuple({a["entity_id"] for a in acts if a.get("entity_type") == "lead" and a.get("entity_id")})
+    _job_ids  = tuple({a["entity_id"] for a in acts if a.get("entity_type") == "job"  and a.get("entity_id")})
+    leads = ({l["id"]: l for l in db.all_rows("leads", "id IN (%s)" % ",".join("?"*len(_lead_ids)), _lead_ids)}
+             if _lead_ids else {})
+    jobs  = ({j["id"]: j for j in db.all_rows("jobs",  "id IN (%s)" % ",".join("?"*len(_job_ids)),  _job_ids)}
+             if _job_ids  else {})
     items = []
-    for a in acts[:400]:
+    for a in acts:
         rec = (jobs if a.get("entity_type") == "job" else leads).get(a.get("entity_id"), {})
         t = (a.get("text") or "")
         tl = t.lower()

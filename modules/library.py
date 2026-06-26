@@ -132,8 +132,10 @@ def for_ahj(ahj):
 
 
 def signups_for_system(system):
-    rows = db.all_rows("library_docs", "category=?", ("Sign-Up Packages",))
     if system:
-        sys_rows = [r for r in rows if system.lower() in (r.get("system") or "").lower()]
-        return sys_rows or rows
-    return rows
+        rows = db.all_rows("library_docs",
+                           "category=? AND LOWER(COALESCE(system,'')) LIKE ?",
+                           ("Sign-Up Packages", "%" + system.lower() + "%"))
+        if rows:
+            return rows
+    return db.all_rows("library_docs", "category=?", ("Sign-Up Packages",))
