@@ -545,6 +545,14 @@ CREATE INDEX IF NOT EXISTS idx_qxo_products_material_id ON qxo_products(material
 -- portal_updates: per-job, composite (job_id, phase) for duplicate check
 CREATE INDEX IF NOT EXISTS idx_portal_updates_job_id    ON portal_updates(job_id);
 CREATE INDEX IF NOT EXISTS idx_portal_updates_job_phase ON portal_updates(job_id, phase);
+
+-- intake dedup / dupe-candidate queries (added 2026-06-26)
+CREATE INDEX IF NOT EXISTS idx_leads_email_ci   ON leads(LOWER(TRIM(COALESCE(email,''))));
+CREATE INDEX IF NOT EXISTS idx_leads_name_ci    ON leads(LOWER(COALESCE(name,'')));
+CREATE INDEX IF NOT EXISTS idx_leads_phone      ON leads(phone);
+CREATE INDEX IF NOT EXISTS idx_contacts_email_ci ON contacts(LOWER(TRIM(COALESCE(email,''))));
+CREATE INDEX IF NOT EXISTS idx_contacts_phone   ON contacts(phone);
+CREATE INDEX IF NOT EXISTS idx_users_name       ON users(name);
 """
     # Run each CREATE INDEX statement in its own connection so a Postgres
     # transaction-abort on one failure does not poison all subsequent statements.
