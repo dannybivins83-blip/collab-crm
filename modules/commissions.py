@@ -86,7 +86,7 @@ def index():
         rows = [c for c in rows if c["status"] == status_f]
     if rep_f:
         rows = [c for c in rows if (c.get("rep") or "") == rep_f]
-    jobs = {j["id"]: j for j in db.all_rows("jobs")}
+    jobs = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
     for c in rows:
         c["_job"] = jobs.get(c["job_id"])
     return render_template("commissions.html", rows=rows, summary=summary_by_rep(),

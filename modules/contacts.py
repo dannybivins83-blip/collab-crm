@@ -36,10 +36,9 @@ def _form_data():
 
 @bp.route("/")
 def index():
+    import re as _re
     q = request.args.get("q", "").strip()
     if q:
-        # LOWER() on both sides for case-insensitive search across SQLite and Postgres
-        # (Postgres LIKE is case-sensitive; SQLite LIKE is case-insensitive for ASCII only).
         like = "%" + q.lower() + "%"
         rows = db.all_rows(
             "contacts",
@@ -47,6 +46,13 @@ def index():
             "LOWER(company) LIKE ? OR LOWER(email) LIKE ? OR phone LIKE ? OR "
             "LOWER(address) LIKE ?",
             (like, like, like, like, like, like), "last_name, company")
+        # also match digit-stripped phone (e.g. "5614567890" finds "(561) 456-7890")
+        qd = _re.sub(r"\D", "", q)
+        if qd and len(qd) >= 7:
+            found_ids = {r["id"] for r in rows}
+            for c in db.all_rows("contacts", order="last_name, company"):
+                if c["id"] not in found_ids and qd in _re.sub(r"\D", "", c.get("phone") or ""):
+                    rows.append(c)
     else:
         rows = db.all_rows("contacts", order="last_name, company")
     return render_template("contacts.html", contacts=rows, q=q)

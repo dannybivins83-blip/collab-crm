@@ -149,10 +149,14 @@ def _draft_receipt(inv, job, email):
 
 @bp.route("/")
 def index():
-    rows = db.all_rows("invoices", order="id DESC")
-    jobs = {j["id"]: j for j in db.all_rows("jobs")}
+    dept = theme.current_department()
+    dept_job_ids = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
+    all_inv = db.all_rows("invoices", order="id DESC")
+    # Scope invoices to the department: keep those tied to a dept job, or unattached.
+    rows = [i for i in all_inv if not i.get("job_id") or i["job_id"] in dept_job_ids]
+    job_map = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
     for inv in rows:
-        inv["_job"] = jobs.get(inv["job_id"])
+        inv["_job"] = job_map.get(inv["job_id"])
         inv["_overdue"] = _is_overdue(inv)
     sweep_overdue_automations(rows)
     total = sum(i["amount"] or 0 for i in rows)

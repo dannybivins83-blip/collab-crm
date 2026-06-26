@@ -62,7 +62,7 @@ def index():
         rows = [o for o in rows if o["type"] == type_f]
     if vendor_f:
         rows = [o for o in rows if (o.get("vendor") or "") == vendor_f]
-    jobs = {j["id"]: j for j in db.all_rows("jobs")}
+    jobs = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
     for o in rows:
         o["_job"] = jobs.get(o["job_id"])
         o["_total"] = order_total(o["id"])

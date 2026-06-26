@@ -70,10 +70,14 @@ def builder_meta(system_lower=None):
 
 @bp.route("/")
 def index():
-    rows = db.all_rows("permits", order="id DESC")
-    jobs = {j["id"]: j for j in db.all_rows("jobs")}
+    import theme as _theme
+    dept = _theme.current_department()
+    dept_job_ids = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
+    all_permits = db.all_rows("permits", order="id DESC")
+    rows = [p for p in all_permits if not p.get("job_id") or p["job_id"] in dept_job_ids]
+    job_map = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
     for p in rows:
-        p["_job"] = jobs.get(p["job_id"])
+        p["_job"] = job_map.get(p["job_id"])
     return render_template("permits.html", permits=rows, status_list=PERMIT_STATUS)
 
 

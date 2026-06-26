@@ -3,6 +3,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 import db
+import theme
 
 bp = Blueprint("calendar", __name__, url_prefix="/calendar")
 KINDS = ["Inspection", "Estimate Appt", "Production / Crew", "Final Inspection", "Meeting", "Other"]
@@ -10,16 +11,17 @@ KINDS = ["Inspection", "Estimate Appt", "Production / Crew", "Final Inspection",
 
 @bp.route("/")
 def index():
+    dept = theme.current_department()
     appts = db.all_rows("appointments", order="start_at")
-    jobs = {j["id"]: j for j in db.all_rows("jobs")}
-    leads = {l["id"]: l for l in db.all_rows("leads")}
+    jobs = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
+    leads = {l["id"]: l for l in db.all_rows("leads", "department=?", (dept,))}
     for a in appts:
         a["_who"] = (jobs.get(a["job_id"], {}) or leads.get(a["lead_id"], {}) or {}).get("name", "")
     upcoming = [a for a in appts if (a.get("start_at") or "") >= db.today()]
     past = [a for a in appts if (a.get("start_at") or "") < db.today()]
     return render_template("calendar.html", upcoming=upcoming, past=past, kinds=KINDS,
-                           leads=db.all_rows("leads", order="name"),
-                           jobs=db.all_rows("jobs", order="name"),
+                           leads=db.all_rows("leads", "department=?", (dept,), "name"),
+                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
                            users=db.all_rows("users", order="name"))
 
 

@@ -44,8 +44,9 @@ def _require_owner():
 
 @bp.route("/")
 def index():
-    leads = db.all_rows("leads")
-    jobs = db.all_rows("jobs")
+    dept = theme.current_department()
+    leads = db.all_rows("leads", "department=?", (dept,))
+    jobs = db.all_rows("jobs", "department=?", (dept,))
     invoices = db.all_rows("invoices")
 
     # Pipeline by lead stage.
