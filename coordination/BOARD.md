@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `2277c01` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 3) — crm-ui: Search/filter bars added to Tasks (text/type/assignee/overdue), Calendar (kind/assignee), Comms (kind/text), Commissions (status/rep), Roof Reports (address/status). Performance: notifications unread_count → COUNT(*) + batch job lookup + single UPDATE mark-all-read; GC detail N+1 profit → batch worksheet JOIN; invoices/materials/permits redundant dept jobs query eliminated; orders _next_po → SELECT MAX(id). Bug: tools CSV export now dept-scoped for leads/jobs. Dead code: dashboard._activity_name() removed. Tip `2277c01`.
+- **Git tip (verified 2026-06-26):** `a498d22` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 4) — crm-ui: Search/filter bars added to Tasks/Calendar/Comms/Commissions/Roof Reports/GC List. Performance: library.py eliminated 15 redundant queries (per-category counts now computed from already-loaded list); commissions.py eliminated 2 duplicate dept loads; notifications N+1 fixed. Security: leads.py backfill_ahj + strip_lead_marker now admin-gated + dept-scoped (was leaking cross-dept writes to any user). Bug fix: dbadmin.py request.getjsonify → request.get_json (AttributeError on link_estimates_to_job). Commits: `cdd8cdf`, `c440190`, `a498d22`. All pushes to main → Render auto-deploy.
 
 ---
 
