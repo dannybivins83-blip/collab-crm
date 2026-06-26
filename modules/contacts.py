@@ -126,9 +126,19 @@ def _dupe_candidates(gc):
         if (_name_key(c) == key and any(key)) \
            or (phone and (c.get("phone") or "").strip() == phone) \
            or (email and (c.get("email") or "").strip().lower() == email):
-            c["_jobs"] = db.all_rows("jobs", "contact_id=?", (c["id"],))
-            c["_leads"] = db.all_rows("leads", "contact_id=?", (c["id"],))
             out.append(c)
+    if out:
+        _ids = tuple(c["id"] for c in out)
+        _ph = ",".join("?" * len(_ids))
+        _jobs_by = {}
+        for j in db.all_rows("jobs", "contact_id IN (%s)" % _ph, _ids):
+            _jobs_by.setdefault(j["contact_id"], []).append(j)
+        _leads_by = {}
+        for l in db.all_rows("leads", "contact_id IN (%s)" % _ph, _ids):
+            _leads_by.setdefault(l["contact_id"], []).append(l)
+        for c in out:
+            c["_jobs"] = _jobs_by.get(c["id"], [])
+            c["_leads"] = _leads_by.get(c["id"], [])
     return out
 
 
