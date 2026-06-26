@@ -52,10 +52,15 @@ def _next_po(otype):
 @bp.route("/")
 def index():
     dept = theme.current_department()
-    rows = db.all_rows("orders", "department=?", (dept,), "id DESC")
+    all_orders = db.all_rows("orders", "department=?", (dept,), "id DESC")
+    # Aggregates from the full unfiltered set (so counts + vendor list are always complete).
+    counts = {s: sum(1 for o in all_orders if o["status"] == s) for s in STATUSES}
+    vendors = sorted({o.get("vendor") for o in all_orders if o.get("vendor")})
+    total = len(all_orders)
     status_f = request.args.get("status")
     type_f = request.args.get("type")
     vendor_f = request.args.get("vendor")
+    rows = all_orders
     if status_f:
         rows = [o for o in rows if o["status"] == status_f]
     if type_f:
@@ -63,15 +68,22 @@ def index():
     if vendor_f:
         rows = [o for o in rows if (o.get("vendor") or "") == vendor_f]
     jobs = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
+    # Batch-load order lines to avoid N+1 (was one query per row via order_total).
+    if rows:
+        _ids = tuple(o["id"] for o in rows)
+        _ph = ",".join("?" * len(_ids))
+        _lines_by_order = {}
+        for _ln in db.all_rows("order_lines", "order_id IN (%s)" % _ph, _ids):
+            _lines_by_order.setdefault(_ln["order_id"], []).append(_ln)
+    else:
+        _lines_by_order = {}
     for o in rows:
         o["_job"] = jobs.get(o["job_id"])
-        o["_total"] = order_total(o["id"])
-    counts = {s: len([o for o in db.all_rows("orders", "department=?", (dept,)) if o["status"] == s])
-              for s in STATUSES}
-    vendors = sorted({o.get("vendor") for o in db.all_rows("orders", "department=?", (dept,)) if o.get("vendor")})
+        _lns = _lines_by_order.get(o["id"], [])
+        o["_total"] = sum((l.get("qty") or 0) * (l.get("cost") or 0) for l in _lns)
     return render_template("orders_index.html", orders=rows, counts=counts, statuses=STATUSES,
                            types=TYPES, vendors=vendors, status_f=status_f, type_f=type_f,
-                           vendor_f=vendor_f, total=len(db.all_rows("orders", "department=?", (dept,))))
+                           vendor_f=vendor_f, total=total)
 
 
 # ---- generate from estimate -----------------------------------------------
