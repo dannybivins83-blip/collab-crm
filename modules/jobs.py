@@ -135,6 +135,35 @@ def list_view():
     if overdue_f:
         rows = [j for j in rows if j["_fs"]["level"] != "ok" and j["stage"] not in constants.JOB_INACTIVE]
     reps = sorted({(j.get("rep") or "").strip() for j in jobs if (j.get("rep") or "").strip()})
+    # Batch-load profit analysis for visible rows to avoid N+1 (one ws + lines query per row).
+    if rows:
+        _ids = [j["id"] for j in rows]
+        _ph = ",".join("?" * len(_ids))
+        _conn = db.connect()
+        try:
+            _ws_agg = _conn.execute(
+                "SELECT w.job_id, w.contract_value, "
+                "COALESCE(SUM(wl.actual_cost),0) AS actual_cost, "
+                "COALESCE(SUM(wl.budget_cost),0) AS budget_cost "
+                "FROM worksheets w "
+                "LEFT JOIN worksheet_lines wl ON wl.worksheet_id=w.id "
+                "WHERE w.job_id IN (%s) GROUP BY w.job_id, w.id ORDER BY w.id DESC" % _ph,
+                tuple(_ids)).fetchall()
+        finally:
+            _conn.close()
+        _ws_by_job = {}
+        for _ws in _ws_agg:
+            if _ws["job_id"] not in _ws_by_job:
+                _ws_by_job[_ws["job_id"]] = dict(_ws)
+        for j in rows:
+            _ws = _ws_by_job.get(j["id"])
+            if _ws:
+                _cv = _ws["contract_value"] or 0
+                _gp = _cv - _ws["actual_cost"]
+                j["_pa"] = {"has_ws": True, "gross_profit": _gp,
+                            "gross_pct": (_gp / _cv * 100.0) if _cv else 0}
+            else:
+                j["_pa"] = {"has_ws": False}
     return render_template("jobs_list.html", rows=rows, counts=counts, stage_f=stage_f,
                            bucket=bucket, q=q, total=len(jobs), sort=sort, rep_f=rep_f, reps=reps,
                            stages=constants.JOB_STAGES, buckets=constants.BUCKETS, overdue_f=overdue_f)

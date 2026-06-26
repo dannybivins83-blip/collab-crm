@@ -64,8 +64,7 @@
           {% if j._fs.get('snoozed') %}<span class="pill" style="background:#6b728022;color:#6b7280;font-size:10px" title="Snoozed until {{ j.snooze_until }}">💤 {{ j.snooze_until }}</span>{% endif %}
           <div class="muted" style="margin-top:6px">In status <b>{{ j._fs.days }}d</b></div>
           {% if j.contract_value %}<div class="est">{{ j.contract_value }}</div>{% endif %}
-          {% set pa = job_profit(j.id) %}
-          {% if pa.has_ws %}<div class="muted">Profit {{ money(pa.gross_profit) }} · {{ pa.gross_pct|round(0)|int }}%</div>{% endif %}
+          {% if j._pa.has_ws %}<div class="muted">Profit {{ money(j._pa.gross_profit) }} · {{ j._pa.gross_pct|round(0)|int }}%</div>{% endif %}
         </div>
       </a>
       <select class="stage-sel" data-job="{{ j.id }}" title="Change milestone"
