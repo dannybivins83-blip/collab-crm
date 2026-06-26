@@ -74,31 +74,65 @@ def summary_by_rep():
 
 @bp.route("/")
 def index():
-    # Ensure every active job in this department has a (pre)commission.
-    dept = theme.current_department()
-    dept_jobs = db.all_rows("jobs", "department=?", (dept,))
+    dept     = theme.current_department()
+    # 2 bulk queries replace the previous 2N-query per-job loop.
+    dept_jobs  = db.all_rows("jobs", "department=?", (dept,))
+    jobs_map   = {j["id"]: j for j in dept_jobs}
+    existing   = db.all_rows("commissions", "department=?", (dept,), "status, id DESC")
+    has_comm   = {c["job_id"] for c in existing}
+
+    # Insert defaults for active jobs that have no commission yet.
+    created_any = False
     for j in dept_jobs:
-        if j["stage"] not in ("canceled",):
-            for_job(j["id"])
-    all_rows = db.all_rows("commissions", "department=?", (dept,), "status, id DESC")
+        if j["stage"] not in ("canceled",) and j["id"] not in has_comm:
+            db.insert("commissions", {
+                "job_id": j["id"], "rep": j.get("rep") or "—",
+                "basis": "profit", "rate_pct": DEFAULT_RATE, "status": "pre",
+                "department": j.get("department"),
+            })
+            created_any = True
+
+    all_commissions = (
+        db.all_rows("commissions", "department=?", (dept,), "status, id DESC")
+        if created_any else existing
+    )
+
+    # Recompute pre-commission amounts in-place (uses jobs_map — no per-job re-fetch).
+    for c in all_commissions:
+        if c["status"] == "pre" and c["job_id"] in jobs_map:
+            amt = _compute(jobs_map[c["job_id"]], c["basis"], c["rate_pct"])
+            if amt != c["amount"]:
+                db.update("commissions", c["id"], amount=amt)
+                c["amount"] = amt
+
+    # Build summary inline — avoids summary_by_rep() re-querying the DB.
+    reps_agg = {}
+    for c in all_commissions:
+        r = reps_agg.setdefault(c.get("rep") or "—",
+                                {"pre": 0.0, "approved": 0.0, "paid": 0.0, "count": 0})
+        r[c["status"]] = r.get(c["status"], 0) + (c["amount"] or 0)
+        r["count"] += 1
+    summary = sorted(reps_agg.items(),
+                     key=lambda kv: -(kv[1]["approved"] + kv[1]["paid"] + kv[1]["pre"]))
+
     status_f = request.args.get("status")
-    rep_f = request.args.get("rep")
-    q = (request.args.get("q") or "").strip().lower()
-    rows = all_rows
+    rep_f    = request.args.get("rep")
+    q        = (request.args.get("q") or "").strip().lower()
+    rows     = list(all_commissions)
     if status_f:
         rows = [c for c in rows if c["status"] == status_f]
     if rep_f:
         rows = [c for c in rows if (c.get("rep") or "") == rep_f]
-    jobs = {j["id"]: j for j in dept_jobs}
     for c in rows:
-        c["_job"] = jobs.get(c["job_id"])
+        c["_job"] = jobs_map.get(c["job_id"])
     if q:
-        rows = [c for c in rows if q in ((c.get("rep") or "") + " " + ((c["_job"] or {}).get("name") or "") +
-                                         " " + ((c["_job"] or {}).get("address") or "") +
-                                         " " + (c.get("notes") or "")).lower()]
-    return render_template("commissions.html", rows=rows, summary=summary_by_rep(),
+        rows = [c for c in rows if q in (
+            (c.get("rep") or "") + " " + ((c["_job"] or {}).get("name") or "") +
+            " " + ((c["_job"] or {}).get("address") or "") +
+            " " + (c.get("notes") or "")).lower()]
+    return render_template("commissions.html", rows=rows, summary=summary,
                            statuses=STATUSES, bases=BASES,
-                           reps=sorted({c.get("rep") for c in all_rows if c.get("rep")}),
+                           reps=sorted({c.get("rep") for c in all_commissions if c.get("rep")}),
                            status_f=status_f, rep_f=rep_f, q=q)
 
 
