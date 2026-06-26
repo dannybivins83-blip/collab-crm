@@ -333,10 +333,16 @@ def remind_overdue():
     from datetime import date as _date, timedelta as _td
     _cutoff = (_date.today() - _td(days=_REMIND_COOLDOWN_DAYS)).isoformat()
     dept = theme.current_department()
-    dept_job_ids = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
-    jobs = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
+    _dept_jobs = db.all_rows("jobs", "department=?", (dept,))
+    dept_job_ids = {j["id"] for j in _dept_jobs}
+    jobs = {j["id"]: j for j in _dept_jobs}
+    if dept_job_ids:
+        _id_ph = ",".join("?" * len(dept_job_ids))
+        _inv_rows = db.all_rows("invoices", "job_id IS NULL OR job_id IN (%s)" % _id_ph, tuple(dept_job_ids))
+    else:
+        _inv_rows = db.all_rows("invoices", "job_id IS NULL")
     drafted = skipped = already_sent = 0
-    for inv in [i for i in db.all_rows("invoices") if not i.get("job_id") or i["job_id"] in dept_job_ids]:
+    for inv in _inv_rows:
         if not _is_overdue(inv):
             continue
         # Skip invoices reminded within the cooldown window to prevent duplicate floods.
