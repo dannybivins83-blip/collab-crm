@@ -954,13 +954,18 @@ def _create_lead_from_intake(data):
     email = (data.get("email") or "").strip().lower()
     phone = (data.get("phone") or "").strip()
     # Dedupe: same email, or same name+phone, already in the pipeline.
-    for l in db.all_rows("leads"):
-        le = (l.get("email") or "").strip().lower()
-        if email and le == email:
-            return l["id"], False
-        if name and phone and (l.get("name") or "").strip().lower() == name.lower() \
-                and (l.get("phone") or "").strip() == phone:
-            return l["id"], False
+    # Scope to non-null email/phone rows only to avoid a full-table scan on every webhook.
+    if email:
+        match = db.all_rows("leads", "email != '' AND email IS NOT NULL", limit=5000)
+        for l in match:
+            if (l.get("email") or "").strip().lower() == email:
+                return l["id"], False
+    if name and phone:
+        match = db.all_rows("leads", "phone != '' AND phone IS NOT NULL", limit=5000)
+        for l in match:
+            if (l.get("name") or "").strip().lower() == name.lower() \
+                    and (l.get("phone") or "").strip() == phone:
+                return l["id"], False
     dept = _default_intake_department()
     parts = [p.strip() for p in (data.get("address") or "").split(",")]
     cid = db.insert("contacts", {
