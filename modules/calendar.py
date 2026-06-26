@@ -16,12 +16,18 @@ def index():
     dept_jobs_list = db.all_rows("jobs", "department=?", (dept,), "name")
     jobs = {j["id"]: j for j in dept_jobs_list}
     leads = {l["id"]: l for l in dept_leads_list}
-    # Scope to this dept — appointments without a lead or job are shown for all depts.
-    all_appts = db.all_rows("appointments", order="start_at")
-    dept_appts = [a for a in all_appts if
-                  (not a.get("job_id") and not a.get("lead_id")) or
-                  a.get("job_id") in jobs or
-                  a.get("lead_id") in leads]
+    # Scope appointments via SQL IN() — avoids full-table scan + cross-tenant bleed.
+    # Unlinked appointments (no job/lead) remain visible to all depts by design.
+    _jids = tuple(jobs.keys())
+    _lids = tuple(leads.keys())
+    _parts, _params = ["(job_id IS NULL AND lead_id IS NULL)"], []
+    if _jids:
+        _parts.append("job_id IN (%s)" % ",".join("?" * len(_jids)))
+        _params.extend(_jids)
+    if _lids:
+        _parts.append("lead_id IN (%s)" % ",".join("?" * len(_lids)))
+        _params.extend(_lids)
+    dept_appts = db.all_rows("appointments", " OR ".join(_parts), tuple(_params), "start_at")
     for a in dept_appts:
         a["_who"] = (jobs.get(a["job_id"], {}) or leads.get(a["lead_id"], {}) or {}).get("name", "")
     # Aggregates for filter dropdowns (unfiltered dept set).
