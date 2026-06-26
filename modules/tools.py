@@ -321,8 +321,9 @@ JOB_EMAIL = {
 }
 
 
-def _draft(rec, kind):
-    company = db.get_company()
+def _draft(rec, kind, company=None):
+    if company is None:
+        company = db.get_company()
     cname = company.get("name", "our team")
     tbl = LEAD_EMAIL if kind == "lead" else JOB_EMAIL
     t = tbl.get(rec["stage"], {"su": "Following up on your roof",
@@ -543,6 +544,7 @@ def mass_email():
     clock = (lambda r: r.get("last_contact") or r.get("created")) if kind == "lead" \
         else (lambda r: r.get("stage_since") or r.get("created"))
     sdef = constants.lead_stage if kind == "lead" else constants.job_stage
+    _company = db.get_company()
     recips = []
     for r in db.all_rows(table, "department=?", (dept,)):
         if "@" not in (r.get("email") or ""):
@@ -552,7 +554,7 @@ def mass_email():
         fs = theme.follow_status(sdef(r["stage"]), clock(r), r.get("snooze_until"))
         if due_only and fs["level"] == "ok":
             continue
-        su, body = _draft(r, kind)
+        su, body = _draft(r, kind, _company)
         recips.append({"r": r, "fs": fs, "stage_name": sdef(r["stage"])["name"], "su": su, "body": body})
     recips.sort(key=lambda x: (0 if x["fs"]["level"] == "hot" else 1, -x["fs"]["days"]))
     return render_template("tools_massemail.html", recips=recips, kind=kind, stage_f=stage_f,
