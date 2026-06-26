@@ -170,7 +170,7 @@ def _prefill_pdf(src_path, ctx):
 
 
 def _seed():
-    if db.all_rows("signup_templates"):
+    if db.all_rows("signup_templates", limit=1):
         return
     for s in SYSTEMS:
         db.insert("signup_templates", {"system": s, "items": json.dumps(_BASE_ITEMS), "updated": db.now()})

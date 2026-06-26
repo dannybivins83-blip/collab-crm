@@ -190,7 +190,11 @@ def db_restore():
 
     # 5. Confirm a fresh read reflects the new file.
     try:
-        confirmed = len(db.all_rows("jobs"))
+        _cv = db.connect()
+        try:
+            confirmed = (_cv.execute("SELECT COUNT(*) FROM jobs").fetchone() or (0,))[0]
+        finally:
+            _cv.close()
     except Exception:
         confirmed = new_jobs
 
