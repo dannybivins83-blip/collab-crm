@@ -76,19 +76,11 @@
       <div>Estimate: {{ e.number }}<br>Status: {{ e.status }}</div>
     </div>
 
-    {% for s in sections %}
+    {% for s in sections if not s._is_option %}
     {% set m = (s.margin_pct or 0)/100 %}
     <div class="section">
       <h3>{{ s.name }}</h3>
       {% if s.scope_text %}<div class="scope">{{ s.scope_text }}</div>{% endif %}
-      {% if 'declined' in (s.scope_text or '')|lower %}
-        {% if e.status == 'signed' and e.signature and s._price and s._price > 0 %}
-        <div class="opt-accept">Accepted: <img src="{{ e.signature }}" style="height:30px;vertical-align:middle">
-          {{ e.signed_name }}{% if e.signed_at %} ({{ e.signed_at[:10] }}){% endif %}</div>
-        {% elif e.status == 'signed' %}
-        <div class="opt-accept" style="color:#999">Declined</div>
-        {% endif %}
-      {% endif %}
       <table class="li">
         <thead><tr><th>Description</th><th class="num col-qty">Qty</th><th class="col-qty">Unit</th><th class="num col-price">Price</th></tr></thead>
         <tbody>
@@ -104,6 +96,38 @@
     {% endfor %}
 
     <div class="total"><span>ESTIMATE TOTAL</span><span>{{ money(totals.total) }}</span></div>
+
+    {% if sections | selectattr('_is_option', 'equalto', true) | list %}
+    <div style="margin-top:24px;border-top:2px dashed #bbc8db;padding-top:14px">
+      <div style="font-size:13px;font-weight:700;color:#5b6b86;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">
+        ☐ Upgrade Options — Not Included in Estimate Total
+      </div>
+      {% for s in sections if s._is_option %}
+      {% set m = (s.margin_pct or 0)/100 %}
+      <div class="section" style="border:1px dashed #bbc8db;border-radius:6px;padding:10px 12px;background:#f9fafb">
+        <h3 style="background:#eef1f5;border-left:3px solid #7cb342">{{ s.name }}</h3>
+        {% if s.scope_text %}<div class="scope">{{ s.scope_text }}</div>{% endif %}
+        {% if e.status == 'signed' and e.signature and s._price and s._price > 0 %}
+        <div class="opt-accept">✓ Accepted: <img src="{{ e.signature }}" style="height:30px;vertical-align:middle">
+          {{ e.signed_name }}{% if e.signed_at %} ({{ e.signed_at[:10] }}){% endif %}</div>
+        {% elif e.status == 'signed' %}
+        <div class="opt-accept" style="color:#999">— Declined</div>
+        {% endif %}
+        <table class="li">
+          <thead><tr><th>Description</th><th class="num col-qty">Qty</th><th class="col-qty">Unit</th><th class="num col-price">Price</th></tr></thead>
+          <tbody>
+          {% for l in s._lines %}
+            {% set lc = (l.qty or 0) * (l.cost or 0) %}
+            <tr><td>{{ l.description }}</td><td class="num col-qty">{{ l.qty }}</td><td class="col-qty">{{ l.unit }}</td>
+              <td class="num col-price">{{ money(l.price if l.price else (lc/(1-m) if (1-m) else lc)) }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        <div class="sectot" style="border-top-color:#bbc8db"><span>{{ s.name }}</span><span class="price">+ {{ money(s._price) }}</span></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="terms">
       <b>Payment schedule</b>
