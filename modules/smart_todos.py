@@ -212,9 +212,16 @@ _TODO_CAP   = 50   # max total todos returned to the widget
 
 
 def generate(uid):
+    import constants as _c
     dept = current_department()
-    leads = db.all_rows("leads", "department=?", (dept,))
-    jobs  = db.all_rows("jobs",  "department=?", (dept,))
+    # Pre-filter inactive stages in SQL — _followup_todos skips them anyway,
+    # so loading won/lost/closed/canceled rows is pure waste.
+    _li_ph = ",".join("?" * len(_c.LEAD_INACTIVE))
+    _ji_ph = ",".join("?" * len(_c.JOB_INACTIVE))
+    leads = db.all_rows("leads", "department=? AND stage NOT IN (%s)" % _li_ph,
+                        (dept,) + tuple(_c.LEAD_INACTIVE))
+    jobs  = db.all_rows("jobs",  "department=? AND stage NOT IN (%s)" % _ji_ph,
+                        (dept,) + tuple(_c.JOB_INACTIVE))
     records = {}
     for l in leads:
         records[("lead", l["id"])] = l

@@ -58,12 +58,19 @@ def _signed_estimate(job_id):
     rows = db.all_rows("estimates", "job_id=?", (job_id,), "id DESC")
     if not rows:
         return None
+    # Batch-load line counts in one query (was 1 query per estimate via _est_line_count).
+    est_ids = tuple(e["id"] for e in rows)
+    _line_rows = db.all_rows("estimate_lines",
+                             "estimate_id IN (%s)" % ",".join("?" * len(est_ids)),
+                             est_ids)
+    _counts = {}
+    for ln in _line_rows:
+        _counts[ln["estimate_id"]] = _counts.get(ln["estimate_id"], 0) + 1
     signed = [e for e in rows if e.get("status") == "signed"]
     if signed:
-        # among signed, still prefer the one that actually has lines
-        signed.sort(key=lambda e: _est_line_count(e["id"]), reverse=True)
+        signed.sort(key=lambda e: _counts.get(e["id"], 0), reverse=True)
         return signed[0]
-    rows_by_lines = sorted(rows, key=lambda e: _est_line_count(e["id"]), reverse=True)
+    rows_by_lines = sorted(rows, key=lambda e: _counts.get(e["id"], 0), reverse=True)
     return rows_by_lines[0]
 
 
