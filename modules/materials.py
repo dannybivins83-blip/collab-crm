@@ -37,10 +37,11 @@ def _items_to_text(items):
 def index():
     import theme as _theme
     dept = _theme.current_department()
-    dept_job_ids = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
+    _dept_jobs = db.all_rows("jobs", "department=?", (dept,))
+    dept_job_ids = {j["id"] for j in _dept_jobs}
+    job_map = {j["id"]: j for j in _dept_jobs}
     all_mats = db.all_rows("materials", order="id DESC")
     rows = [m for m in all_mats if not m.get("job_id") or m["job_id"] in dept_job_ids]
-    job_map = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
     for m in rows:
         m["_job"] = job_map.get(m["job_id"])
         m["_items"] = db.load_json(m.get("items"), [])

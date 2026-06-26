@@ -72,10 +72,11 @@ def builder_meta(system_lower=None):
 def index():
     import theme as _theme
     dept = _theme.current_department()
-    dept_job_ids = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
+    _dept_jobs = db.all_rows("jobs", "department=?", (dept,))
+    dept_job_ids = {j["id"] for j in _dept_jobs}
+    job_map = {j["id"]: j for j in _dept_jobs}
     all_permits = db.all_rows("permits", order="id DESC")
     rows = [p for p in all_permits if not p.get("job_id") or p["job_id"] in dept_job_ids]
-    job_map = {j["id"]: j for j in db.all_rows("jobs", "department=?", (dept,))}
     for p in rows:
         p["_job"] = job_map.get(p["job_id"])
     q = request.args.get("q", "").strip().lower()
