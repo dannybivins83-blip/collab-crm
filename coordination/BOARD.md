@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `eb2eae1` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET — crm-ui: ✅ 22-agent production audit complete; all crm-ui-owned blockers fixed and live: doc-auth-leak (path-traversal bypass closed), milestone stage collapse, hardcoded SeaBreeze emails removed, login/seed white-label gated, IDOR on permit builds, Postgres parity, upgrade-option total inflation, cross-dept estimate leak, db.insert conn-leak, estimate/invoice/job race condition (begin_immediate), takeoff→estimate measurement push, roof-report checkbox label accuracy. Roof-engine 401 fixed + dev-key backdoor closed (key rotated silently). Portal doc links confirmed correct. Fix ROOF_API_KEYS var-name communicated to roofengine lane. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
+- **Git tip (verified 2026-06-26):** `be747a7` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET — crm-ui: Render issue investigation + 4 new fixes pushed: (1) Smart-todos milestone filter (8e9bc3b) — was flooding widget with 40 AccuLynx "Milestone:" entries; (2) AccuLynx sync no longer overwrites user's `todo` field (3a7e6c7) — was destroying real next-actions on every sync; (3) Dashboard perf: activity feed LIMIT pushed to SQL (was fetching ~10k rows into Python), contacts scoped to feed-referenced IDs only (be747a7); (4) SiteCam iframe cross-browser fix: removed zoom:0.85+width:118% hack → width:100% (be747a7). OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
 
 ---
 
