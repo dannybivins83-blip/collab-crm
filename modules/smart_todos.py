@@ -205,27 +205,50 @@ def _followup_todos(leads, jobs, replied_records):
 # Assemble
 # ---------------------------------------------------------------------------
 
+_FOLLOW_CAP = 10   # max overdue-follow-up todos shown (prevents 895-row flooding)
+_TODO_CAP   = 50   # max total todos returned to the widget
+
+
 def generate(uid):
     dept = current_department()
     leads = db.all_rows("leads", "department=?", (dept,))
-    jobs = db.all_rows("jobs", "department=?", (dept,))
+    jobs  = db.all_rows("jobs",  "department=?", (dept,))
     records = {}
     for l in leads:
         records[("lead", l["id"])] = l
     for j in jobs:
         records[("job", j["id"])] = j
 
-    # Activities for just these entities, grouped.
+    # Load only activities for entities in this department — avoids a full-table
+    # scan of the activities table (which grows to 10k+ rows with AccuLynx imports).
     acts_by_entity = {}
-    valid = set(records.keys())
-    for a in db.all_rows("activities", order="id ASC"):
-        key = (a.get("entity_type"), a.get("entity_id"))
-        if key in valid and a.get("kind") in ("note", "call", "email", "sms", "task", "stage", "automation"):
+    if records:
+        lead_ids = [k[1] for k in records if k[0] == "lead"]
+        job_ids  = [k[1] for k in records if k[0] == "job"]
+        wanted_kinds = ["note", "call", "email", "sms", "task", "stage", "automation"]
+        kinds_ph = ",".join("?" * len(wanted_kinds))
+        acts = []
+        if lead_ids:
+            id_ph = ",".join("?" * len(lead_ids))
+            acts += db.all_rows("activities",
+                "entity_type='lead' AND entity_id IN (%s) AND kind IN (%s)" % (id_ph, kinds_ph),
+                tuple(lead_ids) + tuple(wanted_kinds), "id ASC")
+        if job_ids:
+            id_ph = ",".join("?" * len(job_ids))
+            acts += db.all_rows("activities",
+                "entity_type='job' AND entity_id IN (%s) AND kind IN (%s)" % (id_ph, kinds_ph),
+                tuple(job_ids) + tuple(wanted_kinds), "id ASC")
+        for a in acts:
+            key = (a.get("entity_type"), a.get("entity_id"))
             acts_by_entity.setdefault(key, []).append(a)
 
     email_todos, replied = _email_todos(uid)
-    intent_todos = _intent_todos(records, acts_by_entity)
-    follow_todos = _followup_todos(leads, jobs, replied)
+    intent_todos  = _intent_todos(records, acts_by_entity)
+    follow_todos  = _followup_todos(leads, jobs, replied)
+
+    # Sort follow-ups by urgency and cap — 895 overdue entries would flood the widget.
+    follow_todos.sort(key=lambda t: -t.get("_days", 0))
+    follow_todos = follow_todos[:_FOLLOW_CAP]
 
     # Merge + dedupe by id.
     seen, todos = set(), []
@@ -236,6 +259,7 @@ def generate(uid):
         todos.append(t)
 
     todos.sort(key=lambda t: (_PRIORITY_RANK.get(t["priority"], 9), -t.get("_days", 0)))
+    todos = todos[:_TODO_CAP]
     for t in todos:
         t.pop("_days", None)
     return todos
