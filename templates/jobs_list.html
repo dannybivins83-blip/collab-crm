@@ -28,7 +28,8 @@
     <form method="get" class="listbar">
       {% if stage_f %}<input type="hidden" name="stage" value="{{ stage_f }}">{% endif %}
       {% if bucket %}<input type="hidden" name="bucket" value="{{ bucket }}">{% endif %}
-      <input name="q" value="{{ q }}" placeholder="Search name, job #, address, phone…" class="lb-q">
+      {% if overdue_f %}<input type="hidden" name="overdue" value="1">{% endif %}
+      <input name="q" value="{{ q }}" placeholder="Name, job #, address, phone, email…" class="lb-q">
       <select name="sort" onchange="this.form.submit()" title="Sort">
         <option value="date"   {{ 'selected' if sort=='date' or not sort }}>Newest first</option>
         <option value="days"   {{ 'selected' if sort=='days' }}>Most overdue</option>

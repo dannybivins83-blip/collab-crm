@@ -28,7 +28,12 @@
 
 <div class="listwrap">
   <aside class="filters">
-    <form method="get"><input name="q" value="{{ q }}" placeholder="Search results…" style="margin-bottom:12px"></form>
+    <form method="get">
+      {% if stage_f %}<input type="hidden" name="stage" value="{{ stage_f }}">{% endif %}
+      {% if overdue_f %}<input type="hidden" name="overdue" value="1">{% endif %}
+      {% if show_lost %}<input type="hidden" name="show_lost" value="1">{% endif %}
+      <input name="q" value="{{ q }}" placeholder="Name, phone, email, address…" style="margin-bottom:12px">
+    </form>
     <div class="filt-head">Milestone Pipeline {% if stage_f or overdue_f %}<a href="{{ url_for('leads.list_view') }}" class="muted">clear</a>{% endif %}</div>
     {% if overdue_f %}<div class="filt on" style="color:var(--danger,#e5484d);border-color:var(--danger,#e5484d)22">⚠ Overdue only <span>{{ rows|length }}</span></div>{% endif %}
     <a class="filt {{ 'on' if not stage_f and not show_lost and not overdue_f }}" href="{{ url_for('leads.list_view') }}">All <span>{{ total - counts.get('lost',0) }}</span></a>
