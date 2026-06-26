@@ -78,7 +78,14 @@ def recent(user, limit=12):
 
 def unread_count(user):
     where, params = _visible_where(user)
-    return len(db.all_rows("notifications", where + " AND read = 0", params))
+    conn = db.connect()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM notifications WHERE (%s) AND read=0" % where, params
+        ).fetchone()
+        return row[0] if row else 0
+    finally:
+        conn.close()
 
 
 # --- routes ----------------------------------------------------------------
@@ -91,8 +98,15 @@ def index():
     rows = db.all_rows("notifications", where, params, "id DESC")[:200]
     for r in rows:
         r["ago"] = _ago(r.get("created"))
-        j = db.get("jobs", r.get("job_id")) if r.get("job_id") else None
-        r["job_name"] = (j or {}).get("name") or "—"
+    # Batch job name lookup — avoids one db.get() per notification row.
+    _jids = tuple({r["job_id"] for r in rows if r.get("job_id")})
+    _jmap = {}
+    if _jids:
+        _ph = ",".join("?" * len(_jids))
+        for j in db.all_rows("jobs", "id IN (%s)" % _ph, _jids):
+            _jmap[j["id"]] = j.get("name") or "—"
+    for r in rows:
+        r["job_name"] = _jmap.get(r.get("job_id"), "—")
     return render_template("notifications.html", notes=rows)
 
 
@@ -112,9 +126,7 @@ def go(note_id):
 def read_all():
     from modules.auth import current_user
     where, params = _visible_where(current_user())
-    rows = db.all_rows("notifications", where + " AND read = 0", params)
-    for r in rows:
-        db.update("notifications", r["id"], read=1)
+    db.execute("UPDATE notifications SET read=1 WHERE (%s) AND read=0" % where, params)
     nxt = request.form.get("next") or request.referrer
     return redirect(nxt if (nxt and nxt.startswith("/")) else url_for("dashboard.home"))
 
