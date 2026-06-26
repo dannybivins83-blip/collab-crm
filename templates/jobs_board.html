@@ -49,8 +49,9 @@
         <div class="prog"><i style="width:{{ j._pct }}%"></i></div>
         <div class="foot">
           {% set col = 'var(--danger)' if j._fs.level=='hot' else ('var(--warn)' if j._fs.level=='stalled' else 'var(--ok)') %}
-          <span class="spill" style="background:{{ col }}22;color:{{ col }}">{{ j._fs.days }}d</span>
-          <span class="muted">{{ j._done }}/{{ j._total }} done{% if j.contract_value %} · 💵 {{ (j._paid_pct*100)|round|int }}%{% endif %}</span>
+          {% if j._fs.get('snoozed') %}<span class="spill" style="background:#6b728022;color:#6b7280" title="Snoozed until {{ j.snooze_until }}">💤</span>
+          {% else %}<span class="spill" style="background:{{ col }}22;color:{{ col }}">{{ j._fs.days }}d</span>{% endif %}
+          <span class="muted">{{ j._done }}/{{ j._total }} done{% if j.contract_value %} · 💵 {{ (j._paid_pct*100)|round|int }}%{% endif %}{% if j.rep %} · {{ j.rep }}{% endif %}</span>
         </div>
       </div>
       {% endfor %}
