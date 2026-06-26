@@ -1537,16 +1537,16 @@ def _job_by_guid(guid):
     guid = (guid or "").strip().lower()
     if not guid:
         return None
-    return next((j for j in db.all_rows("jobs")
-                 if guid in (j.get("external_url") or "").lower()), None)
+    rows = db.all_rows("jobs", "LOWER(COALESCE(external_url,'')) LIKE ?", ("%" + guid + "%",))
+    return rows[0] if rows else None
 
 
 def _lead_by_guid(guid):
     guid = (guid or "").strip().lower()
     if not guid:
         return None
-    return next((l for l in db.all_rows("leads")
-                 if guid in (l.get("external_url") or "").lower()), None)
+    rows = db.all_rows("leads", "LOWER(COALESCE(external_url,'')) LIKE ?", ("%" + guid + "%",))
+    return rows[0] if rows else None
 
 
 def _record_by_guid(guid):
@@ -2746,7 +2746,7 @@ def _finalize_photo(guid, name, caption, src_path):
     if size > 64 * 1024 * 1024:
         _drop()
         return _cors({"ok": False, "reason": "too_large", "size": size, "name": name})
-    job = next((j for j in db.all_rows("jobs") if guid in (j.get("external_url") or "").lower()), None)
+    job = _job_by_guid(guid)
     if not job:
         _drop()
         return _cors({"ok": False, "reason": "no_job", "guid": guid})
@@ -2942,19 +2942,19 @@ def insurance_import():
         payload = request.get_json(force=True, silent=True) or {}
         jobs_in = payload.get("jobs") or []
         updated = skipped = 0
+        # Pre-build guid→job map once so each item lookup is O(1) not O(n).
+        _guid_job = {}
+        for _j in db.all_rows("jobs"):
+            _m = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                           (_j.get("external_url") or ""), re.I)
+            if _m:
+                _guid_job[_m.group(0).lower()] = _j
         for item in jobs_in:
             guid = (item.get("acculynx_guid") or "").strip()
             if not guid:
                 skipped += 1
                 continue
-            # Match job by AccuLynx GUID embedded in external_url
-            matched = None
-            for j in db.all_rows("jobs"):
-                m = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-                              (j.get("external_url") or ""), re.I)
-                if m and m.group(0).lower() == guid.lower():
-                    matched = j
-                    break
+            matched = _guid_job.get(guid.lower())
             if not matched:
                 skipped += 1
                 continue
@@ -3012,20 +3012,20 @@ def orders_import():
         payload = request.get_json(force=True, silent=True) or {}
         jobs_in = payload.get("jobs") or []
         inserted = updated = skipped = 0
+        # Pre-build guid→job map once so each item lookup is O(1) not O(n).
+        _guid_job2 = {}
+        for _j in db.all_rows("jobs"):
+            _m = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                           (_j.get("external_url") or ""), re.I)
+            if _m:
+                _guid_job2[_m.group(0).lower()] = _j
         for item in jobs_in:
             guid = (item.get("acculynx_guid") or "").strip()
             orders_list = item.get("orders") or []
             if not guid or not orders_list:
                 skipped += 1
                 continue
-            # Find CRM job by GUID
-            job = None
-            for j in db.all_rows("jobs"):
-                m = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-                              (j.get("external_url") or ""), re.I)
-                if m and m.group(0).lower() == guid.lower():
-                    job = j
-                    break
+            job = _guid_job2.get(guid.lower())
             if not job:
                 skipped += 1
                 continue

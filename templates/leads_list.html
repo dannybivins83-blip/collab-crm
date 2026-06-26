@@ -64,10 +64,18 @@
           {% if l.estimate %}<div class="est">{{ l.estimate }}</div>{% endif %}
         </div>
       </a>
-      <form method="post" action="{{ url_for('leads.delete', lead_id=l.id) }}" style="position:absolute;top:50%;right:6px;transform:translateY(-50%);margin:0"
-            onsubmit="return confirm('Delete {{ l.name|replace("'","\'") }}?\nThis removes the lead and all its estimates, documents, and activity. Cannot be undone.')">
-        <button type="submit" class="del-lead-btn" title="Delete lead">🗑️</button>
-      </form>
+      <div style="position:absolute;top:50%;right:6px;transform:translateY(-50%);display:flex;flex-direction:column;gap:3px;align-items:center">
+        {% if l._fs.level != 'ok' %}
+        <form method="post" action="{{ url_for('leads.snooze', lead_id=l.id) }}" style="margin:0">
+          <input type="hidden" name="days" value="30">
+          <button class="btn sm" type="submit" title="Snooze 30 days" style="padding:3px 6px;font-size:11px">💤</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('leads.delete', lead_id=l.id) }}" style="margin:0"
+              onsubmit="return confirm('Delete {{ l.name|replace("'","\'") }}?\nThis removes the lead and all its estimates, documents, and activity. Cannot be undone.')">
+          <button type="submit" class="del-lead-btn" title="Delete lead">🗑️</button>
+        </form>
+      </div>
     </div>
     {% else %}<div class="empty">No leads match.</div>{% endfor %}
   </div>
