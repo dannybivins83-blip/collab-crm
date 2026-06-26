@@ -246,12 +246,14 @@ def _prefill_from_gc():
 def detail(job_id):
     j = _require_job(job_id)
     _decorate(j)
+    # Load estimates once; reuse for auto-materialize check and the render call below.
+    _job_estimates = db.all_rows("estimates", "job_id=?", (job_id,))
     # Auto-materialize the worksheet from the estimate so Profit Analysis fills in without
     # opening the worksheet + clicking Seed. Only when an estimate with line items exists
     # (get_or_create seeds new/placeholder worksheets, never clobbers a built-out one).
     try:
         from modules import worksheet as _ws
-        if db.all_rows("estimates", "job_id=?", (job_id,)):
+        if _job_estimates:
             _ws.get_or_create(job_id)
     except Exception:
         pass
@@ -274,7 +276,7 @@ def detail(job_id):
                            quick_templates=quick_templates,
                            meas_fields=meas.FIELDS,
                            activity=db.entity_activity("job", job_id),
-                           estimates=db.all_rows("estimates", "job_id=?", (job_id,)),
+                           estimates=_job_estimates,
                            documents=db.all_rows("documents", "job_id=?", (job_id,)),
                            photos=db.all_rows("photos", "job_id=?", (job_id,)),
                            permits=db.all_rows("permits", "job_id=?", (job_id,)),
