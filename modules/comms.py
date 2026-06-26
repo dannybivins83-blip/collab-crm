@@ -25,7 +25,7 @@ def _name_for(et, eid):
 
 @bp.route("/")
 def index():
-    rows = db.all_rows("activities", "kind IN ('call','email','sms','draft')", order="id DESC")
+    rows = db.all_rows("activities", "kind IN ('call','email','sms','draft')", order="id DESC", limit=200)
     for a in rows:
         a["_who"] = _name_for(a["entity_type"], a["entity_id"])
     return render_template("comms.html", logs=rows,

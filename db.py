@@ -414,6 +414,7 @@ def init_db():
     _migrate_columns()  # idempotent; run unconditionally so renamed/added columns land
     _migrate_stages()
     _migrate_null_defaults()  # backfill NULLs on columns accessed with direct bracket notation
+    _migrate_acculynx_todo_cleanup()  # clear sync-artifact "Milestone:…" values from todo field
     _ensure_indexes()   # idempotent: CREATE INDEX IF NOT EXISTS for all WHERE-clause cols
     # Default departments for any existing company row that lacks them.
     co = get_company()
@@ -819,6 +820,28 @@ def _migrate_null_defaults():
                     conn.execute(
                         "UPDATE estimate_lines SET section_id=? WHERE estimate_id=? AND section_id IS NULL",
                         (sid, eid))
+            except Exception:
+                pass
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _migrate_acculynx_todo_cleanup():
+    """Clear AccuLynx-sync-artifact values from the `todo` (Next Action) field.
+
+    Earlier versions of acculynx_sync.py wrote "Milestone: Prospect (as of YYYY-MM-DD)"
+    into the user-editable `todo` field on every sync, destroying any real next-action
+    Danny had entered. The sync bug is now fixed, but existing rows still carry the stale
+    metadata. Wipe them so the lead detail form shows a clean Next Action field again.
+    Safe: idempotent (no rows match after first run); never touches rows with real text.
+    """
+    conn = connect()
+    try:
+        for tbl in ("leads", "jobs"):
+            try:
+                conn.execute(
+                    "UPDATE %s SET todo='' WHERE todo LIKE 'Milestone:%%'" % tbl)
             except Exception:
                 pass
         conn.commit()
