@@ -30,7 +30,7 @@
   </form>{% endif %}
   <a class="btn primary" href="{{ url_for('invoices.new') }}">+ New Invoice</a></div>
 <form method="get" class="listbar" style="margin-bottom:12px">
-  <input name="q" value="{{ q }}" placeholder="Search invoice number, job name, notes…" style="flex:1">
+  <input name="q" value="{{ q }}" placeholder="Search invoice number, job name, notes…" style="flex:1" autofocus>
   <select name="status" onchange="this.form.submit()" style="min-width:120px">
     <option value="">All statuses</option>
     <option value="unpaid" {{ 'selected' if status_f=='unpaid' }}>Unpaid</option>

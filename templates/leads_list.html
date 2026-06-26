@@ -32,7 +32,7 @@
       {% if stage_f %}<input type="hidden" name="stage" value="{{ stage_f }}">{% endif %}
       {% if overdue_f %}<input type="hidden" name="overdue" value="1">{% endif %}
       {% if show_lost %}<input type="hidden" name="show_lost" value="1">{% endif %}
-      <input name="q" value="{{ q }}" placeholder="Name, phone, email, address…" style="margin-bottom:8px">
+      <input name="q" value="{{ q }}" placeholder="Name, phone, email, address…" style="margin-bottom:8px" autofocus>
       {% if reps %}<select name="rep" onchange="this.form.submit()" style="width:100%;margin-bottom:12px;padding:6px 8px;border:1px solid #c7d0de;border-radius:8px;font-size:13px;background:#fff">
         <option value="">All reps</option>
         {% for r in reps %}<option value="{{ r }}" {{ 'selected' if rep_f==r }}>{{ r }}</option>{% endfor %}

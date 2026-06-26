@@ -7,7 +7,7 @@
   <a class="btn primary" href="{{ url_for('materials.new') }}">+ New Order</a>
 </div>
 <form method="get" class="listbar" style="margin-bottom:12px">
-  <input name="q" value="{{ q }}" placeholder="Search job, supplier, notes…" style="flex:1">
+  <input name="q" value="{{ q }}" placeholder="Search job, supplier, notes…" style="flex:1" autofocus>
   <select name="status" onchange="this.form.submit()" style="min-width:120px">
     <option value="">All statuses</option>
     {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s==status_f }}>{{ s|capitalize }}</option>{% endfor %}

@@ -3,7 +3,7 @@
 {% block body %}
 <div class="page-head"><h1>💬 Communication Log</h1><span class="sub">{{ logs|length }} shown · calls / emails / texts · draft emails for review (never auto-sent)</span></div>
 <form method="get" class="listbar" style="margin-bottom:12px">
-  <input name="q" value="{{ q }}" placeholder="Search name or message content…" style="flex:1">
+  <input name="q" value="{{ q }}" placeholder="Search name or message content…" style="flex:1" autofocus>
   <select name="kind" onchange="this.form.submit()" style="min-width:110px">
     <option value="">All types</option>
     <option value="call" {{ 'selected' if kind_f=='call' }}>Calls</option>
