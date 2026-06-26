@@ -3,6 +3,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 import db
+import theme
 
 bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 
@@ -23,14 +24,15 @@ def _label(t):
 
 @bp.route("/")
 def index():
+    dept = theme.current_department()
     tasks = db.open_tasks()
     today = db.today()
     for t in tasks:
         t["_link"] = _label(t)
         t["_overdue"] = bool(t.get("due")) and t["due"] <= today
     return render_template("tasks.html", tasks=tasks,
-                           leads=db.all_rows("leads", order="name"),
-                           jobs=db.all_rows("jobs", order="name"),
+                           leads=db.all_rows("leads", "department=?", (dept,), "name"),
+                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
                            users=db.all_rows("users", order="name"))
 
 

@@ -6,6 +6,7 @@ Drafts are saved to the activity log only. Nothing is ever auto-sent.
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 import db
+import theme
 
 bp = Blueprint("comms", __name__, url_prefix="/comms")
 
@@ -49,9 +50,10 @@ def index():
         elif et == "job":     a["_who"] = _jmap.get(eid, "?")
         elif et == "contact": a["_who"] = _cmap.get(eid, "?")
         else:                 a["_who"] = "?"
+    dept = theme.current_department()
     return render_template("comms.html", logs=rows,
-                           leads=db.all_rows("leads", order="name"),
-                           jobs=db.all_rows("jobs", order="name"),
+                           leads=db.all_rows("leads", "department=?", (dept,), "name"),
+                           jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
                            contacts=db.all_rows("contacts", order="last_name"))
 
 
