@@ -52,7 +52,8 @@ def sweep_overdue_automations(rows):
     for inv in rows:
         if inv.get("overdue_fired_at") or not _is_overdue(inv):
             continue
-        job = db.get("jobs", inv["job_id"]) if inv.get("job_id") else None
+        # Use pre-loaded _job if callers already attached it; avoids N+1 DB lookup.
+        job = inv.get("_job") or (db.get("jobs", inv["job_id"]) if inv.get("job_id") else None)
         try:
             automations.fire_invoice_overdue(inv, job)
         except Exception:
