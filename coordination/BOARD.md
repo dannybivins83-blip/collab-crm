@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-20):** `107a044` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-20 ~ET — crm-ui: ✅ Stage-sync done (~350 leads refreshed; buckets now match AccuLynx). 🔄 Estimates: `estimate-collect` endpoint deployed (7ff6b8a) — tests Bearer auth against Estimatev3; if rejected → fall back to bmestlines bookmarklet (Run-now button added 107a044). Deploy pending Render.
+- **Git tip (verified 2026-06-26):** `eb2eae1` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET — crm-ui: ✅ 22-agent production audit complete; all crm-ui-owned blockers fixed and live: doc-auth-leak (path-traversal bypass closed), milestone stage collapse, hardcoded SeaBreeze emails removed, login/seed white-label gated, IDOR on permit builds, Postgres parity, upgrade-option total inflation, cross-dept estimate leak, db.insert conn-leak, estimate/invoice/job race condition (begin_immediate), takeoff→estimate measurement push, roof-report checkbox label accuracy. Roof-engine 401 fixed + dev-key backdoor closed (key rotated silently). Portal doc links confirmed correct. Fix ROOF_API_KEYS var-name communicated to roofengine lane. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
 
 ---
 
