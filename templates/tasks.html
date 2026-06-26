@@ -3,7 +3,7 @@
 {% block body %}
 <div class="page-head"><h1>✅ Tasks & Follow-ups</h1><span class="sub">{{ tasks|length }} open</span></div>
 <form method="get" class="listbar" style="margin-bottom:12px">
-  <input name="q" value="{{ q }}" placeholder="Search task text or linked name…" style="flex:1">
+  <input name="q" value="{{ q }}" placeholder="Search task text or linked name…" style="flex:1" autofocus>
   <select name="type" onchange="this.form.submit()" style="min-width:110px">
     <option value="">All types</option>
     <option value="lead" {{ 'selected' if type_f=='lead' }}>Lead</option>
@@ -33,7 +33,7 @@
         <td>{{ t.assignee or '' }}</td>
         <td class="right"><form method="post" action="{{ url_for('tasks.done', task_id=t.id) }}"><button class="btn sm accent" type="submit">Done</button></form></td>
       </tr>
-      {% else %}<tr><td colspan="5" class="empty">No open tasks 🎉</td></tr>{% endfor %}
+      {% else %}<tr><td colspan="5" class="empty">{% if q %}No tasks matching "{{ q }}"{% elif type_f or assignee_f or overdue_f %}No tasks for current filters{% else %}No open tasks 🎉{% endif %}</td></tr>{% endfor %}
     </table>
   </div>
   <div class="card">

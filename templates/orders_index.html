@@ -10,7 +10,7 @@
 </div>
 
 <form method="get" class="listbar" style="margin-bottom:12px">
-  <input name="q" value="{{ q }}" placeholder="Search PO#, job, vendor, notes…" style="flex:1">
+  <input name="q" value="{{ q }}" placeholder="Search PO#, job, vendor, notes…" style="flex:1" autofocus>
   {% if status_f %}<input type="hidden" name="status" value="{{ status_f }}">{% endif %}
   {% if type_f %}<input type="hidden" name="type" value="{{ type_f }}">{% endif %}
   {% if vendor_f %}<input type="hidden" name="vendor" value="{{ vendor_f }}">{% endif %}
@@ -44,7 +44,7 @@
         <div class="est" style="margin-top:6px">{{ money(o._total) }}</div>
       </div>
     </a>
-    {% else %}<div class="empty">No orders. Generate one from a job's estimate (Job → Orders tab).</div>{% endfor %}
+    {% else %}<div class="empty">No orders{% if q %} matching "{{ q }}"{% elif status_f or type_f or vendor_f %} for current filters{% else %}. Generate one from a job's estimate (Job → Orders tab){% endif %}.</div>{% endfor %}
   </div>
 </div>
 {% endblock %}
