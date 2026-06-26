@@ -911,6 +911,53 @@ def _doc_servable(d, folder):
     return _servable("%s/%s" % (folder, d.get("filename") or ""))
 
 
+@bp.route("/<token>/file/<path:subpath>")
+def portal_file(token, subpath):
+    """Serve a document/photo to the homeowner, scoped to THEIR job/lead ONLY.
+
+    The /uploads/* route is staff-session-gated, so the portal can't link there
+    directly. This route validates the magic-link token, confirms the requested
+    file actually belongs to that job/lead (no guessing other customers' files),
+    then streams it (with the same path-traversal containment as /uploads)."""
+    from flask import send_from_directory
+    job = _job_by_token(token)
+    lead = None if job else _lead_by_token(token)
+    if not (job or lead):
+        abort(404)
+    # Normalize FIRST, enforce UPLOAD_DIR containment, gate on the resolved path.
+    full = os.path.normpath(os.path.join(config.UPLOAD_DIR, subpath))
+    _root = config.UPLOAD_DIR.rstrip(os.sep)
+    _pref = _root + os.sep
+    if full != _root and not full.startswith(_pref):
+        abort(404)
+    rel = full[len(_pref):].replace(os.sep, "/") if full.startswith(_pref) else ""
+    fname = os.path.basename(rel)
+    owned = False
+    if rel.startswith("library/"):
+        owned = True  # shared product/warranty literature — shown to every portal visitor
+    elif rel.startswith("documents/"):
+        if job:
+            owned = bool(db.all_rows("documents", "filename=? AND job_id=?", (fname, job["id"])))
+        if not owned and lead:
+            owned = bool(db.all_rows("documents", "filename=? AND lead_id=?", (fname, lead["id"])))
+    elif rel.startswith("photos/"):
+        if job:
+            owned = bool(db.all_rows("photos", "filename=? AND job_id=?", (fname, job["id"])))
+    if not owned:
+        abort(403)
+    if os.path.exists(full):
+        return send_from_directory(os.path.dirname(full), os.path.basename(full))
+    # Legacy files lost from local disk → Google Drive fallback.
+    try:
+        from modules import gdrive
+        got = gdrive.serve_fallback(rel)
+        if got is not None:
+            return got
+    except Exception:
+        pass
+    abort(404)
+
+
 @bp.route("/invite/<token>")
 def invite(token):
     """Alias: legacy invite-link format /portal/invite/<token> → redirect to home."""

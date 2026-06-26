@@ -618,7 +618,7 @@
       <div class="pkt-h">Your signed sign-up package</div>
       <details open>
         <summary>View your signed package</summary>
-        <iframe class="docframe" src="{{ url_for('uploads', subpath='documents/' ~ signed_contract.filename) }}" title="Signed sign-up package"></iframe>
+        <iframe class="docframe" src="{{ url_for('portal.portal_file', token=token, subpath='documents/' ~ signed_contract.filename) }}" title="Signed sign-up package"></iframe>
       </details>
     </div>
     {% endif %}
@@ -631,7 +631,7 @@
       <div style="padding:6px 0 14px;{{ 'border-bottom:1px solid var(--line);margin-bottom:10px' if not loop.last }}">
         <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
           <b style="flex:1;min-width:0">{{ d.original_name }}</b>
-          <a class="btn ghost sm" href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">View</a>
+          <a class="btn ghost sm" href="{{ url_for('portal.portal_file', token=token, subpath='documents/' ~ d.filename) }}" target="_blank">View</a>
         </div>
         <form method="post" action="{{ url_for('portal.sign_doc', token=token, doc_id=d.id) }}" onsubmit="return grabSig(this)">
           <label>Sign below</label>
@@ -656,9 +656,9 @@
     <div class="pkt-sec">
       <div class="pkt-h">4 · Permit Documents {{ pic('doc',14) }}</div>
       {% for d in permit_docs %}
-      <div class="doc"><span class="di">{{ pic('doc',15) }}</span><a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>
+      <div class="doc"><span class="di">{{ pic('doc',15) }}</span><a href="{{ url_for('portal.portal_file', token=token, subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>
       <details><summary>Preview {{ d.original_name }}</summary>
-        <iframe class="docframe" src="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" title="{{ d.original_name }}"></iframe>
+        <iframe class="docframe" src="{{ url_for('portal.portal_file', token=token, subpath='documents/' ~ d.filename) }}" title="{{ d.original_name }}"></iframe>
       </details>
       {% endfor %}
       <div class="muted" style="font-size:12px;margin-top:9px">Notarized permit forms (Notice of Commencement, nailing affidavit) are signed in person with a notary — your project contact will coordinate that with you.</div>
@@ -725,7 +725,7 @@
     <a class="btn ghost block sm" style="margin-bottom:14px" href="{{ j.sitecam_url }}" target="_blank" rel="noopener">{{ pic('maximize',15) }} Open your photos full-screen</a>
     {% elif photo_app_url %}<a class="btn ghost block" style="margin-bottom:14px" href="{{ photo_app_url }}" target="_blank" rel="noopener">{{ pic('camera',16) }} View all job photos in our photo app</a>{% endif %}
     {% if photos %}
-    <div class="gallery" style="margin-bottom:14px">{% for ph in photos %}<a href="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" target="_blank"><img src="{{ url_for('uploads', subpath='photos/' ~ ph.filename) }}" title="{{ ph.caption }}"></a>{% endfor %}</div>
+    <div class="gallery" style="margin-bottom:14px">{% for ph in photos %}<a href="{{ url_for('portal.portal_file', token=token, subpath='photos/' ~ ph.filename) }}" target="_blank"><img src="{{ url_for('portal.portal_file', token=token, subpath='photos/' ~ ph.filename) }}" title="{{ ph.caption }}"></a>{% endfor %}</div>
     {% else %}<div class="muted" style="margin-bottom:14px">Project photos will appear here as work progresses.</div>{% endif %}
     <form method="post" action="{{ url_for('portal.upload_photo', token=token) }}" enctype="multipart/form-data" class="stack">
       <label>Upload a photo (e.g. an area of concern)</label>
@@ -736,10 +736,10 @@
 
   <!-- DOCUMENTS -->
   <div class="card" id="documents"><div class="h">Documents</div>
-    {% if contract %}<a class="btn green block" style="margin-bottom:14px" href="{{ url_for('uploads', subpath='documents/' ~ contract.filename) }}" target="_blank">{{ pic('download',15) }} Download your signed contract</a>{% endif %}
+    {% if contract %}<a class="btn green block" style="margin-bottom:14px" href="{{ url_for('portal.portal_file', token=token, subpath='documents/' ~ contract.filename) }}" target="_blank">{{ pic('download',15) }} Download your signed contract</a>{% endif %}
     {% if documents %}
     {% for d in documents %}<div class="doc"><span class="di">{{ pic('doc',14) }}</span>
-      <a href="{{ url_for('uploads', subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>{% endfor %}
+      <a href="{{ url_for('portal.portal_file', token=token, subpath='documents/' ~ d.filename) }}" target="_blank">{{ d.original_name }}</a><span class="pill">{{ d.category }}</span></div>{% endfor %}
     {% else %}<div class="muted">Your contract, permit, and warranty documents will appear here.</div>{% endif %}
     <form method="post" action="{{ url_for('portal.upload_doc', token=token) }}" enctype="multipart/form-data" class="stack" style="margin-top:16px">
       <label>Upload a document (HOA approval, insurance, etc.)</label>
@@ -753,7 +753,7 @@
   <div class="card"><div class="h">Your Roof — Product Info{% if sysk %} ({{ sysk|capitalize }}){% endif %}</div>
     {% if product_docs %}
     <div class="muted" style="margin-bottom:10px">Data sheets, color charts &amp; warranties for the products going on your roof:</div>
-    {% for d in product_docs %}<div class="doc"><span class="di">{{ pic('doc',14) }}</span><a href="{{ url_for('uploads', subpath='library/' ~ d.filename) }}" target="_blank">{{ d.original_name.rsplit('.',1)[0].replace('_',' ').replace('-',' ')|title }}</a><span class="pill">{{ d.category.split(' ')[0] }}</span></div>{% endfor %}
+    {% for d in product_docs %}<div class="doc"><span class="di">{{ pic('doc',14) }}</span><a href="{{ url_for('portal.portal_file', token=token, subpath='library/' ~ d.filename) }}" target="_blank">{{ d.original_name.rsplit('.',1)[0].replace('_',' ').replace('-',' ')|title }}</a><span class="pill">{{ d.category.split(' ')[0] }}</span></div>{% endfor %}
     {% else %}<div class="muted">Product data sheets for your roof will appear here.</div>{% endif %}
 
     {% if tutorials %}
