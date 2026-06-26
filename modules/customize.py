@@ -154,7 +154,7 @@ def index():
     company = db.get_company()
     labels = db.load_json(company.get("labels"), {})
     return render_template("customize.html", company=company, labels=labels,
-                           requests=db.all_rows("change_requests", order="id DESC")[:20])
+                           requests=db.all_rows("change_requests", "", (), "id DESC", 20))
 
 
 @bp.route("/label/<path:old>/delete", methods=["POST"])

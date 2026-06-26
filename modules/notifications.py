@@ -70,7 +70,7 @@ def _ago(iso):
 
 def recent(user, limit=12):
     where, params = _visible_where(user)
-    rows = db.all_rows("notifications", where, params, "id DESC")[:limit]
+    rows = db.all_rows("notifications", where, params, "id DESC", limit)
     for r in rows:
         r["ago"] = _ago(r.get("created"))
     return rows
@@ -95,7 +95,7 @@ def index():
     from modules.auth import current_user
     user = current_user()
     where, params = _visible_where(user)
-    rows = db.all_rows("notifications", where, params, "id DESC")[:200]
+    rows = db.all_rows("notifications", where, params, "id DESC", 200)
     for r in rows:
         r["ago"] = _ago(r.get("created"))
     # Batch job name lookup — avoids one db.get() per notification row.
