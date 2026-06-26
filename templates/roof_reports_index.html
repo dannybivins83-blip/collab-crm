@@ -7,6 +7,15 @@
   <div class="grow"></div>
   <a class="btn primary" href="{{ url_for('roof_reports.new') }}">+ New Report</a>
 </div>
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search address…" style="flex:1">
+  <select name="status" onchange="this.form.submit()" style="min-width:130px">
+    <option value="">All statuses</option>
+    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s==status_f }}>{{ s|capitalize }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Search</button>
+  {% if q or status_f %}<a class="btn" href="{{ url_for('roof_reports.index') }}">✕ Clear</a>{% endif %}
+</form>
 {% if not configured %}
 <div class="empty" style="padding:14px;margin-bottom:12px">
   Roof engine not configured — set <code>ROOF_ENGINE_URL</code> and

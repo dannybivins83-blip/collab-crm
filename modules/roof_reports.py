@@ -69,10 +69,18 @@ def index():
                (not r.get("job_id") and not r.get("lead_id")) or
                r.get("job_id") in dept_job_ids or
                r.get("lead_id") in dept_lead_ids]
+    q = request.args.get("q", "").strip().lower()
+    status_f = request.args.get("status", "").strip()
+    statuses = sorted({r.get("status") for r in reports if r.get("status")})
+    if q:
+        reports = [r for r in reports if q in (r.get("address") or "").lower()]
+    if status_f:
+        reports = [r for r in reports if r.get("status") == status_f]
     leads = db.all_rows("leads", "department=?", (dept,), "name")
     jobs = db.all_rows("jobs", "department=?", (dept,), "name")
     return render_template("roof_reports_index.html", reports=reports,
-                           configured=_configured(), leads=leads, jobs=jobs)
+                           configured=_configured(), leads=leads, jobs=jobs,
+                           q=q, status_f=status_f, statuses=statuses)
 
 
 @bp.route("/new", methods=["GET", "POST"])
