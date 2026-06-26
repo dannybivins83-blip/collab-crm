@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `b64588a` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 8) — crm-ui: Autonomous perf loop continued. Session 7: pagination (jobs/leads 50/page), commissions N+1, db offset param, sync log/contact SQL, calendar SQL. Session 8: (1) portal.py — similar_job_photos + one_photo_per_system N+1→IN() batch, product_docs_for full-scan→SQL category WHERE, latest_system_job_photos Python sort→SQL ORDER BY, home() users full-load→WHERE name LIMIT 1; (2) acculynx_sync.dedupe_records — 4 COUNT full-loads→SELECT COUNT(*)+arithmetic; (3) gc_list.html autofocus. Commits: `0a3cd46`→`b64588a`.
+- **Git tip (verified 2026-06-26):** `5becd93` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 8 continued) — crm-ui: Full-codebase perf audit complete. All 50 modules swept. Highlights: portal N+1→IN() batch, sync dedupe COUNT, permits O(n×m), library/gc_list autofocus, measurements/comms/templates_mgr SQL, worksheet N+1, smart_todos inactive filter, intake email/phone SQL dedup, contacts _dupe_candidates SQL, ringcentral phone suffix filter, leads/jobs delete cascade N+1→subquery. Commits: `0a3cd46`→`5becd93` (10 commits this session). Bus inbox empty.
 
 ---
 
