@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `0725a38` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET — crm-ui: Multi-tenant dept scoping sweep (reports, invoices, calendar, permits, materials, orders, commissions, tasks, comms, search typeahead, invoices remind_overdue — all now filter by current_department); Search bars added to contacts/estimates/invoices/permits/materials list views (all were missing UI widgets); Phone digit-stripping in contacts.py + global typeahead; GC list N+1 batch fix; estimates list status filter + count badge. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
+- **Git tip (verified 2026-06-26):** `2450ddc` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 2) — crm-ui: Continued dept-scoping sweep: new() form dropdowns in invoices/materials/permits now dept-scoped; roof_reports index+new scoped (reports list filtered by dept lead/job IDs); library index jobs dropdown scoped. Dashboard activity feed was cross-tenant (loaded 80 global activities) — fixed with IN() clause from dept lead/job IDs. jobs list view N+1 profit analysis fixed: was calling job_profit(id) per row (2 queries/row) → replaced with single aggregated JOIN query + j._pa on each row. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed.
 
 ---
 
