@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `cc6688a` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 2) — crm-ui: Completed dept-scoping sweep across ALL modules: new() form dropdowns (invoices/materials/permits); roof_reports index+new; library index; dashboard activity feed (IN() clause fix); estimates statuses (was global query); commissions reps (was global query); reports invoices revenue; tasks list (cross-dept + N+1 _label fix); calendar appointments; comms log. Performance: jobs list N+1 profit (batch JOIN); orders N+1 line totals + 3 redundant queries; tasks N+1 entity-name lookups (batch IN()); comms redundant lead/job loads. OVERLORD heartbeat DOWN since 2026-06-19 — Danny restart needed. Tip `cc6688a`.
+- **Git tip (verified 2026-06-26):** `2277c01` on `main` (= `agent/gc-consolidation`)
+- **Last board update:** 2026-06-26 ET (session 3) — crm-ui: Search/filter bars added to Tasks (text/type/assignee/overdue), Calendar (kind/assignee), Comms (kind/text), Commissions (status/rep), Roof Reports (address/status). Performance: notifications unread_count → COUNT(*) + batch job lookup + single UPDATE mark-all-read; GC detail N+1 profit → batch worksheet JOIN; invoices/materials/permits redundant dept jobs query eliminated; orders _next_po → SELECT MAX(id). Bug: tools CSV export now dept-scoped for leads/jobs. Dead code: dashboard._activity_name() removed. Tip `2277c01`.
 
 ---
 
