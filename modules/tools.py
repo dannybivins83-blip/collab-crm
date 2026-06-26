@@ -111,7 +111,11 @@ def export():
     cols = _EXPORT_COLS.get(entity)
     if not cols:
         return redirect(url_for("dashboard.home"))
-    rows = db.all_rows(entity, order="name" if entity != "contacts" else "last_name")
+    dept = theme.current_department()
+    if entity in ("leads", "jobs"):
+        rows = db.all_rows(entity, "department=?", (dept,), "name")
+    else:
+        rows = db.all_rows(entity, order="name" if entity != "contacts" else "last_name")
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow([c.replace("_", " ").title() for c in cols])
