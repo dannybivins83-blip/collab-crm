@@ -20,6 +20,8 @@ db._ensure_column("contacts", "is_gc", "INTEGER DEFAULT 0")
 FIELDS = ["kind", "first_name", "last_name", "company", "email", "phone",
           "address", "city", "state", "zip", "source", "tags", "notes", "is_gc"]
 
+PER_PAGE = 50
+
 # Tables that point at a contact via contact_id, plus the activity timeline which
 # uses (entity_type='contact', entity_id). Used by the merge tool to re-home a
 # duplicate's history onto the surviving GC record.
@@ -57,9 +59,20 @@ def index():
             for c in db.all_rows("contacts", _phone_clause, (_dlike,), "last_name, company"):
                 if c["id"] not in found_ids:
                     rows.append(c)
-    else:
-        rows = db.all_rows("contacts", order="last_name, company")
-    return render_template("contacts.html", contacts=rows, q=q)
+        return render_template("contacts.html", contacts=rows, q=q,
+                               page=1, total_pages=1, total=len(rows))
+    page = max(1, int(request.args.get("page") or 1))
+    _conn = db.connect()
+    try:
+        total = (_conn.execute("SELECT COUNT(*) FROM contacts").fetchone() or (0,))[0]
+        rows = [dict(r) for r in _conn.execute(
+            "SELECT * FROM contacts ORDER BY last_name, company LIMIT ? OFFSET ?",
+            (PER_PAGE, (page - 1) * PER_PAGE)).fetchall()]
+    finally:
+        _conn.close()
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    return render_template("contacts.html", contacts=rows, q=q,
+                           page=page, total_pages=total_pages, total=total)
 
 
 # ---------------------------------------------------------------------------
@@ -249,19 +262,28 @@ def _merge_plan(survivor_id, dupe_ids):
     moves = {t: 0 for t in _CONTACT_FK_TABLES}
     moves["activities"] = 0
     detail = []
-    for did in dupe_ids:
-        d = db.get("contacts", did)
-        if not d:
-            continue
-        row = {"contact": d, "tables": {}}
-        for t in _CONTACT_FK_TABLES:
-            n = len(db.all_rows(t, "contact_id=?", (did,)))
-            moves[t] += n
-            row["tables"][t] = n
-        acts = len(db.entity_activity("contact", did))
-        moves["activities"] += acts
-        row["tables"]["activities"] = acts
-        detail.append(row)
+    _conn = db.connect()
+    try:
+        for did in dupe_ids:
+            d = db.get("contacts", did)
+            if not d:
+                continue
+            row = {"contact": d, "tables": {}}
+            for t in _CONTACT_FK_TABLES:
+                db._assert_table(t)
+                n = (_conn.execute(
+                    "SELECT COUNT(*) FROM %s WHERE contact_id=?" % t, (did,)
+                ).fetchone() or (0,))[0]
+                moves[t] += n
+                row["tables"][t] = n
+            acts = (_conn.execute(
+                "SELECT COUNT(*) FROM activities WHERE entity_type='contact' AND entity_id=?",
+                (did,)).fetchone() or (0,))[0]
+            moves["activities"] += acts
+            row["tables"]["activities"] = acts
+            detail.append(row)
+    finally:
+        _conn.close()
     return moves, detail
 
 
@@ -279,21 +301,15 @@ def _do_merge(survivor_id, dupe_ids):
             if did == survivor_id:
                 continue
             for t in _CONTACT_FK_TABLES:
-                rows = conn.execute(
-                    "SELECT id FROM %s WHERE contact_id=?" % t, (did,)).fetchall()
-                for r in rows:
-                    conn.execute(
-                        "UPDATE %s SET contact_id=? WHERE id=?" % t,
-                        (survivor_id, r["id"]))
-                    moved[t] += 1
-            acts = conn.execute(
-                "SELECT id FROM activities WHERE entity_type='contact' AND entity_id=?",
-                (did,)).fetchall()
-            for a in acts:
-                conn.execute(
-                    "UPDATE activities SET entity_id=? WHERE id=?",
-                    (survivor_id, a["id"]))
-                moved["activities"] += 1
+                db._assert_table(t)
+                r = conn.execute(
+                    "UPDATE %s SET contact_id=? WHERE contact_id=?" % t,
+                    (survivor_id, did))
+                moved[t] += r.rowcount
+            r = conn.execute(
+                "UPDATE activities SET entity_id=? WHERE entity_type='contact' AND entity_id=?",
+                (survivor_id, did))
+            moved["activities"] += r.rowcount
             conn.execute("DELETE FROM contacts WHERE id=?", (did,))
         conn.commit()
     except Exception:

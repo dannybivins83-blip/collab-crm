@@ -3,6 +3,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 import db
+import theme as _theme
 
 bp = Blueprint("materials", __name__, url_prefix="/materials")
 STATUS = ["draft", "ordered", "delivered"]
@@ -35,7 +36,6 @@ def _items_to_text(items):
 
 @bp.route("/")
 def index():
-    import theme as _theme
     dept = _theme.current_department()
     _dept_jobs = db.all_rows("jobs", "department=?", (dept,))
     dept_job_ids = {j["id"] for j in _dept_jobs}
