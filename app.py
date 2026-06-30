@@ -131,6 +131,7 @@ from modules.dbadmin import bp as dbadmin_bp  # token-gated SQLite DB-restore (d
 from modules.permit_api import bp as permit_api_bp  # white-label permit builder REST API
 from modules.subs import bp as subs_bp  # subcontractor management
 from modules.claims import bp as claims_bp  # insurance claims / AOB / supplement workflow
+from modules.payments_stripe import bp as stripe_bp  # native card payments (dark until STRIPE_* set)
 
 for _bp in (dashboard_bp, settings_bp, contacts_bp, leads_bp, jobs_bp, estimates_bp,
             permits_bp, files_bp, tasks_bp, calendar_bp, invoices_bp, materials_bp,
@@ -138,7 +139,7 @@ for _bp in (dashboard_bp, settings_bp, contacts_bp, leads_bp, jobs_bp, estimates
             worksheet_bp, customize_bp, orders_bp, library_bp, commissions_bp, customfields_bp,
             portal_bp, tools_bp, signups_bp, gmail_bp, sitecam_bp, sso_bp, search_bp,
             leads_dedupe_bp, pipeline_bp, roof_reports_bp, demos_bp, smart_todos_bp, takeoff_bp,
-            qxo_bp, integrations_bp, dbadmin_bp, permit_api_bp, subs_bp, claims_bp):
+            qxo_bp, integrations_bp, dbadmin_bp, permit_api_bp, subs_bp, claims_bp, stripe_bp):
     app.register_blueprint(_bp)
 
 # Real per-user login (registers its own blueprint + before-request guard).

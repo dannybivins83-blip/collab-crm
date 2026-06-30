@@ -79,7 +79,11 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "dbadmin.db_restore",
           "dbadmin.import_job_expenses",
           "dbadmin.import_workflow_status",
-          "sitecam.gallery_link"}
+          "sitecam.gallery_link",
+          # Stripe webhook: Stripe (not a logged-in user) calls it and can't carry a
+          # CSRF token — it is authenticated by the Stripe-Signature HMAC instead.
+          # The post-payment thank-you page is shown to the paying customer (no login).
+          "stripe_pay.webhook", "stripe_pay.thanks"}
 # Endpoints only admins may hit (prefix match on the path).
 ADMIN_ONLY_PATHS = ("/settings", "/orders/vendors", "/workflow", "/quickbooks")
 

@@ -167,6 +167,9 @@ def register(app):
             # Client-side Google Maps/Places key (referrer-restricted). Empty -> address
             # autocomplete stays off (fail-closed), so a tenant without a key sees a plain input.
             "maps_api_key": (_os.environ.get("GOOGLE_MAPS_API_KEY", "") or "").strip(),
+            # Native Stripe card payments are enabled only when a secret key is set
+            # (fail-closed: button hidden otherwise).
+            "stripe_enabled": bool((_os.environ.get("STRIPE_SECRET_KEY", "") or "").strip()),
         }
 
     app.jinja_env.globals.update(
