@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-
 """Estimates — AccuLynx-style: Estimate → Sections (narrative scope) → cost lines,
 with the Cost / Price / Profit-Margin model. Price = Cost / (1 - margin)."""
+import base64
+import io
+import mimetypes
+import os
 import re
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask import (Blueprint, render_template, request, redirect, url_for, flash,
+                   jsonify, abort, Response)
 
+import config
 import db
 import theme
 import constants
@@ -484,7 +490,21 @@ def sign(est_id):
                                 e["number"], name,
                                 " — signature authorized for sign-up docs + permit packet"
                                 if consent else ""))
-    return jsonify({"ok": True})
+    # Auto-convert: a signed estimate on an OPEN lead advances the pipeline to won and
+    # spawns the production job, so a signed deal never sits in the wrong stage. The
+    # convert helper re-parents this estimate onto the new job (sets estimates.job_id).
+    job_id = e.get("job_id")
+    if e.get("lead_id") and not job_id:
+        from modules import leads as _leads
+        try:
+            new_jid, _created = _leads.convert_lead_to_job(e["lead_id"])
+            if new_jid:
+                job_id = new_jid
+                db.add_activity("job", new_jid, "automation",
+                                "Auto-converted from signed estimate %s" % e.get("number"))
+        except Exception:
+            job_id = None
+    return jsonify({"ok": True, "job_id": job_id})
 
 
 @bp.route("/<int:est_id>/print")
@@ -494,6 +514,269 @@ def print_view(est_id):
     totals = estimate_totals(e, sections)
     return render_template("estimate_print.html", e=e, sections=sections, totals=totals,
                            draws=_draws(totals["total"]))
+
+
+# ---- server-side proposal PDF + email ------------------------------------
+
+def _logo_path():
+    """Local filesystem path to the company logo, or None."""
+    try:
+        c = db.get_company() or {}
+        rel = (c.get("logo_path") or "").strip()
+        if not rel:
+            return None
+        p = os.path.join(config.UPLOAD_DIR, rel)
+        return p if os.path.isfile(p) else None
+    except Exception:
+        return None
+
+
+def _esc(s):
+    return (str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def _line_price(l, m):
+    """Per-line display price: manual override if set, else margin-derived (mirrors the
+    proposal template — qty×cost without waste, then /(1-margin))."""
+    if l.get("price"):
+        return l["price"]
+    lc = (l.get("qty") or 0) * (l.get("cost") or 0)
+    return lc / (1 - m) if (1 - m) else lc
+
+
+def _pdf_bytes(est_id):
+    """Render the estimate as a branded proposal PDF via reportlab (pure-python — no
+    system libraries, no cryptography dependency). Returns (bytes, filename) or (None, reason)."""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from reportlab.lib.utils import ImageReader
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_RIGHT
+        from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
+                                        Paragraph, Spacer, Image)
+    except Exception as exc:
+        return None, "PDF engine unavailable: %s" % exc
+    e = db.get("estimates", est_id)
+    if not e:
+        return None, "estimate not found"
+    sections = _load_sections(est_id)
+    totals = estimate_totals(e, sections)
+    company = db.get_company() or {}
+    try:
+        accent = colors.HexColor(company.get("color_primary") or "#4680BF")
+    except Exception:
+        accent = colors.HexColor("#4680BF")
+    green = colors.HexColor("#7cb342")
+    grayln = colors.HexColor("#d6deeb")
+
+    ss = getSampleStyleSheet()
+    body = ParagraphStyle("b", parent=ss["Normal"], fontSize=9, leading=12)
+    small = ParagraphStyle("s", parent=ss["Normal"], fontSize=8, leading=10,
+                           textColor=colors.HexColor("#555555"))
+    h3 = ParagraphStyle("h3", parent=ss["Normal"], fontSize=11, leading=14, fontName="Helvetica-Bold")
+    rightb = ParagraphStyle("r", parent=body, alignment=TA_RIGHT)
+
+    M = theme.money
+    story = []
+
+    # ---- header: logo + company (left), date (right) ----
+    co_lines = "<b>%s</b><br/>%s<br/>%s, %s %s<br/>%s<br/>Phone: %s<br/>%s" % (
+        _esc(company.get("name")), _esc(company.get("address")), _esc(company.get("city")),
+        _esc(company.get("state")), _esc(company.get("zip")), _esc(company.get("license")),
+        _esc(company.get("phone")), _esc(company.get("email")))
+    left = []
+    lp = _logo_path()
+    if lp:
+        try:
+            iw, ih = ImageReader(lp).getSize()
+            h = 46.0
+            left.append(Image(lp, width=(h * iw / ih if ih else 120), height=h))
+            left.append(Spacer(1, 4))
+        except Exception:
+            pass
+    left.append(Paragraph(co_lines, body))
+    hdr = Table([[left, Paragraph(_esc((e.get("created") or "")[:10]), rightb)]],
+                colWidths=[4.4 * inch, 2.3 * inch])
+    hdr.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    story += [hdr, Spacer(1, 10)]
+
+    # ---- parties ----
+    parties = Table([[Paragraph("<b>%s</b><br/>%s" % (_esc(e.get("title")), _esc(e.get("work_type"))), body),
+                      Paragraph("Estimate: %s<br/>Status: %s" % (_esc(e.get("number")), _esc(e.get("status"))), rightb)]],
+                    colWidths=[3.7 * inch, 3.0 * inch])
+    parties.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.5, grayln),
+                                 ("INNERGRID", (0, 0), (-1, -1), 0.5, grayln),
+                                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                                 ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                                 ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
+    story += [parties, Spacer(1, 8)]
+
+    def section_block(s, option=False):
+        m = (s.get("margin_pct") or 0) / 100.0
+        story.append(Paragraph(("➕ " if option else "") + _esc(s.get("name")), h3))
+        if s.get("scope_text"):
+            story.append(Paragraph(_esc(s.get("scope_text")).replace("\n", "<br/>"), body))
+        rows = [[Paragraph("<b>Description</b>", small), Paragraph("<b>Qty</b>", small),
+                 Paragraph("<b>Unit</b>", small), Paragraph("<b>Price</b>", small)]]
+        for l in s.get("_lines", []):
+            rows.append([Paragraph(_esc(l.get("description")), body),
+                         Paragraph(_esc(l.get("qty")), small),
+                         Paragraph(_esc(l.get("unit")), small),
+                         Paragraph(M(_line_price(l, m)), small)])
+        t = Table(rows, colWidths=[3.4 * inch, 0.7 * inch, 0.9 * inch, 1.2 * inch])
+        t.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#eef1f5")),
+                               ("LINEBELOW", (0, 0), (-1, 0), 0.6, grayln),
+                               ("ALIGN", (1, 0), (1, -1), "RIGHT"), ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+                               ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
+        story.append(t)
+        sealabel = "+ " + M(s.get("_price")) if option else M(s.get("_price"))
+        st = Table([[Paragraph("<b>%s%s</b>" % (_esc(s.get("name")), "" if option else " Total"), body),
+                     Paragraph("<b>%s</b>" % sealabel, rightb)]], colWidths=[5.0 * inch, 1.2 * inch])
+        st.setStyle(TableStyle([("LINEABOVE", (0, 0), (-1, 0), 0.6, grayln),
+                                ("TEXTCOLOR", (1, 0), (1, 0), colors.HexColor("#3f7d20"))]))
+        story += [st, Spacer(1, 8)]
+
+    for s in [s for s in sections if not s.get("_is_option")]:
+        section_block(s)
+
+    # ---- total ----
+    tot = Table([[Paragraph('<font color="white"><b>ESTIMATE TOTAL</b></font>', h3),
+                  Paragraph('<font color="white"><b>%s</b></font>' % M(totals["total"]),
+                            ParagraphStyle("tr", parent=h3, alignment=TA_RIGHT))]],
+                colWidths=[4.5 * inch, 2.2 * inch])
+    tot.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), green),
+                             ("TOPPADDING", (0, 0), (-1, -1), 9), ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+                             ("LEFTPADDING", (0, 0), (-1, -1), 10)]))
+    story += [Spacer(1, 4), tot, Spacer(1, 8)]
+
+    options = [s for s in sections if s.get("_is_option")]
+    if options:
+        story.append(Paragraph("Upgrade Options — Not Included in Estimate Total", small))
+        story.append(Spacer(1, 4))
+        for s in options:
+            section_block(s, option=True)
+
+    # ---- payment schedule ----
+    draws = _draws(totals["total"])
+    if draws:
+        prows = [[Paragraph("<b>Payment schedule</b>", small), Paragraph("", small)]]
+        for d in draws:
+            amt = d.get("amount")
+            prows.append([Paragraph(_esc(d.get("label")), small),
+                          Paragraph(M(amt) if amt is not None else "TBD", ParagraphStyle("pr", parent=small, alignment=TA_RIGHT))])
+        pt = Table(prows, colWidths=[5.2 * inch, 1.5 * inch])
+        pt.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f7f9fc")),
+                                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e1e8f2")),
+                                ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                                ("LEFTPADDING", (0, 0), (-1, -1), 8)]))
+        story += [pt, Spacer(1, 10)]
+
+    if e.get("terms"):
+        story.append(Paragraph("<b>Terms:</b> " + _esc(e.get("terms")), small))
+    if e.get("notes"):
+        story.append(Paragraph("<b>Notes:</b> " + _esc(e.get("notes")), small))
+
+    # ---- signature ----
+    sig_cell = []
+    sig = e.get("signature") or ""
+    if sig.startswith("data:") and "base64," in sig:
+        try:
+            raw = base64.b64decode(sig.split("base64,", 1)[1])
+            sig_cell.append(Image(io.BytesIO(raw), width=130, height=44, kind="proportional"))
+        except Exception:
+            pass
+    sig_label = "Customer signature"
+    if e.get("signed_name"):
+        sig_label += " — " + _esc(e.get("signed_name"))
+    if e.get("signed_at"):
+        sig_label += " (%s)" % _esc((e.get("signed_at") or "")[:10])
+    sig_cell.append(Paragraph(sig_label, small))
+    sigtab = Table([[sig_cell, Paragraph("%s — authorized representative" % _esc(company.get("name")), small)]],
+                   colWidths=[3.35 * inch, 3.35 * inch])
+    sigtab.setStyle(TableStyle([("LINEABOVE", (0, 0), (-1, 0), 0.6, colors.HexColor("#1d2a44")),
+                                ("VALIGN", (0, 0), (-1, -1), "TOP"), ("TOPPADDING", (0, 0), (-1, -1), 6)]))
+    story += [Spacer(1, 22), sigtab]
+
+    foot = "Lic. %s · %s · %s" % (_esc(company.get("license")), _esc(company.get("phone")), _esc(company.get("email")))
+    if company.get("warranty"):
+        foot = _esc(company.get("warranty")) + "<br/>" + foot
+    story += [Spacer(1, 16), Paragraph(foot, ParagraphStyle("f", parent=small, alignment=1))]
+
+    out = io.BytesIO()
+    try:
+        SimpleDocTemplate(out, pagesize=letter, topMargin=0.7 * inch, bottomMargin=0.7 * inch,
+                          leftMargin=0.7 * inch, rightMargin=0.7 * inch,
+                          title="Proposal %s" % (e.get("number") or "")).build(story)
+    except Exception as exc:
+        return None, "PDF render error: %s" % exc
+    fname = "Proposal-%s.pdf" % re.sub(r"[^A-Za-z0-9_-]+", "-", (e.get("number") or str(est_id)))
+    return out.getvalue(), fname
+
+
+def _client_email(e):
+    """Best recipient email for the estimate's client (job/lead, else its contact)."""
+    for key, table in (("job_id", "jobs"), ("lead_id", "leads")):
+        if e.get(key):
+            parent = db.get(table, e[key]) or {}
+            if parent.get("email"):
+                return parent["email"]
+            if parent.get("contact_id"):
+                c = db.get("contacts", parent["contact_id"]) or {}
+                if c.get("email"):
+                    return c["email"]
+    return ""
+
+
+@bp.route("/<int:est_id>/pdf")
+def pdf(est_id):
+    """Download/inline the branded proposal PDF."""
+    _require_estimate(est_id)
+    data, info = _pdf_bytes(est_id)
+    if not data:
+        flash("Could not build the PDF: %s" % info, "error")
+        return redirect(url_for("estimates.print_view", est_id=est_id))
+    return Response(data, mimetype="application/pdf",
+                    headers={"Content-Disposition": 'inline; filename="%s"' % info})
+
+
+@bp.route("/<int:est_id>/email", methods=["POST"])
+def email(est_id):
+    """Email the branded proposal PDF to the client (explicit one-click send)."""
+    _require_estimate(est_id)
+    e = db.get("estimates", est_id)
+    to = (request.form.get("email") or _client_email(e) or "").strip()
+    if not to:
+        flash("No client email on file — add one to the job/lead first.", "error")
+        return redirect(url_for("estimates.detail", est_id=est_id))
+    data, info = _pdf_bytes(est_id)
+    if not data:
+        flash("Could not build the proposal PDF: %s" % info, "error")
+        return redirect(url_for("estimates.detail", est_id=est_id))
+    from modules import gmail
+    from flask import session
+    company = db.get_company() or {}
+    subject = request.form.get("subject") or (
+        "%s — Proposal %s" % (company.get("name") or "Your roofing proposal", e.get("number") or ""))
+    body = request.form.get("body") or (
+        "Hi,\n\nPlease find your proposal attached"
+        + (" from %s" % company.get("name") if company.get("name") else "")
+        + ".\n\nThank you,\n" + (company.get("name") or ""))
+    sent = gmail.send_message(session.get("user_id"), to, subject, body,
+                              attachments=[(info, data, "application/pdf")])
+    if sent:
+        db.update("estimates", est_id,
+                  status=(e.get("status") if e.get("status") == "signed" else "sent"))
+        for et, eid in (("job", e.get("job_id")), ("lead", e.get("lead_id"))):
+            if eid:
+                db.add_activity(et, eid, "email",
+                                "Proposal %s emailed to %s" % (e.get("number"), to))
+        flash("Proposal emailed to %s." % to, "ok")
+    else:
+        flash("Email not sent — connect Gmail (Settings) or set SMTP_FROM/SMTP_PASSWORD. "
+              "The PDF is still available via Download.", "error")
+    return redirect(url_for("estimates.detail", est_id=est_id))
 
 
 @bp.route("/<int:est_id>/delete", methods=["POST"])

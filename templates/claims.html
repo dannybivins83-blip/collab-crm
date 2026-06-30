@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{% if view == 'detail' %}Claim · {{ claim.claim_number or claim.carrier or '#' ~ claim.id }}{% else %}Insurance Claims{% endif %}{% endblock %}
+{% block body %}
+
+{% if view == 'detail' %}
+{# ------------------------------------------------------------------ DETAIL #}
+<div class="page-head">
+  <h1>🛡️ Claim {{ claim.claim_number or '#' ~ claim.id }}</h1>
+  <span class="sub">
+    {% if job %}<a href="{{ url_for('jobs.detail', job_id=job.id) }}">{{ job.name }}</a> · {% endif %}
+    {{ claim.carrier or 'No carrier' }}
+  </span>
+</div>
+<p><a class="btn" href="{{ url_for('claims.index') }}">← All claims</a></p>
+
+<div class="card">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+    <b>Status:</b>
+    {% for s in statuses %}
+    <form method="post" action="{{ url_for('claims.status', cid=claim.id) }}" style="display:inline">
+      <input type="hidden" name="status" value="{{ s }}">
+      <button class="btn sm {{ 'accent' if claim.status==s else '' }}" type="submit">{{ s|capitalize }}</button>
+    </form>
+    {% endfor %}
+  </div>
+
+  <form method="post" action="{{ url_for('claims.save', cid=claim.id) }}">
+    <table class="grid">
+      <tr><th style="width:180px">Carrier</th><td><input name="carrier" value="{{ claim.carrier or '' }}" style="width:100%"></td></tr>
+      <tr><th>Claim #</th><td><input name="claim_number" value="{{ claim.claim_number or '' }}" style="width:100%"></td></tr>
+      <tr><th>Adjuster</th><td><input name="adjuster_name" value="{{ claim.adjuster_name or '' }}" style="width:100%"></td></tr>
+      <tr><th>Adjuster phone</th><td><input name="adjuster_phone" value="{{ claim.adjuster_phone or '' }}" style="width:100%"></td></tr>
+      <tr><th>Date filed</th><td><input name="date_filed" value="{{ claim.date_filed or '' }}" placeholder="YYYY-MM-DD" style="width:180px"></td></tr>
+      <tr><th>Deductible</th><td><input name="deductible" type="number" step="0.01" value="{{ claim.deductible or 0 }}" style="width:180px"></td></tr>
+      <tr><th>RCV</th><td><input name="rcv" type="number" step="0.01" value="{{ claim.rcv or 0 }}" style="width:180px"></td></tr>
+      <tr><th>ACV</th><td><input name="acv" type="number" step="0.01" value="{{ claim.acv or 0 }}" style="width:180px"></td></tr>
+      <tr><th>Notes</th><td><textarea name="notes" rows="3" style="width:100%">{{ claim.notes or '' }}</textarea></td></tr>
+    </table>
+    <p style="margin-top:10px"><button class="btn accent" type="submit">Save claim</button></p>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Claim value</h2>
+  <table class="grid">
+    <tr><th style="width:240px">Original estimate</th><td class="right">{{ money(est_value) }}</td></tr>
+    <tr><th>Supplements requested</th><td class="right">{{ money(supp_requested) }}</td></tr>
+    <tr><th>Supplements approved</th><td class="right">{{ money(supp_approved) }}</td></tr>
+    <tr><th><b>Total recoverable</b></th><td class="right"><b>{{ money(total) }}</b></td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Supplements</h2>
+  <table class="grid">
+    <tr><th>Description</th><th class="right">Requested</th><th class="right">Approved</th><th>Status</th><th></th></tr>
+    {% for s in supps %}
+    <tr>
+      <td>{{ s.description }}</td>
+      <td class="right">{{ money(s.amount_requested) }}</td>
+      <td class="right">{{ money(s.amount_approved) }}</td>
+      <td><span class="pill" style="background:{{ 'var(--ok)22' if s.status=='approved' else ('var(--danger)22' if s.status=='denied' else 'var(--accent)22') }};color:{{ 'var(--ok)' if s.status=='approved' else ('var(--danger)' if s.status=='denied' else 'var(--accent)') }}">{{ s.status|capitalize }}</span></td>
+      <td class="right">
+        {% if s.status == 'requested' %}
+        <form method="post" action="{{ url_for('claims.supplement_status', sid=s.id) }}" style="display:inline-flex;gap:6px;align-items:center">
+          <input name="amount_approved" type="number" step="0.01" value="{{ s.amount_requested }}" style="width:90px">
+          <button class="btn sm accent" name="status" value="approved" type="submit">Approve</button>
+          <button class="btn sm" name="status" value="denied" type="submit">Deny</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty">No supplements yet.</td></tr>{% endfor %}
+    <tr>
+      <td colspan="5">
+        <form method="post" action="{{ url_for('claims.add_supplement', cid=claim.id) }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input name="description" placeholder="Supplement description…" required style="flex:1;min-width:200px">
+          <input name="amount_requested" type="number" step="0.01" placeholder="Amount requested" style="width:160px">
+          <button class="btn accent" type="submit">+ Add supplement</button>
+        </form>
+      </td>
+    </tr>
+  </table>
+</div>
+
+{% else %}
+{# -------------------------------------------------------------------- LIST #}
+<div class="page-head"><h1>🛡️ Insurance Claims</h1><span class="sub">{{ rows|length }} shown · filed → inspection → approved → supplementing → paid → closed</span></div>
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search carrier, claim #, adjuster, job…" style="flex:1" autofocus>
+  <select name="status" onchange="this.form.submit()" style="min-width:140px">
+    <option value="">All statuses</option>
+    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s==status_f }}>{{ s|capitalize }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Search</button>
+  {% if q or status_f %}<a class="btn" href="{{ url_for('claims.index') }}">✕ Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <table class="grid">
+    <tr><th>Job</th><th>Carrier</th><th>Claim #</th><th>Adjuster</th><th>Status</th><th class="right">Approved supp.</th><th class="right">Total</th><th></th></tr>
+    {% for c in rows %}
+    <tr>
+      <td>{% if c._job %}<a href="{{ url_for('jobs.detail', job_id=c._job.id) }}">{{ c._job.name }}</a>{% endif %}</td>
+      <td>{{ c.carrier or '—' }}</td>
+      <td>{{ c.claim_number or '—' }}</td>
+      <td>{{ c.adjuster_name or '—' }}</td>
+      <td><span class="pill" style="background:var(--accent)22;color:var(--accent)">{{ c.status|capitalize }}</span></td>
+      <td class="right">{{ money(c._supp_approved) }}</td>
+      <td class="right"><b>{{ money(c._total) }}</b></td>
+      <td class="right"><a class="btn sm" href="{{ url_for('claims.detail', cid=c.id) }}">Open</a></td>
+    </tr>
+    {% else %}<tr><td colspan="8" class="empty">No claims{% if q %} matching "{{ q }}"{% elif status_f %} for this status{% endif %}. Open a job and click “Insurance / Claims” to file one.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}

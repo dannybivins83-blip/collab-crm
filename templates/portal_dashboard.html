@@ -124,6 +124,15 @@
   .row{display:flex;gap:12px;flex-wrap:wrap}
   .stack>*+*{margin-top:10px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  /* ---- two-way message thread ---- */
+  .thread{display:flex;flex-direction:column;gap:10px;margin:2px 0 16px;max-height:360px;overflow-y:auto;padding-right:2px}
+  .msg{display:flex;flex-direction:column;max-width:82%}
+  .msg.in{align-self:flex-start;align-items:flex-start}
+  .msg.out{align-self:flex-end;align-items:flex-end}
+  .msg .bubble{padding:10px 13px;border-radius:14px;font-size:14.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+  .msg.in .bubble{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.out .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .msg .meta{font-size:11px;color:var(--mut);margin-top:3px;padding:0 4px}
 
   /* ---- action card ---- */
   .action{border:1.5px solid color-mix(in srgb,var(--green) 55%,#fff);
@@ -776,6 +785,18 @@
   <!-- MESSAGE / REQUEST -->
   <div class="card" id="message">
     <div class="h">Message Us / Request a Change</div>
+    {% if thread %}
+    <div class="thread">
+      {% for m in thread %}
+      <div class="msg {{ 'out' if m.direction == 'out' else 'in' }}">
+        <div class="bubble">{{ m.body }}</div>
+        <div class="meta">{{ m.author or ('You' if m.direction == 'in' else company.name) }}{% if m.created %} · {{ m.created[:16] }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted" style="margin:2px 0 14px">Start the conversation — ask us anything about your project. We'll reply right here.</p>
+    {% endif %}
     <form method="post" action="{{ url_for('portal.message', token=token) }}" class="stack">
       <div><label>Type</label><select name="kind"><option value="message">Question / Message</option><option value="request">Request a change</option><option value="sample">Request a sample</option></select></div>
       <textarea name="text" rows="3" placeholder="Type your message or change request…" required></textarea>

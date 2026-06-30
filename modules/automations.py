@@ -49,6 +49,53 @@ try:
             UNIQUE(automation_id, entity_type, entity_id, stage_key, fire_date))""")
 except Exception:   # pragma: no cover — best-effort like the rest of module-load DDL
     pass
+
+# ---------------------------------------------------------------------------
+# Multi-step follow-up SEQUENCES (drip cadence)
+# ---------------------------------------------------------------------------
+# A sequence is an ordered set of steps; each step fires `offset_days` after the
+# enrollment date. A step is an 'email' (draft by default; auto-send only when
+# the step opts in) or an 'sms' (via comms.send_sms — fails closed when Twilio
+# is unset). Enrollments track per-entity progress; the tick/runner finds due
+# steps and fires them. Self-creating tables (house convention) — no db.py edit.
+for _ddl in (
+    """CREATE TABLE IF NOT EXISTS sequences (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, created TEXT,
+        name TEXT, active INTEGER DEFAULT 1, department TEXT)""",
+    """CREATE TABLE IF NOT EXISTS sequence_steps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sequence_id INTEGER, step_no INTEGER DEFAULT 0,
+        offset_days INTEGER DEFAULT 0,
+        channel TEXT DEFAULT 'email',
+        subject TEXT, body TEXT,
+        auto_send INTEGER DEFAULT 0)""",
+    """CREATE TABLE IF NOT EXISTS sequence_enrollments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, created TEXT,
+        sequence_id INTEGER, entity_type TEXT, entity_id INTEGER,
+        enrolled_date TEXT, status TEXT DEFAULT 'active',
+        UNIQUE(sequence_id, entity_type, entity_id))""",
+    # Per-step fire ledger — UNIQUE makes the runner idempotent (a step fires
+    # at most once per enrollment, even if tick() runs repeatedly).
+    """CREATE TABLE IF NOT EXISTS sequence_step_fires (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, created TEXT,
+        enrollment_id INTEGER, step_id INTEGER, result TEXT,
+        UNIQUE(enrollment_id, step_id))""",
+):
+    try:
+        db.execute(_ddl)
+    except Exception:   # pragma: no cover — best-effort module-load DDL
+        pass
+
+# db.insert/update/get/all_rows gate on db.TABLE_ALLOWLIST. Register our self-
+# created tables at import so the data-layer accepts them WITHOUT editing db.py.
+# (Mutating the in-memory set, not the file — fully reversible. The integrator
+# should also add these to the canonical TABLE_ALLOWLIST literal in db.py; see
+# wiring_snippets.)
+try:
+    db.TABLE_ALLOWLIST.update({
+        "sequences", "sequence_steps", "sequence_enrollments", "sequence_step_fires"})
+except Exception:   # pragma: no cover
+    pass
 db._COLCACHE.clear()
 
 
@@ -202,6 +249,154 @@ def _seed_defaults():
     _ensure_invoice_overdue_default()
 
 
+# ---------------------------------------------------------------------------
+# Sequence engine — enroll, tick/runner, fire one step
+# ---------------------------------------------------------------------------
+
+def _days_between(start_ymd, end_ymd):
+    """Whole days from start->end (both 'YYYY-MM-DD'). Tolerant: bad input ⇒ 0."""
+    try:
+        from datetime import datetime
+        a = datetime.strptime((start_ymd or "")[:10], "%Y-%m-%d")
+        b = datetime.strptime((end_ymd or "")[:10], "%Y-%m-%d")
+        return (b - a).days
+    except Exception:
+        return 0
+
+
+def enroll(sequence_id, entity_type, entity_id, enrolled_date=None):
+    """Enroll an entity into a sequence (idempotent on (seq,type,id)). Returns the
+    enrollment id, or None on bad input. Re-enrolling an existing pair is a no-op
+    that returns the existing id (so callers can enroll freely)."""
+    if entity_type not in ("job", "lead", "contact"):
+        return None
+    existing = db.all_rows(
+        "sequence_enrollments",
+        where="sequence_id=? AND entity_type=? AND entity_id=?",
+        params=(sequence_id, entity_type, entity_id))
+    if existing:
+        return existing[0]["id"]
+    try:
+        return db.insert("sequence_enrollments", {
+            "created": db.now(), "sequence_id": sequence_id,
+            "entity_type": entity_type, "entity_id": entity_id,
+            "enrolled_date": (enrolled_date or db.today()), "status": "active"})
+    except Exception:
+        # UNIQUE backstop (cross-process race) — fetch + return the winner's id.
+        again = db.all_rows(
+            "sequence_enrollments",
+            where="sequence_id=? AND entity_type=? AND entity_id=?",
+            params=(sequence_id, entity_type, entity_id))
+        return again[0]["id"] if again else None
+
+
+def _recipient(entity_type, entity_id, channel):
+    """Email address (email channel) or phone (sms channel) for the entity."""
+    rec = db.get(entity_type + "s", entity_id) if entity_type in ("job", "lead") else None
+    if entity_type == "contact":
+        rec = db.get("contacts", entity_id)
+    rec = rec or {}
+    if channel == "sms":
+        return (rec.get("phone") or "").strip()
+    return (rec.get("email") or "").strip()
+
+
+def _fire_step(enr, step):
+    """Fire one sequence step for one enrollment. Returns a short result string.
+    Email default = DRAFT (house rule); auto-send only when step.auto_send is set
+    AND a send path succeeds. SMS goes through comms.send_sms (fails closed)."""
+    et, eid = enr["entity_type"], enr["entity_id"]
+    channel = (step.get("channel") or "email").strip()
+    subject = _fill(step.get("subject"), et, eid)
+    body = _fill(step.get("body"), et, eid)
+    to = _recipient(et, eid, channel)
+
+    if channel == "sms":
+        try:
+            from modules import comms
+        except Exception:
+            import comms  # pragma: no cover — alt import path
+        ok = comms.send_sms(to, body, entity_type=et, entity_id=eid)
+        return "sms_sent" if ok else "sms_failed_closed"
+
+    # email channel
+    if int(step.get("auto_send") or 0) and to:
+        try:
+            try:
+                from modules import gmail
+            except Exception:
+                import gmail  # pragma: no cover — alt import path
+            # uid=None: send_message falls back to SMTP if no user OAuth (fail-closed
+            # if neither configured ⇒ returns None ⇒ we draft instead).
+            res = gmail.send_message(None, to, subject, body)
+            if res:
+                db.add_activity(et, eid, "email", "✉️ Sent (sequence): %s\n%s" % (subject, body))
+                return "email_sent"
+        except Exception:
+            _log.exception("sequence auto-send failed for %s %s; falling back to draft", et, eid)
+    # Default / fallback: draft only (never auto-sent).
+    db.add_activity(et, eid, "draft", "✉️ DRAFT (sequence) — %s\n%s" % (subject, body))
+    return "email_drafted"
+
+
+def tick(now_date=None):
+    """Runner: find due steps across all active enrollments and fire them once.
+    A step is DUE when (today - enrolled_date) >= step.offset_days and it has not
+    already fired for that enrollment. Returns a summary dict. Safe to call
+    repeatedly (per-step UNIQUE ledger makes each fire idempotent)."""
+    today = now_date or db.today()
+    fired, skipped = 0, 0
+    enrollments = db.all_rows("sequence_enrollments", "status=?", ("active",))
+    for enr in enrollments:
+        seq = db.get("sequences", enr["sequence_id"])
+        if not seq or not seq.get("active"):
+            continue
+        elapsed = _days_between(enr.get("enrolled_date"), today)
+        steps = db.all_rows("sequence_steps", "sequence_id=?",
+                            (enr["sequence_id"],), order="offset_days, step_no, id")
+        all_done = True
+        for step in steps:
+            if elapsed < int(step.get("offset_days") or 0):
+                all_done = False
+                continue  # not due yet
+            # Claim the (enrollment, step) slot — insert-first / catch-violation.
+            already = db.all_rows(
+                "sequence_step_fires",
+                where="enrollment_id=? AND step_id=?",
+                params=(enr["id"], step["id"]))
+            if already:
+                continue
+            try:
+                fid = db.insert("sequence_step_fires", {
+                    "created": db.now(), "enrollment_id": enr["id"],
+                    "step_id": step["id"], "result": "pending"})
+            except Exception:
+                # UNIQUE backstop (race) — someone else claimed it.
+                continue
+            try:
+                result = _fire_step(enr, step)
+            except Exception:
+                _log.exception("sequence step %s failed for enrollment %s",
+                               step.get("id"), enr.get("id"))
+                result = "error"
+            try:
+                db.update("sequence_step_fires", fid, result=result)
+            except Exception:
+                _log.exception("failed recording sequence fire result")
+            fired += 1
+        if all_done and steps:
+            # All steps are past-due and accounted for — mark the enrollment done.
+            done_count = len(db.all_rows(
+                "sequence_step_fires", "enrollment_id=?", (enr["id"],)))
+            if done_count >= len(steps):
+                try:
+                    db.update("sequence_enrollments", enr["id"], status="done")
+                except Exception:
+                    _log.exception("failed marking enrollment %s done", enr.get("id"))
+        skipped += 1
+    return {"fired": fired, "enrollments_scanned": skipped}
+
+
 def init_automations(app):
     _seed_defaults()
     # Wrap db.add_activity so stage-change activities trigger automations.
@@ -279,4 +474,64 @@ def toggle(auto_id):
 def delete(auto_id):
     db.delete("automations", auto_id)
     flash("Automation deleted.", "ok")
+    return redirect(url_for("automations.index"))
+
+
+# ---- sequence routes ------------------------------------------------------
+
+@bp.route("/sequences/run", methods=["POST", "GET"])
+def sequences_run():
+    """Trigger the sequence runner. Returns JSON so it can be hit by a cron/curl
+    or the admin UI. Idempotent — safe to call on any cadence."""
+    from flask import jsonify
+    summary = tick()
+    if request.method == "GET" and "text/html" in (request.headers.get("Accept") or ""):
+        flash("Sequence runner fired %d step(s)." % summary["fired"], "ok")
+        return redirect(url_for("automations.index"))
+    return jsonify({"ok": True, **summary})
+
+
+@bp.route("/sequences/new", methods=["POST"])
+def sequence_new():
+    import theme
+    db.insert("sequences", {
+        "created": db.now(),
+        "name": request.form.get("name", "").strip() or "Untitled sequence",
+        "active": 1, "department": theme.current_department()})
+    flash("Sequence created.", "ok")
+    return redirect(url_for("automations.index"))
+
+
+@bp.route("/sequences/<int:seq_id>/step", methods=["POST"])
+def sequence_add_step(seq_id):
+    channel = request.form.get("channel", "email").strip()
+    if channel not in ("email", "sms"):
+        channel = "email"
+    db.insert("sequence_steps", {
+        "sequence_id": seq_id,
+        "step_no": int(request.form.get("step_no") or 0),
+        "offset_days": int(request.form.get("offset_days") or 0),
+        "channel": channel,
+        "subject": request.form.get("subject", "").strip(),
+        "body": request.form.get("body", "").strip(),
+        "auto_send": 1 if request.form.get("auto_send") else 0})
+    flash("Step added.", "ok")
+    return redirect(url_for("automations.index"))
+
+
+@bp.route("/sequences/<int:seq_id>/enroll", methods=["POST"])
+def sequence_enroll(seq_id):
+    target = request.form.get("target", "")
+    et, _, eid = target.partition(":")
+    if et and eid:
+        eid_i = enroll(seq_id, et, int(eid))
+        flash("Enrolled." if eid_i else "Could not enroll.", "ok" if eid_i else "err")
+    return redirect(url_for("automations.index"))
+
+
+@bp.route("/sequences/<int:seq_id>/toggle", methods=["POST"])
+def sequence_toggle(seq_id):
+    s = db.get("sequences", seq_id)
+    if s:
+        db.update("sequences", seq_id, active=0 if s.get("active") else 1)
     return redirect(url_for("automations.index"))

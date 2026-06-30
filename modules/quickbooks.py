@@ -268,3 +268,57 @@ def send_invoice(qbo_id, email):
     if email:
         params["sendTo"] = email
     return _api("POST", "invoice/%s/send" % qbo_id, body=None, params=params)
+
+
+def invoice_balance(qbo_id):
+    """Current open balance for a QBO invoice (0 once the customer has paid). None on error."""
+    ok, data = _api("GET", "invoice/%s" % qbo_id, params={"minorversion": "65"})
+    if not ok:
+        return None
+    return (data.get("Invoice", {}) or {}).get("Balance")
+
+
+def sync_payments():
+    """Close the loop on QuickBooks Payments: for every CRM invoice we pushed to QBO that
+    isn't already marked paid, read its QBO balance and — when QuickBooks shows it cleared
+    (customer paid via the Pay-now link) — mark the CRM invoice paid and write a payments
+    row. Returns (checked, marked_paid)."""
+    if not is_connected():
+        return 0, 0
+    rows = db.all_rows("invoices", "qbo_id IS NOT NULL AND qbo_id!='' AND (status IS NULL OR status!='paid')")
+    checked = marked = 0
+    for inv in rows:
+        checked += 1
+        bal = invoice_balance(inv.get("qbo_id"))
+        if bal is None:
+            continue
+        try:
+            bal = float(bal)
+        except (TypeError, ValueError):
+            continue
+        if bal <= 0.005:
+            db.update("invoices", inv["id"], status="paid", paid_date=db.today(),
+                      amount_paid=inv.get("amount"))
+            # Write a payments-ledger row if this invoice has none yet (so the ledger
+            # reflects QBO-collected money, not just AccuLynx-imported history).
+            if not db.all_rows("payments", "invoice_id=?", (inv["id"],), limit=1):
+                db.insert("payments", {"job_id": inv.get("job_id"), "invoice_id": inv["id"],
+                                       "amount": inv.get("amount") or 0, "method": "QuickBooks",
+                                       "paid_date": db.today(), "source": "QuickBooks",
+                                       "created": db.now()})
+            if inv.get("job_id"):
+                db.add_activity("job", inv["job_id"], "automation",
+                                "Invoice %s marked paid — QuickBooks balance cleared" % inv.get("number"))
+            marked += 1
+    return checked, marked
+
+
+@bp.route("/sync-payments", methods=["POST"])
+def sync_payments_route():
+    """Admin button: pull QBO balances and auto-mark cleared invoices paid."""
+    if not is_connected():
+        flash("Connect QuickBooks first.", "error")
+        return redirect(url_for("quickbooks.settings"))
+    checked, marked = sync_payments()
+    flash("Checked %d QuickBooks invoice(s); marked %d paid." % (checked, marked), "ok")
+    return redirect(url_for("quickbooks.settings"))

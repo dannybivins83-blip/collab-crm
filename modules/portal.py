@@ -48,6 +48,17 @@ try:
         title TEXT, created TEXT, seen INTEGER DEFAULT 0)""")
 except Exception:
     pass
+# Two-way homeowner <-> company conversation thread (one row per message).
+# direction: 'in' = from the homeowner, 'out' = a rep's reply. read_at marks when
+# the *other* side has seen it (rep-read for 'in', homeowner-read for 'out').
+# department mirrors the parent job/lead for multi-tenant isolation.
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS portal_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, job_id INTEGER, lead_id INTEGER,
+        direction TEXT, body TEXT, author TEXT, created TEXT, read_at TEXT,
+        department TEXT)""")
+except Exception:
+    pass
 # Document e-signature + a per-job payment link (Stripe/Square/QBO/PayPal/etc.).
 for _t, _c in (("documents", "needs_sign INTEGER DEFAULT 0"), ("documents", "signed_name TEXT"),
                ("documents", "signed_at TEXT"), ("documents", "signature TEXT"),
@@ -1125,7 +1136,9 @@ def home(token):
     celebrate = unseen[0]["title"] if unseen else ""
     for u in unseen:
         db.update("portal_updates", u["id"], seen=1)
+    thread = thread_messages(j["id"])
     return render_template("portal_dashboard.html", j=j, token=token,
+                           thread=thread,
                            referral=referral_ctx("job", j),
                            value_steps=value_steps, value_done=value_done,
                            value_total=len(value_steps),
@@ -1431,6 +1444,18 @@ def upload_photo(token):
     return redirect(url_for("portal.home", token=token) + "#photos")
 
 
+def thread_messages(job_id):
+    """The full two-way conversation for a job, oldest-first (chat order)."""
+    return db.all_rows("portal_messages", "job_id=?", (job_id,), "id ASC")
+
+
+def _client_label(j):
+    """Friendly homeowner name for the thread (falls back to 'Homeowner')."""
+    nm = re.sub(r"^\s*[A-Za-z]?-?\d{3,}\s*[:\-]\s*", "", (j.get("name") or ""))
+    nm = re.sub(r"\s*\([^)]*\)", "", nm).strip(" -·,")
+    return nm or "Homeowner"
+
+
 @bp.route("/<token>/message", methods=["POST"])
 def message(token):
     j = _job_by_token(token)
@@ -1441,6 +1466,14 @@ def message(token):
     if text:
         label = "Homeowner change request" if kind == "request" else "Homeowner message"
         db.add_activity("job", j["id"], "note", "%s: %s" % (label, text))
+        # Persist as an inbound message in the two-way thread.
+        try:
+            db.insert("portal_messages", {
+                "job_id": j["id"], "lead_id": None, "direction": "in",
+                "body": text, "author": _client_label(j), "created": db.now(),
+                "read_at": None, "department": j.get("department")})
+        except Exception:
+            pass
         from modules import notifications
         notifications.notify(j["id"], "request" if kind == "request" else "message",
                              "%s: %s" % (label, text[:140]))
@@ -1448,6 +1481,43 @@ def message(token):
         db.update("jobs", j["id"], next_follow=db.today())
         flash("Thanks! Your message was sent to our team.", "ok")
     return redirect(url_for("portal.home", token=token) + "#message")
+
+
+@bp.route("/job/<int:job_id>/reply", methods=["POST"])
+def reply(job_id):
+    """Rep replies to the homeowner's portal thread (authenticated staff only).
+
+    NOT a public/magic-link route — it resolves the job by its CRM id under the
+    logged-in session (the app-wide before_request guard enforces login + CSRF).
+    Inserts an 'out' message and marks any unread inbound messages as read."""
+    from modules.auth import current_user
+    user = current_user()
+    if not user:
+        abort(403)
+    j = db.get("jobs", job_id)
+    if not j:
+        abort(404)
+    body = (request.form.get("body") or request.form.get("text") or "").strip()
+    if body:
+        try:
+            db.insert("portal_messages", {
+                "job_id": j["id"], "lead_id": None, "direction": "out",
+                "body": body, "author": user.get("name") or "Our team",
+                "created": db.now(), "read_at": None,
+                "department": j.get("department")})
+            # The rep has now seen the homeowner's pending messages.
+            db.execute("UPDATE portal_messages SET read_at=? "
+                       "WHERE job_id=? AND direction='in' AND (read_at IS NULL OR read_at='')",
+                       (db.now(), j["id"]))
+        except Exception:
+            pass
+        db.add_activity("job", j["id"], "note",
+                        "Replied to homeowner in portal: %s" % body[:200])
+        flash("Reply sent to the homeowner's portal.", "ok")
+    nxt = request.form.get("next") or request.referrer
+    if nxt and nxt.startswith("/"):
+        return redirect(nxt)
+    return redirect(url_for("jobs.detail", job_id=j["id"]) + "#message")
 
 
 @bp.route("/<token>/sign/<int:est_id>", methods=["POST"])

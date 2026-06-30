@@ -11,8 +11,12 @@
   <div class="grow"></div>
   <button class="primary" onclick="saveEstimate()">Save</button>
   <a class="btn" target="_blank" href="{{ url_for('estimates.print_view', est_id=e.id) }}">Print Proposal</a>
-  <form method="post" action="{{ url_for('estimates.status', est_id=e.id) }}" style="display:inline">
-    <input type="hidden" name="status" value="sent"><button type="submit">Mark as Sent</button>
+  <a class="btn" target="_blank" href="{{ url_for('estimates.pdf', est_id=e.id) }}">{{ icon('download') }} PDF</a>
+  <form method="post" action="{{ url_for('estimates.email', est_id=e.id) }}" style="display:inline-flex;gap:4px;align-items:center"
+        onsubmit="return confirm('Email this proposal PDF to the client?')">
+    <input name="email" type="email" placeholder="client@email.com"
+           value="{{ (job.email if job else '') or (lead.email if lead else '') }}" style="width:168px">
+    <button class="accent" type="submit">✉ Email proposal</button>
   </form>
 </div>
 

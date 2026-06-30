@@ -35,6 +35,8 @@
         {% if job.rep and job.rep not in reps %}<option selected>{{ job.rep }}</option>{% endif %}
       </select>
     </div>
+    <div class="field"><label>Foreman</label><input name="foreman" value="{{ job.foreman or '' }}" placeholder="Crew lead on site"></div>
+    <div class="field"><label>Crew</label><input name="crew" value="{{ job.crew or '' }}" placeholder="Crew / sub name"></div>
     <div class="field"><label>County</label><input name="county" value="{{ job.county or company.default_county or '' }}"></div>
     <div class="field"><label>AHJ (permit office)</label><input name="ahj" value="{{ job.ahj or '' }}"></div>
     {% if mode=='new' %}

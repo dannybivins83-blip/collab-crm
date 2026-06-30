@@ -4,17 +4,19 @@
 <div class="page-head">
   <a href="{{ url_for('invoices.index') }}" class="muted">← Invoices</a>
   <h1 style="margin-left:8px">{{ inv.number }}</h1>
-  <span class="pill" style="background:{{ 'var(--ok)22' if inv.status=='paid' else 'var(--danger)22' }};color:{{ 'var(--ok)' if inv.status=='paid' else 'var(--danger)' }}">{{ inv.status }}</span>
+  {% set _pc = 'var(--ok)' if inv.status=='paid' else ('var(--warn)' if inv.status=='partial' else 'var(--danger)') %}
+  <span class="pill" style="background:{{ _pc }}22;color:{{ _pc }}">{{ inv.status }}</span>
 </div>
 <div class="card" style="max-width:560px">
   {% if job %}<div>Job: <a href="{{ url_for('jobs.detail', job_id=job.id) }}">{{ job.name }}</a></div>{% endif %}
   {% if inv.draw_key %}<div class="muted">{{ inv.draw_key }}</div>{% endif %}
   <div style="font-size:30px;font-weight:800;margin:12px 0">{{ money(inv.amount) }}</div>
+  {% if paid_sum and inv.status!='paid' %}<div class="muted">Paid {{ money(paid_sum) }} · <b style="color:var(--warn)">Balance {{ money(balance) }}</b></div>{% endif %}
   {% if inv.due_date %}<div class="muted">Due {{ inv.due_date }}</div>{% endif %}
   {% if inv.paid_date %}<div class="muted">Paid {{ inv.paid_date }}</div>{% endif %}
   {% if inv.notes %}<p>{{ inv.notes }}</p>{% endif %}
   <div style="display:flex;gap:10px;margin-top:14px">
-    {% if inv.status!='paid' %}<form method="post" action="{{ url_for('invoices.pay', inv_id=inv.id) }}"><button class="accent" type="submit">Mark paid</button></form>{% endif %}
+    {% if inv.status!='paid' %}<form method="post" action="{{ url_for('invoices.pay', inv_id=inv.id) }}"><button class="accent" type="submit">Mark paid in full</button></form>{% endif %}
     <form method="post" action="{{ url_for('invoices.delete', inv_id=inv.id) }}" onsubmit="return confirm('Delete invoice?')"><button class="danger" type="submit">Delete</button></form>
   </div>
   {% if overdue %}
@@ -26,6 +28,34 @@
     </div>
     <div class="muted" style="margin-top:6px">Creates a Gmail draft with a secure pay link — you review &amp; send.{% if inv.reminded_at %} Last drafted {{ inv.reminded_at[:10] }}.{% endif %}</div>
   </form>
+  {% endif %}
+</div>
+
+<div class="card" style="max-width:560px">
+  <h2>💵 Record a payment</h2>
+  <div class="muted" style="margin-bottom:8px">Log a full or partial payment. The invoice flips to <b>paid</b> only when recorded payments cover the amount, else <b>partial</b>.</div>
+  <form method="post" action="{{ url_for('invoices.record_payment', inv_id=inv.id) }}">
+    <div class="row">
+      <div class="field"><label>Amount</label><input name="amount" placeholder="{{ money(balance or inv.amount) }}" required></div>
+      <div class="field"><label>Date</label><input type="date" name="paid_date"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Method</label>
+        <select name="method"><option value="">—</option><option>Check</option><option>ACH / Transfer</option><option>Card</option><option>Cash</option><option>Other</option></select></div>
+      <div class="field"><label>Reference / Check #</label><input name="reference" placeholder="optional"></div>
+    </div>
+    <button class="primary" type="submit">Record payment</button>
+  </form>
+  {% if payments %}
+  <table class="grid" style="margin-top:14px;width:100%">
+    <thead><tr><th>Date</th><th>Method</th><th>Ref</th><th style="text-align:right">Amount</th></tr></thead>
+    <tbody>
+    {% for p in payments %}
+      <tr><td>{{ p.paid_date or (p.created or '')[:10] }}</td><td>{{ p.method or '—' }}</td><td>{{ p.reference or '' }}</td><td style="text-align:right">{{ money(p.amount) }}</td></tr>
+    {% endfor %}
+      <tr><td colspan="3" style="text-align:right;font-weight:700">Total paid</td><td style="text-align:right;font-weight:700">{{ money(paid_sum) }}</td></tr>
+    </tbody>
+  </table>
   {% endif %}
 </div>
 

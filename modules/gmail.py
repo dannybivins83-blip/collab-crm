@@ -21,6 +21,9 @@ import json
 import base64
 import secrets
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders as _encoders
 from email.utils import parseaddr, formataddr
 
 from flask import (Blueprint, request, redirect, url_for, session, jsonify,
@@ -84,7 +87,35 @@ def smtp_configured():
                 and os.environ.get("SMTP_PASSWORD", "").strip())
 
 
-def _smtp_send(to, subject, body):
+def _build_mime(to, subject, body, attachments=None):
+    """Build a MIMEText (plain) or a MIMEMultipart when attachments are present.
+    attachments: list of (filename, bytes_content, mimetype) tuples. Sets To/Subject;
+    the caller sets From (SMTP) — the Gmail API derives From from the account."""
+    if attachments:
+        msg = MIMEMultipart()
+        msg.attach(MIMEText(body or "", "plain", "utf-8"))
+        for att in attachments:
+            try:
+                fname, content, ctype = (list(att) + [None, None, None])[:3]
+            except TypeError:
+                continue
+            if content is None:
+                continue
+            maintype, _, subtype = (ctype or "application/octet-stream").partition("/")
+            part = MIMEBase(maintype or "application", subtype or "octet-stream")
+            part.set_payload(content)
+            _encoders.encode_base64(part)
+            part.add_header("Content-Disposition", "attachment",
+                            filename=fname or "attachment")
+            msg.attach(part)
+    else:
+        msg = MIMEText(body or "", "plain", "utf-8")
+    msg["To"] = (to or "").strip()
+    msg["Subject"] = subject or ""
+    return msg
+
+
+def _smtp_send(to, subject, body, attachments=None):
     """Send via SMTP (Gmail app password or any SMTP server). No OAuth required.
     Set SMTP_FROM, SMTP_PASSWORD (and optionally SMTP_HOST, SMTP_PORT) on Render."""
     import smtplib, ssl as _ssl
@@ -94,10 +125,8 @@ def _smtp_send(to, subject, body):
     pwd = os.environ.get("SMTP_PASSWORD", "").strip()
     if not frm or not pwd or not (to or "").strip():
         return False
-    msg = MIMEText(body or "", "plain", "utf-8")
-    msg["To"] = to.strip()
+    msg = _build_mime(to, subject, body, attachments)
     msg["From"] = frm
-    msg["Subject"] = subject or ""
     try:
         ctx = _ssl.create_default_context()
         with smtplib.SMTP(host, port, timeout=30) as s:
@@ -455,23 +484,22 @@ def create_draft(uid, to, subject, body, in_reply_to=None, references=None, thre
     return res.get("id") if res else None
 
 
-def send_message(uid, to, subject, body):
+def send_message(uid, to, subject, body, attachments=None):
     """SEND an email immediately. Tries Gmail OAuth first (if user connected their
     account), then falls back to SMTP (if SMTP_FROM + SMTP_PASSWORD are set on Render).
+    Optional attachments: list of (filename, bytes_content, mimetype) tuples.
     Returns the sent message id (OAuth), True (SMTP), or None if both fail."""
     if not (to or "").strip():
         return None
     # Gmail OAuth path
     if account_for_user(uid):
-        msg = MIMEText(body or "", "plain", "utf-8")
-        msg["To"] = (to or "").strip()
-        msg["Subject"] = subject or ""
+        msg = _build_mime(to, subject, body, attachments)
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         res = _api_post(uid, "/messages/send", {"raw": raw})
         if res and res.get("id"):
             return res["id"]
     # SMTP fallback — works without any OAuth setup
-    if _smtp_send(to, subject, body):
+    if _smtp_send(to, subject, body, attachments):
         return True
     return None
 

@@ -891,6 +891,11 @@ TABLE_ALLOWLIST = {
     "lead_sources", "contact_types", "material_catalog", "file_blobs",
     "acculynx_email_sync", "automation_fires", "submittal_components",
     "takeoffs",
+    # 2026-06 gap-build: module-level CREATE IF NOT EXISTS tables (subs, claims,
+    # inspections, portal thread, follow-up sequence engine).
+    "subcontractors", "claims", "claim_supplements", "inspections",
+    "portal_messages", "sequences", "sequence_steps", "sequence_enrollments",
+    "sequence_step_fires",
 }
 
 _SAFE_COL_RE = _re.compile(r'^[a-zA-Z_][a-zA-Z0-9_.]*$')

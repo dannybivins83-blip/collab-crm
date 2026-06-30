@@ -9,13 +9,24 @@
     </select>
   </div>
   <div class="field"><label>Draw</label>
-    <select name="draw_key"><option value="">Custom</option>{% for d in draws %}<option value="{{ d.label }}">{{ d.label }}</option>{% endfor %}</select>
+    <select name="draw_key" id="drawSel" onchange="fillAmt()"><option value="">Custom</option>
+      {% for d in draws %}<option value="{{ d.label }}" data-amt="{{ '%.2f'|format(d.amount) if d.amount is not none else '' }}">{{ d.label }}{% if d.amount is not none %} — {{ money(d.amount) }}{% endif %}</option>{% endfor %}
+    </select>
+    {% if contract_total %}<div class="muted" style="font-size:12px;margin-top:4px">Draws priced from estimate total {{ money(contract_total) }}. Pick a draw to auto-fill the amount.</div>{% endif %}
   </div>
   <div class="row">
-    <div class="field"><label>Amount</label><input name="amount" placeholder="$9,725" required></div>
+    <div class="field"><label>Amount</label><input name="amount" id="amtInp" placeholder="$9,725" required></div>
     <div class="field"><label>Due date</label><input type="date" name="due_date"></div>
   </div>
   <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
   <button class="primary" type="submit">Create invoice</button>
 </form>
+<script>
+function fillAmt(){
+  var s=document.getElementById('drawSel'), a=document.getElementById('amtInp');
+  var amt=s.options[s.selectedIndex].getAttribute('data-amt');
+  if(amt && !a.value) a.value=amt;
+  else if(amt) a.value=amt;
+}
+</script>
 {% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Subcontractors{% endblock %}
+{% block body %}
+
+{% macro coi_badge(state, coi) -%}
+  {% if state == 'expired' %}<span class="pill" style="background:var(--danger,#E25050)22;color:var(--danger,#E25050)">COI expired{% if coi %} · {{ coi }}{% endif %}</span>
+  {% elif state == 'expiring' %}<span class="pill" style="background:var(--warn,#F78300)22;color:var(--warn,#F78300)">COI expiring{% if coi %} · {{ coi }}{% endif %}</span>
+  {% elif state == 'ok' %}<span class="pill" style="background:var(--ok)22;color:var(--ok)">COI {{ coi }}</span>
+  {% else %}<span class="pill" style="background:#88888822;color:#888">No COI</span>{% endif %}
+{%- endmacro %}
+
+{% macro status_badge(st) -%}
+  <span class="pill" style="background:{{ 'var(--ok)22' if st=='active' else '#88888822' }};color:{{ 'var(--ok)' if st=='active' else '#888' }}">{{ st|capitalize }}</span>
+{%- endmacro %}
+
+{% if rows is not none %}
+{# ---- LIST VIEW ---- #}
+<div class="page-head"><h1>🛠 Subcontractors</h1><span class="sub">{{ rows|length }} shown · COI / W-9 tracking · flags coverage expiring within {{ coi_warn_days }} days</span></div>
+
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search name, trade, phone, email, address…" style="flex:1" autofocus>
+  <select name="trade" onchange="this.form.submit()" style="min-width:130px">
+    <option value="">All trades</option>
+    {% for t in trades %}<option value="{{ t }}" {{ 'selected' if t==trade_f }}>{{ t }}</option>{% endfor %}
+  </select>
+  <select name="status" onchange="this.form.submit()" style="min-width:130px">
+    <option value="">All statuses</option>
+    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s==status_f }}>{{ s|capitalize }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Search</button>
+  {% if q or status_f or trade_f %}<a class="btn" href="{{ url_for('subs.index') }}">✕ Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <h2>Add subcontractor</h2>
+  <form method="post" action="{{ url_for('subs.new') }}" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">Name</span><input name="name" required style="width:180px"></label>
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">Trade</span>
+      <select name="trade" style="width:140px">{% for t in trades %}<option>{{ t }}</option>{% endfor %}</select></label>
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">Phone</span><input name="phone" style="width:130px"></label>
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">Email</span><input name="email" type="email" style="width:180px"></label>
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">COI expiry</span><input name="coi_expiry" type="date" style="width:150px"></label>
+    <label style="display:flex;align-items:center;gap:4px;padding-bottom:6px"><input name="w9_on_file" type="checkbox" value="1"> <span class="sub">W-9 on file</span></label>
+    <button class="btn accent" type="submit">+ Add</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Roster</h2>
+  <table class="grid">
+    <tr><th>Name</th><th>Trade</th><th>Phone</th><th>Email</th><th>W-9</th><th>COI</th><th>Status</th></tr>
+    {% for s in rows %}
+    <tr>
+      <td><a href="{{ url_for('subs.detail', sid=s.id) }}"><b>{{ s.name }}</b></a></td>
+      <td>{{ s.trade or '—' }}</td>
+      <td>{{ s.phone or '—' }}</td>
+      <td>{% if s.email %}<a href="mailto:{{ s.email }}">{{ s.email }}</a>{% else %}—{% endif %}</td>
+      <td>{% if s.w9_on_file %}<span class="pill" style="background:var(--ok)22;color:var(--ok)">✓</span>{% else %}<span class="pill" style="background:#88888822;color:#888">—</span>{% endif %}</td>
+      <td>{{ coi_badge(s._coi, s.coi_expiry) }}</td>
+      <td>{{ status_badge(s.status) }}</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="empty">No subcontractors{% if q %} matching "{{ q }}"{% elif status_f or trade_f %} for current filters{% endif %}. Add one above.</td></tr>{% endfor %}
+  </table>
+</div>
+
+{% else %}
+{# ---- DETAIL / EDIT VIEW ---- #}
+<div class="page-head"><h1>🛠 {{ sub.name }}</h1><span class="sub">{{ status_badge(sub.status) }} {{ coi_badge(sub._coi, sub.coi_expiry) }}</span></div>
+<a class="btn" href="{{ url_for('subs.index') }}">← Back to roster</a>
+
+<div class="card" style="margin-top:12px">
+  <h2>Edit subcontractor</h2>
+  <form method="post" action="{{ url_for('subs.save', sid=sub.id) }}" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">Name</span><input name="name" value="{{ sub.name }}" required style="width:220px"></label>
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">Trade</span>
+      <select name="trade" style="width:150px">{% for t in trades %}<option {{ 'selected' if t==sub.trade }}>{{ t }}</option>{% endfor %}</select></label>
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">Status</span>
+      <select name="status" style="width:130px">{% for st in statuses %}<option {{ 'selected' if st==sub.status }}>{{ st|capitalize }}</option>{% endfor %}</select></label>
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">Phone</span><input name="phone" value="{{ sub.phone or '' }}" style="width:150px"></label>
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">Email</span><input name="email" type="email" value="{{ sub.email or '' }}" style="width:220px"></label>
+    <label style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:240px"><span class="sub">Address</span><input name="address" value="{{ sub.address or '' }}"></label>
+    <label style="display:flex;flex-direction:column;gap:2px"><span class="sub">COI expiry</span><input name="coi_expiry" type="date" value="{{ sub.coi_expiry or '' }}" style="width:160px"></label>
+    <label style="display:flex;align-items:center;gap:4px;padding-bottom:6px"><input name="w9_on_file" type="checkbox" value="1" {{ 'checked' if sub.w9_on_file }}> <span class="sub">W-9 on file</span></label>
+    <label style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:100%"><span class="sub">Notes</span><textarea name="notes" rows="3">{{ sub.notes or '' }}</textarea></label>
+    <button class="btn accent" type="submit">Save</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

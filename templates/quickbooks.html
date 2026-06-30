@@ -23,6 +23,10 @@
   <h2>2 · Connect</h2>
   {% if connected %}
     <div class="muted">Connected to QuickBooks (realm {{ c.qbo_realm_id }}) since {{ c.qbo_connected_at }}.</div>
+    <form method="post" action="{{ url_for('quickbooks.sync_payments_route') }}" style="margin-top:10px">
+      <button class="primary" type="submit">↻ Sync payments from QuickBooks</button>
+      <div class="muted" style="margin-top:6px">Pulls QuickBooks balances and auto-marks pushed invoices <b>paid</b> when the customer has paid via the Pay-now link.</div>
+    </form>
     <form method="post" action="{{ url_for('quickbooks.disconnect') }}" style="margin-top:10px"><button class="danger" type="submit">Disconnect</button></form>
   {% elif configured %}
     <p class="muted">Click Connect, then approve on Intuit's consent screen (you sign in to QuickBooks there — credentials never touch this app).</p>

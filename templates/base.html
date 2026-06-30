@@ -48,7 +48,8 @@
 <header class="masthead">
   <button class="hamburger" type="button" aria-label="Menu" title="Menu" onclick="document.querySelector('.mainnav').classList.toggle('open')">{{ icon('menu', size=22) }}</button>
   <a class="brand" href="{{ url_for('dashboard.home') }}">
-    <span class="brand-mark">{{ icon('home') }}</span>
+    {% if company.logo_path %}<img class="brand-logo" src="{{ url_for('uploads', subpath=company.logo_path) }}" alt="{{ company.name }}">
+    {% else %}<span class="brand-mark">{{ icon('home') }}</span>{% endif %}
     <span class="brand-name">{{ company.brand_short or company.name or 'White-Label CRM' }}</span>
   </a>
   <div class="navgroup dept-picker">
@@ -151,6 +152,8 @@
       <a href="{{ url_for('sync.catalog_view') }}">{{ icon('box') }}<span class="nlbl">Material Catalog</span></a>
       <a href="{{ url_for('library.index') }}">{{ icon('book') }}<span class="nlbl">Document Library</span></a>
       <a href="{{ url_for('contacts.gcs') }}">{{ icon('building') }}<span class="nlbl">General Contractors</span></a>
+      <a href="{{ url_for('subs.index') }}">{{ icon('user') }}<span class="nlbl">Subcontractors</span></a>
+      <a href="{{ url_for('claims.index') }}">{{ icon('clipboard') }}<span class="nlbl">Insurance Claims</span></a>
       <a href="{{ url_for('sync.index') }}">{{ icon('refresh') }}<span class="nlbl">Sync from AccuLynx</span></a>
       <a href="{{ url_for('calendar.index') }}">{{ icon('calendar') }}<span class="nlbl">Calendar</span></a>
       <a href="{{ url_for('tasks.index') }}">{{ icon('check') }}<span class="nlbl">Tasks</span></a>

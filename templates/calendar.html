@@ -1,8 +1,53 @@
 {% extends "base.html" %}
 {% block title %}Calendar{% endblock %}
 {% block body %}
-<div class="page-head"><h1>📅 Calendar & Scheduling</h1></div>
+<style>
+  .cal-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .cal-toolbar h2{margin:0;font-size:18px;min-width:160px}
+  .cal-nav{display:inline-flex;gap:6px}
+  .cal-grid{width:100%;border-collapse:collapse;table-layout:fixed}
+  .cal-grid th{background:var(--panel2,#f4f6fa);border:1px solid var(--line,#dde3ec);
+    padding:6px 4px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut,#667)}
+  .cal-grid td{border:1px solid var(--line,#dde3ec);vertical-align:top;height:104px;width:14.28%;
+    padding:4px;overflow:hidden}
+  .cal-day{display:flex;justify-content:space-between;align-items:center;font-size:12px;
+    font-weight:700;margin-bottom:3px;color:var(--ink,#1d2433)}
+  .cal-cell.out{background:var(--panel2,#f4f6fa)}
+  .cal-cell.out .cal-day{color:var(--mut,#99a)}
+  .cal-cell.today{box-shadow:inset 0 0 0 2px var(--accent,#4680BF)}
+  .cal-cell.today .cal-daynum{background:var(--accent,#4680BF);color:#fff;border-radius:50%;
+    width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+  .cal-evts{display:flex;flex-direction:column;gap:2px}
+  .cal-evt{font-size:11px;line-height:1.25;padding:2px 5px;border-radius:4px;color:#fff;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none;display:block}
+  .cal-evt:hover{filter:brightness(.93)}
+  .cal-evt .t{font-weight:700}
+  /* kind colors */
+  .k-inspection{background:#3a7bd5}
+  .k-estimate-appt{background:#2e9e6b}
+  .k-production--crew{background:#d98324}
+  .k-final-inspection{background:#7a4fc0}
+  .k-meeting{background:#5a6675}
+  .k-other{background:#9aa3ad}
+  .cal-legend{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;font-size:12px}
+  .cal-legend span{display:inline-flex;align-items:center;gap:5px;color:var(--mut,#667)}
+  .cal-legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .cal-more{font-size:10px;color:var(--mut,#667);font-weight:700;padding-left:2px}
+  [hidden]{display:none !important}
+  @media (max-width:760px){
+    .cal-grid,.cal-grid tbody,.cal-grid tr{display:block;width:100%}
+    .cal-grid thead{display:none}
+    .cal-grid td{display:block;width:auto;height:auto;min-height:0}
+    .cal-cell.out{display:none}
+    .cal-day{font-size:14px}
+    .cal-evt{white-space:normal}
+  }
+</style>
+
+<div class="page-head"><h1>📅 Calendar &amp; Scheduling</h1></div>
+
 <form method="get" class="listbar" style="margin-bottom:12px">
+  <input type="hidden" name="month" value="{{ cur_month }}">
   <select name="kind" onchange="this.form.submit()" style="min-width:160px">
     <option value="">All types</option>
     {% for k in kinds %}<option {{ 'selected' if k==kind_f }}>{{ k }}</option>{% endfor %}
@@ -12,11 +57,58 @@
     {% for a in assignees %}<option {{ 'selected' if a==assignee_f }}>{{ a }}</option>{% endfor %}
   </select>
   <button class="btn" type="submit">Filter</button>
-  {% if kind_f or assignee_f %}<a class="btn" href="{{ url_for('calendar.index') }}">✕ Clear</a>{% endif %}
+  {% if kind_f or assignee_f %}<a class="btn" href="{{ url_for('calendar.index', month=cur_month) }}">✕ Clear</a>{% endif %}
+  <span style="flex:1"></span>
+  <button class="btn" type="button" onclick="calToggle()" id="calToggleBtn">📋 List view</button>
 </form>
+
+{# preserve active filters across month nav #}
+{% set _q = {} %}
+{% if kind_f %}{% set _ = _q.update({'kind': kind_f}) %}{% endif %}
+{% if assignee_f %}{% set _ = _q.update({'assignee': assignee_f}) %}{% endif %}
+
+<div id="calMonth" class="card">
+  <div class="cal-toolbar">
+    <div class="cal-nav">
+      <a class="btn" href="{{ url_for('calendar.index', month=prev_month, **_q) }}">‹ Prev</a>
+      <a class="btn" href="{{ url_for('calendar.index', **_q) }}">Today</a>
+      <a class="btn" href="{{ url_for('calendar.index', month=next_month, **_q) }}">Next ›</a>
+    </div>
+    <h2>{{ month_label }}</h2>
+  </div>
+  <div class="cal-legend">
+    {% for k in kinds %}
+      <span><i class="k-{{ k|lower|replace(' ','-')|replace('/','-') }}"></i>{{ k }}</span>
+    {% endfor %}
+  </div>
+  <table class="cal-grid">
+    <thead><tr>{% for w in weekday_labels %}<th>{{ w }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for week in weeks %}
+      <tr>
+        {% for cell in week %}
+        <td class="cal-cell {{ 'out' if not cell.in_month }} {{ 'today' if cell.is_today }}">
+          <div class="cal-day"><span class="cal-daynum">{{ cell.day }}</span></div>
+          <div class="cal-evts">
+            {% for a in cell.appts[:4] %}
+            <span class="cal-evt k-{{ (a.kind or 'Other')|lower|replace(' ','-')|replace('/','-') }}"
+               title="{{ a.start_at[11:16] if a.start_at and a.start_at|length > 10 }} {{ a.title }} — {{ a.kind }}{% if a._who %} ({{ a._who }}){% endif %}{% if a.assignee %} · {{ a.assignee }}{% endif %}{% if a.location %} 📍 {{ a.location }}{% endif %}">
+              {% if a.start_at and a.start_at|length > 10 %}<span class="t">{{ a.start_at[11:16] }}</span> {% endif %}{{ a.title }}
+            </span>
+            {% endfor %}
+            {% if cell.appts|length > 4 %}<div class="cal-more">+{{ cell.appts|length - 4 }} more</div>{% endif %}
+          </div>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
 <div class="detail">
   <div>
-    <div class="card">
+    <div id="calAgenda" class="card" hidden>
       <h2>Upcoming</h2>
       <table class="grid">
         <tr><th>When</th><th>Title</th><th>Type</th><th>Who</th><th>Assignee</th><th></th></tr>
@@ -27,11 +119,11 @@
           <td class="right"><form method="post" action="{{ url_for('calendar.delete', appt_id=a.id) }}"><button class="btn sm" type="submit">✕</button></form></td></tr>
         {% else %}<tr><td colspan="6" class="empty">Nothing scheduled.</td></tr>{% endfor %}
       </table>
-    </div>
-    {% if past %}
-    <div class="card"><h2 class="muted">Past</h2>
+      {% if past %}
+      <h2 class="muted" style="margin-top:18px">Past</h2>
       <table class="grid">{% for a in past %}<tr><td class="muted">{{ a.start_at }}</td><td>{{ a.title }}</td><td>{{ a._who }}</td></tr>{% endfor %}</table>
-    </div>{% endif %}
+      {% endif %}
+    </div>
   </div>
   <div class="card">
     <h2>New appointment</h2>
@@ -58,4 +150,16 @@
     </form>
   </div>
 </div>
+
+<script>
+function calToggle(){
+  var grid=document.getElementById('calMonth');
+  var agenda=document.getElementById('calAgenda');
+  var btn=document.getElementById('calToggleBtn');
+  var showAgenda=grid.hidden===false;
+  grid.hidden=showAgenda;
+  agenda.hidden=!showAgenda;
+  btn.textContent=showAgenda?'🗓 Month view':'📋 List view';
+}
+</script>
 {% endblock %}

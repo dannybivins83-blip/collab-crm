@@ -10,6 +10,29 @@ bp = Blueprint("invoices", __name__, url_prefix="/invoices")
 
 db._ensure_column("invoices", "reminded_at", "TEXT")
 db._ensure_column("invoices", "overdue_fired_at", "TEXT")
+# Partial-payment support: track cumulative amount applied to each invoice, and tie
+# manually-recorded payments back to the invoice (the payments table is otherwise only
+# populated by the AccuLynx sync — see acculynx_sync.py).
+db._ensure_column("invoices", "amount_paid", "REAL")
+db._ensure_column("payments", "invoice_id", "INTEGER")
+
+
+def _est_contract_total(job_id):
+    """Best contract total for a job's draw math: the signed estimate's computed total,
+    else the job's stored contract_value. Returns a float (0.0 if nothing found)."""
+    try:
+        from modules import worksheet as ws
+        from modules import estimates as est
+        e = ws._signed_estimate(job_id)
+        if e:
+            secs = est._load_sections(e["id"])
+            t = est.estimate_totals(e, secs).get("total") or 0
+            if t:
+                return float(t)
+    except Exception:
+        pass
+    job = db.get("jobs", job_id) or {}
+    return float(theme.est_num(job.get("contract_value")) or 0)
 
 
 def _next_number():
@@ -158,7 +181,9 @@ def index():
     sweep_overdue_automations(rows)
     # Totals are always across the full scoped set (before query filtering).
     total = sum(i["amount"] or 0 for i in rows)
-    paid = sum(i["amount"] or 0 for i in rows if i["status"] == "paid")
+    # Count partial payments toward collected, not just fully-paid invoices.
+    paid = sum((i.get("amount_paid") if i.get("amount_paid")
+                else (i["amount"] if i["status"] == "paid" else 0)) or 0 for i in rows)
     overdue = sum(i["amount"] or 0 for i in rows if i["_overdue"])
     overdue_n = sum(1 for i in rows if i["_overdue"])
     # Client-side search + status filter (after totals are computed).
@@ -195,9 +220,14 @@ def new():
     job_id = request.args.get("job_id", "")
     job = db.get("jobs", job_id) if job_id else None
     dept = theme.current_department()
+    # Price each draw from the job's signed-estimate total so the amount auto-fills
+    # instead of being hand-keyed (the DRAW_SCHEDULE percentages were previously unused).
+    _total = _est_contract_total(int(job_id)) if str(job_id).isdigit() else 0
+    priced_draws = [dict(d, amount=(round(_total * d["pct"], 2) if _total else None))
+                    for d in constants.DRAW_SCHEDULE]
     return render_template("invoice_form.html", job=job,
                            jobs=db.all_rows("jobs", "department=?", (dept,), "name"),
-                           draws=constants.DRAW_SCHEDULE)
+                           draws=priced_draws, contract_total=_total)
 
 
 @bp.route("/<int:inv_id>")
@@ -207,8 +237,14 @@ def detail(inv_id):
         return redirect(url_for("invoices.index"))
     from modules import quickbooks as qb
     job = db.get("jobs", inv["job_id"]) if inv.get("job_id") else None
+    pays = db.all_rows("payments", "invoice_id=?", (inv_id,), "id DESC")
+    paid_sum = sum((p.get("amount") or 0) for p in pays)
+    if not paid_sum and inv.get("status") == "paid":
+        paid_sum = inv.get("amount") or 0
+    balance = max((inv.get("amount") or 0) - paid_sum, 0)
     return render_template("invoice_detail.html", inv=inv, job=job,
                            qbo_connected=qb.is_connected(), overdue=_is_overdue(inv),
+                           payments=pays, paid_sum=paid_sum, balance=balance,
                            default_email=inv.get("customer_email") or (job or {}).get("email") or "")
 
 
@@ -288,6 +324,71 @@ def pay(inv_id):
         flash("Marked paid — receipt drafted in your Gmail to %s (review & send)." % email, "ok")
     else:
         flash("Marked paid.", "ok")
+    return redirect(url_for("invoices.detail", inv_id=inv_id))
+
+
+@bp.route("/generate-draws/<int:job_id>", methods=["POST"])
+def generate_draws(job_id):
+    """One-click: create an invoice for each draw in the schedule not yet billed,
+    priced from the job's signed-estimate total × each draw %. Idempotent by draw label."""
+    job = db.get("jobs", job_id)
+    if not job:
+        flash("Job not found.", "error")
+        return redirect(url_for("invoices.index"))
+    total = _est_contract_total(job_id)
+    if total <= 0:
+        flash("No signed-estimate total or contract value on this job yet — set one first.", "error")
+        return redirect(url_for("jobs.detail", job_id=job_id))
+    existing = {(i.get("draw_key") or "") for i in db.all_rows("invoices", "job_id=?", (job_id,))}
+    made = 0
+    for d in constants.DRAW_SCHEDULE:
+        if d["label"] in existing:
+            continue
+        db.insert("invoices", {"job_id": job_id, "number": _next_number(),
+                               "draw_key": d["label"], "amount": round(total * d["pct"], 2),
+                               "status": "unpaid", "notes": ""})
+        made += 1
+    if made:
+        db.add_activity("job", job_id, "automation",
+                        "%d draw invoice(s) generated from estimate total %s" % (made, theme.money(total)))
+        flash("Generated %d draw invoice(s) from %s." % (made, theme.money(total)), "ok")
+    else:
+        flash("All draws are already invoiced for this job.", "info")
+    return redirect(url_for("jobs.detail", job_id=job_id))
+
+
+@bp.route("/<int:inv_id>/record-payment", methods=["POST"])
+def record_payment(inv_id):
+    """Record a (possibly partial) payment: writes a real payments row and marks the
+    invoice paid only once cumulative payments cover the amount, else 'partial'."""
+    inv = db.get("invoices", inv_id)
+    if not inv:
+        return redirect(url_for("invoices.index"))
+    amt = theme.est_num(request.form.get("amount"))
+    if not amt or amt <= 0:
+        flash("Enter a payment amount.", "error")
+        return redirect(url_for("invoices.detail", inv_id=inv_id))
+    db.insert("payments", {
+        "job_id": inv.get("job_id"), "invoice_id": inv_id, "amount": round(amt, 2),
+        "method": request.form.get("method", ""), "reference": request.form.get("reference", ""),
+        "paid_date": request.form.get("paid_date") or db.today(),
+        "notes": request.form.get("notes", ""), "source": "manual", "created": db.now()})
+    paid = sum((p.get("amount") or 0) for p in db.all_rows("payments", "invoice_id=?", (inv_id,)))
+    inv_amt = inv.get("amount") or 0
+    fields = {"amount_paid": round(paid, 2)}
+    if inv_amt > 0 and paid + 0.005 >= inv_amt:
+        fields["status"] = "paid"
+        fields["paid_date"] = request.form.get("paid_date") or db.today()
+    elif inv.get("status") != "paid":
+        fields["status"] = "partial"
+    db.update("invoices", inv_id, **fields)
+    if inv.get("job_id"):
+        db.add_activity("job", inv["job_id"], "automation",
+                        "Payment %s recorded on %s (balance %s)" % (
+                            theme.money(amt), inv.get("number"), theme.money(max(inv_amt - paid, 0))))
+    flash("Payment of %s recorded.%s" % (
+        theme.money(amt),
+        "" if fields.get("status") != "paid" else " Invoice fully paid."), "ok")
     return redirect(url_for("invoices.detail", inv_id=inv_id))
 
 

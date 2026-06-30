@@ -10,10 +10,22 @@ from theme import current_department
 bp = Blueprint("jobs", __name__, url_prefix="/jobs")
 
 EDITABLE = ["rid", "name", "phone", "email", "address", "city", "state", "zip",
-            "work_type", "rep", "source", "contract_value", "narrative", "todo", "notes",
-            "next_follow", "pcn", "legal", "county", "ahj", "system", "existing",
-            "area", "slope", "mrh", "exposure", "external_url", "contact_id", "pay_url",
-            "sitecam_url"]
+            "work_type", "rep", "foreman", "crew", "source", "contract_value", "narrative",
+            "todo", "notes", "next_follow", "pcn", "legal", "county", "ahj", "system",
+            "existing", "area", "slope", "mrh", "exposure", "external_url", "contact_id",
+            "pay_url", "sitecam_url"]
+
+# Production crew/foreman fields — jobs natively carry only the sales 'rep'.
+# Schema-flexible columns, added the same way other optional job columns are.
+db._ensure_column("jobs", "foreman", "TEXT")
+db._ensure_column("jobs", "crew", "TEXT")
+
+# Structured inspection records (rough/final/etc). Self-creates at import time per
+# house convention; scoped by department like other job-child reads.
+db.execute("""CREATE TABLE IF NOT EXISTS inspections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER, type TEXT, scheduled_date TEXT, result TEXT DEFAULT 'pending',
+    inspector TEXT, notes TEXT, created TEXT, department TEXT)""")
 
 
 def _require_job(job_id):
@@ -317,6 +329,12 @@ def detail(job_id):
         stage_history = db.all_rows("job_stage_history", "job_id=?", (job_id,), "started_at")
     except Exception:
         stage_history = []
+    # Inspections — scoped by the job's own department (child read).
+    try:
+        inspections = db.all_rows("inspections", "job_id=? AND department=?",
+                                  (job_id, j.get("department")), "scheduled_date DESC, id DESC")
+    except Exception:
+        inspections = []
     return render_template("job_detail.html", j=j, measurement=meas.for_job(job_id),
                            quick_templates=quick_templates,
                            meas_fields=meas.FIELDS,
@@ -328,6 +346,7 @@ def detail(job_id):
                            invoices=db.all_rows("invoices", "job_id=?", (job_id,)),
                            materials=db.all_rows("materials", "job_id=?", (job_id,)),
                            job_expenses=job_expenses, stage_history=stage_history,
+                           inspections=inspections,
                            draws=constants.DRAW_SCHEDULE, buckets=constants.BUCKETS,
                            cur_bucket=j["_stage"].get("bucket"), next_stage=next_stage,
                            cur_bucket_index=next((i for i, b in enumerate(constants.BUCKETS)
@@ -494,6 +513,46 @@ def note(job_id):
     kind = request.form.get("kind", "note")
     if text:
         db.add_activity("job", job_id, kind, text)
+    return redirect(url_for("jobs.detail", job_id=job_id))
+
+
+@bp.route("/<int:job_id>/inspection", methods=["POST"])
+def add_inspection(job_id):
+    """Add a structured inspection record (rough/final/etc.) for this job."""
+    j = _require_job(job_id)
+    itype = request.form.get("type", "").strip()
+    if itype:
+        db.insert("inspections", {
+            "job_id": job_id,
+            "type": itype,
+            "scheduled_date": request.form.get("scheduled_date", "").strip(),
+            "result": request.form.get("result", "pending").strip() or "pending",
+            "inspector": request.form.get("inspector", "").strip(),
+            "notes": request.form.get("notes", "").strip(),
+            "created": db.today(),
+            "department": j.get("department") or current_department(),
+        })
+        db.add_activity("job", job_id, "note", "Inspection added: %s" % itype)
+        flash("Inspection added.", "ok")
+    return redirect(url_for("jobs.detail", job_id=job_id))
+
+
+@bp.route("/<int:job_id>/inspection/<int:insp_id>", methods=["POST"])
+def update_inspection(job_id, insp_id):
+    """Update an existing inspection (e.g. record the result) for this job."""
+    _require_job(job_id)
+    insp = db.get("inspections", insp_id)
+    if not insp or insp.get("job_id") != job_id:
+        abort(404)
+    data = {}
+    for f in ("type", "scheduled_date", "result", "inspector", "notes"):
+        if f in request.form:
+            data[f] = request.form.get(f, "").strip()
+    if data:
+        db.update("inspections", insp_id, **data)
+        db.add_activity("job", job_id, "note",
+                        "Inspection updated: %s" % (data.get("type") or insp.get("type") or ""))
+    flash("Inspection updated.", "ok")
     return redirect(url_for("jobs.detail", job_id=job_id))
 
 
