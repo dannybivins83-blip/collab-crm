@@ -157,12 +157,16 @@ def register(app):
         current = session.get("department")
         if current not in depts:
             current = depts[0]
+        import os as _os
         return {
             "company": company,
             "departments": depts, "current_department": current,
             "money": money, "money_k": money_k, "money_abbr": money_abbr, "est_num": est_num,
             "days_since": days_since, "today": db.today,
             "constants": constants,
+            # Client-side Google Maps/Places key (referrer-restricted). Empty -> address
+            # autocomplete stays off (fail-closed), so a tenant without a key sees a plain input.
+            "maps_api_key": (_os.environ.get("GOOGLE_MAPS_API_KEY", "") or "").strip(),
         }
 
     app.jinja_env.globals.update(

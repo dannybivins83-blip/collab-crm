@@ -1,0 +1,37 @@
+{# Google Places address autocomplete — attaches to every input[name="address"] on the
+   page and fills city/zip when present. Loads ONLY when a Maps key is configured
+   (fail-closed: no key -> plain text input, no script, no error). #}
+{% if maps_api_key %}
+<script>
+(function(){
+  function attach(){
+    if(!(window.google && google.maps && google.maps.places)){ return; }
+    document.querySelectorAll('input[name="address"]').forEach(function(inp){
+      if(inp._acDone){ return; } inp._acDone = true;
+      var ac = new google.maps.places.Autocomplete(inp, {
+        types:['address'], componentRestrictions:{country:'us'},
+        fields:['address_components','formatted_address']});
+      ac.addListener('place_changed', function(){
+        var p = ac.getPlace(); if(!p || !p.address_components){ return; }
+        function comp(t, short){
+          for(var i=0;i<p.address_components.length;i++){
+            var c=p.address_components[i];
+            if(c.types.indexOf(t)>=0){ return short ? c.short_name : c.long_name; }
+          } return '';
+        }
+        var no=comp('street_number'), route=comp('route');
+        if(no && route){ inp.value = no+' '+route; }
+        var form = inp.form || document;
+        var city = comp('locality') || comp('sublocality') || comp('administrative_area_level_3');
+        var zip = comp('postal_code'), st = comp('administrative_area_level_1', true);
+        var cEl=form.querySelector('[name="city"]'); if(cEl && city){ cEl.value=city; }
+        var zEl=form.querySelector('[name="zip"]'); if(zEl && zip){ zEl.value=zip; }
+        var sEl=form.querySelector('[name="state"]'); if(sEl && st && !sEl.value){ sEl.value=st; }
+      });
+    });
+  }
+  window.__initAddrAC = attach;
+})();
+</script>
+<script async src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=__initAddrAC"></script>
+{% endif %}

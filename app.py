@@ -77,12 +77,12 @@ def _security_headers(resp):
     # those are moved to nonce-gated script tags (a future hardening pass).
     resp.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://maps.googleapis.com https://maps.gstatic.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
         "img-src 'self' data: blob: https:; "
         "frame-src 'self' https://sitecam-web.onrender.com; "
-        "connect-src 'self';"
+        "connect-src 'self' https://maps.googleapis.com;"
     )
     return resp
 from modules import gdrive  # noqa: E402 — ensures drive_id columns + enables Drive storage
