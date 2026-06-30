@@ -4,8 +4,8 @@
 update your row → push. One pusher at a time. Don't route status through the owner.
 
 - **Repo:** `github.com/dannybivins83-blip/collab-crm` · working branch `agent/gc-consolidation`
-- **Git tip (verified 2026-06-26):** `96e517a` on `main` (= `agent/gc-consolidation`)
-- **Last board update:** 2026-06-26 ET (session 8 cont'd, fully complete) — crm-ui: Comprehensive sweep done. ALL 50 modules + all templates audited. Final round: portal.py cross-tenant scoping (similar_job_photos / one_photo_per_system / latest_system_job_photos now accept dept param + cache includes dept), commissions batch worksheet, leads_dedupe bulk UPDATE, tools callsheet SQL filter, signups+dbadmin COUNT fixes. Total session x2: 12 commits `c27bdc3`→`96e517a`. Bus inbox empty. FULLY OPTIMIZED.
+- **Git tip (verified 2026-06-30):** `8203871` on `main` (live deploy branch; `origin/main` is 119 ahead of the frozen `agent/gc-consolidation` — Render watches `main`).
+- **Last board update:** 2026-06-30 ET (session 9) — crm-ui: AccuLynx feature-parity gap-build. Ran a 7-section verified audit (49 checks: 26 PASS / 20 PARTIAL / 1 FAIL / 2 MISSING). Closed the gaps in 2 commits `5ae27ad`→`8203871`: (1) `/materials/new` 500 fix + contacts pagination; (2) server-side proposal PDF (reportlab) + email-proposal route (gmail attachment support), e-sign→auto-convert lead→job, draw-invoice generation + partial-payment recording (writes the payments ledger), QBO payment sync-back; plus 6 parallel-agent features integrated here: calendar month-grid, job foreman/crew + photos-by-phase + inspection records, two-way portal thread, subcontractors module (/subs), insurance claims/AOB/supplement module (/claims), drip sequence engine (SMS fail-closed). db.py allowlist + app.py register updated. Verified: all pages 200, PDF emits valid bytes, money POSTs 302 + write payments table, app import = 319 endpoints. Needs owner: Stripe/Twilio/Google-Places keys to light up those 3 channels (built fail-closed). Bus inbox empty.
 
 ---
 
