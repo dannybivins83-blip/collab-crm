@@ -10,8 +10,8 @@
   <p class="muted">Create an app at <a href="https://developer.intuit.com" target="_blank">developer.intuit.com</a> (Accounting scope), then paste its keys here. In the Intuit app's <b>Redirect URIs</b>, add exactly:</p>
   <div class="field"><input value="{{ redirect_uri }}" readonly onclick="this.select()"></div>
   <form method="post" action="{{ url_for('quickbooks.settings') }}">
-    <div class="field"><label>Client ID</label><input name="qbo_client_id" value="{{ c.qbo_client_id or '' }}"></div>
-    <div class="field"><label>Client Secret</label><input name="qbo_client_secret" type="password" value="{{ c.qbo_client_secret or '' }}" placeholder="{{ '••••••••' if c.qbo_client_secret else '' }}"></div>
+    <div class="field"><label>Client ID</label><input name="qbo_client_id" value="{{ c.qbo_client_id or '' }}" autocomplete="off"></div>
+    <div class="field"><label>Client Secret</label><input name="qbo_client_secret" type="password" value="{{ c.qbo_client_secret or '' }}" placeholder="{{ '••••••••' if c.qbo_client_secret else '' }}" autocomplete="new-password"></div>
     <div class="field"><label>Environment</label>
       <select name="qbo_environment"><option value="production" {{ 'selected' if c.qbo_environment!='sandbox' }}>Production</option><option value="sandbox" {{ 'selected' if c.qbo_environment=='sandbox' }}>Sandbox</option></select>
     </div>
