@@ -335,7 +335,15 @@ def detail(job_id):
                                   (job_id, j.get("department")), "scheduled_date DESC, id DESC")
     except Exception:
         inspections = []
+    # Client portal two-way message thread — so a rep can see what the homeowner
+    # said before replying, instead of replying blind.
+    try:
+        from modules import portal as _portal
+        portal_thread = _portal.thread_messages(job_id)
+    except Exception:
+        portal_thread = []
     return render_template("job_detail.html", j=j, measurement=meas.for_job(job_id),
+                           portal_thread=portal_thread,
                            quick_templates=quick_templates,
                            meas_fields=meas.FIELDS,
                            activity=db.entity_activity("job", job_id),

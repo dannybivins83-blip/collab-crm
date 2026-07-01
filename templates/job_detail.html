@@ -118,8 +118,20 @@ function lcGate(form,pct){
         </ul>
       </div>
       <div class="card" style="margin-top:12px">
-        <h2>{{ icon('message') }} Reply in client portal</h2>
-        <div class="muted" style="margin-bottom:8px">Posts to the homeowner's portal message thread (they see it on their portal page).</div>
+        <h2>{{ icon('message') }} Client portal thread</h2>
+        {% if portal_thread %}
+        <div style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;margin-bottom:10px">
+          {% for m in portal_thread %}
+          <div style="align-self:{{ 'flex-end' if m.direction=='out' else 'flex-start' }};max-width:80%;background:{{ 'var(--accent2,#e8f0fe)' if m.direction=='out' else 'var(--panel2,#f2f2f2)' }};border-radius:10px;padding:8px 12px">
+            <div style="font-size:11px;color:var(--mut,#888);margin-bottom:2px">{{ m.author }} — {{ m.created[:16] if m.created else '' }}</div>
+            <div style="white-space:pre-wrap">{{ m.body }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="muted" style="margin-bottom:8px">No messages yet.</div>
+        {% endif %}
+        <div class="muted" style="margin-bottom:8px">Reply posts to the homeowner's portal message thread (they see it on their portal page).</div>
         <form method="post" action="{{ url_for('portal.reply', job_id=j.id) }}">
           <input type="hidden" name="_csrf" value="{{ csrf_token }}">
           <input type="hidden" name="next" value="{{ url_for('jobs.detail', job_id=j.id) }}">
