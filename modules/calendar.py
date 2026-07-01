@@ -7,8 +7,15 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 import db
 import theme
+import constants
 
 bp = Blueprint("calendar", __name__, url_prefix="/calendar")
+# Cap on the "Link to" dropdown options — the full department leads/jobs lists
+# (used elsewhere in this module to resolve existing appointments' display names)
+# can run into the thousands, which bloats the page to ~9k DOM nodes and makes
+# the dropdown sluggish. New appointments are overwhelmingly linked to CURRENT
+# work, so the picker only needs the most recent, still-active records.
+_DROPDOWN_CAP = 150
 KINDS = ["Inspection", "Estimate Appt", "Production / Crew", "Final Inspection", "Meeting", "Other"]
 
 
@@ -36,6 +43,15 @@ def index():
     dept_jobs_list = db.all_rows("jobs", "department=?", (dept,), "name")
     jobs = {j["id"]: j for j in dept_jobs_list}
     leads = {l["id"]: l for l in dept_leads_list}
+    # "Link to" dropdown options: active-only, most-recent-first, capped — keeps the
+    # page's DOM size sane. Full lists above are unaffected (still resolve names for
+    # any existing appointment, including ones linked to since-closed records).
+    _li_ph = ",".join("?" * len(constants.LEAD_INACTIVE))
+    _ji_ph = ",".join("?" * len(constants.JOB_INACTIVE))
+    dropdown_leads = db.all_rows("leads", "department=? AND stage NOT IN (%s)" % _li_ph,
+                                 (dept,) + tuple(constants.LEAD_INACTIVE), "id DESC", _DROPDOWN_CAP)
+    dropdown_jobs = db.all_rows("jobs", "department=? AND stage NOT IN (%s)" % _ji_ph,
+                                (dept,) + tuple(constants.JOB_INACTIVE), "id DESC", _DROPDOWN_CAP)
     # Scope appointments via SQL IN() — avoids full-table scan + cross-tenant bleed.
     # Unlinked appointments (no job/lead) remain visible to all depts by design.
     _jids = tuple(jobs.keys())
@@ -91,7 +107,7 @@ def index():
     weekday_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
     return render_template("calendar.html", upcoming=upcoming, past=past, kinds=KINDS,
-                           leads=dept_leads_list, jobs=dept_jobs_list,
+                           leads=dropdown_leads, jobs=dropdown_jobs,
                            users=db.all_rows("users", order="name"),
                            assignees=assignees, kind_f=kind_f, assignee_f=assignee_f,
                            weeks=weeks, weekday_labels=weekday_labels,

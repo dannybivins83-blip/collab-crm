@@ -12,7 +12,7 @@
   <a href="{{ url_for('jobs.board') }}" class="back">‹</a>
   <span class="jh-badge" style="background:{{ constants.job_bucket(j.stage).color }}">{{ constants.job_bucket(j.stage).letter }}</span>
   <div class="jh-title">
-    <div class="jh-name">{{ j.rid ~ ': ' if j.rid }}{{ j.name }}</div>
+    <div class="jh-name">{{ j.rid ~ ': ' if j.rid and not (j.name or '').startswith(j.rid) }}{{ j.name }}</div>
     {% set addr = address_line(j) %}
     {% if addr %}<a class="jh-addr" href="https://maps.google.com/?q={{ addr|urlencode }}" target="_blank">{{ addr }} ↗</a>{% endif %}
     {% if j.foreman or j.crew %}<div class="jh-addr muted" style="font-size:12px">{{ icon('user') }} {% if j.foreman %}Foreman: {{ j.foreman }}{% endif %}{% if j.foreman and j.crew %} · {% endif %}{% if j.crew %}Crew: {{ j.crew }}{% endif %}</div>{% endif %}

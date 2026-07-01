@@ -81,9 +81,10 @@ def board():
     if not show_lost:
         _lc = db.connect()
         try:
-            lost_count = (_lc.execute(
+            _lrow = _lc.execute(
                 "SELECT COUNT(*) n FROM leads WHERE department=? AND stage='lost'",
-                (dept,)).fetchone() or {}).get("n", 0)
+                (dept,)).fetchone()
+            lost_count = _lrow["n"] if _lrow else 0
         finally:
             _lc.close()
     else:
@@ -131,9 +132,10 @@ def list_view():
             "SELECT DISTINCT rep FROM leads WHERE department=?"
             " AND rep IS NOT NULL AND rep != '' ORDER BY rep",
             (dept,)).fetchall()
-        total = (_conn.execute(
+        _trow = _conn.execute(
             "SELECT COUNT(*) n FROM leads WHERE department=?",
-            (dept,)).fetchone() or {}).get("n", 0)
+            (dept,)).fetchone()
+        total = _trow["n"] if _trow else 0
     finally:
         _conn.close()
     counts = {s["key"]: 0 for s in constants.LEAD_STAGES}
@@ -185,9 +187,10 @@ def list_view():
         _order_sql = _SORT_SQL[sort]
         _conn2 = db.connect()
         try:
-            matching_n = (_conn2.execute(
+            _mrow = _conn2.execute(
                 "SELECT COUNT(*) n FROM leads WHERE " + _where, _params
-            ).fetchone() or {}).get("n", 0)
+            ).fetchone()
+            matching_n = _mrow["n"] if _mrow else 0
             _page_rows = [dict(r) for r in _conn2.execute(
                 "SELECT * FROM leads WHERE %s ORDER BY %s LIMIT %d OFFSET %d" % (
                     _where, _order_sql, PER_PAGE, (page - 1) * PER_PAGE),
