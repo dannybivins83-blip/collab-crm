@@ -494,6 +494,7 @@ def sign(est_id):
     # spawns the production job, so a signed deal never sits in the wrong stage. The
     # convert helper re-parents this estimate onto the new job (sets estimates.job_id).
     job_id = e.get("job_id")
+    auto_convert_error = None
     if e.get("lead_id") and not job_id:
         from modules import leads as _leads
         try:
@@ -502,9 +503,19 @@ def sign(est_id):
                 job_id = new_jid
                 db.add_activity("job", new_jid, "automation",
                                 "Auto-converted from signed estimate %s" % e.get("number"))
-        except Exception:
+        except Exception as exc:
             job_id = None
-    return jsonify({"ok": True, "job_id": job_id})
+            auto_convert_error = str(exc)
+            # A failed auto-convert must NOT be silent: the estimate is signed either
+            # way, but the pipeline is now stuck (still "open") unless a rep notices
+            # and clicks Convert manually. Log it on the lead so it's visible.
+            try:
+                db.add_activity("lead", e["lead_id"], "automation",
+                                "Auto-convert-to-job FAILED after e-sign of %s: %s — click "
+                                "Convert to try again." % (e.get("number"), auto_convert_error))
+            except Exception:
+                pass
+    return jsonify({"ok": True, "job_id": job_id, "auto_convert_error": auto_convert_error})
 
 
 @bp.route("/<int:est_id>/print")
@@ -545,6 +556,17 @@ def _line_price(l, m):
 
 
 def _pdf_bytes(est_id):
+    """Public entry point — never lets a malformed estimate (bad section data, a
+    corrupt embedded signature, an odd company field) 500 the page. Any failure in
+    the actual builder degrades to the existing graceful 'could not build the PDF'
+    flash instead of an unhandled exception."""
+    try:
+        return _pdf_bytes_impl(est_id)
+    except Exception as exc:
+        return None, "PDF render error: %s" % exc
+
+
+def _pdf_bytes_impl(est_id):
     """Render the estimate as a branded proposal PDF via reportlab (pure-python — no
     system libraries, no cryptography dependency). Returns (bytes, filename) or (None, reason)."""
     try:
