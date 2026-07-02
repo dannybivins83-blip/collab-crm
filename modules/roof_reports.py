@@ -15,12 +15,15 @@ detail page polls /status — this keeps every request well under Vercel's limit
 """
 import json
 import os
+import re
 import ssl
+import time
 import urllib.request
 
 from flask import (Blueprint, render_template, request, redirect, url_for,
                    flash, jsonify, Response, abort)
 
+import config
 import db
 import theme
 
@@ -57,6 +60,135 @@ def _engine(path, method="GET", body=None, raw=False, timeout=45):
 def _job_address(job):
     return ", ".join(x for x in (job.get("address"), job.get("city"),
                                  job.get("state"), job.get("zip")) if x)
+
+
+# ---------------------------------------------------------------------------
+# Auto-chain: completed report + assigned client → docs + measurements + estimate
+# ---------------------------------------------------------------------------
+
+def _measurement_from_result(m):
+    """Translate the engine's measurement JSON into our measurements-table fields.
+    Only returns non-empty values so it never clobbers better data with blanks."""
+    t = (m or {}).get("totals") or {}
+    edges = (m or {}).get("edges") or {}
+    out = {}
+    def num(v):
+        try:
+            return float(re.sub(r"[^0-9.]", "", str(v)) or 0)
+        except Exception:
+            return 0.0
+    if num(t.get("squares")):
+        out["squares"] = num(t.get("squares"))
+    if t.get("predominant_pitch") not in (None, ""):
+        p = str(t.get("predominant_pitch"))
+        out["pitch"] = p if ":" in p or "/" in p else "%s:12" % p
+    if num(t.get("facet_count")):
+        out["facets"] = int(num(t.get("facet_count")))
+    for field, key in (("ridge_lf", "ridge"), ("hip_lf", "hip"), ("valley_lf", "valley"),
+                       ("rake_lf", "rake"), ("eave_lf", "eave")):
+        lf = num((edges.get(key) or {}).get("length_ft"))
+        if lf:
+            out[field] = lf
+    return out
+
+
+def _apply_to_client(report_id):
+    """The missing glue: once a report is DONE and linked to a lead/job, chain it
+    through the rest of the workflow — (1) file the PDF under the client's
+    documents, (2) upsert a measurements row from the engine numbers, (3) create a
+    starter estimate (or re-apply quantities to the latest draft). Idempotent per
+    target via roof_reports.applied_to, and failure-VISIBLE (activity log), never
+    a 500. Returns a short summary string for the activity log/flash."""
+    db._ensure_column("roof_reports", "applied_to", "TEXT")
+    rr = db.get("roof_reports", report_id)
+    if not rr or rr.get("status") != "done":
+        return ""
+    kind, tid = ("job", rr.get("job_id")) if rr.get("job_id") else ("lead", rr.get("lead_id"))
+    if not tid:
+        return ""
+    target = "%s:%s" % (kind, tid)
+    if (rr.get("applied_to") or "") == target:
+        return ""  # already chained onto this exact client — don't duplicate
+    rec = db.get(kind + "s", tid)
+    if not rec:
+        return ""
+    done = []
+    try:
+        m = json.loads(rr.get("api_result") or "{}")
+
+        # (1) PDF → client documents (best-effort: engine may be briefly down).
+        try:
+            data = _engine(f"/reports/{rr['engine_job']}/pdf", raw=True)
+            fn = "%d_roof-report-%d.pdf" % (int(time.time() * 1000), report_id)
+            os.makedirs(config.DOC_DIR, exist_ok=True)
+            path = os.path.join(config.DOC_DIR, fn)
+            with open(path, "wb") as out:
+                out.write(data)
+            try:
+                from modules import gdrive
+                if gdrive.enabled():
+                    gdrive.mirror(path, fn)
+            except Exception:
+                pass
+            db.insert("documents", {("job_id" if kind == "job" else "lead_id"): tid,
+                                    "category": "Roof Report", "filename": fn,
+                                    "original_name": "roof-report-%d.pdf" % report_id,
+                                    "size": len(data),
+                                    "notes": "Aerial roof report #%d (%s)" % (
+                                        report_id, rr.get("address") or "")})
+            pdf_rel = "documents/" + fn
+            done.append("PDF filed to documents")
+        except Exception:
+            pdf_rel = None
+
+        # (2) Engine numbers → measurements row (fills estimate quantities).
+        fields = _measurement_from_result(m)
+        if fields:
+            fields["source"] = "Aerial report #%d" % report_id
+            if pdf_rel:
+                fields["report_file"] = pdf_rel
+            from modules import measurements as meas
+            existing = meas.for_job(tid) if kind == "job" else meas.for_lead(tid)
+            if existing:
+                db.update("measurements", existing["id"], **fields)
+            else:
+                fields[("job_id" if kind == "job" else "lead_id")] = tid
+                db.insert("measurements", fields)
+            if kind == "job":
+                db.update("jobs", tid, area=str(fields.get("squares") or rec.get("area") or ""),
+                          slope=fields.get("pitch") or rec.get("slope") or "")
+            done.append("measurements auto-filled (%.1f sq, pitch %s)" % (
+                fields.get("squares") or 0, fields.get("pitch") or "—"))
+
+            # (3) Estimate: re-apply quantities to the newest DRAFT, else create one.
+            from modules import estimates as est
+            where = ("job_id=?" if kind == "job" else "lead_id=?")
+            ests = db.all_rows("estimates", where, (tid,), "id DESC")
+            drafts = [e2 for e2 in ests if (e2.get("status") or "draft") == "draft"]
+            if drafts:
+                mrow = meas.for_job(tid) if kind == "job" else meas.for_lead(tid)
+                est._apply_measurement(drafts[0]["id"], mrow)
+                done.append("estimate %s quantities updated" % (drafts[0].get("number") or ""))
+            elif not ests:
+                eid = est.build_estimate(**{("job_id" if kind == "job" else "lead_id"): tid},
+                                         work_type=rec.get("work_type") or "")
+                e2 = db.get("estimates", eid)
+                done.append("estimate %s created" % ((e2 or {}).get("number") or eid))
+            # (signed/sent estimates exist but no draft → leave them alone)
+
+        db.update("roof_reports", report_id, applied_to=target)
+        if done:
+            db.add_activity(kind, tid, "automation",
+                            "Roof report #%d applied — %s." % (report_id, "; ".join(done)))
+    except Exception as exc:
+        # Never break status-polling/assign — but never be silent either.
+        try:
+            db.add_activity(kind, tid, "automation",
+                            "Roof report #%d auto-apply FAILED: %s" % (report_id, exc))
+        except Exception:
+            pass
+        return ""
+    return "; ".join(done)
 
 
 @bp.route("/")
@@ -197,6 +329,9 @@ def status(report_id):
                   pitch=str(t.get("predominant_pitch", "")),
                   confidence=m.get("building_confidence", ""),
                   api_result=json.dumps(m))
+        # Chain into the client workflow (docs + measurements + estimate) the moment
+        # the report finishes — idempotent, so repeated polls are harmless.
+        _apply_to_client(report_id)
     elif st == "failed":
         db.update("roof_reports", report_id, status="failed")
     return jsonify({"status": st, "measurement": m, "error": ej.get("error")})
@@ -238,5 +373,8 @@ def assign(report_id):
         db.update("roof_reports", report_id, lead_id=tid, job_id=None)
         db.add_activity("lead", tid, "note",
                         f"Roof report (ID {report_id}, {rr.get('address','')}) assigned.")
-    flash("Report assigned.", "ok")
+    # If the report is already measured, chain it into the client's workflow now:
+    # PDF → documents, engine numbers → measurements, quantities → estimate.
+    summary = _apply_to_client(report_id)
+    flash("Report assigned" + (" — " + summary if summary else "") + ".", "ok")
     return redirect(url_for("roof_reports.index"))
