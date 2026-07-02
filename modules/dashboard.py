@@ -162,10 +162,29 @@ def home():
         _last_overdue_sweep = now
     outstanding_total = sum(i.get("amount") or 0 for i in outstanding)
 
+    # SiteCam card: order chips by photo recency — jobs whose SiteCam gallery was
+    # touched most recently come first (and the top one renders "selected"), the
+    # rest stay alphabetical. Photo recency = latest "📸 SiteCam" automation entry;
+    # jobs.sitecam_url marks which jobs have a gallery at all.
+    _active = [j for j in jobs if j["stage"] not in constants.JOB_INACTIVE]
+    _photo_ts = {}
+    for a in db.all_rows("activities",
+                         "entity_type='job' AND text LIKE '%SiteCam%'",
+                         order="created DESC", limit=500):
+        _photo_ts.setdefault(a.get("entity_id"), a.get("created") or "")
+    for j in _active:
+        j["_photo_ts"] = _photo_ts.get(j["id"]) or ""
+        j["_has_photos"] = bool(j.get("sitecam_url") or j["_photo_ts"])
     active_job_list = sorted(
-        [j for j in jobs if j["stage"] not in constants.JOB_INACTIVE],
-        key=lambda j: (j.get("name") or "").lower()
+        _active,
+        key=lambda j: (j["_photo_ts"], ""),  # newest photo activity first…
+        reverse=True
     )
+    # …but keep the no-photo tail alphabetical instead of reverse-alpha.
+    _with = [j for j in active_job_list if j["_photo_ts"]]
+    _without = sorted([j for j in active_job_list if not j["_photo_ts"]],
+                      key=lambda j: (j.get("name") or "").lower())
+    active_job_list = _with + _without
     return render_template("dashboard.html", pipeline=pipeline, active_jobs=active_jobs,
                            overdue=overdue, overdue_lead_ct=overdue_lead_ct,
                            overdue_job_ct=overdue_job_ct,

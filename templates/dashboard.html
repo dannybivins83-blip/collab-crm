@@ -189,14 +189,21 @@
       </div>
       <div id="scBody">
         {% if active_job_list %}
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+        {# Capped scroller (~3 chip rows) — the full active-job list was growing the
+           card unbounded. Photo-recency order: the most recently SiteCam-updated job
+           is first and rendered selected; 📸 marks jobs with a gallery. #}
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:88px;
+                    overflow-y:auto;padding:2px;scrollbar-width:thin">
           {% for j in active_job_list %}
+          {% set _sel = loop.first and j._photo_ts %}
           <a href="{{ url_for('jobs.detail', job_id=j.id) }}"
              style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;
-                    background:var(--panel2);border:1px solid var(--line,#dde3ec);font-size:12px;
-                    color:var(--fg);text-decoration:none;white-space:nowrap"
-             title="{{ j.name }}">
-            {{ (j.rid ~ ' ·') if j.rid }} {{ j.name | truncate(28, true, '…') }}
+                    background:{{ 'var(--accent,#4680BF)' if _sel else 'var(--panel2)' }};
+                    border:1px solid {{ 'var(--accent,#4680BF)' if _sel else 'var(--line,#dde3ec)' }};
+                    font-size:12px;color:{{ '#fff' if _sel else 'var(--fg)' }};
+                    text-decoration:none;white-space:nowrap;{{ 'font-weight:600' if _sel }}"
+             title="{{ j.name }}{{ ' — photos updated ' ~ j._photo_ts[:16] if j._photo_ts }}">
+            {{ '📸' if j._has_photos }}{{ (j.rid ~ ' ·') if j.rid and not (j.name or '').startswith(j.rid) }} {{ j.name | truncate(28, true, '…') }}
           </a>
           {% endfor %}
         </div>
