@@ -256,19 +256,52 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                     all_names = zf.namelist()
             except zipfile.BadZipFile as e:
                 raise ValueError("Not a valid ZIP file: %s" % e)
-            # Prioritise roof-plan sheets; take up to 5 PDFs total
-            def _pdf_rank(n):
-                nl = n.lower()
-                if "roof" in nl:
-                    return 0
-                if "cover" in nl or "sheet" in nl or "index" in nl:
-                    return 1
-                return 2
-            pdf_names = sorted(
-                [n for n in all_names if n.lower().endswith(".pdf")],
-                key=_pdf_rank)[:5]
-            if not pdf_names:
+            all_pdfs = [n for n in all_names if n.lower().endswith(".pdf")]
+            if not all_pdfs:
                 raise ValueError("ZIP contains no PDF files.")
+            # Rank sheets by CONTENT, not filename. Architect plan sets name the
+            # roof plan "A07.pdf" (no "roof" in the name), so the old filename-only
+            # rank silently missed it and sent 5 irrelevant sheets. Peek at each
+            # sheet's text layer and prioritise the roof plan / area schedule /
+            # take-off summary, then the index/cover, then floor plans (footprint
+            # dims), then the rest. Falls back to filename hints when a sheet has
+            # no text (scanned), so nothing regresses.
+            def _rank(name):
+                nl = name.lower()
+                txt = ""
+                try:
+                    from pypdf import PdfReader
+                    import io as _io
+                    with zipfile.ZipFile(file_path) as _zf:
+                        _b = _zf.read(name)
+                    up = "\n".join((pg.extract_text() or "")
+                                   for pg in PdfReader(_io.BytesIO(_b)).pages[:2]).upper()
+                    txt = up
+                except Exception:
+                    up = ""
+                score = 5
+                if any(k in up for k in ("AREA SCHEDULE", "TAKE-OFF", "TAKEOFF",
+                                         "MEASUREMENT SUMMARY", "ROOF AREA")):
+                    score = 0
+                elif "ROOF PLAN" in up or "ROOF FRAMING" in up:
+                    score = 1
+                elif ("INDEX" in up or "SHEET INDEX" in up or "GENERAL NOTES" in up
+                      or "DRAWING INDEX" in up):
+                    score = 2
+                elif "FLOOR PLAN" in up:
+                    score = 3
+                elif up:
+                    score = 4
+                # filename hints as a tiebreaker / scanned-sheet fallback
+                if "roof" in nl:
+                    score = min(score, 1)
+                if any(k in nl for k in ("cover", "index", "sheet")):
+                    score = min(score, 2)
+                return score
+            ranked = sorted(all_pdfs, key=_rank)
+            pdf_names = ranked[:5]
+            _progress("Selected %d of %d sheets (content-ranked): %s" % (
+                len(pdf_names), len(all_pdfs), ", ".join(pdf_names)))
             for pname in pdf_names:
                 with zipfile.ZipFile(file_path) as zf:
                     pdf_bytes = zf.read(pname)
@@ -311,8 +344,15 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                 "- Squares = 100 sq ft. If document shows sq ft, divide by 100.\n"
                 "- If document shows squares directly, use as-is.\n"
                 "- Linear feet (LF) for ridge, hip, valley, rake, eave, flashing.\n"
-                "- If a value is shown in a table or dimension callout, use it even if approximate.\n"
-                "- Leave a field null only if genuinely absent — do not guess."
+                "- If a value is shown in a table or dimension callout, use it even if approximate.\n\n"
+                "IF THERE IS NO PRINTED TAKE-OFF (common with architect permit sets — the roof\n"
+                "plan is a scaled DRAWING, not a numbers table): ESTIMATE the roof area from the\n"
+                "roof-plan sheet. Read its drawing scale (e.g. 1/4\"=1'-0\") and the plan's overall\n"
+                "roof dimensions/footprint, compute the plan area in sq ft, divide by 100 for\n"
+                "squares, and set `area_is_estimated`=true. Do the same for pitch/slope if a slope\n"
+                "arrow or note is shown. Prefer a flagged estimate over null so the rep has a\n"
+                "starting number — but ONLY when you can actually see the roof geometry + a scale.\n"
+                "If you genuinely cannot see the roof plan or any scale, leave fields null."
             ) % {"name": lead.get("name",""), "addr": lead.get("address",""),
                  "wt": lead.get("work_type","")}
         })
@@ -330,6 +370,7 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                     "type": "object",
                     "properties": {
                         "total_sq":      {"type": "number", "description": "Steep-slope area in SQUARES (sq ft ÷ 100)"},
+                        "area_is_estimated": {"type": "boolean", "description": "true if total_sq was ESTIMATED from a scaled drawing rather than read from a printed take-off/area schedule"},
                         "flat_sq":       {"type": "number", "description": "Flat/low-slope area in squares"},
                         "ridge_lf":      {"type": "number", "description": "Ridge in linear feet"},
                         "hip_lf":        {"type": "number", "description": "Hip edges in linear feet"},
@@ -379,10 +420,15 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
             work_type = lead.get("work_type") or "Roofing - Shingle"
 
         total_sq = fields.get("total_sq")
+        area_estimated = bool(fields.get("area_is_estimated"))
         warnings = []
         if not total_sq:
-            warnings.append("Square footage not found in plans — enter measurements manually. "
-                            "Plans may be image-based (scanned) with no text layer.")
+            warnings.append("No roof area found. This looks like an architect permit set (roof "
+                            "plan is a scaled drawing, not a take-off table) — order a RoofGraf/"
+                            "EagleView measurement, or enter squares manually.")
+        elif area_estimated:
+            warnings.append("Squares were ESTIMATED from the scaled roof-plan drawing (no printed "
+                            "take-off) — verify against a measurement report before bidding.")
         if not fields.get("wind_speed_mph"):
             warnings.append("Wind speed not found — verify against cover sheet.")
 
@@ -428,7 +474,7 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
             if total_sq or any(fields.get(k) for k in (
                     "ridge_lf","hip_lf","valley_lf","rake_lf","eave_lf","step_flash_lf")):
                 mdata = {
-                    "source": "Plans Upload",
+                    "source": "Plans Upload (estimated)" if area_estimated else "Plans Upload",
                     "squares": total_sq or 0,
                     "pitch": fields.get("predominant_pitch") or "",
                     "notes": fields.get("plan_set_label") or file_name,
