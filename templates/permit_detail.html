@@ -73,7 +73,7 @@
           <div class="field"><label>AHJ (county / municipality)</label>
             <select name="ahj" required>
               <option value="">— select —</option>
-              {% for key, label in meta.ahjs %}<option value="{{ key }}" {{ 'selected' if p.ahj==key }}>{{ label }}</option>{% endfor %}
+              {% for key, label in meta.ahjs %}<option value="{{ key }}" {{ 'selected' if key == (meta.sel_ahj or p.ahj) }}>{{ label }}</option>{% endfor %}
             </select>
           </div>
           <div class="field"><label>Roof system</label>

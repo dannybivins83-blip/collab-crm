@@ -52,19 +52,46 @@ def _builder_available():
     return _build() is not None
 
 
-def builder_meta(system_lower=None):
-    """AHJ list + system/underlayment/product options for the wizard."""
+def _norm_ahj(s):
+    """Normalize an AHJ string for matching: 'Boca Raton' == 'Boca_Raton' == 'boca-raton'."""
+    return re.sub(r"[^a-z0-9]+", "_", str(s or "").strip().lower()).strip("_")
+
+
+def builder_meta(system_lower=None, current_ahj=None):
+    """AHJ list + system/underlayment/product options for the wizard.
+    `available` requires the ENGINE *and* the 1.1GB form library — on hosts where
+    build.py imports but the library folder is absent (Render), the old check
+    rendered a dead form with an empty required AHJ dropdown. `sel_ahj` is the
+    library key matching the permit tracker's AHJ ('Boca Raton' → 'Boca_Raton')
+    so the dropdown pre-fills from the tracker field."""
     b = _build()
+    empty = {"available": False, "ahjs": [], "systems": PERMIT_SYSTEMS,
+             "uls": [], "products": [], "sel_ahj": ""}
     if not b:
-        return {"available": False, "ahjs": [], "systems": PERMIT_SYSTEMS, "uls": [], "products": []}
+        return empty
+    ahj_keys = b.list_ahjs()
+    if not ahj_keys:          # engine importable but the form library isn't on this host
+        return empty
     sysname = _SYS_MAP.get(system_lower or "", "")
-    ahjs = [(a, a.replace("_", " ")) for a in b.list_ahjs()]
+    # Match the tracker's AHJ to a library key: exact normalized match first,
+    # then a unique containment match ('City of Boca Raton' → 'Boca_Raton').
+    sel = ""
+    want = _norm_ahj(current_ahj)
+    if want:
+        by_norm = {_norm_ahj(k): k for k in ahj_keys}
+        if want in by_norm:
+            sel = by_norm[want]
+        else:
+            cands = [k for n, k in by_norm.items() if n and (n in want or want in n)]
+            if len(cands) == 1:
+                sel = cands[0]
     return {
         "available": True,
-        "ahjs": ahjs,
+        "ahjs": [(a, a.replace("_", " ")) for a in ahj_keys],
         "systems": list(b.SYSTEMS.keys()),
         "uls": b.ul_choices(sysname) if sysname else [],
         "products": b.prod_choices(sysname) if sysname else [],
+        "sel_ahj": sel,
     }
 
 
@@ -138,7 +165,7 @@ def detail(permit_id):
     return render_template("permit_detail.html", p=p,
                            job=db.get("jobs", p["job_id"]) if p.get("job_id") else None,
                            systems=PERMIT_SYSTEMS, status_list=PERMIT_STATUS,
-                           meta=builder_meta(sys_for_meta),
+                           meta=builder_meta(sys_for_meta, current_ahj=p.get("ahj")),
                            portal=ahj_mod.ahj_portal(p.get("ahj")))
 
 
