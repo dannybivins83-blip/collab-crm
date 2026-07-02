@@ -346,13 +346,27 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                 "- Linear feet (LF) for ridge, hip, valley, rake, eave, flashing.\n"
                 "- If a value is shown in a table or dimension callout, use it even if approximate.\n\n"
                 "IF THERE IS NO PRINTED TAKE-OFF (common with architect permit sets — the roof\n"
-                "plan is a scaled DRAWING, not a numbers table): ESTIMATE the roof area from the\n"
-                "roof-plan sheet. Read its drawing scale (e.g. 1/4\"=1'-0\") and the plan's overall\n"
-                "roof dimensions/footprint, compute the plan area in sq ft, divide by 100 for\n"
-                "squares, and set `area_is_estimated`=true. Do the same for pitch/slope if a slope\n"
-                "arrow or note is shown. Prefer a flagged estimate over null so the rep has a\n"
-                "starting number — but ONLY when you can actually see the roof geometry + a scale.\n"
-                "If you genuinely cannot see the roof plan or any scale, leave fields null."
+                "plan is a scaled DRAWING, not a numbers table): DERIVE the full measurement set\n"
+                "from the roof-plan sheet by measuring its geometry against the drawing scale.\n"
+                "Do NOT stop at squares — the estimator needs every linear-foot edge too.\n"
+                "Step 1: read the drawing scale (e.g. 1/4\"=1'-0\", or a graphic scale bar).\n"
+                "Step 2: use printed dimension strings / gridlines to anchor real-world size;\n"
+                "        fall back to measuring against the scale where dimensions are absent.\n"
+                "Step 3: compute roof AREA (plan area ÷ cos(pitch) if steep) → squares.\n"
+                "Step 4: TRACE EVERY ROOF EDGE and total each type in linear feet:\n"
+                "   • eave_lf   — horizontal lower edges (gutter line / fascia)\n"
+                "   • rake_lf   — sloped edges at gable ends / the perimeter of a flat roof\n"
+                "   • ridge_lf  — horizontal top lines where two slopes meet high\n"
+                "   • hip_lf    — sloped edges where two planes meet OUTWARD (convex corner)\n"
+                "   • valley_lf — sloped edges where two planes meet INWARD (concave corner)\n"
+                "   • step_flash_lf — roof-to-wall intersections\n"
+                "Sum each edge type across the whole roof; give your best measured number for\n"
+                "each rather than leaving it blank. A flat/low-slope roof still has eave/rake\n"
+                "perimeter even with no ridge/hip/valley — report the perimeter as eave+rake.\n"
+                "Set `area_is_estimated`=true whenever any of these came from the drawing (not a\n"
+                "printed take-off table). Only leave a field null if that edge truly is not\n"
+                "visible anywhere on the roof plan. Do NOT return squares while leaving every\n"
+                "linear-foot field null — if you could measure the area, you can measure the edges."
             ) % {"name": lead.get("name",""), "addr": lead.get("address",""),
                  "wt": lead.get("work_type","")}
         })
@@ -363,6 +377,7 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
         resp = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=2000,
+            temperature=0,   # measurement extraction: deterministic + grounded, not creative
             tools=[{
                 "name": "extract_roof_measurements",
                 "description": "Extract complete roof measurement set from plan documents",
