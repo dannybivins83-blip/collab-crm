@@ -210,7 +210,14 @@ def index():
 @bp.route("/new", methods=["GET", "POST"])
 def new():
     if request.method == "POST":
-        job_id = request.form.get("job_id") or None
+        # Coerce job_id to a real int (or None). A non-numeric/garbage form value must
+        # not reach int(job_id) below (ValueError -> 500) nor land a junk string in the
+        # FK column — a hand-crafted/legacy POST could carry job_id="abc".
+        raw_job = (request.form.get("job_id") or "").strip()
+        try:
+            job_id = int(raw_job) if raw_job else None
+        except (TypeError, ValueError):
+            job_id = None
         amount = theme.est_num(request.form.get("amount"))
         data = {"job_id": job_id, "number": _next_number(),
                 "draw_key": request.form.get("draw_key", ""), "amount": amount,
@@ -218,7 +225,7 @@ def new():
                 "notes": request.form.get("notes", "")}
         iid = db.insert("invoices", data)
         if job_id:
-            db.add_activity("job", int(job_id), "automation", "Invoice %s created (%s)" % (data["number"], theme.money(amount)))
+            db.add_activity("job", job_id, "automation", "Invoice %s created (%s)" % (data["number"], theme.money(amount)))
         flash("Invoice created.", "ok")
         return redirect(url_for("invoices.detail", inv_id=iid))
     job_id = request.args.get("job_id", "")

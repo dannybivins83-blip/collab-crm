@@ -422,24 +422,48 @@ def detail(est_id):
 def save(est_id):
     _require_estimate(est_id)
     data = request.get_json(silent=True) or {}
+    # Defensive against a hand-crafted / malformed JSON body: the client normally sends
+    # a well-formed object, but a bad body must never 500 the save. Guard every shape we
+    # index into or coerce — a non-dict top-level body, non-list sections/lines, non-dict
+    # elements, and non-numeric money fields (float("abc") -> ValueError).
+    if not isinstance(data, dict):
+        data = {}
+
+    def _f(v):
+        """Coerce a JSON value to float; None/blank/junk -> 0.0 (never raise)."""
+        try:
+            return float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    sections = data.get("sections")
+    if not isinstance(sections, list):
+        sections = []
     # Wrap the multi-step delete → insert in a single serialized transaction so a
     # crash mid-save can't leave the estimate with no sections/lines (half-written state).
     conn = db.begin_immediate()
     try:
         conn.execute(
             "UPDATE estimates SET title=?,tax_pct=?,notes=?,terms=? WHERE id=?",
-            (data.get("title", ""), float(data.get("tax_pct") or 0),
+            (data.get("title", ""), _f(data.get("tax_pct")),
              data.get("notes", ""), data.get("terms", ""), est_id))
         conn.execute("DELETE FROM estimate_sections WHERE estimate_id=?", (est_id,))
         conn.execute("DELETE FROM estimate_lines WHERE estimate_id=?", (est_id,))
-        for si, sec in enumerate(data.get("sections", [])):
+        for si, sec in enumerate(sections):
+            if not isinstance(sec, dict):
+                continue
             cur = conn.execute(
                 "INSERT INTO estimate_sections (estimate_id,sort,name,scope_text,margin_pct) "
                 "VALUES (?,?,?,?,?)",
                 (est_id, si, sec.get("name", ""), sec.get("scope_text", ""),
-                 float(sec.get("margin_pct") or 0)))
+                 _f(sec.get("margin_pct"))))
             sid = cur.lastrowid
-            for li, ln in enumerate(sec.get("lines", [])):
+            lines = sec.get("lines")
+            if not isinstance(lines, list):
+                lines = []
+            for li, ln in enumerate(lines):
+                if not isinstance(ln, dict):
+                    continue
                 if not (ln.get("description") or "").strip():
                     continue
                 conn.execute(
@@ -447,8 +471,8 @@ def save(est_id):
                     "(estimate_id,section_id,sort,description,unit,qty,waste_pct,cost,price) "
                     "VALUES (?,?,?,?,?,?,?,?,?)",
                     (est_id, sid, li, ln.get("description", ""), ln.get("unit", "EA"),
-                     float(ln.get("qty") or 0), float(ln.get("waste_pct") or 0),
-                     float(ln.get("cost") or 0), float(ln.get("price") or 0)))
+                     _f(ln.get("qty")), _f(ln.get("waste_pct")),
+                     _f(ln.get("cost")), _f(ln.get("price"))))
         conn.commit()
     except Exception:
         conn.rollback()
