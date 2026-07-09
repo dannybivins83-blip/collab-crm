@@ -149,7 +149,11 @@ CREATE TABLE IF NOT EXISTS contacts (
     email TEXT, phone TEXT,
     address TEXT, city TEXT, state TEXT, zip TEXT,
     source TEXT, tags TEXT, notes TEXT,
-    department TEXT
+    department TEXT,
+    is_gc INTEGER DEFAULT 0           -- General-Contractor flag; list page filters WHERE is_gc=1
+                                     -- (was only ALTERed in by contacts.py at import, AFTER init_db's
+                                     -- _ensure_indexes ran, so idx_contacts_is_gc was silently swallowed
+                                     -- on fresh tenants). Declared here so the index is actually created.
 );
 
 CREATE TABLE IF NOT EXISTS leads (
@@ -162,7 +166,12 @@ CREATE TABLE IF NOT EXISTS leads (
     stage_since TEXT, last_contact TEXT, next_follow TEXT, snooze_until TEXT,
     estimate TEXT, narrative TEXT, todo TEXT, notes TEXT,
     checks TEXT DEFAULT '{}',
-    external_url TEXT, department TEXT
+    external_url TEXT, department TEXT,
+    portal_token TEXT                -- homeowner magic-link token; portal.py looks it up on every
+                                     -- portal page (WHERE portal_token=?) and idx_leads_portal_token
+                                     -- indexes it. Was only ALTERed in by portal.py at import (AFTER
+                                     -- init_db's _ensure_indexes ran) so the index was swallowed on
+                                     -- fresh tenants — declared here so the index is created.
 );
 
 CREATE TABLE IF NOT EXISTS jobs (
@@ -178,7 +187,12 @@ CREATE TABLE IF NOT EXISTS jobs (
     checks TEXT DEFAULT '{}', payments TEXT DEFAULT '{}',
     pcn TEXT, legal TEXT, county TEXT, ahj TEXT, system TEXT,
     existing TEXT, area TEXT, slope TEXT, mrh TEXT, exposure TEXT,
-    permit_file TEXT, external_url TEXT
+    permit_file TEXT, external_url TEXT,
+    portal_token TEXT                -- homeowner magic-link token; portal.py & signups.py look it up
+                                     -- (WHERE portal_token=?) and idx_jobs_portal_token indexes it.
+                                     -- Was only ALTERed in by portal.py at import (AFTER init_db's
+                                     -- _ensure_indexes ran) so the index was swallowed on fresh
+                                     -- tenants — declared here so the index is created.
 );
 
 CREATE TABLE IF NOT EXISTS activities (
