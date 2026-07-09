@@ -175,7 +175,8 @@ def save(cid):
         return redirect(url_for("commissions.index"))
     job = db.get("jobs", c["job_id"]) or {}
     basis = request.form.get("basis", c["basis"])
-    rate = float(request.form.get("rate_pct") or c["rate_pct"])
+    # est_num coerces a non-numeric rate ("abc") -> 0.0 instead of float() 500'ing.
+    rate = theme.est_num(request.form.get("rate_pct") or c["rate_pct"])
     db.update("commissions", cid, basis=basis, rate_pct=rate, rep=request.form.get("rep", c["rep"]),
               notes=request.form.get("notes", ""), amount=_compute(job, basis, rate))
     flash("Commission updated.", "ok")

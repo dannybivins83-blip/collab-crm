@@ -229,22 +229,33 @@ def seed(job_id):
 @bp.route("/<int:job_id>/save", methods=["POST"])
 def save(job_id):
     ws = get_or_create(job_id)
-    data = request.get_json(silent=True) or {}
+    # Defensive against a hand-crafted / malformed JSON body: a non-dict top-level
+    # body, a non-list ``lines``, non-dict line elements, or non-numeric money
+    # fields must never 500 the save (AttributeError / float("abc") ValueError).
+    # theme.est_num() coerces any junk -> 0.0 without raising.
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        data = {}
     db.update("worksheets", ws["id"],
               contract_value=theme.est_num(data.get("contract_value")),
               notes=data.get("notes", ""))
     db.execute("DELETE FROM worksheet_lines WHERE worksheet_id=?", (ws["id"],))
-    for i, ln in enumerate(data.get("lines", [])):
-        if not (ln.get("description") or "").strip():
+    _lines = data.get("lines")
+    if not isinstance(_lines, list):
+        _lines = []
+    for i, ln in enumerate(_lines):
+        if not isinstance(ln, dict):
+            continue
+        if not (str(ln.get("description") or "")).strip():
             continue
         db.insert("worksheet_lines", {
             "worksheet_id": ws["id"], "sort": i,
             "category": ln.get("category", "Material"),
             "description": ln.get("description", ""),
-            "budget_cost": float(ln.get("budget_cost") or 0),
-            "actual_cost": float(ln.get("actual_cost") or 0),
-            "qty": float(ln.get("qty") or 0), "unit": (ln.get("unit") or "")[:8],
-            "unit_cost": float(ln.get("unit_cost") or 0)})
+            "budget_cost": theme.est_num(ln.get("budget_cost")),
+            "actual_cost": theme.est_num(ln.get("actual_cost")),
+            "qty": theme.est_num(ln.get("qty")), "unit": str(ln.get("unit") or "")[:8],
+            "unit_cost": theme.est_num(ln.get("unit_cost"))})
     # Mirror the contract value back onto the job for the boards.
     db.update("jobs", job_id, contract_value=theme.money(theme.est_num(data.get("contract_value"))))
     db.add_activity("job", job_id, "automation", "Worksheet updated — profit %s" % (

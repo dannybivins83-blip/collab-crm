@@ -30,6 +30,18 @@ import constants
 bp = Blueprint("automations", __name__, url_prefix="/workflow")
 _log = logging.getLogger(__name__)
 
+
+def _safe_int(v, default=0):
+    """Coerce a form value to int; None/blank/junk -> default (never raise).
+
+    Guards ``int(request.form.get(...))`` — a non-numeric field ('abc') used to
+    raise ValueError and 500 the POST.
+    """
+    try:
+        return int(float(str(v).strip()))
+    except (TypeError, ValueError):
+        return default
+
 ACTION_TYPES = ["create_task", "draft_email", "create_reminder"]
 
 # Synthetic triggers that aren't pipeline stages (invoices carry no stage). Surfaced
@@ -445,7 +457,7 @@ def new():
         "trigger_stage": request.form.get("trigger_stage", ""),
         "action_type": request.form.get("action_type", "create_task"),
         "template_text": request.form.get("template_text", "").strip(),
-        "offset_days": int(request.form.get("offset_days") or 0), "active": 1})
+        "offset_days": _safe_int(request.form.get("offset_days")), "active": 1})
     flash("Automation created.", "ok")
     return redirect(url_for("automations.index"))
 
@@ -457,7 +469,7 @@ def save(auto_id):
               trigger_stage=request.form.get("trigger_stage", ""),
               action_type=request.form.get("action_type", "create_task"),
               template_text=request.form.get("template_text", "").strip(),
-              offset_days=int(request.form.get("offset_days") or 0))
+              offset_days=_safe_int(request.form.get("offset_days")))
     flash("Automation saved.", "ok")
     return redirect(url_for("automations.index"))
 
@@ -509,8 +521,8 @@ def sequence_add_step(seq_id):
         channel = "email"
     db.insert("sequence_steps", {
         "sequence_id": seq_id,
-        "step_no": int(request.form.get("step_no") or 0),
-        "offset_days": int(request.form.get("offset_days") or 0),
+        "step_no": _safe_int(request.form.get("step_no")),
+        "offset_days": _safe_int(request.form.get("offset_days")),
         "channel": channel,
         "subject": request.form.get("subject", "").strip(),
         "body": request.form.get("body", "").strip(),
@@ -523,7 +535,8 @@ def sequence_add_step(seq_id):
 def sequence_enroll(seq_id):
     target = request.form.get("target", "")
     et, _, eid = target.partition(":")
-    if et and eid:
+    # eid.isdigit() guards int(eid) — a target like 'lead:abc' used to 500.
+    if et and eid.isdigit():
         eid_i = enroll(seq_id, et, int(eid))
         flash("Enrolled." if eid_i else "Could not enroll.", "ok" if eid_i else "err")
     return redirect(url_for("automations.index"))

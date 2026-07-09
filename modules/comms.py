@@ -157,7 +157,8 @@ def log():
     et, _, eid = target.partition(":")
     kind = request.form.get("kind", "call")
     text = request.form.get("text", "").strip()
-    if et and eid and text:
+    # eid.isdigit() guards int(eid) — a target like 'lead:abc' used to 500.
+    if et and eid.isdigit() and text:
         db.add_activity(et, int(eid), kind, text)
         if kind in ("call", "email", "sms") and et == "lead":
             db.update("leads", int(eid), last_contact=db.today())
@@ -172,7 +173,8 @@ def draft():
     et, _, eid = target.partition(":")
     subject = request.form.get("subject", "").strip()
     body = request.form.get("body", "").strip()
-    if et and eid and (subject or body):
+    # eid.isdigit() guards int(eid) — a target like 'lead:abc' used to 500.
+    if et and eid.isdigit() and (subject or body):
         db.add_activity(et, int(eid), "draft", "✉️ DRAFT — %s\n%s" % (subject, body))
         flash("Draft saved for review (not sent).", "ok")
     return redirect(url_for("comms.index"))
@@ -185,7 +187,8 @@ def sms():
     et, _, eid = target.partition(":")
     to = request.form.get("to", "").strip()
     body = request.form.get("body", "").strip()
-    if et and eid and to and body:
+    # eid.isdigit() guards int(eid) — a target like 'lead:abc' used to 500.
+    if et and eid.isdigit() and to and body:
         ok = send_sms(to, body, entity_type=et, entity_id=int(eid))
         if ok:
             if et == "lead":

@@ -157,16 +157,27 @@ def detail(order_id):
 @bp.route("/<int:order_id>/save", methods=["POST"])
 def save(order_id):
     _require_order(order_id)
-    data = request.get_json(silent=True) or {}
+    # Defensive against a hand-crafted / malformed JSON body: a non-dict top-level
+    # body, a non-list ``lines``, non-dict line elements, or non-numeric qty/cost
+    # must never 500 the save (AttributeError / float("abc") ValueError).
+    # theme.est_num() coerces any junk -> 0.0 without raising.
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        data = {}
     db.update("orders", order_id, vendor=data.get("vendor", ""), po_number=data.get("po_number", ""),
               notes=data.get("notes", ""))
     db.execute("DELETE FROM order_lines WHERE order_id=?", (order_id,))
-    for i, ln in enumerate(data.get("lines", [])):
-        if not (ln.get("description") or "").strip():
+    _lines = data.get("lines")
+    if not isinstance(_lines, list):
+        _lines = []
+    for i, ln in enumerate(_lines):
+        if not isinstance(ln, dict):
+            continue
+        if not (str(ln.get("description") or "")).strip():
             continue
         db.insert("order_lines", {"order_id": order_id, "sort": i,
                                   "description": ln.get("description", ""), "unit": ln.get("unit", "EA"),
-                                  "qty": float(ln.get("qty") or 0), "cost": float(ln.get("cost") or 0)})
+                                  "qty": theme.est_num(ln.get("qty")), "cost": theme.est_num(ln.get("cost"))})
     return jsonify({"ok": True, "total": order_total(order_id)})
 
 
