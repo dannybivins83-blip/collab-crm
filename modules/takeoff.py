@@ -11,6 +11,7 @@ Idempotent: re-POST with the same idempotency_key is a no-op (returns the prior 
 See docs/TAKEOFF_INGEST.md for the contract.
 """
 import io
+import os
 import json
 import datetime
 import threading
@@ -85,6 +86,31 @@ except Exception:
 # Sticky profile selection on leads.
 try:
     db.execute("ALTER TABLE leads ADD COLUMN bid_as_profile TEXT")
+except Exception:
+    pass
+
+# Per-lead drawings INDEX CACHE. The takeoff worker extracts the pypdf text layer
+# of EVERY sheet in a plan-set ZIP before choosing what to send the model — the
+# expensive part, and it previously re-ran (re-opening the ZIP once per sheet) on
+# every run AND every retry. Cache the extracted {sheet: text} index, keyed by a
+# stable file signature, so re-runs/retries load it from the DB instead of
+# re-parsing. Kept off db.py's TABLE_ALLOWLIST on purpose: the worker touches this
+# table with raw SQL only (db.execute / db.connect), so the cache stays isolated
+# to this module and can't collide with parallel lanes editing db.py.
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS takeoff_index (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cache_key TEXT,
+        lead_id INTEGER,
+        token TEXT,
+        sheet_text TEXT,
+        created TEXT,
+        updated TEXT)""")
+except Exception:
+    pass
+try:
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_takeoff_index_key "
+               "ON takeoff_index(cache_key)")
 except Exception:
     pass
 
@@ -220,6 +246,58 @@ def _ingest_envelope(env):
             "attachment_ids": [], "warnings": warnings}
 
 
+def _file_sig(file_path):
+    """Stable cache key for an uploaded takeoff file: abspath + size + mtime.
+    Survives a retry (which mints a NEW token but reuses the same file) yet
+    invalidates automatically if the file is re-uploaded / changed on disk."""
+    try:
+        st = os.stat(file_path)
+        return "%s|%d|%d" % (os.path.abspath(file_path), st.st_size, int(st.st_mtime))
+    except Exception:
+        return str(file_path or "")
+
+
+def _index_cache_get(cache_key):
+    """Return the cached {sheet_name: text} index for this file signature, or None
+    on a miss. Raw connection read so the cache table stays off the allowlist."""
+    if not cache_key:
+        return None
+    try:
+        conn = db.connect()
+        try:
+            row = conn.execute("SELECT sheet_text FROM takeoff_index WHERE cache_key=?",
+                               (cache_key,)).fetchone()
+        finally:
+            conn.close()
+    except Exception:
+        return None
+    if not row:
+        return None
+    try:
+        raw = row["sheet_text"] if not isinstance(row, tuple) else row[0]
+        return json.loads(raw or "{}")
+    except Exception:
+        return None
+
+
+def _index_cache_put(cache_key, lead_id, token, sheet_text):
+    """Persist the extracted text index so re-runs/retries skip extraction.
+    Best-effort: a failure here just means the next run re-extracts."""
+    if not cache_key:
+        return
+    try:
+        payload = json.dumps(sheet_text or {})
+        # DELETE-then-INSERT keeps one row per signature; the UNIQUE index makes a
+        # concurrent double-insert lose harmlessly (IntegrityError swallowed).
+        db.execute("DELETE FROM takeoff_index WHERE cache_key=?", (cache_key,))
+        db.execute(
+            "INSERT INTO takeoff_index (cache_key,lead_id,token,sheet_text,created,updated) "
+            "VALUES (?,?,?,?,?,?)",
+            (cache_key, lead_id, token, payload, db.now(), db.now()))
+    except Exception:
+        pass
+
+
 def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_id=None):
     """Background thread: send PDFs to Claude Vision → extract full measurement set → update lead."""
 
@@ -256,119 +334,135 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
 
         if file_name.lower().endswith(".zip"):
             import zipfile
+            # Open the archive ONCE for the whole branch. Previously the ZipFile was
+            # re-opened for the namelist, again once PER SHEET during text extraction,
+            # and again for every image load — on every run AND every retry. A single
+            # handle now serves namelist + text + images, and the extracted text
+            # index is cached (below) so retries skip the per-sheet parse entirely.
             try:
-                with zipfile.ZipFile(file_path) as zf:
-                    all_names = zf.namelist()
+                zf = zipfile.ZipFile(file_path)
             except zipfile.BadZipFile as e:
                 raise ValueError("Not a valid ZIP file: %s" % e)
-            all_pdfs = [n for n in all_names if n.lower().endswith(".pdf")]
-            if not all_pdfs:
-                raise ValueError("ZIP contains no PDF files.")
-            # INDEX-FIRST: extract the text layer of EVERY sheet locally (pypdf,
-            # cheap) before deciding what to send. The printed text — dimension
-            # strings, general notes, schedules, wind data, scale notes — is the
-            # ACCURATE part of a plan set; the image is only needed for geometry
-            # (which edges are hips vs valleys, footprint shape). Sending the full
-            # text index of all sheets + images of just the top-ranked ones gives
-            # wider coverage at fewer tokens than 5 blind full-sheet images, and
-            # anchors the model on printed numbers instead of pixel-measuring.
-            sheet_text = {}
             try:
-                from pypdf import PdfReader as _PdfReader
-                import io as _io
-                for name in all_pdfs:
+                all_names = zf.namelist()
+                all_pdfs = [n for n in all_names if n.lower().endswith(".pdf")]
+                if not all_pdfs:
+                    raise ValueError("ZIP contains no PDF files.")
+                # INDEX-FIRST + CACHED: extract the text layer of EVERY sheet locally
+                # (pypdf, cheap) before deciding what to send. The printed text —
+                # dimension strings, general notes, schedules, wind data, scale
+                # notes — is the ACCURATE part of a plan set; the image is only
+                # needed for geometry (which edges are hips vs valleys, footprint
+                # shape). This extraction is the expensive, repeated part, so it is
+                # CACHED by a stable file signature: a retry mints a new token but
+                # reuses the same uploaded file, so on re-run the whole per-sheet
+                # parse is skipped and the index is loaded from the DB.
+                cache_key = _file_sig(file_path)
+                sheet_text = _index_cache_get(cache_key)
+                if sheet_text is not None:
+                    _progress("Text index: cache HIT (%d sheets) — skipping extraction"
+                              % len(sheet_text))
+                else:
+                    sheet_text = {}
                     try:
-                        with zipfile.ZipFile(file_path) as _zf:
-                            _b = _zf.read(name)
-                        _txt = "\n".join((pg.extract_text() or "")
-                                         for pg in _PdfReader(_io.BytesIO(_b)).pages[:3])
-                        if _txt.strip():
-                            sheet_text[name] = _txt
+                        from pypdf import PdfReader as _PdfReader
+                        import io as _io
+                        for name in all_pdfs:
+                            try:
+                                _b = zf.read(name)
+                                _txt = "\n".join((pg.extract_text() or "")
+                                                 for pg in _PdfReader(_io.BytesIO(_b)).pages[:3])
+                                if _txt.strip():
+                                    sheet_text[name] = _txt
+                            except Exception:
+                                continue
                     except Exception:
-                        continue
-            except Exception:
-                sheet_text = {}
+                        sheet_text = {}
+                    _index_cache_put(cache_key, lead_id, token, sheet_text)
+                    _progress("Text index built: %d sheets (cached for retries)"
+                              % len(sheet_text))
 
-            # Rank sheets by CONTENT (from the index), not filename. Architect sets
-            # name the roof plan "A07.pdf", so filename-only ranking missed it.
-            # Filename hints stay as a fallback for scanned sheets with no text.
-            def _rank(name):
-                nl = name.lower()
-                up = (sheet_text.get(name) or "").upper()
-                score = 5
-                if any(k in up for k in ("AREA SCHEDULE", "TAKE-OFF", "TAKEOFF",
-                                         "MEASUREMENT SUMMARY", "ROOF AREA")):
-                    score = 0
-                elif "ROOF PLAN" in up or "ROOF FRAMING" in up:
-                    score = 1
-                elif ("INDEX" in up or "SHEET INDEX" in up or "GENERAL NOTES" in up
-                      or "DRAWING INDEX" in up):
-                    score = 2
-                elif "FLOOR PLAN" in up:
-                    score = 3
-                elif up:
-                    score = 4
-                if "roof" in nl:
-                    score = min(score, 1)
-                if any(k in nl for k in ("cover", "index", "sheet")):
-                    score = min(score, 2)
-                return score
-            ranked = sorted(all_pdfs, key=_rank)
-            # Images: top-ranked sheets. When a text index exists, 3 images suffice
-            # (the index covers every sheet's text); for SCANNED sets (no text
-            # layer) keep 5 — images are all the model gets. An oversized sheet
-            # doesn't waste a slot: keep walking down the ranking until the target
-            # count is actually loaded, within the request-size budget.
-            target_imgs = 3 if sheet_text else 5
-            b64_budget = MAX_REQ_B64
-            loaded = []
-            for pname in ranked:
-                if len(loaded) >= target_imgs:
-                    break
-                with zipfile.ZipFile(file_path) as zf:
-                    pdf_bytes = zf.read(pname)
-                if len(pdf_bytes) > MAX_PDF_BYTES:
-                    _progress("Skipping %s — %dMB exceeds per-file limit" % (
-                        pname, len(pdf_bytes) // 1048576))
-                    continue
-                enc = _b64.standard_b64encode(pdf_bytes).decode()
-                if len(enc) > b64_budget:
-                    _progress("Skipping %s — request-size budget reached" % pname)
-                    continue
-                b64_budget -= len(enc)
-                content_blocks.append({
-                    "type": "document",
-                    "source": {"type": "base64", "media_type": "application/pdf",
-                               "data": enc},
-                    "title": pname,
-                })
-                loaded.append(pname)
-                _progress("Loaded %s (%dKB)" % (pname, len(pdf_bytes) // 1024))
-            _progress("Images: %d of %d sheets (content-ranked): %s" % (
-                len(loaded), len(all_pdfs), ", ".join(loaded) or "none"))
-            # Full-coverage TEXT LAYER INDEX — every sheet's printed text, most
-            # relevant first, budget-capped. This is where the accurate numbers
-            # live (dimension strings, notes, schedules, wind data).
-            if sheet_text:
-                _parts, _budget = [], 60000
-                for name in ranked:
-                    t = (sheet_text.get(name) or "").strip()[:4000]
-                    if not t:
-                        continue
-                    if _budget - len(t) < 0:
+                # Rank sheets by CONTENT (from the index), not filename. Architect
+                # sets name the roof plan "A07.pdf", so filename-only ranking missed
+                # it. Filename hints stay as a fallback for scanned sheets with no text.
+                def _rank(name):
+                    nl = name.lower()
+                    up = (sheet_text.get(name) or "").upper()
+                    score = 5
+                    if any(k in up for k in ("AREA SCHEDULE", "TAKE-OFF", "TAKEOFF",
+                                             "MEASUREMENT SUMMARY", "ROOF AREA")):
+                        score = 0
+                    elif "ROOF PLAN" in up or "ROOF FRAMING" in up:
+                        score = 1
+                    elif ("INDEX" in up or "SHEET INDEX" in up or "GENERAL NOTES" in up
+                          or "DRAWING INDEX" in up):
+                        score = 2
+                    elif "FLOOR PLAN" in up:
+                        score = 3
+                    elif up:
+                        score = 4
+                    if "roof" in nl:
+                        score = min(score, 1)
+                    if any(k in nl for k in ("cover", "index", "sheet")):
+                        score = min(score, 2)
+                    return score
+                ranked = sorted(all_pdfs, key=_rank)
+                # Images: top-ranked sheets. When a text index exists, 3 images
+                # suffice (the index covers every sheet's text); for SCANNED sets
+                # (no text layer) keep 5 — images are all the model gets. An
+                # oversized sheet doesn't waste a slot: keep walking down the
+                # ranking until the target count is actually loaded, within budget.
+                target_imgs = 3 if sheet_text else 5
+                b64_budget = MAX_REQ_B64
+                loaded = []
+                for pname in ranked:
+                    if len(loaded) >= target_imgs:
                         break
-                    _budget -= len(t)
-                    _parts.append("### %s\n%s" % (name, t))
-                if _parts:
-                    idx_txt = ("TEXT LAYER INDEX — the printed text of %d of the %d "
-                               "sheets in this plan set (most relevant first). These "
-                               "are EXACT strings from the drawings: dimension "
-                               "callouts, general notes, schedules, wind design "
-                               "data, drawing scales.\n\n" % (len(_parts), len(all_pdfs))
-                               + "\n\n".join(_parts))
-                    content_blocks.append({"type": "text", "text": idx_txt})
-                    _progress("Text index attached: %d sheets (%dKB)" % (
-                        len(_parts), len(idx_txt) // 1024))
+                    pdf_bytes = zf.read(pname)
+                    if len(pdf_bytes) > MAX_PDF_BYTES:
+                        _progress("Skipping %s — %dMB exceeds per-file limit" % (
+                            pname, len(pdf_bytes) // 1048576))
+                        continue
+                    enc = _b64.standard_b64encode(pdf_bytes).decode()
+                    if len(enc) > b64_budget:
+                        _progress("Skipping %s — request-size budget reached" % pname)
+                        continue
+                    b64_budget -= len(enc)
+                    content_blocks.append({
+                        "type": "document",
+                        "source": {"type": "base64", "media_type": "application/pdf",
+                                   "data": enc},
+                        "title": pname,
+                    })
+                    loaded.append(pname)
+                    _progress("Loaded %s (%dKB)" % (pname, len(pdf_bytes) // 1024))
+                _progress("Images: %d of %d sheets (content-ranked): %s" % (
+                    len(loaded), len(all_pdfs), ", ".join(loaded) or "none"))
+                # Full-coverage TEXT LAYER INDEX — every sheet's printed text, most
+                # relevant first, budget-capped. This is where the accurate numbers
+                # live (dimension strings, notes, schedules, wind data).
+                if sheet_text:
+                    _parts, _budget = [], 60000
+                    for name in ranked:
+                        t = (sheet_text.get(name) or "").strip()[:4000]
+                        if not t:
+                            continue
+                        if _budget - len(t) < 0:
+                            break
+                        _budget -= len(t)
+                        _parts.append("### %s\n%s" % (name, t))
+                    if _parts:
+                        idx_txt = ("TEXT LAYER INDEX — the printed text of %d of the %d "
+                                   "sheets in this plan set (most relevant first). These "
+                                   "are EXACT strings from the drawings: dimension "
+                                   "callouts, general notes, schedules, wind design "
+                                   "data, drawing scales.\n\n" % (len(_parts), len(all_pdfs))
+                                   + "\n\n".join(_parts))
+                        content_blocks.append({"type": "text", "text": idx_txt})
+                        _progress("Text index attached: %d sheets (%dKB)" % (
+                            len(_parts), len(idx_txt) // 1024))
+            finally:
+                zf.close()
         else:
             with open(file_path, "rb") as fh:
                 pdf_bytes = fh.read()
