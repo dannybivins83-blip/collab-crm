@@ -233,6 +233,7 @@ CREATE TABLE IF NOT EXISTS roof_reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created TEXT, updated TEXT,
     job_id INTEGER,
+    lead_id INTEGER,                 -- report may target a lead (pre-job) or a job
     address TEXT, city TEXT, state TEXT, zip TEXT,
     engine_job TEXT,                 -- the Roof Report Engine job id
     status TEXT DEFAULT 'queued',    -- queued | processing | done | failed
