@@ -285,7 +285,10 @@ def detail(report_id):
     rr = db.get("roof_reports", report_id)
     if not rr:
         abort(404)
-    rr["result"] = json.loads(rr.get("api_result") or "{}")
+    # api_result is normally engine JSON, but a legacy/partial/corrupt row can hold
+    # non-JSON text — raw json.loads would 500 the detail page. db.load_json returns
+    # the default ({}) on any parse failure, matching the module's other reads.
+    rr["result"] = db.load_json(rr.get("api_result"), {})
     # Keyless link: the engine API key must NOT reach the browser, so the
     # "Trace from plans" link points at a CRM route that redirects server-side.
     takeoff_url = url_for("roof_reports.takeoff", report_id=report_id) if _configured() else "#"

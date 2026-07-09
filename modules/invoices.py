@@ -178,13 +178,17 @@ def index():
     for inv in rows:
         inv["_job"] = job_map.get(inv["job_id"])
         inv["_overdue"] = _is_overdue(inv)
+        # Normalize the money field to a float so a legacy/imported string amount
+        # can't 500 the per-row money() render or the totals below.
+        inv["amount"] = theme.est_num(inv.get("amount"))
     sweep_overdue_automations(rows)
     # Totals are always across the full scoped set (before query filtering).
-    total = sum(i["amount"] or 0 for i in rows)
+    total = sum(i["amount"] for i in rows)
     # Count partial payments toward collected, not just fully-paid invoices.
-    paid = sum((i.get("amount_paid") if i.get("amount_paid")
-                else (i["amount"] if i["status"] == "paid" else 0)) or 0 for i in rows)
-    overdue = sum(i["amount"] or 0 for i in rows if i["_overdue"])
+    paid = sum(theme.est_num(i.get("amount_paid")) if i.get("amount_paid")
+               else (i["amount"] if i.get("status") == "paid" else 0)
+               for i in rows)
+    overdue = sum(i["amount"] for i in rows if i["_overdue"])
     overdue_n = sum(1 for i in rows if i["_overdue"])
     # Client-side search + status filter (after totals are computed).
     q = request.args.get("q", "").strip().lower()
@@ -238,10 +242,17 @@ def detail(inv_id):
     from modules import quickbooks as qb
     job = db.get("jobs", inv["job_id"]) if inv.get("job_id") else None
     pays = db.all_rows("payments", "invoice_id=?", (inv_id,), "id DESC")
-    paid_sum = sum((p.get("amount") or 0) for p in pays)
+    # Normalize money fields to floats up front — a legacy/imported/hand-edited row
+    # can carry a money STRING ('$5,000', 'N/A') in the REAL column, which 500s both
+    # the balance math AND the template's money() filter. est_num is the project's
+    # money parser (already used this way in portal.home).
+    inv["amount"] = theme.est_num(inv.get("amount"))
+    for _p in pays:
+        _p["amount"] = theme.est_num(_p.get("amount"))
+    paid_sum = sum(_p["amount"] for _p in pays)
     if not paid_sum and inv.get("status") == "paid":
-        paid_sum = inv.get("amount") or 0
-    balance = max((inv.get("amount") or 0) - paid_sum, 0)
+        paid_sum = inv["amount"]
+    balance = max(inv["amount"] - paid_sum, 0)
     return render_template("invoice_detail.html", inv=inv, job=job,
                            qbo_connected=qb.is_connected(), overdue=_is_overdue(inv),
                            payments=pays, paid_sum=paid_sum, balance=balance,
@@ -373,8 +384,8 @@ def record_payment(inv_id):
         "method": request.form.get("method", ""), "reference": request.form.get("reference", ""),
         "paid_date": request.form.get("paid_date") or db.today(),
         "notes": request.form.get("notes", ""), "source": "manual", "created": db.now()})
-    paid = sum((p.get("amount") or 0) for p in db.all_rows("payments", "invoice_id=?", (inv_id,)))
-    inv_amt = inv.get("amount") or 0
+    paid = sum(theme.est_num(p.get("amount")) for p in db.all_rows("payments", "invoice_id=?", (inv_id,)))
+    inv_amt = theme.est_num(inv.get("amount"))
     fields = {"amount_paid": round(paid, 2)}
     if inv_amt > 0 and paid + 0.005 >= inv_amt:
         fields["status"] = "paid"

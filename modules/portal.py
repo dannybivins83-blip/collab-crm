@@ -904,6 +904,11 @@ def on_phase_advance(job_id, old_phase, new_phase, uid=None):
 
 def _decorate(j):
     payments = db.load_json(j.get("payments"), {})
+    # jobs.payments is normally a dict ({"p1": true, ...}); a corrupt/legacy blob
+    # could be a list/number/string, which would 500 theme.paid_pct's .get() call
+    # (and any j._payments.get in the template). Coerce to a dict defensively.
+    if not isinstance(payments, dict):
+        payments = {}
     j["_payments"] = payments
     j["_paid_pct"] = theme.paid_pct(payments)
     j["_value"] = theme.est_num(j.get("contract_value"))
@@ -1083,10 +1088,16 @@ def home(token):
                  and _doc_servable(d, "documents")]
     invoices = db.all_rows("invoices", "job_id=?", (j["id"],), "id DESC")
     payments = db.all_rows("payments", "job_id=?", (j["id"],), "id DESC")
+    # Normalize money fields to floats so a legacy/imported string amount can't 500 the
+    # homeowner portal via the template's money(inv.amount)/money(p.amount) filters.
+    for _i in invoices:
+        _i["amount"] = theme.est_num(_i.get("amount"))
+    for _p in payments:
+        _p["amount"] = theme.est_num(_p.get("amount"))
     # When real billing was synced from AccuLynx (invoices/payments exist), drive the
     # Balance Due + Paid% from the ACTUAL numbers instead of the generic draw schedule.
-    paid_real = sum(theme.est_num(p.get("amount")) for p in payments)
-    inv_total = sum(theme.est_num(i.get("amount")) for i in invoices)
+    paid_real = sum(_p["amount"] for _p in payments)
+    inv_total = sum(_i["amount"] for _i in invoices)
     j["_has_billing"] = bool(invoices or payments or (j.get("balance") not in (None, "")))
     base = j["_value"] or inv_total
     if j.get("balance") not in (None, "") and base:
