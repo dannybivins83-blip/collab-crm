@@ -409,6 +409,7 @@ def init_db():
     _ensure_column("company_settings", "lead_notify_to", "TEXT")  # fallback email for new-lead rep notifications
     _ensure_change_requests_table()
     _ensure_library_table()
+    _ensure_payments_table()  # base `payments` table before invoices bp imports (fresh-DB crash guard)
     _ensure_permit_api_tables()
     _seed_if_empty()
     _migrate_columns()  # idempotent; run unconditionally so renamed/added columns land
@@ -579,6 +580,27 @@ def _ensure_library_table():
             created TEXT, filename TEXT, original_name TEXT,
             category TEXT, ahj TEXT, system TEXT, tags TEXT,
             size INTEGER, notes TEXT)""")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _ensure_payments_table():
+    """Per-job payments received (base schema mirrors acculynx_sync._ensure_billing_schema).
+
+    Created here in init_db() so it exists BEFORE any blueprint imports.  Otherwise
+    modules/invoices.py runs `_ensure_column("payments", "invoice_id", ...)` at import
+    time (app.py imports invoices before acculynx_sync, which used to be the only place
+    the table was created) and a FRESH database crashes with "no such table: payments".
+    `CREATE TABLE IF NOT EXISTS` makes this a no-op on existing DBs that already have it."""
+    conn = connect()
+    try:
+        conn.execute("""CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created TEXT, job_id INTEGER,
+            ext_id TEXT, amount REAL DEFAULT 0,
+            method TEXT, reference TEXT, paid_date TEXT, notes TEXT,
+            source TEXT DEFAULT 'AccuLynx')""")
         conn.commit()
     finally:
         conn.close()

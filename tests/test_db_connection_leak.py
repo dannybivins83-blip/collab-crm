@@ -51,6 +51,15 @@ sys.path.insert(0, str(ROOT))
 import app as crm_app   # noqa: E402  -- triggers init_db() and module-load DDL
 import db               # noqa: E402
 
+# These regression tests use throwaway tables (`_leaktest*`, `_af_test`,
+# `_read_recovery`) to force the write/read ERROR paths this suite verifies.
+# db.py's TABLE_ALLOWLIST hardening (Fix 6, audit #critical-6) blocks
+# insert/all_rows on any non-schema table, so register the scratch names here.
+# Harmless: these underscore-prefixed names can never collide with a real table,
+# and this works for both `pytest` and the standalone `python tests/...` runner.
+# (`_does_not_exist` is deliberately NOT registered — TEST D wants it to raise.)
+db.TABLE_ALLOWLIST.update({"_leaktest", "_leaktest2", "_af_test", "_read_recovery"})
+
 
 # ----------------------------------------------------------------------
 # TEST A — INSERT that raises a UNIQUE violation does NOT leak the conn;

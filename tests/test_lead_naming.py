@@ -18,13 +18,21 @@ import pytest
 # ---------------------------------------------------------------------------
 
 class _FakeConn:
+    # Rows returned by fetchall() — set per-test so next_job_number() can be
+    # exercised against a controlled `SELECT rid, name FROM jobs` result set.
+    def __init__(self, rows=None):
+        self._rows = rows or []
     def execute(self, *a, **kw): return self
-    def fetchall(self): return []
+    def fetchall(self): return self._rows
+    def commit(self): pass
+    def rollback(self): pass
+    def close(self): pass
     def __enter__(self): return self
     def __exit__(self, *a): pass
 
 class _FakeDb(types.ModuleType):
     _COLCACHE = {}
+    _rows = []   # jobs rows for begin_immediate()'s fake cursor
 
     def execute(self, *a, **kw): pass
     def today(self): return "2026-06-12"
@@ -34,6 +42,9 @@ class _FakeDb(types.ModuleType):
     def add_activity(self, *a, **kw): pass
     def get(self, *a, **kw): return {}
     def connect(self, *a, **kw): return _FakeConn()
+    # next_job_number() now serializes via begin_immediate(lock_table="jobs")
+    # and reads jobs with raw SQL (not all_rows) — mirror that surface here.
+    def begin_immediate(self, lock_table=None): return _FakeConn(self._rows)
 
 _fake_db = _FakeDb("db")
 sys.modules.setdefault("db", _fake_db)
@@ -327,6 +338,7 @@ class TestNextJobNumber:
 
     def _run_with_jobs(self, monkeypatch, rows, year=2026):
         fake = _FakeDb("db")
+        fake._rows = rows          # begin_immediate() cursor yields these job rows
         fake.all_rows = lambda t: rows
         fake.today = lambda: "2026-06-12"
         monkeypatch.setitem(sys.modules, "db", fake)
