@@ -1,17 +1,17 @@
-{% extends “base.html” %}
+{% extends "base.html" %}
 {% block title %}Contacts{% endblock %}
 {% block body %}
-<div class=”page-head”>
+<div class="page-head">
   <h1>👤 Contacts</h1>
-  <span class=”sub”>{{ total }} {{ 'result' if q else 'total' }}{% if q %} for “{{ q }}”{% endif %}</span>
-  <div class=”grow”></div>
-  <a class=”btn” href=”{{ url_for('contacts.gcs') }}”>🏗️ General Contractors</a>
-  <a class=”btn primary” href=”{{ url_for('contacts.new') }}”>+ New Contact</a>
+  <span class="sub">{{ total }} {{ 'result' if q else 'total' }}{% if q %} for "{{ q }}"{% endif %}</span>
+  <div class="grow"></div>
+  <a class="btn" href="{{ url_for('contacts.gcs') }}">🏗️ General Contractors</a>
+  <a class="btn primary" href="{{ url_for('contacts.new') }}">+ New Contact</a>
 </div>
-<form method=”get” class=”listbar” style=”margin-bottom:12px”>
-  <input name=”q” value=”{{ q }}” placeholder=”Search name, company, phone, email, address…” style=”flex:1” autofocus>
-  <button class=”btn” type=”submit”>Search</button>
-  {% if q %}<a class=”btn” href=”{{ url_for('contacts.index') }}”>✕ Clear</a>{% endif %}
+<form method="get" class="listbar" style="margin-bottom:12px">
+  <input name="q" value="{{ q }}" placeholder="Search name, company, phone, email, address…" style="flex:1" autofocus>
+  <button class="btn" type="submit">Search</button>
+  {% if q %}<a class="btn" href="{{ url_for('contacts.index') }}">✕ Clear</a>{% endif %}
 </form>
 <table class="grid contacts-grid">
   <tr><th>Name</th><th>Company</th><th>Phone</th><th>Email</th><th>Address</th><th>Source</th><th>Tags</th></tr>

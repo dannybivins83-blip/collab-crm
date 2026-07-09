@@ -61,7 +61,7 @@ def index():
                     rows.append(c)
         return render_template("contacts.html", contacts=rows, q=q,
                                page=1, total_pages=1, total=len(rows))
-    page = max(1, int(request.args.get("page") or 1))
+    page = max(1, request.args.get("page", default=1, type=int) or 1)
     _conn = db.connect()
     try:
         total = (_conn.execute("SELECT COUNT(*) FROM contacts").fetchone() or (0,))[0]

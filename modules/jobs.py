@@ -114,7 +114,7 @@ def list_view():
     rep_f     = request.args.get("rep")
     overdue_f = request.args.get("overdue") == "1"
     sort      = request.args.get("sort", "date")
-    page      = max(1, int(request.args.get("page") or 1))
+    page      = max(1, request.args.get("page", default=1, type=int) or 1)
     PER_PAGE  = 50
 
     # Aggregate queries: counts + reps + total without loading every row.

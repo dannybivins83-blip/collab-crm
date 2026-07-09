@@ -119,7 +119,7 @@ def list_view():
     rep_f     = request.args.get("rep")
     show_lost = request.args.get("show_lost") == "1"
     sort      = request.args.get("sort", "days")
-    page      = max(1, int(request.args.get("page") or 1))
+    page      = max(1, request.args.get("page", default=1, type=int) or 1)
     PER_PAGE  = 50
 
     # Aggregate queries for sidebar counts + rep list (no full-table fan-out).
