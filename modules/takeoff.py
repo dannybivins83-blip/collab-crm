@@ -131,6 +131,83 @@ def _within_months(date_str, months=6):
     return d <= (datetime.date.today() + datetime.timedelta(days=months * 31))
 
 
+def _vector_crosscheck(fields, labels, edges=None, *,
+                       scale_ft_per_pt=None,
+                       penetration_warn_threshold=4,
+                       edge_pct_tol=0.35, edge_abs_tol_lf=25.0):
+    """Deterministic vector cross-check of the AI's takeoff numbers.
+
+    A *sanity layer only* — it NEVER changes any AI value. It reads the plan
+    set's own printed text (and, when available, vector line primitives) with
+    ``modules.takeoff_vector`` — a purely mechanical, no-AI, no-network second
+    opinion — and returns warning strings when that mechanical read materially
+    DIVERGES from what the AI reported. An empty list means the two agree (or
+    there was nothing to compare). Callers append these to the takeoff warnings.
+
+    The comparisons (each skipped unless both sides carry data):
+
+      * Penetration count. ``count_penetration_tags`` over the drawing text
+        yields a mechanical vent/drain/skylight/etc. tally. The AI measurement
+        pass does NOT count penetrations, so its implied count is 0 and a
+        mechanical tally at or above ``penetration_warn_threshold`` is a material
+        divergence worth a "confirm boots/flashings are in the estimate" nudge.
+        If a future AI field carries an explicit penetration count, it is
+        compared directly instead (via ``crosscheck``).
+      * Edge linear feet. Only when BOTH ``edges`` and ``scale_ft_per_pt`` are
+        supplied. This pipeline computes no drawing scale today, so the edge
+        check stays dormant and can never false-positive; it activates the moment
+        a scale + vector edges are threaded in. The summed vector edge length in
+        feet is crosschecked against the AI eave+rake+ridge+hip+valley total.
+
+    Pure and import-safe: the only dependency is ``modules.takeoff_vector`` whose
+    heavy PDF libraries are lazily imported, so this touches no PDF/DB/network.
+    """
+    from modules import takeoff_vector as TV
+
+    out = []
+
+    # --- Penetration-count cross-check --------------------------------------
+    tags = TV.count_penetration_tags(labels or [])
+    ai_pen = fields.get("penetration_count")
+    if ai_pen is None:
+        ai_pen = fields.get("num_penetrations")
+    if ai_pen is not None:
+        cc = TV.crosscheck("penetrations", tags.total, float(ai_pen or 0),
+                           abs_tol=1, pct_tol=0.5)
+        if not cc.within_tolerance:
+            out.append(
+                "Vector cross-check: drawings' printed text shows %d roof-"
+                "penetration callout(s) but the takeoff records %g — verify "
+                "vent/boot/drain counts." % (tags.total, float(ai_pen or 0)))
+    elif tags.total >= penetration_warn_threshold:
+        cats = ", ".join("%s x%d" % (k.replace("_", " "), v)
+                         for k, v in tags.nonzero().items())
+        out.append(
+            "Vector cross-check: drawings' printed text shows %d roof-penetration "
+            "callout(s) (%s); the AI measurement pass does not count penetrations "
+            "— confirm pipe boots / vent flashings are in the estimate."
+            % (tags.total, cats))
+
+    # --- Edge linear-foot cross-check (dormant until a scale exists) ---------
+    if edges and scale_ft_per_pt:
+        em = TV.measure_edges(edges, scale_ft_per_pt=scale_ft_per_pt,
+                              min_length_pt=1.0)
+        ai_edge = sum(float(fields.get(k) or 0)
+                      for k in ("eave_lf", "rake_lf", "ridge_lf",
+                                "hip_lf", "valley_lf"))
+        if em.total_length_ft and ai_edge:
+            cc = TV.crosscheck("edge_lf", em.total_length_ft, ai_edge,
+                               abs_tol=edge_abs_tol_lf, pct_tol=edge_pct_tol)
+            if not cc.within_tolerance:
+                out.append(
+                    "Vector cross-check: summed drawing edge length ~%.0f LF "
+                    "diverges from the AI edge total %.0f LF (eave+rake+ridge+"
+                    "hip+valley) — verify edge measurements." % (
+                        em.total_length_ft, ai_edge))
+
+    return out
+
+
 def _ingest_envelope(env):
     """Write an already-parsed takeoff envelope to the DB. Returns the result dict.
     Called directly from _run_takeoff_worker (no HTTP, no HMAC needed)."""
@@ -325,6 +402,11 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
 
         _progress("Loading PDF(s)…")
         content_blocks = []
+        # Text captured for the deterministic vector cross-check (sanity layer).
+        # Populated from the same cheap text extraction already done below, so the
+        # cross-check re-parses nothing. Defaults to empty so the post-AI call is
+        # always safe even if extraction is skipped.
+        xcheck_labels = []
         # The API's 32MB limit applies to the ENCODED request body. Base64 inflates
         # 4/3, so cap raw per-PDF at 22MB (~29.3MB encoded) and track a cumulative
         # encoded budget across all document blocks — 3 mid-size sheets could
@@ -381,6 +463,14 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                     _index_cache_put(cache_key, lead_id, token, sheet_text)
                     _progress("Text index built: %d sheets (cached for retries)"
                               % len(sheet_text))
+
+                # Capture every sheet's printed text for the vector cross-check
+                # (reuses the already-built index — no extra parsing).
+                try:
+                    xcheck_labels = [ln for _t in (sheet_text or {}).values()
+                                     for ln in str(_t).splitlines() if ln.strip()]
+                except Exception:
+                    xcheck_labels = []
 
                 # Rank sheets by CONTENT (from the index), not filename. Architect
                 # sets name the roof plan "A07.pdf", so filename-only ranking missed
@@ -481,6 +571,7 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                 import io as _io
                 _txt = "\n".join((pg.extract_text() or "")
                                  for pg in _PdfReader(_io.BytesIO(pdf_bytes)).pages[:8])
+                xcheck_labels = [ln for ln in _txt.splitlines() if ln.strip()]
                 if _txt.strip():
                     content_blocks.append({
                         "type": "text",
@@ -666,6 +757,16 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                             "take-off) — verify against a measurement report before bidding.")
         if not fields.get("wind_speed_mph"):
             warnings.append("Wind speed not found — verify against cover sheet.")
+
+        # Deterministic VECTOR cross-check (sanity layer only — never overrides AI).
+        # Runs modules.takeoff_vector over the drawings' OWN printed text: a purely
+        # mechanical, no-AI second opinion. When it materially diverges from the AI
+        # numbers it appends a warning; otherwise it stays silent. Fully guarded so
+        # any failure here can never break the takeoff worker.
+        try:
+            warnings.extend(_vector_crosscheck(fields, xcheck_labels))
+        except Exception as _xc:
+            _progress("Vector cross-check skipped: %s" % _xc)
 
         with app.app_context():
             # Update the lead with non-invasive fields only — never rename or convert.
