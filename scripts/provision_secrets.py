@@ -58,6 +58,17 @@ PLATFORM_KEYS = {
     },
 }
 
+# Per-platform env-var RENAMES applied on the way OUT to a host. The CRM stores the
+# engine's API key under ROOF_ENGINE_API_KEY, but the engine (service/app.py on the VM)
+# reads valid keys from ROOF_API_KEYS (comma-separated). Without this rename a
+# `--platform vm --apply` writes ROOF_ENGINE_API_KEY into /etc/roof-engine.env, the engine
+# sees no ROOF_API_KEYS and silently falls back to the insecure `dev-key`, and the CRM 401s.
+# Root-caused live by crm-ui 2026-06-25 (bus: ROOTCAUSE-fix-provisioning-var-name); this is
+# the permanent provisioning fix so it never recurs on a VM redeploy.
+PLATFORM_RENAMES = {
+    "vm": {"ROOF_ENGINE_API_KEY": "ROOF_API_KEYS"},
+}
+
 # Keys that should NEVER be pushed to any remote host
 LOCAL_ONLY = {
     "RENDER_API_KEY",
@@ -91,6 +102,7 @@ def mask(v):
 
 def filter_keys(kv, platform):
     allowed = PLATFORM_KEYS.get(platform)
+    rename = PLATFORM_RENAMES.get(platform, {})
     result = {}
     for k, v in kv.items():
         if k in LOCAL_ONLY:
@@ -99,7 +111,9 @@ def filter_keys(kv, platform):
             continue
         if allowed is not None and k not in allowed:
             continue
-        result[k] = v
+        # Rename the var to the name the target host actually reads (e.g. the engine VM
+        # reads ROOF_API_KEYS, not the CRM-side ROOF_ENGINE_API_KEY). See PLATFORM_RENAMES.
+        result[rename.get(k, k)] = v
     return result
 
 # ── Render ─────────────────────────────────────────────────────────────────────

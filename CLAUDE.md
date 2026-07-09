@@ -50,7 +50,9 @@ escalates. Never put secret values in a message.
 ## Hosts
 - **Render** (`collab-crm`, SQLite on disk) — **LIVE** (`crm.collaborativeconceptsfl.com` →
   `collab-crm-bwsl.onrender.com`; DNS cutover confirmed 2026-06-13). Auto-deploys from
-  `agent/gc-consolidation`; `RENDER=true ⇒ IS_PROD`. Push to branch = deploy.
+  **`main`** (switched from `agent/gc-consolidation` on 2026-06-30, Render-API-confirmed;
+  gc-consolidation is now frozen/behind — do NOT push there); `RENDER=true ⇒ IS_PROD`.
+  Push to `main` = deploy.
 - **Vercel** (Neon) — **ROLLBACK ONLY** (no longer the live domain). Keep as fallback;
   don't deploy there routinely.
 

@@ -5,13 +5,15 @@ Enter an address (or pick a job) -> the engine geocodes, pulls the Google DSM,
 clips to the county parcel, measures the roof, and renders a branded PDF. All
 engine calls are server-side; the API key never reaches the browser.
 
-Config (env, set in Vercel — the repo is public so no secrets live here):
+Config (env, set in the host dashboard — Render is the live host, Vercel is rollback-only;
+the repo is public so no secrets live here). Declared in render.yaml as sync:false:
     ROOF_ENGINE_URL      e.g. https://150-136-152-240.nip.io
-    ROOF_ENGINE_API_KEY  the engine's X-API-Key
+    ROOF_ENGINE_API_KEY  the engine's X-API-Key — must equal the engine VM's ROOF_API_KEYS
     ROOF_BRAND           brand id in the engine (default "seabreeze")
 
 The engine runs reports asynchronously, so /new just starts the job and the
-detail page polls /status — this keeps every request well under Vercel's limit.
+detail page polls /status — this keeps every request short (well under any host
+request/function timeout).
 """
 import json
 import os

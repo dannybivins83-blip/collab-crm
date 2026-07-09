@@ -74,6 +74,17 @@ services:
         sync: false
       - key: CRON_SECRET            # protects /sync/cron (unattended sync trigger)
         sync: false
+      # Roof Report Engine link (modules/roof_reports.py) — the CRM proxies address→PDF roof
+      # measurements to the FastAPI engine on the VM, server-side, with X-API-Key. URL/brand
+      # are not secret; the key is. sync:false = set in the Render dashboard (Render preserves
+      # the dashboard value on deploy). ROOF_ENGINE_API_KEY here must equal the engine VM's
+      # ROOF_API_KEYS (see scripts/provision_secrets.py PLATFORM_RENAMES) or the page 401s.
+      - key: ROOF_ENGINE_URL
+        sync: false
+      - key: ROOF_ENGINE_API_KEY
+        sync: false
+      - key: ROOF_BRAND            # engine brand id; defaults to "seabreeze" in code if unset
+        sync: false
       # First-run admin login. The seeded admin user gets THIS password on first boot
       # (modules/auth.py). REQUIRED for a fresh deploy to be loginnable — set it in the
       # Render dashboard, then change it via /account after first login. (turn-over blocker #1)
