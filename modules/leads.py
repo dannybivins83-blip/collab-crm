@@ -153,7 +153,12 @@ def list_view():
         if _bstages:
             _w.append("stage IN (%s)" % ",".join("?" * len(_bstages)))
             _p.extend(_bstages)
-            bucket = None  # SQL handles it
+        else:
+            # Unknown bucket → no stage maps to it → no rows. Without this, an empty
+            # _bstages left the WHERE unfiltered AND the paginated path skips the Python
+            # bucket filter, so a bogus ?bucket= leaked EVERY dept row instead of none.
+            _w.append("1=0")
+        bucket = None  # SQL now owns the bucket filter (both branches) — don't re-filter
     if rep_f:
         _w.append("rep=?"); _p.append(rep_f)
     if q:

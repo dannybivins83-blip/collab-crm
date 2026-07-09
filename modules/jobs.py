@@ -9,6 +9,11 @@ from theme import current_department
 
 bp = Blueprint("jobs", __name__, url_prefix="/jobs")
 
+# SQLite caps one statement at SQLITE_LIMIT_VARIABLE_NUMBER (32766) bound params; an
+# IN (?,?,…) over more job ids than that 500s with "too many SQL variables". 900 stays
+# safe on both engines (Postgres' limit is 65535).
+_SQL_IN_BATCH = 900
+
 EDITABLE = ["rid", "name", "phone", "email", "address", "city", "state", "zip",
             "work_type", "rep", "foreman", "crew", "source", "contract_value", "narrative",
             "todo", "notes", "next_follow", "pcn", "legal", "county", "ahj", "system",
@@ -147,7 +152,12 @@ def list_view():
         if _bstages:
             _w.append("stage IN (%s)" % ",".join("?" * len(_bstages)))
             _p.extend(_bstages)
-            bucket = None  # SQL handles it; clear so Python skip it below
+        else:
+            # Unknown bucket → no stage maps to it → no rows. Without this, an empty
+            # _bstages left the WHERE unfiltered AND the paginated path skips the Python
+            # bucket filter, so a bogus ?bucket= leaked EVERY dept row instead of none.
+            _w.append("1=0")
+        bucket = None  # SQL now owns the bucket filter; clear so Python doesn't re-filter
     if rep_f:
         _w.append("rep=?"); _p.append(rep_f)
     if q:
@@ -216,21 +226,26 @@ def list_view():
         page = 1
         total_pages = 1
 
-    # Batch-load profit analysis for visible rows only (50 rows on paginated view
-    # vs the full 1231 before; single IN() query either way).
+    # Batch-load profit analysis for visible rows only (50 rows on the paginated view;
+    # on the 'days'/overdue path `rows` is every matching job, so the id list is chunked
+    # under SQLite's 32766-bound-var cap — a >32k-job dept would otherwise 500 here with
+    # "too many SQL variables").
     if rows:
         _ids = [j["id"] for j in rows]
-        _ph = ",".join("?" * len(_ids))
+        _ws_agg = []
         _conn3 = db.connect()
         try:
-            _ws_agg = _conn3.execute(
-                "SELECT w.job_id, w.contract_value, "
-                "COALESCE(SUM(wl.actual_cost),0) AS actual_cost, "
-                "COALESCE(SUM(wl.budget_cost),0) AS budget_cost "
-                "FROM worksheets w "
-                "LEFT JOIN worksheet_lines wl ON wl.worksheet_id=w.id "
-                "WHERE w.job_id IN (%s) GROUP BY w.job_id, w.id ORDER BY w.id DESC" % _ph,
-                tuple(_ids)).fetchall()
+            for _i in range(0, len(_ids), _SQL_IN_BATCH):
+                _chunk = _ids[_i:_i + _SQL_IN_BATCH]
+                _ph = ",".join("?" * len(_chunk))
+                _ws_agg.extend(_conn3.execute(
+                    "SELECT w.job_id, w.contract_value, "
+                    "COALESCE(SUM(wl.actual_cost),0) AS actual_cost, "
+                    "COALESCE(SUM(wl.budget_cost),0) AS budget_cost "
+                    "FROM worksheets w "
+                    "LEFT JOIN worksheet_lines wl ON wl.worksheet_id=w.id "
+                    "WHERE w.job_id IN (%s) GROUP BY w.job_id, w.id ORDER BY w.id DESC" % _ph,
+                    tuple(_chunk)).fetchall())
         finally:
             _conn3.close()
         _ws_by_job = {}

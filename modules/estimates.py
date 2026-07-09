@@ -119,45 +119,65 @@ def _next_number():
         conn.close()
 
 
+# SQLite caps one statement at SQLITE_LIMIT_VARIABLE_NUMBER (32766) bound params; a
+# single IN (?,?,…) over more ids than that 500s with "too many SQL variables". Split
+# id lists into batches under the cap (Postgres' limit is 65535, so 900 is safe on both).
+_SQL_IN_BATCH = 900
+
+
+def _in_batches(conn, sql_prefix, ids, order_suffix=""):
+    """Run ``sql_prefix (<placeholders>) order_suffix`` for ``ids`` split into batches
+    that stay under the driver's bound-variable limit, and return the concatenated rows.
+    ``sql_prefix`` must end right before the placeholder group, e.g.
+    ``"SELECT * FROM estimate_sections WHERE estimate_id IN "``. Empty ids → no query.
+
+    Grouping is preserved: because each id lands in exactly one batch, every row that
+    shares a grouped-on id (all sections of an estimate, all lines of a section) is
+    fetched by the same batched query and stays ``order_suffix``-ordered within it."""
+    out = []
+    ids = list(ids)
+    for i in range(0, len(ids), _SQL_IN_BATCH):
+        chunk = ids[i:i + _SQL_IN_BATCH]
+        ph = ",".join("?" * len(chunk))
+        out.extend(conn.execute(sql_prefix + "(" + ph + ")" + order_suffix, chunk).fetchall())
+    return out
+
+
 # ---- routes ---------------------------------------------------------------
 
 @bp.route("/")
 def index():
-    # Scope to the current department via each estimate's parent lead/job.
+    # Scope to the current department via each estimate's parent lead/job. Use correlated
+    # sub-SELECTs (not a materialized IN-list of every dept lead/job id) so a large
+    # department can't blow past SQLite's 32766-bound-var cap and 500 with "too many SQL
+    # variables" — this binds 2 params regardless of how many leads/jobs the dept has.
     from theme import current_department
     dept = current_department()
-    dept_leads = {l["id"] for l in db.all_rows("leads", "department=?", (dept,))}
-    dept_jobs = {j["id"] for j in db.all_rows("jobs", "department=?", (dept,))}
-    _parts, _params = ["(lead_id IS NULL AND job_id IS NULL)"], []
-    if dept_leads:
-        _ph = ",".join("?" * len(dept_leads))
-        _parts.append("lead_id IN (%s)" % _ph)
-        _params.extend(dept_leads)
-    if dept_jobs:
-        _ph = ",".join("?" * len(dept_jobs))
-        _parts.append("job_id IN (%s)" % _ph)
-        _params.extend(dept_jobs)
-    estimates = db.all_rows("estimates", " OR ".join(_parts), tuple(_params), "id DESC")
+    estimates = db.all_rows(
+        "estimates",
+        "(lead_id IS NULL AND job_id IS NULL) "
+        "OR lead_id IN (SELECT id FROM leads WHERE department=?) "
+        "OR job_id IN (SELECT id FROM jobs WHERE department=?)",
+        (dept, dept), "id DESC")
     if not estimates:
         return render_template("estimates.html", estimates=[], q="", status_f="", statuses=[])
-    # Batch-compute totals with a single IN() query per table instead of one
-    # _load_sections() call per estimate (was 1 + 2×N queries for N estimates).
+    # Batch-compute totals with chunked IN() queries (2 tables) instead of one
+    # _load_sections() call per estimate (was 1 + 2×N queries for N estimates). The id
+    # lists are chunked (_in_batches) so a dept with >32k estimates/sections stays under
+    # the SQL variable cap.
     est_ids = [e["id"] for e in estimates]
-    id_ph = ",".join("?" * len(est_ids))
     conn = db.connect()
     try:
-        # Fetch all sections + lines for these estimates in 2 queries (vs 1+2N before).
-        all_sections = conn.execute(
-            "SELECT * FROM estimate_sections WHERE estimate_id IN (%s) ORDER BY sort, id" % id_ph,
-            est_ids).fetchall()
+        # Fetch all sections + lines for these estimates (chunked to stay under the cap).
+        all_sections = _in_batches(
+            conn, "SELECT * FROM estimate_sections WHERE estimate_id IN ",
+            est_ids, " ORDER BY sort, id")
         sec_ids = [s["id"] for s in all_sections]
         all_lines = {}
-        if sec_ids:
-            line_ph = ",".join("?" * len(sec_ids))
-            for ln in conn.execute(
-                "SELECT * FROM estimate_lines WHERE section_id IN (%s) ORDER BY sort, id" % line_ph,
-                sec_ids).fetchall():
-                all_lines.setdefault(ln["section_id"], []).append(ln)
+        for ln in _in_batches(
+                conn, "SELECT * FROM estimate_lines WHERE section_id IN ",
+                sec_ids, " ORDER BY sort, id"):
+            all_lines.setdefault(ln["section_id"], []).append(ln)
     finally:
         conn.close()
     # Roll up totals in Python using the same line_cost / line_price logic.
