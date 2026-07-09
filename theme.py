@@ -67,10 +67,17 @@ def est_num(text):
 
 
 def money(n):
-    if not n:
+    # Robust at the ROOT against AccuLynx-imported money strings ("$1,200.50",
+    # "1,200.50", "N/A"), None, and any garbage — any of which used to raise
+    # (float() ValueError / TypeError) and 500 the page wherever a template
+    # rendered money() on a raw DB value. est_num() parses strings safely.
+    if isinstance(n, str):
+        n = est_num(n)
+    try:
+        r = round(float(n or 0), 2)
+    except Exception:
         return "$0"
     # Show cents only when present (matches AccuLynx: $6,870.01 but $9,160 stays clean).
-    r = round(float(n), 2)
     if abs(r - round(r)) < 0.005:
         return "$" + format(int(round(r)), ",")
     return "$" + format(r, ",.2f")
@@ -78,6 +85,12 @@ def money(n):
 
 def money_k(n):
     """Compact $K formatting for board column totals."""
+    if isinstance(n, str):
+        n = est_num(n)
+    try:
+        n = float(n or 0)
+    except Exception:
+        n = 0.0
     if n >= 1_000_000:
         v = n / 1_000_000.0
         s = "%.1f" % v
@@ -116,6 +129,11 @@ def money_abbr(n):
 
 
 def paid_pct(payments):
+    # Guard the root: a corrupt/legacy jobs.payments blob can deserialize to a
+    # non-dict (string/list/None); payments.get() then raised AttributeError and
+    # 500'd every page that showed a payment %. Non-dict -> nothing paid.
+    if not isinstance(payments, dict):
+        return 0.0
     paid = 0.0
     for p in constants.DRAW_SCHEDULE:
         if p["pct"] and payments.get(p["key"]):
