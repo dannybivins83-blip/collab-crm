@@ -765,7 +765,13 @@ def set_stage(lead_id):
 def move(lead_id):
     """Drag-to-advance endpoint (AJAX)."""
     _require_lead(lead_id)
-    stage = (request.get_json(silent=True) or {}).get("stage") or request.form.get("stage")
+    # A hand-crafted / scripted POST can send a JSON body that is a list, string,
+    # number or bool — get_json returns that non-dict verbatim, and a truthy non-dict
+    # skips the ``or {}`` fallback, so ``.get`` 500'd (AttributeError). Coerce to {}.
+    _body = request.get_json(silent=True)
+    if not isinstance(_body, dict):
+        _body = {}
+    stage = _body.get("stage") or request.form.get("stage")
     if stage in constants.LEAD_STAGE_INDEX:
         closed = stage in ("won", "lost")
         db.update("leads", lead_id, stage=stage, stage_since=db.today(),

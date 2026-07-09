@@ -496,7 +496,13 @@ def advance(job_id):
 @bp.route("/<int:job_id>/move", methods=["POST"])
 def move(job_id):
     job = _require_job(job_id)
-    stage = (request.get_json(silent=True) or {}).get("stage") or request.form.get("stage")
+    # A hand-crafted / scripted POST can send a JSON body that is a list, string,
+    # number or bool — get_json returns that non-dict verbatim, and a truthy non-dict
+    # skips the ``or {}`` fallback, so ``.get`` 500'd (AttributeError). Coerce to {}.
+    _body = request.get_json(silent=True)
+    if not isinstance(_body, dict):
+        _body = {}
+    stage = _body.get("stage") or request.form.get("stage")
     if stage in constants.JOB_STAGE_INDEX:
         warn = _skip_warning(job, job.get("stage"), stage)
         db.update("jobs", job_id, stage=stage, stage_since=db.today())

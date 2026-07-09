@@ -28,6 +28,22 @@ PER_PAGE = 50
 _CONTACT_FK_TABLES = ["leads", "jobs", "estimates", "appointments", "invoices", "materials"]
 
 
+def _mergeable_fk_tables():
+    """Subset of _CONTACT_FK_TABLES that actually carry a ``contact_id`` column in
+    this tenant's schema. ``invoices``/``materials`` link to a contact only through
+    their ``job_id`` (which the ``jobs`` re-point already handles), so they have no
+    ``contact_id`` to move — including them made the merge 500 with
+    ``no such column: contact_id``. Skip any table missing the column instead."""
+    out = []
+    for t in _CONTACT_FK_TABLES:
+        try:
+            if "contact_id" in db._columns(t):
+                out.append(t)
+        except Exception:
+            pass
+    return out
+
+
 def _form_data():
     """Pull the editable contact fields from the POST form, coercing the is_gc
     checkbox to 0/1."""
@@ -259,7 +275,8 @@ def make_gc(contact_id):
 
 def _merge_plan(survivor_id, dupe_ids):
     """Count what will move from each dupe onto the survivor (preview, no writes)."""
-    moves = {t: 0 for t in _CONTACT_FK_TABLES}
+    _tables = _mergeable_fk_tables()
+    moves = {t: 0 for t in _tables}
     moves["activities"] = 0
     detail = []
     _conn = db.connect()
@@ -269,7 +286,7 @@ def _merge_plan(survivor_id, dupe_ids):
             if not d:
                 continue
             row = {"contact": d, "tables": {}}
-            for t in _CONTACT_FK_TABLES:
+            for t in _tables:
                 db._assert_table(t)
                 n = (_conn.execute(
                     "SELECT COUNT(*) FROM %s WHERE contact_id=?" % t, (did,)
@@ -294,13 +311,14 @@ def _do_merge(survivor_id, dupe_ids):
     Wrapped in a single BEGIN IMMEDIATE transaction so a crash mid-merge can't
     leave FKs pointing at a deleted contact."""
     conn = db.begin_immediate()
-    moved = {t: 0 for t in _CONTACT_FK_TABLES}
+    _tables = _mergeable_fk_tables()
+    moved = {t: 0 for t in _tables}
     moved["activities"] = 0
     try:
         for did in dupe_ids:
             if did == survivor_id:
                 continue
-            for t in _CONTACT_FK_TABLES:
+            for t in _tables:
                 db._assert_table(t)
                 r = conn.execute(
                     "UPDATE %s SET contact_id=? WHERE contact_id=?" % t,
