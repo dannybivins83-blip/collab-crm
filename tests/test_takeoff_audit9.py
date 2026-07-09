@@ -207,9 +207,16 @@ def test_race_loser_blocks_on_existing_claim():
 #          for the audit-#9 fix to function; the runtime code handles both.
 # ─────────────────────────────────────────────────────────────────────────────
 def test_idempotency_index_exists():
-    rows = db.all_rows("sqlite_master", where="type=? AND tbl_name=?",
-                       params=("index", "takeoffs"), order="name")
-    names = [r.get("name") or "" for r in rows]
+    # `db.all_rows()` enforces a TABLE_ALLOWLIST that (correctly) excludes the
+    # `sqlite_master` system catalog, so read it through a raw connection here.
+    conn = db.connect()
+    try:
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type=? AND tbl_name=? ORDER BY name",
+            ("index", "takeoffs")).fetchall()
+    finally:
+        conn.close()
+    names = [(r["name"] or "") for r in rows]
     has_unique = any(n == "uq_takeoffs_idempotency_key" for n in names)
     has_fallback = any(n == "ix_takeoffs_idempotency_key" for n in names)
     assert has_unique or has_fallback, \
