@@ -560,7 +560,14 @@ _WIDGET_HTML = """<!DOCTYPE html>
 
 @bp.route("/contractor-profile/save", methods=["POST"])
 def contractor_profile_save():
-    pid = request.form.get("id", "").strip()
+    # Coerce the hidden id defensively: a hand-crafted / stale POST can send a
+    # non-numeric ``id`` ('abc', '1.5') that used to reach int() and 500 (ValueError).
+    # Junk -> None -> treat as a new-profile insert instead of crashing.
+    _pid_raw = request.form.get("id", "").strip()
+    try:
+        pid = int(_pid_raw) if _pid_raw else None
+    except (TypeError, ValueError):
+        pid = None
     data = {f: request.form.get(f, "").strip() for f in
             ["company_name", "license_number", "qualifier_name", "address", "city",
              "state", "zip", "phone", "email", "contact_person", "notary_county"]}
@@ -568,7 +575,7 @@ def contractor_profile_save():
     if data["is_default"]:
         db.execute("UPDATE contractor_profiles SET is_default=0")
     if pid:
-        db.update("contractor_profiles", int(pid), **data)
+        db.update("contractor_profiles", pid, **data)
         flash("Profile updated.", "ok")
     else:
         data["created"] = db.now()

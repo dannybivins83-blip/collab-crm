@@ -278,13 +278,31 @@ def _addr_match(incoming, stored):
     return hi.startswith(lo + " ") or hi.startswith(lo + ",")
 
 
+def _as_id(v):
+    """Coerce an incoming id to a positive int, or None if not a plain scalar id.
+    A malformed webhook can send ``job_id`` as a dict/list — binding that straight
+    into ``db.get`` raised sqlite InterfaceError (500). Non-scalars -> None -> skip."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v if v > 0 else None
+    if isinstance(v, str):
+        s = v.strip()
+        return int(s) if s.isdigit() else None
+    return None
+
+
 def _match_record(b):
-    if b.get("job_id"):
-        j = db.get("jobs", b["job_id"])
+    if not isinstance(b, dict):
+        return None, None
+    jid = _as_id(b.get("job_id"))
+    if jid:
+        j = db.get("jobs", jid)
         if j:
             return "job", j
-    if b.get("lead_id"):
-        l = db.get("leads", b["lead_id"])
+    lid = _as_id(b.get("lead_id"))
+    if lid:
+        l = db.get("leads", lid)
         if l:
             return "lead", l
     ref = str(b.get("external_ref") or "").strip().lower()
@@ -345,6 +363,10 @@ def ingest():
         try:
             body = _json.loads(raw.decode("utf-8") or "{}")
         except Exception:
+            body = {}
+        # A valid-JSON but non-object body (list/str/number/null) must not reach
+        # ``body.get`` — that raised AttributeError (500). Normalize to an empty dict.
+        if not isinstance(body, dict):
             body = {}
         filename = body.get("filename") or filename
         if body.get("pdf_base64"):

@@ -87,7 +87,7 @@ def _match_job(data):
             return j, "crm_job_id"
     # 2. rid match — case-insensitive exact first; digit-suffix LIKE fallback for
     #    punctuation differences (e.g. "R25179" vs "R-25179")
-    raw_rid = (data.get("rid") or "").strip()
+    raw_rid = str(data.get("rid") or "").strip()
     if raw_rid:
         rows = db.all_rows("jobs", "LOWER(COALESCE(rid,''))=?", (raw_rid.lower(),), limit=1)
         if rows:
@@ -99,9 +99,11 @@ def _match_job(data):
                 if re.sub(r"[^a-z0-9]", "", (j.get("rid") or "").lower()) == rid_norm:
                     return j, "rid"
     # 3. Address match: push street# and zip filter to SQL, verify extracted values in Python
-    addr = data.get("address") or ""
+    # str()-coerce: a webhook can send address/zip as a non-string (int/list) which
+    # used to 500 on .split()/slicing.
+    addr = str(data.get("address") or "")
     snum = _street_num(addr.split(",")[0])
-    szip = (data.get("zip") or "")[:5] or _zip5(addr)
+    szip = str(data.get("zip") or "")[:5] or _zip5(addr)
     if snum and szip:
         for j in db.all_rows("jobs", "address LIKE ? AND SUBSTR(COALESCE(zip,''),1,5)=?",
                              (snum + "%", szip)):
@@ -120,6 +122,10 @@ def gallery_link():
     if not sent or not secret or not hmac.compare_digest(sent, secret):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     data = request.get_json(silent=True) or {}
+    # A valid-JSON but non-object body (list/str/number) must not reach ``data.get``
+    # — that raised AttributeError (500). Normalize to an empty dict.
+    if not isinstance(data, dict):
+        data = {}
     gurl = (data.get("url") or "").strip()
     if not gurl:
         return jsonify({"ok": False, "error": "missing url"}), 400
