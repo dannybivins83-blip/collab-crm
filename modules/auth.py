@@ -41,7 +41,8 @@ def _record_failure(ip: str) -> None:
 DEFAULT_PASSWORD = os.environ.get("CRM_DEFAULT_PASSWORD", "").strip()
 # Endpoints reachable without being logged in.
 PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
-          "static", "uploads", "favicon", "leads.import_leads",
+          "static", "uploads", "favicon", "healthz",  # /healthz + /version deploy probe
+          "leads.import_leads",
           "leads.intake", "leads.intake_email", "leads.intake_ringcentral",
           "sync.browser_import", "sync.cron",
           "sync.doc_import", "sync.doc_manifest", "sync.doc_batch",

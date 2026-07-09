@@ -231,6 +231,63 @@ def favicon():
     return ("", 204)
 
 
+# --- Deploy health / version probe ------------------------------------------
+# Public, auth-exempt (see modules/auth.py PUBLIC), DB-free liveness endpoint so a
+# host health check (Render) or an external monitor can confirm the app booted and
+# learn the deployed commit WITHOUT needing RENDER_API_KEY. Kept dependency-free
+# (no DB, no template) so it returns 200 even on a fresh/empty database.
+def _build_sha():
+    """Resolve the deployed commit sha, cheapest source first, cached after first call.
+
+    1. Host-provided env vars (no subprocess in prod: Render sets RENDER_GIT_COMMIT).
+    2. A build-stamp file committed/generated at deploy (VERSION / .git-sha).
+    3. `git rev-parse` on the checkout (local dev; Render keeps the .git dir).
+    4. "unknown" — never raises, never blocks the probe.
+    """
+    cached = getattr(_build_sha, "_cache", None)
+    if cached is not None:
+        return cached
+    sha = ""
+    for _var in ("RENDER_GIT_COMMIT", "GIT_SHA", "GIT_COMMIT",
+                 "SOURCE_VERSION", "VERCEL_GIT_COMMIT_SHA", "HEROKU_SLUG_COMMIT"):
+        val = (os.environ.get(_var) or "").strip()
+        if val:
+            sha = val
+            break
+    if not sha:
+        _here = os.path.dirname(os.path.abspath(__file__))
+        for _fn in ("VERSION", ".git-sha", "build-sha.txt"):
+            try:
+                with open(os.path.join(_here, _fn), "r", encoding="utf-8") as _fh:
+                    val = _fh.read().strip()
+                if val:
+                    sha = val
+                    break
+            except Exception:
+                pass
+    if not sha:
+        try:
+            import subprocess
+            sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+                stderr=subprocess.DEVNULL, timeout=3,
+            ).decode().strip()
+        except Exception:
+            sha = ""
+    sha = (sha or "unknown")[:12]
+    _build_sha._cache = sha
+    return sha
+
+
+@app.route("/healthz")
+@app.route("/version")
+def healthz():
+    """Liveness + deployed-version probe. Returns {"ok": true, "sha": "<commit>"}."""
+    from flask import jsonify
+    return jsonify(ok=True, sha=_build_sha())
+
+
 
 
 def _free_port(preferred):
