@@ -967,6 +967,21 @@ def _doc_servable(d, folder):
     return _servable("%s/%s" % (folder, d.get("filename") or ""))
 
 
+# Extensions safe to render inline; everything else downloads instead of executing,
+# closing the stored-XSS surface from homeowner/staff-uploaded files served back
+# through the portal (mirrors app.py's /uploads hardening, audit #12).
+_PORTAL_INLINE_OK = {"png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "pdf"}
+
+
+def _safe_portal_resp(resp, subpath):
+    """Add anti-sniff + attachment-for-non-inline headers to a served-file response."""
+    ext = subpath.rsplit(".", 1)[-1].lower() if "." in subpath else ""
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    if ext not in _PORTAL_INLINE_OK:
+        resp.headers["Content-Disposition"] = "attachment"
+    return resp
+
+
 @bp.route("/<token>/file/<path:subpath>")
 def portal_file(token, subpath):
     """Serve a document/photo to the homeowner, scoped to THEIR job/lead ONLY.
@@ -975,7 +990,7 @@ def portal_file(token, subpath):
     directly. This route validates the magic-link token, confirms the requested
     file actually belongs to that job/lead (no guessing other customers' files),
     then streams it (with the same path-traversal containment as /uploads)."""
-    from flask import send_from_directory
+    from flask import send_from_directory, Response
     job = _job_by_token(token)
     lead = None if job else _lead_by_token(token)
     if not (job or lead):
@@ -1002,13 +1017,17 @@ def portal_file(token, subpath):
     if not owned:
         abort(403)
     if os.path.exists(full):
-        return send_from_directory(os.path.dirname(full), os.path.basename(full))
-    # Legacy files lost from local disk → Google Drive fallback.
+        return _safe_portal_resp(
+            send_from_directory(os.path.dirname(full), os.path.basename(full)), rel)
+    # Legacy files lost from local disk → R2/blob/Google Drive fallback. serve_fallback
+    # returns a (bytes, mimetype) tuple; it MUST be wrapped in a Response — returning the
+    # raw tuple makes Flask read the mimetype as the HTTP status, producing an invalid
+    # status line that a WSGI proxy (gunicorn/Render) turns into a 502 on the download.
     try:
         from modules import gdrive
         got = gdrive.serve_fallback(rel)
         if got is not None:
-            return got
+            return _safe_portal_resp(Response(got[0], mimetype=got[1]), rel)
     except Exception:
         pass
     abort(404)
