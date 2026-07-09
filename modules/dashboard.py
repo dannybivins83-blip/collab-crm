@@ -155,12 +155,18 @@ def home():
     for inv in outstanding:
         inv["_job"] = job_by_id.get(inv.get("job_id"))
         inv["_overdue"] = invmod._is_overdue(inv)
+        # Coerce amount to a float. AccuLynx-imported / comma-formatted amounts
+        # (e.g. "1,200.50") stay TEXT under SQLite's REAL affinity, which crashed
+        # BOTH the Python sum below ("int + str" TypeError) AND the template's
+        # money(inv.amount) render (float() ValueError) — 500'ing the home page on
+        # every load. est_num() parses money strings and yields 0.0 for garbage.
+        inv["amount"] = theme.est_num(inv.get("amount"))
     global _last_overdue_sweep
     now = _time.time()
     if now - _last_overdue_sweep >= _OVERDUE_SWEEP_INTERVAL:
         invmod.sweep_overdue_automations(outstanding)
         _last_overdue_sweep = now
-    outstanding_total = sum(i.get("amount") or 0 for i in outstanding)
+    outstanding_total = sum(inv["amount"] for inv in outstanding)
 
     # SiteCam card: order chips by photo recency — jobs whose SiteCam gallery was
     # touched most recently come first (and the top one renders "selected"), the
