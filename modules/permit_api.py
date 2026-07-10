@@ -48,8 +48,14 @@ def _validate_key(raw):
 
 
 def _get_key_from_request():
+    # A top-level JSON list/scalar body parses fine but isn't a dict, so `.get()`
+    # would AttributeError -> 500 BEFORE auth even runs. Only read api_key from a
+    # dict body; otherwise fall back to header/query. (Keeps the auth gate intact.)
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        body = {}
     return (request.headers.get("X-Permit-API-Key")
-            or (request.get_json(silent=True) or {}).get("api_key")
+            or body.get("api_key")
             or request.args.get("api_key", ""))
 
 
@@ -144,7 +150,9 @@ def submit_build():
     if err:
         return err, code
 
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        body = {}
     job_data = body.get("job") or {}
     contractor = body.get("contractor") or None
     webhook_url = body.get("webhook_url") or None
@@ -279,7 +287,12 @@ def new_key():
     u = _current_user()
     if not u:
         return jsonify({"ok": False, "error": "Login required"}), 401
-    label = (request.form.get("label") or request.get_json(silent=True, force=True) or {}).get("label", "default")
+    # A top-level JSON list/scalar body isn't a dict, so `.get()` on it would
+    # AttributeError -> 500; coerce any non-dict body to {} first.
+    _label_body = request.get_json(silent=True, force=True)
+    if not isinstance(_label_body, dict):
+        _label_body = {}
+    label = request.form.get("label") or _label_body.get("label", "default")
     if isinstance(label, dict):
         label = label.get("label", "default")
     raw = "pk_live_" + secrets.token_urlsafe(32)

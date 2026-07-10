@@ -32,12 +32,11 @@ missing/bad signature with 4xx, which passes the "no 5xx" bar naturally.
 
 A full route->status manifest is printed so any failure is self-diagnosing.
 
-QUARANTINE: a handful of endpoints in OTHER lanes' modules currently 5xx on a
-malformed JSON body (see ``KNOWN_5XX`` below). They are documented + reported to
-their owning agents (wave-6 ``still_open``); this net asserts **no NEW 5xx appear
-outside that quarantine**, and reports any quarantined route that now passes so
-the list can be trimmed once the owner fixes it. Per the wave-6 lane split, this
-module writes NO app code — it only observes.
+QUARANTINE: ``KNOWN_5XX`` is now EMPTY (2026-07-09) — the 9 residual bulk-import/
+sync handlers that 5xx'd on a valid-JSON non-dict/non-list body were hardened at
+the source (leads.py, permit_api.py, acculynx_sync.py). The whole POST surface is
+now 500-clean. The quarantine mechanism is retained: this net still asserts **no
+NEW 5xx appear** and flags any newly-quarantined route that now passes.
 
 Runs in a subprocess (mirrors the sibling smoke tests) so it neither depends on
 nor mutates the dev database.
@@ -63,20 +62,13 @@ a = appmod.app
 c = a.test_client()
 
 # --- known-5xx quarantine (endpoints in OTHER lanes' modules) ----------------
-# Each 5xxs on a malformed JSON body today; reported to the owning agent via the
-# wave-6 still_open list. This net does NOT fix them (tests-only lane) — it hard-
-# fails only on NEW 5xx OUTSIDE this set, and flags any that now pass.
-KNOWN_5XX = {
-    "leads.import_leads":         "leads.py: for rec in records -> rec.get() on non-dict record / dict-as-keys",
-    "permit_api.submit_build":    "permit_api.py:_get_key_from_request (get_json() or {}).get() crashes on top-level JSON list (pre-auth)",
-    "sync.browser_import":        "acculynx_sync.py:_upsert_record rec.get() on non-dict record",
-    "sync.closed_import":         "acculynx_sync.py:closed_import (get_json() or {}).get() on top-level JSON list",
-    "sync.estimate_collect":      "acculynx_sync.py:estimate_collect (get_json() or {}).get() on top-level JSON list",
-    "sync.insurance_import":      "acculynx_sync.py:insurance_import (get_json() or {}).get() on top-level JSON list",
-    "sync.orders_import":         "acculynx_sync.py:orders_import (get_json() or {}).get() on top-level JSON list",
-    "sync.pipeline_batch":        "acculynx_sync.py:pipeline_batch (get_json() or {}).get() on top-level JSON list",
-    "sync.roofreport_collect":    "acculynx_sync.py:roofreport_collect (get_json() or {}).get() on top-level JSON list",
-}
+# EMPTY as of 2026-07-09: the 9 bulk-import/sync handlers that 5xx'd on a valid-JSON
+# NON-dict/NON-list body (a top-level list/scalar reaching `.get()`, or a non-list
+# `jobs`/`records`/element reaching `rec.get()`) were hardened in leads.py,
+# permit_api.py, and acculynx_sync.py to coerce the shape (non-dict -> {}, non-list
+# -> []) so bad input yields a clean 4xx/normal response, never a 500. The mechanism
+# stays: any future 5xx re-added here is tolerated, everything else must be 500-clean.
+KNOWN_5XX = {}
 
 # --- seed one row per table a mutation route reads/updates -------------------
 # db.insert returns the new id (or None if a table's schema differs); path-param

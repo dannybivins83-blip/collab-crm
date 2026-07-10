@@ -1267,6 +1267,12 @@ def import_leads():
                 records = json.loads(request.get_data(as_text=True) or "[]")
             except Exception:
                 records = []
+        # A valid-JSON body that isn't a list (a top-level dict/scalar) would fall
+        # through to `for rec in records` — iterating a dict yields its string keys,
+        # a scalar isn't iterable — then `rec.get()` AttributeErrors -> 500. This is
+        # a bulk-import of a JSON *array*, so coerce any non-list body to empty.
+        if not isinstance(records, list):
+            records = []
         # Load only the name column for dedup — avoids pulling all columns for 1k+ rows.
         _conn = db.connect()
         try:
@@ -1276,6 +1282,8 @@ def import_leads():
             _conn.close()
         added = 0
         for rec in (records or []):
+            if not isinstance(rec, dict):
+                continue  # skip scalar/null elements in an otherwise-valid array
             name = (rec.get("name") or "").strip()
             if not name or name.lower() in existing:
                 continue

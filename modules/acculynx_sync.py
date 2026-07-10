@@ -934,6 +934,8 @@ def _upsert_record(rec):
     """Upsert one scraped record (from the browser bookmarklet). Returns 'added'|'updated'|None.
     Prefers the GRANULAR milestone (e.g. 'Permit Applied For') so the CRM stage matches
     AccuLynx exactly; falls back to the top-level bucket only when no milestone was sent."""
+    if not isinstance(rec, dict):
+        return None  # a scalar/null array element (or a dict iterated as its keys)
     name = (rec.get("name") or "").strip()
     if not name:
         return None
@@ -1008,6 +1010,10 @@ def browser_import():
                 recs = _json.loads(request.get_data(as_text=True) or "[]")
             except Exception:
                 recs = []
+        # This ingests a JSON *array* of records; a non-list body (top-level dict/
+        # scalar) would iterate to keys/scalars and crash in _upsert_record. Coerce.
+        if not isinstance(recs, list):
+            recs = []
         added = updated = 0
         for rec in (recs or []):
             res = _upsert_record(rec)
@@ -2356,7 +2362,9 @@ def pipeline_batch():
     if not sync_authed():
         return jsonify({"ok": False, "error": "auth"}), 403
     try:
-        payload = request.get_json(force=True, silent=True) or {}
+        payload = request.get_json(force=True, silent=True)
+        if not isinstance(payload, dict):
+            payload = {}  # top-level JSON list/scalar -> treat as empty (no .get() 500)
         GROUPS = ["lead", "prospect", "approved", "completed", "invoiced"]
         reset_to = (payload.get("reset_group") or "").lower().strip()
         if reset_to in GROUPS:
@@ -2389,7 +2397,9 @@ def roofreport_collect():
     if not sync_authed():
         return jsonify({"ok": False, "error": "auth"}), 403
     try:
-        payload = request.get_json(force=True, silent=True) or {}
+        payload = request.get_json(force=True, silent=True)
+        if not isinstance(payload, dict):
+            payload = {}  # top-level JSON list/scalar -> treat as empty (no .get() 500)
         n       = max(1, min(50, int(payload.get("n") or 20)))
         budget  = float(payload.get("budget") or 60)
         if payload.get("reset"):
@@ -2547,7 +2557,9 @@ def estimate_collect():
     if not sync_authed():
         return jsonify({"ok": False, "error": "auth"}), 403
     try:
-        payload = request.get_json(force=True, silent=True) or {}
+        payload = request.get_json(force=True, silent=True)
+        if not isinstance(payload, dict):
+            payload = {}  # top-level JSON list/scalar -> treat as empty (no .get() 500)
         n      = max(1, min(50, int(payload.get("n") or 20)))
         budget = float(payload.get("budget") or 60)
         force  = bool(payload.get("force"))
@@ -2958,8 +2970,12 @@ def insurance_import():
         r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
         return r
     try:
-        payload = request.get_json(force=True, silent=True) or {}
-        jobs_in = payload.get("jobs") or []
+        payload = request.get_json(force=True, silent=True)
+        if not isinstance(payload, dict):
+            payload = {}  # top-level JSON list/scalar -> treat as empty (no .get() 500)
+        jobs_in = payload.get("jobs")
+        if not isinstance(jobs_in, list):
+            jobs_in = []  # a non-list "jobs" (e.g. a bare string) isn't iterable-as-records
         updated = skipped = 0
         # Pre-build guid→job map once so each item lookup is O(1) not O(n).
         _guid_job = {}
@@ -2969,6 +2985,9 @@ def insurance_import():
             if _m:
                 _guid_job[_m.group(0).lower()] = _j
         for item in jobs_in:
+            if not isinstance(item, dict):
+                skipped += 1
+                continue
             guid = (item.get("acculynx_guid") or "").strip()
             if not guid:
                 skipped += 1
@@ -3028,8 +3047,12 @@ def orders_import():
             db._COLCACHE.clear()
         except Exception:
             pass
-        payload = request.get_json(force=True, silent=True) or {}
-        jobs_in = payload.get("jobs") or []
+        payload = request.get_json(force=True, silent=True)
+        if not isinstance(payload, dict):
+            payload = {}  # top-level JSON list/scalar -> treat as empty (no .get() 500)
+        jobs_in = payload.get("jobs")
+        if not isinstance(jobs_in, list):
+            jobs_in = []  # a non-list "jobs" (e.g. a bare string) isn't iterable-as-records
         inserted = updated = skipped = 0
         # Pre-build guid→job map once so each item lookup is O(1) not O(n).
         _guid_job2 = {}
@@ -3039,8 +3062,13 @@ def orders_import():
             if _m:
                 _guid_job2[_m.group(0).lower()] = _j
         for item in jobs_in:
+            if not isinstance(item, dict):
+                skipped += 1
+                continue
             guid = (item.get("acculynx_guid") or "").strip()
-            orders_list = item.get("orders") or []
+            orders_list = item.get("orders")
+            if not isinstance(orders_list, list):
+                orders_list = []
             if not guid or not orders_list:
                 skipped += 1
                 continue
@@ -3051,6 +3079,8 @@ def orders_import():
             job_id = job["id"]
             dept = job.get("department", "")
             for o in orders_list:
+                if not isinstance(o, dict):
+                    continue
                 order_num = (o.get("order_number") or "").strip()
                 vendor = (o.get("vendor") or "").strip()
                 description = (o.get("description") or "").strip()
@@ -3199,7 +3229,9 @@ def closed_import():
         return jsonify({"ok": False, "error": "auth"}), 403
     try:
         import time as _t
-        payload = request.get_json(force=True, silent=True) or {}
+        payload = request.get_json(force=True, silent=True)
+        if not isinstance(payload, dict):
+            payload = {}  # top-level JSON list/scalar -> treat as empty (no .get() 500)
         group = payload.get("group", "closed")
         budget = int(payload.get("budget") or 300)
         company = db.get_company()
