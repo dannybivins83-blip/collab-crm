@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """SeaBreeze Permit Packet Builder - engine.
 Assembles a single pre-filled permit packet PDF for a client/AHJ/system."""
-import os, io, re
+import os, io, re, subprocess, tempfile
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import NameObject
 from reportlab.pdfgen import canvas
@@ -188,7 +188,7 @@ SYSTEMS={
    'approvals':['Metal_Roof/Metal_Dynamic_Class1500_26ga_FL41724-R3_Submittal.pdf','Metal_Roof/Metal_Underlayment_2ply_MTS_FL5259-R50.pdf']},
  'Flat':{'desc':'REROOF - FLAT / MOD-BIT','mfr':'Polyglass','prodfl':'FL1654','prod':'SA 2-ply self-adhered modified bitumen',
    'ul':'Polystick MTS Plus','ulfl':'FL1654','box':'Flat roof','swb_box':'1 Roof slopes 212','swb':'Polystick MTS Plus',
-   'approvals':['Flat_Roof/Flat_Polyglass_SA_ModBit_FL1654-R41_Submittal.pdf']},
+   'approvals':['Flat_Roof/Flat_Polyglass_SA_ModBit_FL1654-R44_NonHVHZ_AE.pdf']},
 }
 
 # Underlayment options per system: choice -> (label, FL#, product-approval relative path).
@@ -198,7 +198,7 @@ UNDERLAYMENTS={
          '2ply':('Polystick TU-Plus + MTS (2-ply)','FL5259','Tile/Tile_Underlayment_2ply_TU-Plus+MTS_FL5259-R50.pdf')},
  'Metal':{'single':('Polystick MTS','FL1654','Metal_Roof/Metal_Underlayment_Polyglass_MTS_FL1654-R41.pdf'),
           '2ply':('Polystick MTS (2-ply)','FL5259','Metal_Roof/Metal_Underlayment_2ply_MTS_FL5259-R50.pdf')},
- 'Flat':{'single':('Polystick MTS Plus','FL1654','Flat_Roof/Flat_Polyglass_SA_ModBit_FL1654-R41_Submittal.pdf')},
+ 'Flat':{'single':('Polystick MTS Plus','FL1654','Flat_Roof/Flat_Polyglass_SA_ModBit_FL1654-R44_NonHVHZ_II.pdf')},
 }
 DEFAULT_UL={'Shingle':'single','Tile':'single','Metal':'single','Flat':'single'}
 def ul_choices(system):
@@ -732,7 +732,31 @@ def _apply_underlayment(system, underlayment):
         sysd['approvals']=[a for a in sysd.get('approvals',[]) if 'nderlayment' not in a]+[ul[2]]
     return sysd
 
-def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=None, product=None, contractor=None):
+_CHROME_PATHS=[
+    r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+    r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+]
+def _fetch_pbc_pa_pdf(pcn):
+    """Render the PBC Property Appraiser detail page for a PCN to a temp PDF.
+    URL: pbcpao.gov/Property/Details?parcelId=<pcn_no_dashes>
+    Returns path to temp PDF, or None on any failure (non-fatal)."""
+    pcn_clean=re.sub(r'[\s\-]','',pcn or '')
+    if not pcn_clean: return None
+    url='https://pbcpao.gov/Property/Details?parcelId=%s'%pcn_clean
+    chrome=next((p for p in _CHROME_PATHS if os.path.exists(p)),None)
+    if not chrome: return None
+    tmp=os.path.join(tempfile.gettempdir(),'pbc_pa_%s.pdf'%pcn_clean)
+    try:
+        subprocess.run([
+            chrome,'--headless=new','--disable-gpu','--no-sandbox',
+            '--disable-dev-shm-usage','--run-all-compositor-stages-before-draw',
+            '--print-to-pdf=%s'%tmp,'--print-to-pdf-no-header',
+            '--virtual-time-budget=8000',url
+        ],capture_output=True,timeout=30)
+        return tmp if os.path.exists(tmp) and os.path.getsize(tmp)>1000 else None
+    except Exception: return None
+
+def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=None, product=None, contractor=None, fetch_pa=True):
     if _is_broward(ahj):
         return _build_broward(client, ahj, system, attachment_paths, out_path, underlayment, product, contractor=contractor)
     sysd=_apply_product(_apply_underlayment(system, underlayment), system, product); w=PdfWriter()
@@ -775,7 +799,11 @@ def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=N
             T={'Contractors Name':_C(contractor,'name_short'),'License':_C(contractor,'license'),'OwnersName':client.get('owner',''),'Job Address':client.get('address',''),
               'Existing Roofing Type Matl':client.get('existing','Asphalt Shingle'),'DeckType':'CDX','Roof Slope':client.get('slope',''),
               'Mean Roof Height':client.get('mrh','15')+"'",'Total Roof Area This Perm':client.get('area',''),'ROOF COVERING MANUFACTURER':sysd['mfr'],
+              'Roof System Manufacturer':sysd['mfr'],
               'Product Approval':sysd['prodfl'],'Product':sysd['prod'],'Base Sheet':sysd['ul'],'Product Approval_2':sysd['ulfl'],'Product Approval_3':sysd['ulfl']}
+            # Flat system: Section D needs Cap Sheet + Top Ply (2-ply SA: base=MTS Plus, cap=Polyflex SA P FR)
+            _flat_cap=SPEC_SHEET.get('Flat',{}).get('cap','') if system=='Flat' else ''
+            if _flat_cap: T['Cap Sheet']=_flat_cap; T['Top Ply']=_flat_cap
             B={'Use of Building':'1 or 2 Family','Re-Roofing/ Re-Covering -Attach Mitigation Package':'On',sysd['box']:'On','Minimum 3':'On'}
             if client.get('exposure'): B['Exposure Category']=client['exposure']
             if system=='Tile': T['ManufacturerProduct']=sysd['adh']; T['Product Approval_6']=sysd['adhfl']; T['Tile Profile']='Flat'
@@ -813,7 +841,9 @@ def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=N
             low=fn.lower()
             if not low.endswith('.pdf'): continue
             stem=fn[:-4]
-            if stem.startswith('PBC_01') or stem.startswith('PBC_02') or stem.startswith('Boca_'): continue
+            if stem.startswith('PBC_01') or stem.startswith('PBC_02'): continue
+            # Boca_01 is the city's master reference PDF (redundant with 02+06); Boca_02/06 filled in step 4
+            if stem in ('Boca_01_Boca_Permit_Packet','Boca_02_ReRoofing_Mitigation_Package','Boca_06_Supplemental_Roof'): continue
             if 'notice_of_commencement' in low or 'building_permit_application' in low: continue
             raw=os.path.join(apk,fn)
             _flds=None
@@ -840,7 +870,11 @@ def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=N
                 if rr.is_encrypted: rr.decrypt('')
                 add(rr.pages)
             except Exception: pass
-    # 6) attached docs (RoofGraf, etc.)
+    # 6) PBC Property Appraiser value page (required for mitigation threshold verification)
+    if fetch_pa and client.get('pcn'):
+        pa_pdf=_fetch_pbc_pa_pdf(client['pcn'])
+        if pa_pdf: _add_pdf(w,pa_pdf)
+    # 7) attached docs (RoofGraf, etc.)
     for ap in attachment_paths or []:
         try:
             rr=PdfReader(ap)

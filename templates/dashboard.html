@@ -112,14 +112,14 @@
       <div class="panel-head"><span>Activity Feed</span></div>
       <ul class="timeline feed-scroll" style="padding-right:6px">
         {% for a in feed %}
-        {% if a.entity_type=='job' %}{% set href = url_for('jobs.detail', job_id=a.entity_id) %}
-        {% elif a.entity_type=='lead' %}{% set href = url_for('leads.detail', lead_id=a.entity_id) %}
-        {% elif a.entity_type=='contact' %}{% set href = url_for('contacts.detail', contact_id=a.entity_id) %}
+        {% if a.entity_type=='job' and a.entity_id %}{% set href = url_for('jobs.detail', job_id=a.entity_id) %}
+        {% elif a.entity_type=='lead' and a.entity_id %}{% set href = url_for('leads.detail', lead_id=a.entity_id) %}
+        {% elif a.entity_type=='contact' and a.entity_id %}{% set href = url_for('contacts.detail', contact_id=a.entity_id) %}
         {% else %}{% set href = '' %}{% endif %}
         <li>
           {% if href %}<a href="{{ href }}" style="color:inherit;text-decoration:none;display:block">{% endif %}
             <div class="k">{{ a.kind }}{% if a._who %} · {{ a._who }}{% endif %}</div>
-            <div class="t" style="{{ 'color:var(--accent)' if href }}">{{ a.text[:90] }}</div>
+            <div class="t" style="{{ 'color:var(--accent)' if href }}">{{ (a.text or '')[:90] }}</div>
             <div class="d">{{ a.created }}</div>
           {% if href %}</a>{% endif %}
         </li>
