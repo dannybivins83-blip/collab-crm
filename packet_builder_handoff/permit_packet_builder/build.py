@@ -178,7 +178,7 @@ def seabreeze_fill_T(client, ahj, contractor=None):
 SYSTEMS={
  'Shingle':{'desc':'REROOF - ASPHALT SHINGLE','mfr':'Owens Corning','prodfl':'FL10674','prod':'TruDefinition Duration architectural shingle',
    'ul':'Polystick IR-XE','ulfl':'FL5259','box':'Asphalt Shingles','swb_box':'1 The entire roof deck','swb':'Polystick IR-XE',
-   'approvals':['Shingle/Shingle_OwensCorning_TruDef_Duration_FL10674-R20.pdf','Shingle/Shingle_Underlayment_Polyglass_IR-XE_FL5259-R50.pdf']},
+   'approvals':['Shingle/Shingle_OwensCorning_TruDef_Duration_FL10674-R20.pdf']},
  'Tile':{'desc':'REROOF - CONCRETE TILE','mfr':'Westlake Royal','prodfl':'FL7849','prod':'Saxony 900 flat concrete tile',
    'ul':'Polystick TU Plus','ulfl':'FL5259','box':'Mortar/Foam Set tile','swb_box':'2 Clay and concrete tile','swb':'Polystick TU Plus',
    'adh':'ICP / Polyset AH-160','adhfl':'FL6332',
@@ -193,7 +193,7 @@ SYSTEMS={
 
 # Underlayment options per system: choice -> (label, FL#, product-approval relative path).
 UNDERLAYMENTS={
- 'Shingle':{'single':('Polystick IR-XE','FL5259','Shingle/Shingle_Underlayment_Polyglass_IR-XE_FL5259-R50.pdf')},
+ 'Shingle':{'single':('Polystick IR-XE','FL5259','Shingle/Shingle_Underlayment_Polyglass_IR-XE_FL5259-R50_NonHVHZ.pdf')},
  'Tile':{'single':('Polystick TU Plus (1-ply)','FL5259','Tile/Tile_Underlayment_Polyglass_TU-Plus_FL5259-R50.pdf'),
          '2ply':('Polystick TU-Plus + MTS (2-ply)','FL5259','Tile/Tile_Underlayment_2ply_TU-Plus+MTS_FL5259-R50.pdf')},
  'Metal':{'single':('Polystick MTS','FL1654','Metal_Roof/Metal_Underlayment_Polyglass_MTS_FL1654-R41.pdf'),
