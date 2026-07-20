@@ -14,7 +14,7 @@ update your row → push. One pusher at a time. Don't route status through the o
 |---|---|---|---|
 | 🧭 Head Coach | SB CRM-clone MAIN DEV UI CODER-2nd | Coordination, audit, sequencing, owner decisions | **Active** — spine up; holding code-clean |
 | 🔒 Security | OVERLORD/Security lane | Audit fixes | ✅ #1,#2,#3,#4,#6,#7,#9,#12 + engine-key-leak pushed (`b473c19`). OPEN: #8 (owner decision), #10 (parity lane), #11 (queued), #9 takeoff-overwrite (`takeoff.py`) |
-| 🧱 Permit | SB CRM-clone MAIN PERMITBUILDER CODER | `ahj.py`, `permits.py`, `permit_detail.html` | ✅ pushed (`efb03c3`): AHJ portal-links card + submittal spec. **main FF'd → efb03c3** |
+| 🧱 Permit | SB CRM-clone MAIN PERMITBUILDER CODER | `ahj.py`, `permits.py`, `permit_detail.html` | ✅ pushed (`0cb52e2`): `/admin/db-download` (token-gated, fail-closed) + `scripts/sync_live_db.py` + run_local auto-sync — **local runs now pull the live DB first** (verified: 8150 jobs). Also: approved_permit_examples/ library (205 docs, 39 AHJ×system, untracked — too big for git). Prior: `efb03c3` AHJ portal-links card. |
 | 🏠 Portal | SB CRM-clone MAIN DEV HO PORTAL UI CODER | `portal.py`, portal templates | idle |
 | 🔌 AppConnect | SB CRM-clone MAIN APPCONNECT CODER | integration glue / takeoff | idle |
 | 🔁 Sync | (Sync coder) | `acculynx_sync.py` bridges | folded into Security #1 |
