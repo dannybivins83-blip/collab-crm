@@ -24,6 +24,7 @@ Secrets kept leaking by being **pasted into chat**. So:
 | `SEABREEZE_CRM_WEBHOOK_SECRET` | HMAC for SSO / SiteCam | Render, Vercel, **sitecam-api** | 🟢 **Rotated 2026-06-26** (fresh 64-char hex; SEED_FORCE=true applied on sitecam-api in same deploy, then removed). Sitecam lane to verify SSO end-to-end. |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Gmail + Google sign-in | Render, Vercel | 🔴 **LEAKED (screenshot) — rotate** in Google Console, then update env. |
 | `GOOGLE_OAUTH_CLIENT_ID` | OAuth client id (not secret, but paired) | Render, Vercel | ✅ Set. |
+| `DB_RESTORE_TOKEN` | Gates `/admin/db-restore` (upload) **and** `/admin/db-download` (local `scripts/sync_live_db.py` pulls the live DB before local runs) | Render + local env file | 🟢 Set on Render 2026-07-20 (same value both sides; endpoints are fail-closed 404 without it) |
 | `R2_ACCOUNT_ID` | Cloudflare R2 account ID (32-char hex) | Render | ⬜ **Pending** — create bucket at dash.cloudflare.com/r2, then set |
 | `R2_ACCESS_KEY_ID` | R2 API token access key | Render | ⬜ Pending |
 | `R2_SECRET_ACCESS_KEY` | R2 API token secret | Render | ⬜ Pending |

@@ -59,6 +59,18 @@ def main():
     print("  secrets loaded: %d key(s)" % len(loaded))   # names/values never printed
     print("  database:       local SQLite (data/crm.db)")
 
+    # Refresh the local DB from the LIVE CRM so local runs see current records.
+    # Never blocks the launch: any failure just means we run on the existing copy.
+    if os.environ.get("CRM_NO_SYNC"):
+        print("  db-sync:        skipped (CRM_NO_SYNC set)")
+    else:
+        try:
+            from sync_live_db import sync
+            ok, msg = sync(timeout=90, quiet=True)
+            print("  db-sync:        %s" % (msg if ok else "SKIPPED — " + msg))
+        except Exception as exc:
+            print("  db-sync:        SKIPPED — %s" % exc)
+
     sys.path.insert(0, ROOT)
     os.chdir(ROOT)
     import config  # noqa: F401  (loads .env — our env wins where already set)

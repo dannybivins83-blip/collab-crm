@@ -214,6 +214,65 @@ def db_restore():
     )
 
 
+@bp.route("/db-download", methods=["GET"])
+def db_download():
+    """Token-gated mirror of db-restore: streams a consistent snapshot of the live
+    SQLite DB so a local machine can sync DOWN from the host before running locally.
+    Same fail-closed gate — 404 unless DB_RESTORE_TOKEN is armed AND presented."""
+    _gate_or_404()
+
+    if db.IS_PG:
+        return jsonify(ok=False, error="not applicable on Postgres host"), 400
+    db_path = config.DB_PATH
+    if not os.path.exists(db_path):
+        return jsonify(ok=False, error="no database file on this host"), 404
+
+    # Snapshot via the SQLite backup API — consistent even mid-write (WAL-safe),
+    # unlike copying the raw file while the app is serving.
+    snap_path = "%s.snapshot.%d.tmp" % (db_path, int(time.time()))
+    try:
+        src = sqlite3.connect(db_path)
+        try:
+            dst = sqlite3.connect(snap_path)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+    except Exception as exc:
+        _safe_unlink(snap_path)
+        return jsonify(ok=False, error="snapshot failed: %s" % exc), 500
+
+    valid, vreason, jobs = _validate_sqlite(snap_path)
+    if not valid:
+        _safe_unlink(snap_path)
+        return jsonify(ok=False, error="snapshot invalid: %s" % vreason), 500
+    size = os.path.getsize(snap_path)
+
+    def _stream(path=snap_path):
+        try:
+            with open(path, "rb") as fh:
+                while True:
+                    chunk = fh.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+        finally:
+            _safe_unlink(path)  # Flask closes the generator even on client abort
+
+    try:
+        current_app.logger.warning("db-download: served snapshot (jobs=%s bytes=%s)", jobs, size)
+    except Exception:
+        pass
+    from flask import Response
+    return Response(_stream(), mimetype="application/octet-stream", headers={
+        "Content-Disposition": "attachment; filename=crm-live-snapshot.db",
+        "Content-Length": str(size),
+        "X-DB-Jobs": str(jobs),
+    })
+
+
 def _safe_unlink(path):
     try:
         if path and os.path.exists(path):

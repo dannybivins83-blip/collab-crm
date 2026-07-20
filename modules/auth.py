@@ -78,6 +78,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # X-Restore-Token check is the gate (404 when unarmed/wrong). Must bypass
           # the login redirect so the gate returns 404, not a 302 to /login.
           "dbadmin.db_restore",
+          "dbadmin.db_download",
           "dbadmin.import_job_expenses",
           "dbadmin.import_workflow_status",
           "sitecam.gallery_link",
