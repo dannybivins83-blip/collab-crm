@@ -27,6 +27,38 @@ BPK  = os.path.join(BLIB,'_Prefilled')
 BPA  = os.path.join(BLIB,'Product_Approvals_Library')
 BSPEC= os.path.join(BLIB,'_System_Templates')
 _PA_SUB = {'Shingle':'Shingle','Tile':'Tile','Metal':'Metal_Roof','Flat':'Flat_Roof'}
+
+# --- PBC county roofing forms: exactly ONE per packet, keyed to the roof system ---
+# Until 2026-07-20 the library held only Form 200 (Tile), and the step-4b folder loop
+# attached EVERY pdf it found with no system filter — so a shingle/metal/flat job in an
+# AHJ that stocked the tile form shipped with the TILE form stapled on. Forms 100/300/400
+# were sourced from the county (discover.pbcgov.org) and installed; this map + the skip in
+# step 4b make the choice explicit instead of "whatever is in the folder".
+_PBC_ROOF_FORM = {
+    'Shingle': 'PBC_04_Shingle_Roofing_Form100.pdf',
+    'Tile':    'PBC_04_Concrete_Clay_Tile_Roofing_Form200.pdf',
+    'Metal':   'PBC_04_Metal_Roofing_Form300.pdf',
+    'Flat':    'PBC_04_Flat_Roofing_Form400.pdf',
+}
+# Form number -> system. 100 Shingle / 200 Tile / 300 Metal / 400 Flat (county numbering).
+_ROOF_FORM_NUM = {'100':'Shingle','200':'Tile','300':'Metal','400':'Flat'}
+_ROOF_FORM_WORD = {'shingle':'Shingle','tile':'Tile','metal':'Metal','flat':'Flat'}
+
+
+def roof_form_system(fn):
+    """Which roof system a county roofing-form filename belongs to, else None.
+    Matches both the county names (PBC_04_Metal_Roofing_Form300.pdf) and the
+    city variants (PBG_Form200_Concrete_Clay_Tile_Roofing.pdf, NPB_03_Roofing_Form_200_Tile.pdf)."""
+    s = (fn or '').replace(' ', '_')
+    # NB: no \b after the digits — these filenames continue with '_' (a word char), so
+    # \b would never match e.g. 'PBG_Form200_Concrete_Clay_Tile_Roofing.pdf'.
+    m = re.search(r'Form_?([1234])00(?!\d)', s, re.I)
+    if m:
+        return _ROOF_FORM_NUM.get(m.group(1) + '00')
+    m = re.search(r'_(shingle|tile|metal|flat)_roofing_form', s, re.I)
+    if m:
+        return _ROOF_FORM_WORD.get(m.group(1).lower())
+    return None
 NAVY=HexColor('#1a3a5c'); BLUE=HexColor('#4a90b8'); INK=HexColor('#10357a'); RED=HexColor('#c00000')
 
 CONST_UNI={'Contractor-cert-holder':'Jacintho Carreiro','License-number':'CCC1328689','company-name':'SEABREEZE ROOFING & SHEET METAL INC',
@@ -187,7 +219,13 @@ SYSTEMS={
    'ul':'Polystick MTS','ulfl':'FL5259','box':'Metal Panel/shingle','swb_box':'1 The entire roof deck','swb':'Polystick MTS',
    'approvals':['Metal_Roof/Metal_Dynamic_Class1500_26ga_FL41724-R3_Submittal.pdf','Metal_Roof/Metal_Underlayment_2ply_MTS_FL5259-R50.pdf']},
  'Flat':{'desc':'REROOF - FLAT / MOD-BIT','mfr':'Polyglass','prodfl':'FL1654','prod':'SA 2-ply self-adhered modified bitumen',
-   'ul':'Polystick MTS Plus','ulfl':'FL1654','box':'Flat roof','swb_box':'1 Roof slopes 212','swb':'Polystick MTS Plus',
+   'ul':'Polyglass SA 2-ply Mod-Bit','ulfl':'FL1654','box':'Flat roof','swb_box':'1 Roof slopes 212','swb':'Polyglass SA 2-ply Mod-Bit FL1654',
+   # Governing listing inside FL1654-R44 for the SeaBreeze 2-ply SA assembly over wood deck:
+   # Table 1K (Wood Deck, Non-Insulated, Bonded Roof Cover) System W-179 — min 15/32" APA CDX,
+   # SBS-SA base (Elastobase SA), APP-SA cap (Polyflex SA P FR), fully self-adhered, MDP -90.0 psf.
+   'fl_system':'W-179','fl_mdp':'-90.0 psf',
+   'hl':{'token':'W-179','note':'THIS PROJECT: FL1654 Table 1K System W-179 (highlighted inside) — '
+         'wood deck, non-insulated, Elastobase SA base + Polyflex SA P FR cap, fully self-adhered. MDP -90.0 psf.'},
    'approvals':['Flat_Roof/Flat_Polyglass_SA_ModBit_FL1654-R44_NonHVHZ_AE.pdf']},
 }
 
@@ -198,7 +236,7 @@ UNDERLAYMENTS={
          '2ply':('Polystick TU-Plus + MTS (2-ply)','FL5259','Tile/Tile_Underlayment_2ply_TU-Plus+MTS_FL5259-R50.pdf')},
  'Metal':{'single':('Polystick MTS','FL1654','Metal_Roof/Metal_Underlayment_Polyglass_MTS_FL1654-R41.pdf'),
           '2ply':('Polystick MTS (2-ply)','FL5259','Metal_Roof/Metal_Underlayment_2ply_MTS_FL5259-R50.pdf')},
- 'Flat':{'single':('Polystick MTS Plus','FL1654','Flat_Roof/Flat_Polyglass_SA_ModBit_FL1654-R44_NonHVHZ_II.pdf')},
+ 'Flat':{'single':('Polyglass SA 2-ply Mod-Bit','FL1654','Flat_Roof/Flat_Polyglass_SA_ModBit_FL1654-R44_NonHVHZ_II.pdf')},
 }
 DEFAULT_UL={'Shingle':'single','Tile':'single','Metal':'single','Flat':'single'}
 def ul_choices(system):
@@ -287,8 +325,10 @@ def _wstate(o):
             if k!='/Off': on=str(k)[1:]
     return (str(name) if name else None),(str(ft) if ft else None),on
 
-def fill_form(src, T, B, topnote=None):
-    """Overlay-fill + flatten an AcroForm PDF. Returns list of pypdf pages."""
+def fill_form(src, T, B, topnote=None, stamps=None):
+    """Overlay-fill + flatten an AcroForm PDF. Returns list of pypdf pages.
+    stamps: optional [(page_index, x, y_bottom_origin, text, font_size)] for marks the form
+    has no widget for (e.g. Boca_06's 'free draining ___Yes' is a bare underscore line)."""
     r=PdfReader(src)
     names=set()
     for pg in r.pages:
@@ -325,6 +365,9 @@ def fill_form(src, T, B, topnote=None):
                     # e.g. the PBC Roof Spec Sheet checkboxes); still mark it when explicitly requested.
                     fs=min(11.0,rh+1); c.setFillColor(INK); c.setFont('Helvetica-Bold',fs); c.drawCentredString((x0+x1)/2,y0+(rh-fs*0.7)/2,'X')
             except Exception: pass
+        for sp,sx,sy,st,sfs in (stamps or []):
+            if sp==pi:
+                c.setFillColor(INK); c.setFont('Helvetica-Bold',sfs); c.drawString(sx,sy,st)
         if pi==0 and topnote:
             c.setFillColor(RED); c.setFont('Helvetica-Bold',7.4); c.drawString(36,H-12,topnote)
         c.showPage(); c.save(); buf.seek(0)
@@ -345,12 +388,26 @@ def _pcn_digits(pcn):
 
 def _permit_value(client):
     """Declared permit valuation = primary estimate price minus 10% (SeaBreeze policy).
-    `value` comes from the AccuLynx primary estimate worksheet total."""
+    `value` comes from the AccuLynx primary estimate worksheet total.
+
+    NOTHING BLANK: a non-numeric value (including the 'DATA NEEDED' / 'N/A'
+    placeholders) must survive to the page instead of being stripped to ''. A
+    silent blank on the permit-value line reads as "reviewed and empty"; a
+    visible placeholder reads as "not filled in yet". Audit 2026-07-20."""
     import re as _re
-    n=_re.sub(r'[^0-9.]','',str(client.get('value','') or ''))
-    if not n: return ''
+    raw=str(client.get('value','') or '').strip()
+    n=_re.sub(r'[^0-9.]','',raw)
+    if not n: return raw   # '' stays '', but 'DATA NEEDED'/'N/A' now print
     try: return '{:,.0f}'.format(round(float(n)*0.9))
-    except Exception: return str(client.get('value','') or '')
+    except Exception: return raw
+
+
+def _permit_value_display(client):
+    """Permit value as it should PRINT: '$12,345', or the bare placeholder text.
+    Never emits a lone '$' with no number behind it."""
+    v=_permit_value(client)
+    if not v: return 'DATA NEEDED'
+    return ('$'+v) if v[:1].isdigit() else v
 
 def cover(client, ahj, system, ul_label=None, prod_label=None, warn=None, contractor=None):
     buf=io.BytesIO(); c=canvas.Canvas(buf,pagesize=letter); W,H=letter
@@ -363,7 +420,7 @@ def cover(client, ahj, system, ul_label=None, prod_label=None, warn=None, contra
     rows=[('Owner',client.get('owner','')),('Property Address','%s, %s, FL %s'%(client.get('address',''),client.get('city','') or ahj.replace('_',' '),client.get('zip',''))),
       ('PCN',client.get('pcn','')),('Legal',client.get('legal','')),('Jurisdiction',juris),
       ('Roof System',(prod_label or SYSTEMS[system]['prod'])+' / '+(ul_label or SYSTEMS[system]['ul'])),('Scope',SYSTEMS[system]['desc']),
-      ('Permit Value (est. -10%)',('$'+_permit_value(client)) if client.get('value') else ''),('Contractor','%s - %s (%s)'%(_C(contractor,'name_title'),_C(contractor,'license_dashes'),_C(contractor,'qualifier')))]
+      ('Permit Value (est. -10%)',_permit_value_display(client)),('Contractor','%s - %s (%s)'%(_C(contractor,'name_title'),_C(contractor,'license_dashes'),_C(contractor,'qualifier')))]
     y=H-200
     for k,v in rows:
         c.setFillColor(NAVY); c.setFont('Helvetica-Bold',10); c.drawString(70,y,k+':')
@@ -389,6 +446,43 @@ def _add_pdf(w, path):
         return True
     except Exception:
         return False
+
+def _highlight_pa(path, token, note):
+    """Product approvals like FL1654 list hundreds of systems across 100+ pages; the plans
+    examiner needs the ONE governing listing flagged. Yellow-band + red-box every row whose
+    system number matches `token`, caption it, and stamp `note` on the approval's first page.
+    Returns a stamped temp-file path, or the original path untouched on any failure
+    (missing PyMuPDF, encrypted file, token not found) — never fatal to the build."""
+    try:
+        import fitz
+    except Exception:
+        return path
+    try:
+        d=fitz.open(path)
+        hit_pages=[]
+        for pg in d:
+            rects=pg.search_for(token)
+            if not rects: continue
+            hit_pages.append(pg.number+1)
+            for r in rects:
+                band=fitz.Rect(34, r.y0-4, pg.rect.width-24, r.y1+14)
+                pg.draw_rect(band, fill=(1,1,0.25), fill_opacity=0.35, color=(0.8,0,0), width=1.5, overlay=True)
+            pg.insert_textbox(fitz.Rect(24, pg.rect.height-34, pg.rect.width-24, pg.rect.height-8),
+                'YELLOW-HIGHLIGHTED ROW ABOVE = APPLICABLE SYSTEM FOR THIS PROJECT (%s)'%token,
+                fontsize=10, color=(0.8,0,0), align=1)
+        if not hit_pages:
+            d.close(); return path
+        p1=d[0]
+        box=fitz.Rect(28, p1.rect.height-64, p1.rect.width-28, p1.rect.height-10)
+        p1.draw_rect(box, color=(0.8,0,0), width=1.2, fill=(1,1,0.85), fill_opacity=0.9, overlay=True)
+        p1.insert_textbox(fitz.Rect(box.x0+6, box.y0+4, box.x1-6, box.y1-2),
+            note+'  (see highlighted row, sheet %s of this document)'%'/'.join(map(str,hit_pages)),
+            fontsize=8.5, color=(0.8,0,0), align=1)
+        out=os.path.join(tempfile.gettempdir(),'pa_hl_'+os.path.basename(path))
+        d.save(out); d.close()
+        return out
+    except Exception:
+        return path
 
 # --- Broward overlay stamping -------------------------------------------------
 # The county BC_xx forms in <muni>\_Prefilled are FLATTENED (no AcroForm fields),
@@ -424,7 +518,44 @@ _BC03_STAMPS=[
  (1,  39, 553, 'cat_shingle_x',  8,  10),  # Asphaltic Shingles
  (1, 183, 553, 'cat_metal_x',    8,  10),  # Metal Panel / Shingles
  (1, 183, 575, 'cat_tile_mech_x',8,  10),  # Mechanically Fastened Tile
+ # --- Audit fix 2026-07-20: the caller-supplied roof measurements previously rendered
+ # NOWHERE on any Broward packet. Section A roof-area buckets (values sit on the blank
+ # underscore line beneath each label, y=414.5 -> baseline 417).
+ (1,  40, 415, 'area_low',       8, 190),  # Low Slope Roof Area (ft2)
+ (1, 243, 415, 'area_steep',     8, 180),  # Steep Sloped Roof Area (ft2)
+ (1, 436, 415, 'area_total',     8, 100),  # Total (ft2)
+ # Section C = page 2, used by LOW-SLOPE (Flat) systems only. The *_ls keys are empty
+ # for steep systems, and _stamp_pdf silently skips an empty value.
+ (2, 146, 457, 'deck_ls',        8, 165),  # Deck ... Gauge / Thickness
+ (2, 105, 439, 'slope_ls',       8,  85),  # Deck ... Slope
+ # Section D = page 3, used by STEEP-SLOPED (Shingle / Tile / Metal) systems only.
+ (3, 220, 466, 'deck_ss',        8, 190),  # Deck Type:
+ (3,  62, 388, 'slope_ss',       8,  42),  # Roof Slope:  ____ : 12
+ (3, 137, 200, 'mrh',            8,  95),  # Mean Roof Height:
 ]
+# --- SeaBreeze _System_Templates coordinate maps (Broward / HVHZ) ------------------
+# These templates are FLATTENED (no AcroForm), so the job's slope / mean roof height /
+# deck type / roof area have to be overlay-stamped. Coordinates measured with PyMuPDF
+# word boxes against the real approved Plantation submittal set (R-24352) layout; all
+# four AB templates and all six Flat Section-C templates share one identical layout,
+# verified file-by-file.
+_HVHZ_AB_STAMPS=[
+ (0, 157, 606, 'addrfull',   8, 380),   # Job Address:
+ (0, 134, 414, 'area_low',   8,  70),   # Low slope roof area (ft.2):
+ (0, 318, 414, 'area_steep', 8,  70),   # Steep Sloped area (ft.2):
+ (0, 443, 414, 'area_total', 8,  70),   # Total (ft.2):
+ (0, 528, 523, 'mrh',        8,  45),   # Roof Mean Height (h) ____ ft.
+]
+_HVHZ_SECTION_D_STAMPS={
+ 'HVHZ_Section_D_Shingle_TEMPLATE.pdf':[
+   (0,  82, 413, 'slope', 8,  40), (0, 112, 382, 'mrh', 8, 38), (0, 321, 586, 'deck', 8, 200)],
+ 'HVHZ_Section_D_Tile_TEMPLATE.pdf':[
+   (0, 132, 531, 'slope', 8,  50), (0, 305, 531, 'mrh', 8, 48), (0,  49, 491, 'deck', 8, 200)],
+ 'HVHZ_Section_D_Metal_TEMPLATE.pdf':[
+   (0,  72, 380, 'slope', 8,  30), (0, 102, 348, 'mrh', 8, 28), (0, 310, 552, 'deck', 8, 200)],
+}
+# Flat Section C templates: Roof Slope ___ /12  and  Roof Mean Height ___ ft.
+_HVHZ_SECTION_C_STAMPS=[(0, 75, 558, 'slope', 8, 46), (0, 237, 558, 'mrh', 8, 40)]
 # Flat Section C template variants — deck type -> filename.
 # 'WoodDeck' is the residential reroof default; pass sysd['deck'] to select a different one.
 _FLAT_SECTION_C={
@@ -464,11 +595,32 @@ def _broward_values(client, ahj, system=None):
     legal=client.get('legal',''); pcn=client.get('pcn','')
     legaddr=' -- '.join([s for s in (addr, legal) if s])
     _is=lambda s: 'X' if system==s else ''
+    # --- roof measurements (audit fix 2026-07-20) ---------------------------------
+    # Everything below is CALLER-SUPPLIED job data (slope / mean roof height / total
+    # roof area) plus SeaBreeze's own documented deck standard from SPEC_SHEET. No
+    # wind pressure, uplift or RAS-127/128 value is derived here - those need a
+    # sealed Florida PE calculation and stay blank on every Broward form.
+    slope=str(client.get('slope') or '').strip()
+    mrh=str(client.get('mrh') or '').strip()      # bare number: every HVHZ field prints its own "ft."
+    area=str(client.get('area') or '').strip()
+    deck=SPEC_SHEET.get(system,{}).get('decking','') if system else ''
+    # Which roof-area bucket the HVHZ forms want. The form offers only two: "low slope"
+    # (which covers flat) and "steep sloped". Reuse the same slope rule as the PBC forms.
+    _bucket=_spec_markone(system, slope) if system else 'sloped'
+    _low=(system=='Flat') or _bucket in ('flat','lowslope')
     return {'addr':addr,'city':city,'st':'FL','zip':zip_c,'addrfull':addrfull,
             'owner':client.get('owner',''),'pcn':pcn,'legal':legal,'legaddr':legaddr,
-            'value':('$'+_permit_value(client)) if client.get('value') else '',
+            'value':_permit_value_display(client),
             'cat_flat_x':_is('Flat'),'cat_shingle_x':_is('Shingle'),
-            'cat_metal_x':_is('Metal'),'cat_tile_mech_x':_is('Tile')}
+            'cat_metal_x':_is('Metal'),'cat_tile_mech_x':_is('Tile'),
+            'slope':slope,'mrh':mrh,'deck':deck,
+            'area_total':area,
+            'area_low':(area if _low else ''),
+            'area_steep':('' if _low else area),
+            # section-scoped copies: the county BC_03 has a Section C (low slope) AND a
+            # Section D (steep slope); only the one for THIS system may be filled.
+            'slope_ls':(slope if _low else ''),'deck_ls':(deck if _low else ''),
+            'slope_ss':('' if _low else slope),'deck_ss':('' if _low else deck)}
 
 # --- PBC flattened-form stamping (city affidavits with no AcroForm fields) -----
 # Coords measured on Boynton Beach's Re-Roof Affidavit (letter 612x792, affidavit = page index 1).
@@ -496,7 +648,22 @@ _PBC_LP04_AFFIDAVIT=[   # Lake Park TinTag Sheathing Affidavit (page 2): only Li
 _PBC_HYP01_APP=[        # Hypoluxo Permit Application (page 1): right-column contractor block
  (0,360,600,'contractor_addr',7,230),(0,358,540,'qualifier',8,210),(0,378,518,'license',8,110),(0,358,490,'owner',8,210),
 ]
+# Delray Beach FBC 706.8 "ROOF MITIGATION" disclosure (flattened, rev. 7/30/2025).
+# Audit 2026-07-20: shipped with NO option selected and no owner block - i.e. an
+# unanswered mandatory disclosure. The real APPROVED Calvagno job (R-26019, permit
+# BLDR-014053-2026) satisfied it by selecting the "cost of roof-to-wall connections at
+# gable ends or all corners cannot be completed for 15% of the cost of roof replacement,
+# therefore no roof-to-wall connections will be completed" option - verbatim option (b)
+# on the current revision - and attaching the cost estimate (Permit__Mitigation Job
+# Cost.pdf in that same approved folder). We pre-select (b) and fill the owner's printed
+# name + property address. Owner SIGNATURE and DATE stay blank: the owner executes it.
+_DEL_ROOF_MITIGATION=[
+ (0,  43, 276, 'x',      11,  14),  # option (b) checkbox
+ (0, 100,  84, 'owner',   9, 195),  # Owner: Print  (on the rule above the label)
+ (0, 311,  84, 'street',  9, 210),  # Address       (street only, as on the approved job)
+]
 _PBC_STAMP_FORMS={
+ 'DEL_Roof_Mitigation.pdf': _DEL_ROOF_MITIGATION,
  'BB_ReRoof_Affidavit_Application.pdf': _PBC_REROOF_AFFIDAVIT,
  'HYP_02_Roofing_Contractor_Affidavit.pdf': _PBC_HYP02_AFFIDAVIT,
  'LP_03_Roof_Metal_Sheathing_Affidavit.pdf': _PBC_LP03_AFFIDAVIT,
@@ -516,8 +683,9 @@ def _pbc_supp_values(client, ahj):
     addr=', '.join([s for s in [client.get('address',''), city, ('FL '+client.get('zip','')) if client.get('zip','') else ''] if s])
     return {'contractor':'SEABREEZE ROOFING & SHEET METAL INC','company':'SEABREEZE ROOFING & SHEET METAL INC',
             'contractor_addr':'2600 High Ridge Rd, Boynton Beach, FL 33426',
-            'owner':client.get('owner',''),'addr':addr,
-            'qualifier':'Jacintho Carreiro','license':'CCC1328689'}
+            'owner':client.get('owner',''),'addr':addr,'street':client.get('address',''),
+            'qualifier':'Jacintho Carreiro','license':'CCC1328689',
+            'x':'X'}   # generic checkbox mark for coordinate-stamped (flattened) forms
 
 # --- "Roof Construction Specifications Sheet" fill (e.g. RPB_Roof_Spec_Sheet) ---
 # The PBC city "Roof Construction Specifications Sheet" is a real fillable AcroForm
@@ -544,10 +712,39 @@ SPEC_SHEET={
  'Metal':{'decking':'19/32" CDX Plywood','swb':'Polystick MTS (self-adhered, entire deck)','insulation':'N/A',
           'deck_fastener':'8d Ring Shank Nails, 6" o.c.','cap':'N/A','drip':'26ga metal drip edge','ridge':'N/A',
           'covering':'Dynamic DM Class 1500 24ga standing seam FL41724.08','category':'metal','markone':'sloped'},
- 'Flat':{'decking':'19/32" CDX Plywood','swb':'Polystick MTS Plus','insulation':'N/A',
+ 'Flat':{'decking':'19/32" CDX Plywood','swb':'Polyglass SA 2-ply Mod-Bit FL1654','insulation':'N/A',
          'deck_fastener':'8d Ring Shank Nails, 6" o.c.','cap':'Polyflex SA P FR cap','drip':'26ga metal drip edge','ridge':'N/A',
          'covering':'Polyglass SA 2-ply SA mod-bit FL1654','category':'membrane','markone':'flat'},
 }
+# --- Section C (Low & Steep Sloped Roof System) wind-attachment fill -------------
+# Audit 2026-07-20: the Boca_06 Section C attachment block was filled for Flat only;
+# Shingle / Tile / Metal shipped with head lap, fastener counts, clip spacing, hook
+# strip and drip edge blank even on fully-known jobs.
+#
+# Every value below is lifted VERBATIM from SeaBreeze's OWN pre-filled Boca templates
+# (SeaBreeze_Permit_Library/.../Boca_Raton/_System_Templates/<system>/
+#  Boca_Supplemental_Roofing_<system>_TEMPLATE.pdf, page 4 = Section C). Nothing is
+# invented: each string was read back off the template's text layer and matched to the
+# form widget it sits on by rectangle.
+#
+# DELIBERATELY LEFT BLANK (do not "complete" these):
+#   * Zone 1 / Zone 2 / Zone 3 minimum design wind pressures  -> require a sealed
+#     Florida PE calculation (RAS 127/128, ASCE 7-22). PE-seal rule.
+#   * Metal Perimeter / Corners clip spacing -> wind-zone dependent, same PE rule
+#     (SeaBreeze's own template fills Field only, and leaves these two blank).
+#   * Ridge Vent Product Approval # and Skylight -> job-specific accessories, blank in
+#     SeaBreeze's templates because they are not on every job.
+#   * Shingle / Tile drip edge, and Tile head lap -> blank in SeaBreeze's own approved
+#     templates; guessing a size/spacing here would be inventing permit content.
+_SECTION_C={
+ 'Shingle':{'Head lap in inches':'2"',
+            'Number of fasteners per shingle':'6 nails'},
+ 'Tile':{'Number of patties and size':'2 paddies / per RAS 120'},
+ 'Metal':{'Field':'16"',                                   # clip/fastener spacing, field
+          'Hook stripcleat Ga Or Weight':'24 ga',
+          'Drip Edge  Size  Fastener Spacing':'2x2 24ga, ring shank 4" o.c.'},
+}
+
 # checkbox slot -> field name (these widget names are NOT garbled / are stable on the PBC form)
 _SPEC_CB={'lowslope':'Check Box1','flat':'Check Box2','sloped':'Check Box3',
           'builtup':'Check Box4','shingles':'Check Box5','metal':'Check Box6',
@@ -642,6 +839,102 @@ def _spec_sheet_fill(form_path, client, ahj, system, sysd):
     check('reroof')   # SeaBreeze scope is always a re-roof (system desc == 'REROOF - ...')
     return T, B
 
+# --- PBC "FORM 200 - REROOFING INSTALLATION SUMMARY (Concrete or Clay Tile)" ------
+# Audit 2026-07-20: this form rendered 100% blank on every Tile packet. _is_spec_sheet()
+# is tuned to the city "Roof Construction Specifications Sheet" field names and does not
+# match Form 200, so the form fell through to the generic contractor-only fill.
+#
+# Form 200 ships in TWO field-name dialects across the library, verified widget-by-widget:
+#   "pbc"  (PBC_04 / Tequesta / Village_of_Golf): site address = 'Site Address'
+#   "pbg"  (PBG / North_Palm_Beach):              site address = 'CONCRETE or CLAY TILE'
+# Pages 4-5 of the same PDF are the PBO-94 "Mandated Retrofits of Roof-to-Wall
+# Connection" form (mandatory on every wood-deck reroof) - filled here too.
+_F200_PBC={'site':'Site Address','tile_pa':'Product Approval 4','foam_pa':'Product Approval 5',
+           'qualifier':'Qualifier Name','sqrs':None,   # name collides with the LPZ box - see below
+           'ply':'Single or Double Ply','ply_single':'Single Ply','ply_double':'Double Ply',
+           'basesheet_attach':'Base Sheet or Cap Sheet Type'}
+_F200_PBG={'site':'CONCRETE or CLAY TILE','tile_pa':'Product Approval Row1','foam_pa':'FL Product Approval',
+           'qualifier':'FULLY provided ALL the information requested','sqrs':'undefined',
+           'ply':None,'ply_single':'Single Ply','ply_double':'Double Ply','basesheet_attach':None}
+
+def _is_form200(fields):
+    """True when an AcroForm field set is the PBC Concrete/Clay Tile Form 200."""
+    if not fields: return False
+    return 'Sloped Roof Pitch' in fields and ('Sloped Roof Area SQRs' in fields or 'Ft' in fields)
+
+def _sqrs(area):
+    """Roof area in squares from the caller-supplied square-foot figure (Form 200 asks
+    for SQRs, the caller supplies sf). Pure arithmetic on supplied data - not a new fact."""
+    try: n=float(re.sub(r'[^0-9.]','',str(area or '')))
+    except Exception: return ''
+    if not n: return ''
+    s='%.1f'%(n/100.0)
+    return s[:-2] if s.endswith('.0') else s
+
+def _form200_fill(form_path, client, ahj, system, sysd, contractor=None):
+    """(T, B) fill dicts for PBC Form 200 + its PBO-94 roof-to-wall retrofit pages.
+    Returns None if the form isn't Form 200, or if the system isn't Tile (Form 200 is
+    the CONCRETE or CLAY TILE form - it must not be pre-filled for another system).
+
+    LEFT BLANK ON PURPOSE - these need a sealed Florida PE calculation (RAS 127 /
+    FRSA-TRI uplift moments) and MUST NOT be machine-filled:
+      * Design Pressures LPZ / HPZ
+      * Paddy Size, Paddy Weight (g), Moment Resistance / Allowable Moment Resistance
+    Also blank because the value is not supplied and must not be guessed: roof style
+    (gable/hip), structure type, the supplemental-attachment checkboxes (they assert what
+    is physically attached), the base-sheet Product Approval # / System columns (the two
+    dialects name those boxes inconsistently, so a value could land in the wrong column),
+    and every PBO-94 question about building age / value / chosen compliance path.
+    """
+    if system!='Tile': return None
+    try: flds=PdfReader(form_path).get_fields()
+    except Exception: flds=None
+    if not _is_form200(flds): return None
+    M=_F200_PBG if 'CONCRETE or CLAY TILE' in flds else _F200_PBC
+    city=client.get('city','') or ahj.replace('_',' ')
+    addr=', '.join([s for s in [client.get('address',''), city,
+                                ('FL '+client.get('zip','')) if client.get('zip','') else ''] if s])
+    slope=str(client.get('slope') or '').strip()
+    mrh=str(client.get('mrh') or '').strip()
+    T={}
+    def put(name, val):
+        if name and name in flds and str(val or '').strip(): T[name]=str(val).strip()
+    put(M['site'], addr)
+    put('Sloped Roof Pitch', slope)
+    put('Ft', mrh)
+    # Roof area in squares. On the "pbc" dialect the SQRs widget shares its /T name with
+    # the LPZ design-pressure widget, so writing it would ALSO stamp a number into a
+    # PE-sealed pressure box. Refuse rather than do that; it stays blank on that dialect.
+    put(M['sqrs'], _sqrs(client.get('area')))
+    # ROOF TILE row + the foam-adhesive attachment column (SeaBreeze sets tile in adhesive)
+    put('ManufacturerRow1', sysd.get('mfr'))
+    put('Product NameRow1', sysd.get('prod'))
+    put('Material TypeRow1', 'Concrete Tile')
+    put(M['tile_pa'], sysd.get('prodfl'))
+    put(M['foam_pa'], sysd.get('adhfl'))
+    # BASE SHEET / underlayment type (the PA#/System columns stay blank - see docstring)
+    put('Base Sheet', ' '.join([s for s in [sysd.get('ul',''), sysd.get('ulfl','')] if s]))
+    put(M['qualifier'], _C(contractor,'qualifier'))
+    # --- PBO-94 (pages 4-5): identification only. Everything that decides the retrofit
+    # obligation (build date, valuation, exception, compliance path, existing strap
+    # details) is left blank for the qualifier/owner to complete.
+    put('Address', addr)
+    put('Qualifier or Owner/Builder Name (print)', _C(contractor,'qualifier'))
+    put('Qualifier or OwnerBuilder Name Print_2', _C(contractor,'qualifier'))
+    B={}
+    ulkey=(sysd.get('ul','') or '')
+    _double='2-ply' in ulkey.lower() or '2ply' in ulkey.lower()
+    if M['ply'] and M['ply'] in flds:
+        B[M['ply']]='Double Ply' if _double else 'Single Ply'
+    else:
+        k=M['ply_double'] if _double else M['ply_single']
+        if k in flds: B[k]='On'
+    # Polystick TU-Plus is a self-adhered base sheet (from UNDERLAYMENTS/SYSTEMS, not invented)
+    if M['basesheet_attach'] and M['basesheet_attach'] in flds:
+        B[M['basesheet_attach']]='Self Adhered'
+    return T, B
+
+
 def _stamp_pdf(w, path, stamps, values):
     """Merge a reportlab text overlay onto a flattened PDF and add to writer.
     Falls back to a plain add if anything goes wrong."""
@@ -701,6 +994,17 @@ def _build_broward(client, ahj, system, attachment_paths, out_path, underlayment
     st=os.path.join(BSPEC, system)
     pk=sysd.get('product_key')
     if pk and os.path.isdir(os.path.join(st, pk)): st=os.path.join(st, pk)
+    def _add_template(path):
+        """Add a SeaBreeze HVHZ template, overlay-stamping the job's roof data when we
+        have a coordinate map for it (audit fix 2026-07-20: slope / mean roof height /
+        deck type / roof area used to render nowhere in a Broward packet)."""
+        fn=os.path.basename(path)
+        if fn.startswith('HVHZ_RoofingSystem_AB_'):   stamps=_HVHZ_AB_STAMPS
+        elif fn in _HVHZ_SECTION_D_STAMPS:            stamps=_HVHZ_SECTION_D_STAMPS[fn]
+        elif fn.startswith('HVHZ_Section_C_'):        stamps=_HVHZ_SECTION_C_STAMPS
+        else:                                         stamps=None
+        if stamps: _stamp_pdf(w, path, stamps, bvals)
+        else: _add_pdf(w, path)
     if os.path.isdir(st):
         if system=='Flat' and st==os.path.join(BSPEC,'Flat'):
             # Select AB template + one Section C matching the deck type (prevents all 6 variants appending)
@@ -708,10 +1012,10 @@ def _build_broward(client, ahj, system, attachment_paths, out_path, underlayment
             sec_c=_FLAT_SECTION_C.get(deck,_FLAT_SECTION_C[_FLAT_SECTION_C_DEFAULT])
             for fn in ['HVHZ_RoofingSystem_AB_Flat_TEMPLATE.pdf', sec_c]:
                 fp=os.path.join(st,fn)
-                if os.path.exists(fp): _add_pdf(w,fp)
+                if os.path.exists(fp): _add_template(fp)
         else:
             for fn in sorted(os.listdir(st)):
-                if fn.lower().endswith('.pdf'): _add_pdf(w, os.path.join(st, fn))
+                if fn.lower().endswith('.pdf'): _add_template(os.path.join(st, fn))
     # product approvals for the system
     sub=os.path.join(BPA, _PA_SUB.get(system,''))
     if os.path.isdir(sub):
@@ -756,7 +1060,38 @@ def _fetch_pbc_pa_pdf(pcn):
         return tmp if os.path.exists(tmp) and os.path.getsize(tmp)>1000 else None
     except Exception: return None
 
+class UnknownAHJError(ValueError):
+    """Raised when `ahj` is not a real jurisdiction in the library."""
+
+
+def validate_ahj(ahj):
+    """FAIL LOUD on an unknown AHJ.
+
+    Before this check, any string — a typo, 'Palm_Beach_County', even '' —
+    silently produced a ~10MB plausible-looking packet built from generic
+    fallbacks, addressed to a building department that doesn't exist. A packet
+    that looks right and is filed in the wrong jurisdiction is worse than no
+    packet, because nobody re-reads it. Audit 2026-07-20."""
+    known = list_ahjs()
+    if ahj in known:
+        return ahj
+    hint = ''
+    if ahj:
+        near = [a for a in known if ahj.lower().replace(' ', '_') in a.lower()
+                or a.lower() in ahj.lower().replace(' ', '_')]
+        if near:
+            hint = ' Did you mean: %s?' % ', '.join(near[:5])
+    raise UnknownAHJError(
+        "Unknown AHJ %r - refusing to build. A packet must name a real "
+        "jurisdiction.%s (Unincorporated Palm Beach County is NOT yet supported: "
+        "there is no PBC-unincorporated form set in the library.)" % (ahj, hint))
+
+
 def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=None, product=None, contractor=None, fetch_pa=True):
+    validate_ahj(ahj)
+    if system not in SYSTEMS:
+        raise ValueError("Unknown roof system %r - expected one of %s"
+                         % (system, ', '.join(SYSTEMS)))
     if _is_broward(ahj):
         return _build_broward(client, ahj, system, attachment_paths, out_path, underlayment, product, contractor=contractor)
     sysd=_apply_product(_apply_underlayment(system, underlayment), system, product); w=PdfWriter()
@@ -797,16 +1132,52 @@ def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=N
         mit=os.path.join(MB,ahj,'01_Permit_Application_Packet','Boca_02_ReRoofing_Mitigation_Package.pdf')
         if os.path.exists(sup):
             T={'Contractors Name':_C(contractor,'name_short'),'License':_C(contractor,'license'),'OwnersName':client.get('owner',''),'Job Address':client.get('address',''),
-              'Existing Roofing Type Matl':client.get('existing','Asphalt Shingle'),'DeckType':'CDX','Roof Slope':client.get('slope',''),
-              'Mean Roof Height':client.get('mrh','15')+"'",'Total Roof Area This Perm':client.get('area',''),'ROOF COVERING MANUFACTURER':sysd['mfr'],
+              'Existing Roofing Type Matl':(client.get('existing') or 'Asphalt Shingle'),'DeckType':'CDX','Roof Slope':client.get('slope',''),
+              'Mean Roof Height':(client.get('mrh') or '15')+"'",'Total Roof Area This Perm':client.get('area',''),'ROOF COVERING MANUFACTURER':sysd['mfr'],
               'Roof System Manufacturer':sysd['mfr'],
               'Product Approval':sysd['prodfl'],'Product':sysd['prod'],'Base Sheet':sysd['ul'],'Product Approval_2':sysd['ulfl'],'Product Approval_3':sysd['ulfl']}
-            # Flat system: Section D needs Cap Sheet + Top Ply (2-ply SA: base=MTS Plus, cap=Polyflex SA P FR)
+            # Flat system: Section D (page 4 of the Boca_06 form) needs its own set of fields —
+            # separate from Section A (sloped), which uses different field names.
+            # Product Approval_7 / System Number / Mean Roof Height_2 / Deck Type (spaced) are
+            # the Section D variants; without them the top of Section D stays blank.
             _flat_cap=SPEC_SHEET.get('Flat',{}).get('cap','') if system=='Flat' else ''
             if _flat_cap: T['Cap Sheet']=_flat_cap; T['Top Ply']=_flat_cap
+            if system=='Flat':
+                T['Product Approval_7']=sysd['prodfl']            # Section D: Product Approval #
+                T['System Number']=sysd.get('fl_system','W-179')+' (Table 1K)'  # governing listing in FL1654
+                T['Mean Roof Height_2']=(client.get('mrh') or '15')+"'"  # Section D MRH field
+                T['Deck Type']='CDX'                              # Section D (spaced) vs DeckType (pg 1)
+                T['Support Spacing']='6" o.c.'
+                T['Fire or Vapor Barrier']='N/A'
+                # Section C laps/fasteners: membrane is fully self-adhered (Table 1K W-179) —
+                # laps per Polyglass spec, no mechanical attachment of the membrane.
+                T['Product Approval_4']=sysd['prodfl']            # Cap Sheet PA# (Section C)
+                T['Head lap in inches']='3" side / 6" end'
+                T['Lap']='N/A'; T['Field_1']='N/A'; T['Rows']='N/A'
+                T['Drip Edge  Size  Fastener Spacing']='26ga metal - 4" o.c.'
+                # Section D assembly rows. Non-insulated, no nailer, both plies self-adhered.
+                T['Maximum Design Pressure from the specific product approval system']=sysd.get('fl_mdp','-90.0 psf')
+                T['Wood Nailer']='N/A'; T['Nailer Fastener Type and Spacing']='N/A'
+                T['Insulation Base Layer size  Thickness']='N/A'; T['FastenerBonding Matl']='N/A'
+                T['Insulation Top Layer Size  Thickness']='N/A'; T['FastenerBonding Matl_2']='N/A'
+                T['Fastener  Per Insulation Board  Zone 11']='N/A'; T['Zone 1_2']='N/A'; T['Zone 2_3']='N/A'; T['Zone 3_3']='N/A'
+                T['Fastener Type']='N/A - fully self-adhered'
+                T['Ply Sheets of Plys']='N/A'; T['FastenerBondg Matl']='N/A'
+                T['AnchorBase Sheet   of Plys']='Elastobase SA - 1 ply'; T['FastenerBondg Matl_2']='Self-adhered'
+                # Base-sheet fastener spacing grid (per-zone laps/rows): no fasteners on an SA system.
+                T['Zone 11']='N/A'; T['laps']='N/A'; T['rows']='N/A'
+                T['Zone 1_3']='N/A'; T['laps_2']='N/A'; T['rows_2']='N/A'
+                T['Zone 2_4']='N/A'; T['laps_3']='N/A'; T['rows_3']='N/A'
+                T['Zone 3_4']='N/A'; T['laps_4']='N/A'; T['rows_4']='N/A'
+                T['FastenerBondg Matl_3']='Self-adhered'          # Top Ply attachment
+                T['Drip Edge Size  Fastening Spacing']='26ga metal - 4" o.c.'
             B={'Use of Building':'1 or 2 Family','Re-Roofing/ Re-Covering -Attach Mitigation Package':'On',sysd['box']:'On','Minimum 3':'On'}
             if client.get('exposure'): B['Exposure Category']=client['exposure']
             if system=='Tile': T['ManufacturerProduct']=sysd['adh']; T['Product Approval_6']=sysd['adhfl']; T['Tile Profile']='Flat'
+            # Section C wind-attachment block for the sloped systems (Flat uses Section D,
+            # filled above). Values come from _SECTION_C, which mirrors SeaBreeze's own
+            # approved Boca templates. PE-sealed pressure fields stay blank by design.
+            T.update(_SECTION_C.get(system,{}))
             # Certification: qualifier is always known, owner from the job. Signatures stay blank (wet-sign/notary).
             T[u'Qualifier’s Name']=_C(contractor,'qualifier'); T['Property Owners Name']=client.get('owner','')
             # "Area of roofing work by slope": route the total area into the bucket the form asks for,
@@ -819,7 +1190,11 @@ def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=N
                 if system=='Flat' or _sn<2: T['Flat Roof Area']=_area
                 elif _sn<=4: T['Low Slope Roof Area']=_area
                 else: T['Steep Slope Roof Area']=_area
-            add(fill_form(sup,T,B,'SeaBreeze SYSTEM pre-filled - %s'%system))
+            # Section D "Flat roof is free draining ___Yes ___No" has no AcroForm widget —
+            # stamp the X on the Yes blank (page 4, measured coords). Drip-edge perimeter
+            # drainage = free draining; a No answer would require drainage calcs.
+            _stmp=[(4,213,487,'X',10)] if system=='Flat' else None
+            add(fill_form(sup,T,B,'SeaBreeze SYSTEM pre-filled - %s'%system,stamps=_stmp))
         if os.path.exists(mit):
             T={'Property address':'%s, %s, FL %s'%(client.get('address',''),client.get('city','') or 'Boca Raton',client.get('zip','')),
               'Specify Secondary Water Barrier':sysd['swb'],'Product approval number':sysd['ulfl'],'Qualifier print name':_C(contractor,'qualifier'),'QualifierOwner Builder print':_C(contractor,'qualifier'),
@@ -842,6 +1217,9 @@ def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=N
             if not low.endswith('.pdf'): continue
             stem=fn[:-4]
             if stem.startswith('PBC_01') or stem.startswith('PBC_02'): continue
+            # County roofing forms are attached once, system-matched, in step 4c below.
+            # Never let the blanket loop staple another system's form onto this packet.
+            if roof_form_system(fn): continue
             # Boca_01 is the city's master reference PDF (redundant with 02+06); Boca_02/06 filled in step 4
             if stem in ('Boca_01_Boca_Permit_Packet','Boca_02_ReRoofing_Mitigation_Package','Boca_06_Supplemental_Roof'): continue
             if 'notice_of_commencement' in low or 'building_permit_application' in low: continue
@@ -851,9 +1229,14 @@ def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=N
             except Exception: pass
             if _flds:                                   # fillable -> stamp job address + contractor, flatten
                 _sf=_spec_sheet_fill(raw, client, ahj, system, sysd)
+                _f2=None if _sf else _form200_fill(raw, client, ahj, system, sysd, contractor)
                 if _sf:                                  # Roof Construction Specifications Sheet -> fill system spec + roof data
                     _Ts,_Bs=_sf; _T=dict(T_supp); _T.update(_Ts)
                     add(fill_form(raw, _T, _Bs, 'SeaBreeze %s system spec pre-filled - verify roof height/slope/area & sign per job'%system))
+                elif _f2:                                # PBC Form 200 (tile) + PBO-94 roof-to-wall retrofit
+                    _Ts,_Bs=_f2; _T=dict(T_supp); _T.update(_Ts)
+                    add(fill_form(raw, _T, _Bs,
+                        'SeaBreeze pre-filled - design pressures (LPZ/HPZ) & tile uplift values require the sealed PE calculation'))
                 else:
                     add(fill_form(raw, T_supp, {}, None))
             elif fn in _PBC_STAMP_FORMS:                 # flattened but coords known -> overlay-stamp
@@ -861,10 +1244,41 @@ def build_packet(client, ahj, system, attachment_paths, out_path, underlayment=N
             else:                                       # flattened, no coords -> use pre-filled copy as-is
                 pf=os.path.join(pre,stem+'_PREFILLED.pdf')
                 _add_pdf(w, pf if os.path.exists(pf) else raw)
-    # 5) product approvals for the system
-    for rel in sysd['approvals']:
+    # 4c) The county roofing form for THIS system — exactly one, never another system's.
+    #     Prefer the AHJ's own copy of that system's form (cities republish the county form
+    #     and some add local edits); fall back to the county master in PBCPK.
+    _rf=_PBC_ROOF_FORM.get(system)
+    if _rf:
+        _src=None
+        if os.path.isdir(apk):
+            for fn in sorted(os.listdir(apk)):
+                if fn.lower().endswith('.pdf') and roof_form_system(fn)==system:
+                    _src=os.path.join(apk,fn); break
+        if not _src:
+            _c=os.path.join(PBCPK,_rf)
+            _src=_c if os.path.exists(_c) else None
+        if _src:
+            _flds=None
+            try: _flds=PdfReader(_src).get_fields()
+            except Exception: pass
+            if _flds:
+                _f2=_form200_fill(_src, client, ahj, system, sysd, contractor)
+                _T=dict(T_supp); _Bs={}
+                if _f2:
+                    _Ts,_Bs=_f2; _T.update(_Ts)
+                add(fill_form(_src, _T, _Bs,
+                    'SeaBreeze pre-filled - design pressures & uplift values require the sealed PE calculation'))
+            else:
+                _pf=os.path.join(pre,os.path.basename(_src)[:-4]+'_PREFILLED.pdf')
+                _add_pdf(w, _pf if os.path.exists(_pf) else _src)
+    # 5) product approvals for the system — the primary approval (index 0) gets the governing
+    #    system row highlighted so the reviewer can find the one applicable listing.
+    _hl=sysd.get('hl')
+    for i,rel in enumerate(sysd['approvals']):
         p=os.path.join(PA,rel)
         if os.path.exists(p):
+            if i==0 and _hl:
+                p=_highlight_pa(p, _hl['token'], _hl['note'])
             try:
                 rr=PdfReader(p)
                 if rr.is_encrypted: rr.decrypt('')

@@ -82,6 +82,7 @@
       <select id="clientpick" onchange="loadClient(this.value)" style="width:100%;padding:9px;margin-top:4px">
         <option value="">&mdash; pick a job or prospect to auto-fill &mdash;</option>
       </select>
+      <div id="crmNote" class="muted" style="display:none;color:#0f9e82;font-weight:700;margin-top:6px"></div>
     </div>
     <script>
       (function(){
@@ -117,8 +118,50 @@
         ['owner','phone','address','city','zip','value'].forEach(function(k){
           var el=document.getElementById(k); if(el && c[k]!=null && c[k]!=='') el.value=c[k];
         });
+        // Reset job-specific roof/parcel fields so a previous pick can't leak into this one.
+        ['pcn','legal','existing','area','slope','mrh'].forEach(function(k){
+          var el=document.getElementById(k); if(el) el.value='';
+        });
+        var ex=document.getElementById('exposure'); if(ex) ex.value='';
+        var n=document.getElementById('crmNote'); if(n){n.style.display='none';n.textContent='';}
+        if(typeof legalEdited==='function') legalEdited();
         setAhjFromCity(c.city);   // auto-select the municipality from the address
         try{ if(typeof lookupPCN==='function') lookupPCN(true); }catch(e){}  // auto-fill PCN from county
+        loadRoofInfo(c);          // roof area / slope / etc. from the CRM DB
+      }
+      // Pull roof measurements + parcel data for the picked client from the
+      // white-label CRM's synced local DB (RoofGraf measurements live there).
+      function loadRoofInfo(c){
+        var q='rid='+encodeURIComponent(c.rid||'')+'&owner='+encodeURIComponent(c.owner||'')+
+              '&address='+encodeURIComponent(c.address||'');
+        fetch('/roofinfo?'+q).then(function(r){return r.json();}).then(function(d){
+          if(!d || !d.found) return;
+          var got=[];
+          if(d.area){var a=document.getElementById('area');
+            if(a && !a.value){a.value=d.area; got.push(d.area+' sf'+(d.squares?(' / '+d.squares+' sq'):''));}}
+          if(d.slope!=null && d.slope!==''){var s=document.getElementById('slope');
+            if(s && !s.value){s.value=d.slope; got.push(d.slope+'/12 pitch');}}
+          if(d.mrh){var m=document.getElementById('mrh');
+            if(m && !m.value){m.value=d.mrh; got.push(d.mrh+' ft MRH');}}
+          if(d.exposure){var ex=document.getElementById('exposure');
+            if(ex && !ex.value){ex.value=d.exposure; got.push('Exp '+d.exposure);}}
+          if(d.existing){var e2=document.getElementById('existing'); if(e2 && !e2.value) e2.value=d.existing;}
+          if(d.value){var vv=document.getElementById('value'); if(vv && !vv.value) vv.value=d.value;}
+          if(d.pcn){var pc=document.getElementById('pcn'); if(pc && !pc.value) pc.value=d.pcn;}
+          if(d.legal){var lg=document.getElementById('legal');
+            if(lg && !lg.value){lg.value=d.legal; if(typeof markLegalVerify==='function') markLegalVerify();}}
+          if(d.system && typeof system!=='undefined' && !system){
+            var card=document.querySelector('.pb [data-sys="'+d.system+'"]');
+            if(card && typeof pickSys==='function') pickSys(card);
+          }
+          if(d.ahj){var aj=document.getElementById('ahj'); if(aj && !aj.value) setAhjFromCity(d.ahj);}
+          var n=document.getElementById('crmNote');
+          if(n && got.length){
+            n.textContent='✓ Roof data from '+(d.source||'CRM')+
+              (d.rid?(' ['+d.rid+']'):'')+': '+got.join(' · ');
+            n.style.display='block';
+          }
+        }).catch(function(){});
       }
       // On load, auto-select AHJ + auto-fill PCN from a pre-filled address (dashboard launch)
       window.addEventListener('DOMContentLoaded', function(){

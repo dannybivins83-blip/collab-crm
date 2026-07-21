@@ -64,3 +64,12 @@ packet_builder_handoff/SeaBreeze_Ops/data/
 packet_builder_handoff/SeaBreeze_Ops/output/
 packet_builder_handoff/SeaBreeze_Ops/uploads/
 packet_builder_handoff/run_builder_hidden.vbs
+.repair/
+
+# --- large binary artifacts: NEVER version (2.6GB combined) ---
+packet_builder_handoff/dist/
+packet_builder_handoff/approved_permit_examples/
+packet_builder_handoff/pending_forms/
+packet_builder_handoff/permit_packet_builder/audit_reports/
+*.bak-preforms
+.repair/

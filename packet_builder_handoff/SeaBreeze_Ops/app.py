@@ -6,6 +6,12 @@ from datetime import datetime
 from flask import (Flask, render_template, request, redirect, url_for,
                    send_from_directory, jsonify, abort)
 
+import sys as _sys
+_ENGINE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       'permit_packet_builder')
+if _ENGINE not in _sys.path:
+    _sys.path.insert(0, _ENGINE)
+
 import db
 import workflow
 import build
@@ -141,6 +147,33 @@ def job_edit(job_id):
                            mode='edit')
 
 
+# ---------------------------------------------------------------------------
+# "Nothing blank" rule (owner directive): a permit packet must never reach a
+# counter with an empty mystery box. Every text field that lands on the forms
+# carries real data, "N/A", or "DATA NEEDED".
+#
+# `value` and `pcn` are deliberately NOT auto-filled: build.py branches on both
+# (permit-value math and the live PBC product-approval fetch). A placeholder in
+# those prints a bare "$" or fires a bogus county lookup, so the wizard REFUSES
+# to build and names them instead of faking them.
+# ---------------------------------------------------------------------------
+LOGIC_FIELDS = ('value', 'pcn')            # must be real; validated, never faked
+NA_FIELDS = ('phone', 'exposure')          # genuinely optional -> "N/A"
+NEEDED_FIELDS = ('city', 'zip', 'legal', 'existing', 'area', 'slope', 'mrh')
+
+
+def normalize_client(client):
+    """Fill blanks so nothing prints empty. Returns (client, missing_required)."""
+    missing = [f for f in LOGIC_FIELDS if not str(client.get(f, '')).strip()]
+    for f in NA_FIELDS:
+        if not str(client.get(f, '')).strip():
+            client[f] = 'N/A'
+    for f in NEEDED_FIELDS:
+        if not str(client.get(f, '')).strip():
+            client[f] = 'DATA NEEDED'
+    return client, missing
+
+
 @app.route('/builder')
 def builder():
     """Embedded Permit Packet Builder wizard.
@@ -185,7 +218,7 @@ def _parse_feed(path, group):
             'owner': name, 'address': street, 'city': city,
             'zip': (mz.group(1) if mz else ''),
             'phone': g('phone'), 'value': re.sub(r'[^0-9.]', '', g('estimate')),
-            'group': group})
+            'rid': g('rid'), 'group': group})
     return out
 
 
@@ -197,6 +230,126 @@ def clients():
         'jobs': _parse_feed(os.path.join(root, 'jobs-data.js'), 'Job Process'),
         'prospects': _parse_feed(os.path.join(root, 'prospects-data.js'), 'Prospects'),
     })
+
+
+# ---------------------------------------------------------------------------
+# Roof measurements from the white-label CRM's local DB (data/crm.db — synced
+# from the live CRM on each CRM launch). Lets the builder pre-fill roof area,
+# slope, etc. the moment a client is picked, instead of waiting for a RoofGraf
+# PDF to be attached by hand.
+# ---------------------------------------------------------------------------
+def _crm_db_path():
+    r = os.path.dirname(os.path.dirname(HERE))
+    for c in (os.environ.get('CRM_DB_PATH'),
+              os.path.join(r, 'whitelabel-crm', 'data', 'crm.db'),  # project-root copy
+              os.path.join(r, 'data', 'crm.db')):                   # copy inside whitelabel-crm
+        if c and os.path.exists(c):
+            return c
+    return None
+
+
+def _fnum(v):
+    try:
+        return float(str(v).replace(',', '').replace('$', '').strip())
+    except Exception:
+        return None
+
+
+def _pitch12(v):
+    """'0:12' / '6/12' / '6.0' -> whole-number rise ('0', '6'). '' if unparseable."""
+    m = re.search(r'\d+(?:\.\d+)?', str(v or ''))
+    if not m:
+        return ''
+    try:
+        return str(int(round(float(m.group(0)))))
+    except Exception:
+        return ''
+
+
+def _roof_sf(area, squares):
+    """Roof area in SF. CRM jobs.area sometimes holds SQUARES (e.g. '3.44') —
+    anything under 120 can't be a real roof in SF, so treat it as squares."""
+    a, sq = _fnum(area), _fnum(squares)
+    if a and a >= 120:
+        return int(round(a))
+    if sq:
+        return int(round(sq * 100))
+    if a:
+        return int(round(a * 100))
+    return None
+
+
+_SYS_CARD = (('shingle', 'Shingle'), ('tile', 'Tile'), ('metal', 'Metal'),
+             ('flat', 'Flat'), ('mod', 'Flat'), ('tpo', 'Flat'))
+
+
+def _crm_roofinfo(rid, owner, address):
+    import sqlite3
+    path = _crm_db_path()
+    if not path:
+        return {'found': False, 'error': 'CRM DB not found'}
+    try:
+        con = sqlite3.connect('file:%s?mode=ro' % path.replace('\\', '/'), uri=True, timeout=5)
+        con.row_factory = sqlite3.Row
+    except Exception as e:
+        return {'found': False, 'error': str(e)}
+    try:
+        job = None
+        if rid:
+            job = con.execute("SELECT * FROM jobs WHERE UPPER(rid)=UPPER(?) "
+                              "ORDER BY updated DESC LIMIT 1", (rid.strip(),)).fetchone()
+        if job is None and owner:
+            rows = con.execute("SELECT * FROM jobs WHERE name LIKE ? ORDER BY updated DESC LIMIT 5",
+                               ('%' + owner.strip() + '%',)).fetchall()
+            mno = re.match(r'\s*(\d+)', address or '')
+            for r0 in rows:  # prefer the job whose address starts with the same street number
+                if mno and str(r0['address'] or '').strip().startswith(mno.group(1)):
+                    job = r0
+                    break
+            if job is None and rows:
+                job = rows[0]
+        if job is None:
+            return {'found': False}
+        meas = con.execute("SELECT * FROM measurements WHERE job_id=? ORDER BY id DESC LIMIT 1",
+                           (job['id'],)).fetchone()
+        out = {'found': True, 'rid': job['rid'] or '', 'crm_job_id': job['id']}
+        sf = _roof_sf(job['area'], (meas['squares'] if meas else None) or job['squares'])
+        if sf:
+            out['area'] = '{:,}'.format(sf)
+        sq = _fnum(meas['squares'] if meas else None) or _fnum(job['squares'])
+        if sq:
+            out['squares'] = round(sq, 2)
+        pitch = _pitch12(job['slope']) or _pitch12(meas['pitch'] if meas else '')
+        if pitch != '':
+            out['slope'] = pitch
+        for k in ('mrh', 'exposure', 'existing', 'pcn', 'legal', 'ahj'):
+            v = (job[k] or '').strip() if job[k] else ''
+            if v:
+                out[k] = v
+        cv = _fnum(job['contract_value'])
+        if cv:
+            out['value'] = '%0.2f' % cv
+        sysv = ((job['system'] or '') + ' ' + (job['work_type'] or '')).lower()
+        for key, card in _SYS_CARD:
+            if key in sysv:
+                out['system'] = card
+                break
+        out['source'] = ('CRM measurements (%s)' % ((meas['source'] or 'CRM') if meas else 'CRM')) \
+            if meas else 'CRM job record'
+        return out
+    except Exception as e:
+        return {'found': False, 'error': str(e)}
+    finally:
+        con.close()
+
+
+@app.route('/roofinfo')
+def roofinfo():
+    """Roof + parcel data for a picked client, from the CRM's synced local DB.
+    Matched by R-number first, then by owner name (+ street number)."""
+    return jsonify(_crm_roofinfo(request.args.get('rid', ''),
+                                 request.args.get('owner', ''),
+                                 request.args.get('address', '')))
 
 
 # ---------------------------------------------------------------------------
@@ -456,6 +609,13 @@ def builder_build():
         return jsonify({'error': 'Please select an AHJ and a system type.'}), 400
     if not client['owner'] or not client['address']:
         return jsonify({'error': 'Owner name and property address are required (Step 1).'}), 400
+    # Nothing blank: fill placeholders, and refuse to build if a logic-bearing
+    # field (permit value / PCN) is missing rather than faking it on the form.
+    client, _missing = normalize_client(client)
+    if _missing:
+        return jsonify({'error': 'These must be filled before building (they print on the '
+                                 'permit application and cannot be guessed): '
+                                 + ', '.join(_missing).upper()}), 400
     # Save any attached PDFs.
     att = []
     for f in request.files.getlist('attachments'):

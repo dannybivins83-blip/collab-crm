@@ -29,7 +29,7 @@ Secrets kept leaking by being **pasted into chat**. So:
 | `R2_ACCESS_KEY_ID` | R2 API token access key | Render | ⬜ Pending |
 | `R2_SECRET_ACCESS_KEY` | R2 API token secret | Render | ⬜ Pending |
 | `R2_BUCKET_NAME` | R2 bucket name (e.g. `crm-files`) | Render | ⬜ Pending |
-| `GDRIVE_FOLDER_ID`, `GDRIVE_SA_JSON` | Drive file-storage legacy fallback (keep until R2 backfill complete) | Render, Vercel | ✅ Set. |
+| `GDRIVE_FOLDER_ID`, `GDRIVE_SA_JSON` | Drive file-storage legacy fallback (keep until R2 backfill complete) | Render, Vercel | ✅ Set. **Local copy repaired 2026-07-20** — see the multi-line trap below. |
 | `SMTP_FROM` | Gmail address for CRM outbound notifications | Render | ✅ **Set** (verified 2026-07-01 via Render API) — SMTP fallback send path is live. |
 | `SMTP_PASSWORD` | Gmail App Password for `SMTP_FROM` account | Render | ✅ **Set** (verified 2026-07-01). |
 | `ANTHROPIC_API_KEY` | Claude AI — ZIP/PDF parse-zip + AI Plans Takeoff (`/leads/<id>/takeoff`) | Render, Vercel | ✅ Set on Render. Set on Vercel before next deploy. |
@@ -47,6 +47,25 @@ Secrets kept leaking by being **pasted into chat**. So:
 - **Vercel:** Project → Settings → Environment Variables. Set `CRM_ENV=production` so `IS_PROD` is true there too. **Set the secrets before any `vercel --prod`** or sync/ingest will 401.
 - **Engine VM (`150.136.152.240`):** the engine agent sets `MEASURE_CRM_WEBHOOK_SECRET` in its own env — give it the *fact* it's set, not the value.
 - **Google Console:** https://console.cloud.google.com/apis/credentials — OAuth client secret + redirect URIs.
+
+## ⚠ The multi-line trap in `keys.local.env` (bit us 2026-07-20)
+`scripts/run_local.py::load_secrets` treats any line that doesn't start a new `KEY=` as a
+**continuation and rejoins it with `\n`**. That's needed for PEM/JSON blobs — but it
+**corrupts a base64 value that was pasted across several lines**: the newlines get baked in
+and the string no longer decodes.
+
+**Symptom:** `GDRIVE_SA_JSON` was stored across 35 lines. `load_secrets` returned 4,737 chars
+(true value: 3,112) with `len % 4 == 1` — impossible for valid base64. `gdrive.enabled()`
+silently returned **False**, so `gdrive.download()` returned `None` and **every local Drive
+download failed silently** — no exception, no log, just empty files.
+
+**Fix applied:** recovered the known-good value from Render via the API (no new key ⇒ nothing
+rotated, nothing else broke), re-stored it as **one single line** of base64, verified
+`enabled()` → True and a real 1.56 MB PDF downloaded. Backup at `keys.local.env.bak-<epoch>`.
+
+**Rule:** store every secret in `keys.local.env` as a **single line**. Base64-encode anything
+that contains newlines (JSON, PEM). If a Drive/API call starts returning empty instead of
+erroring, check the value's length `% 4` before assuming the key is revoked.
 
 ## Rotation checklist (when a value is burned)
 1. Generate a fresh value privately.

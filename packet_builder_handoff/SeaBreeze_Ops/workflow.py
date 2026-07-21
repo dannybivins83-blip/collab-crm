@@ -5,9 +5,11 @@ from datetime import datetime, timedelta
 
 import db
 
-# Make the existing Permit Packet Builder engine importable.
-PPB = r'C:\Users\DBivi\roof measurements\permit_packet_builder'
-if PPB not in sys.path:
+# Make the existing Permit Packet Builder engine importable — it's the sibling
+# folder, so resolve it relatively (a hardcoded user path breaks on any move).
+PPB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                   'permit_packet_builder')
+if os.path.isdir(PPB) and PPB not in sys.path:
     sys.path.insert(0, PPB)
 import build  # noqa: E402  exposes build_packet, SYSTEMS, list_ahjs
 
