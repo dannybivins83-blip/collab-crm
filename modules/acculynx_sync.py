@@ -683,10 +683,39 @@ def run_sync(deep=False, batch=50):
             mdate = (_g(job, "milestoneDate", "milestone_date") or "")[:10]
             progress = ("Milestone: %s%s" % (milestone or grp, (" (as of %s)" % mdate) if mdate else "")).strip()
 
+            # ---- cross-kind GUID guard ----------------------------------------
+            # The SAME AccuLynx record can surface under a lead/prospect group on one
+            # pass and under an approved/completed group on another. The old lookup
+            # searched ONLY the table matching this pass's kind, so the other pass
+            # INSERTED a second copy and the record showed up twice on the unified
+            # board (once in Prospect, once in Approved). Match the GUID across BOTH
+            # tables. GUID only — a name-only cross-kind match is far too loose to
+            # trust (customers legitimately have a lead AND unrelated jobs).
+            # A job outranks a lead: once a record has been promoted to a job it must
+            # never be re-created (or downgraded) as a lead, even if AccuLynx still
+            # lists it under a lead/prospect group.
+            g_lead = exLg.get(jid) if jid else None
+            g_job = exJg.get(jid) if jid else None
+            promoted_lead = None      # lead row this GUID used to live in (job wins)
             if kind == "lead":
-                cur = exLg.get(jid) or (exL.get(name.lower()) if name else None)
+                if g_job is not None:
+                    # Already stored as a JOB → update the job, insert nothing, and
+                    # keep the job's own stage (a lead stage key is meaningless in
+                    # the jobs pipeline).
+                    kind = "job"
+                    stage = g_job.get("stage") or stage
+                    val_col = "contract_value"
+                    cur = g_job
+                else:
+                    cur = g_lead or (exL.get(name.lower()) if name else None)
             else:
-                cur = exJg.get(jid) or (exJ.get(name.lower()) if name else None)
+                cur = g_job or (exJ.get(name.lower()) if name else None)
+                if cur is None and g_lead is not None:
+                    # Promotion: the GUID is currently a lead but AccuLynx now reports
+                    # it as a job. The job row is the correct home, so create it and
+                    # retire the lead (stage 'won' = "Approved → Job", which the
+                    # unified pipeline excludes) instead of leaving both on the board.
+                    promoted_lead = g_lead
             crm_kind = "lead" if kind == "lead" else "job"
             crm_id = None
 
@@ -731,6 +760,13 @@ def run_sync(deep=False, batch=50):
                                                  "stage_since": db.today(), "last_contact": db.today(),
                                                  "narrative": "Synced from AccuLynx (%s)." % (milestone or stage)})
                     db.add_activity("lead", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
+                    # Register in the live indexes so a repeat of the same GUID later in
+                    # THIS window updates the row instead of inserting a second copy.
+                    _marker = {"id": crm_id, "stage": stage, "name": name, "external_url": url}
+                    if jid:
+                        exLg[jid] = _marker
+                    if name:
+                        exL.setdefault(name.lower(), _marker)
                     added_l += 1
                 else:
                     jrow = {**rec, "contact_id": cid, "stage": stage, "stage_since": db.today(),
@@ -758,6 +794,22 @@ def run_sync(deep=False, batch=50):
                             jrow["system"] = _s
                     crm_id = db.insert("jobs", jrow)
                     db.add_activity("job", crm_id, "automation", "Synced from AccuLynx — %s" % (milestone or stage))
+                    _marker = {"id": crm_id, "stage": stage, "name": name, "external_url": url}
+                    if jid:
+                        exJg[jid] = _marker
+                    if name:
+                        exJ.setdefault(name.lower(), _marker)
+                    # This GUID was previously stored as a lead — retire that lead so the
+                    # same AccuLynx record can't sit in two pipeline columns at once.
+                    if promoted_lead is not None:
+                        if (promoted_lead.get("stage") or "") not in ("won", "lost"):
+                            db.update("leads", promoted_lead["id"], stage="won",
+                                      stage_since=db.today())
+                            db.add_activity(
+                                "lead", promoted_lead["id"], "automation",
+                                "Approved → Job #%s (same AccuLynx record) — retired from the lead board."
+                                % crm_id)
+                        promoted_lead["stage"] = "won"
                     added_j += 1
 
             # Deep sync: pull this record's notes + documents via the API.

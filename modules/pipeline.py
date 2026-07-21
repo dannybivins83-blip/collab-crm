@@ -55,6 +55,9 @@ def board():
     dept = current_department()
     cols = {s["key"]: {"def": s, "items": [], "value": 0.0, "count": 0}
             for s in constants.LIFECYCLE}
+    # ACTIVE records — loaded in full; these are the working columns.
+    # A `won` lead is excluded because the job record already represents it in the
+    # Approved column (including both would double-count the same customer).
     for l in db.all_rows("leads", "department=? AND stage NOT IN ('won','lost')", (dept,)):
         step = constants.lifecycle_step("lead", l.get("stage") or "")
         c = cols[step]
@@ -69,6 +72,35 @@ def board():
         card = _card("job", j)
         c["value"] += card["value"]
         c["items"].append(card)
+
+    # TERMINAL records → the 'Closed' column. These queries used to be excluded
+    # outright, but leads `lost` and jobs `closed`/`canceled` are the ONLY stages
+    # constants.lifecycle_step() maps to "closed" — so the 6th column rendered
+    # "No records" permanently, no matter the data. They are included now, but
+    # BOUNDED: the true count/value come from SQL aggregates while only CAP rows
+    # are materialized into cards, so a table with thousands of archived jobs
+    # can't turn this page into a full-table scan.
+    _closed = cols["closed"]
+    for table, where, params, value_col in (
+            ("leads", "department=? AND stage='lost'", (dept,), "estimate"),
+            ("jobs", "department=? AND stage IN ('closed','canceled')", (dept,),
+             "contract_value")):
+        _conn = db.connect()
+        try:
+            _agg = _conn.execute(
+                "SELECT COUNT(*) n, COALESCE(SUM(CAST(REPLACE(REPLACE(COALESCE(%s,'0'),"
+                "'$',''),',','') AS REAL)),0) v FROM %s WHERE %s" % (value_col, table, where),
+                params).fetchone()
+        finally:
+            _conn.close()
+        _closed["count"] += (_agg["n"] if _agg else 0) or 0
+        _closed["value"] += (_agg["v"] if _agg else 0) or 0.0
+        kind = "lead" if table == "leads" else "job"
+        # `id DESC` (newest first) picks WHICH CAP rows to materialize; the exact
+        # display order is re-sorted by stage_since in Python below. db.all_rows
+        # allowlists ORDER BY to bare column names, so no expression here.
+        for r in db.all_rows(table, where, params, "id DESC", limit=CAP):
+            _closed["items"].append(_card(kind, r))
     # newest first within each column, then cap for render
     columns = []
     for s in constants.LIFECYCLE:

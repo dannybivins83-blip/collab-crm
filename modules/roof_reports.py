@@ -86,11 +86,19 @@ def _measurement_from_result(m):
         out["pitch"] = p if ":" in p or "/" in p else "%s:12" % p
     if num(t.get("facet_count")):
         out["facets"] = int(num(t.get("facet_count")))
+    # Every edge class the engine emits (ROOF_REPORTS.md: ridge|hip|valley|rake|
+    # eave|apron|step) must land on a measurements column. `step` was missing, so a
+    # report that measured step flashing still wrote step_flash_lf=0 and the estimate
+    # never picked up the roof-to-wall quantity. `apron` has no column of its own and
+    # is the same roof-to-wall detail, so it accumulates into step_flash_lf too.
     for field, key in (("ridge_lf", "ridge"), ("hip_lf", "hip"), ("valley_lf", "valley"),
-                       ("rake_lf", "rake"), ("eave_lf", "eave")):
+                       ("rake_lf", "rake"), ("eave_lf", "eave"), ("step_flash_lf", "step")):
         lf = num((edges.get(key) or {}).get("length_ft"))
         if lf:
             out[field] = lf
+    apron = num((edges.get("apron") or {}).get("length_ft"))
+    if apron:
+        out["step_flash_lf"] = out.get("step_flash_lf", 0.0) + apron
     return out
 
 

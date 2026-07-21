@@ -81,7 +81,8 @@ def board():
     if bucket:
         jobs = [j for j in jobs if j["_stage"].get("bucket") == bucket]
     if stage_f:
-        jobs = [j for j in jobs if j["stage"] == stage_f]
+        _sf = constants.normalize_job_stage(stage_f)
+        jobs = [j for j in jobs if j["_stage"]["key"] == _sf]
     sort = request.args.get("sort", "date")
     if sort == "est":
         jobs.sort(key=lambda j: -theme.est_num(j.get("contract_value")))
@@ -95,7 +96,13 @@ def board():
     grand = 0
     overdue = 0
     for s in constants.JOB_STAGES:
-        items = [j for j in jobs if j["stage"] == s["key"]]
+        # Bucket by the NORMALIZED stage (j["_stage"], set by _decorate) rather than a
+        # raw string ==. A job whose stage column holds a legacy key or an AccuLynx
+        # display name matched no column here and vanished from the milestone board
+        # entirely — while _decorate had already given it an Approved badge. Same
+        # resolver on both sides means what the board shows and what the badge says
+        # can no longer disagree.
+        items = [j for j in jobs if j["_stage"]["key"] == s["key"]]
         tot = sum(theme.est_num(j.get("contract_value")) for j in items)
         if s["key"] not in constants.JOB_INACTIVE:
             grand += tot
@@ -139,16 +146,33 @@ def list_view():
     finally:
         _conn.close()
     counts = {s["key"]: 0 for s in constants.JOB_STAGES}
-    counts.update({r["stage"]: r["n"] for r in _sc})
+    # Fold each RAW stage value in the table onto its milestone key and SUM.
+    # The old `counts.update({r["stage"]: ...})` both (a) injected unrecognized keys
+    # that the sidebar template never renders — so those jobs counted toward the
+    # "All" total but had no row to click, making the numbers not add up — and
+    # (b) overwrote rather than accumulated when two raw spellings mapped to one
+    # milestone. Keep the raw->key map so the SQL filter below can match all of them.
+    _stage_variants = {}
+    for r in _sc:
+        _key = constants.normalize_job_stage(r["stage"])
+        counts[_key] = counts.get(_key, 0) + r["n"]
+        _stage_variants.setdefault(_key, []).append(r["stage"])
     reps = [r["rep"] for r in _rr]
 
     # Build WHERE clause — push all SQL-safe filters to the DB.
     _w, _p = ["department=?"], [dept]
     if stage_f:
-        _w.append("stage=?"); _p.append(stage_f)
+        # Match every RAW spelling in the table that normalizes to this milestone,
+        # not just the canonical key — otherwise clicking a sidebar row whose count
+        # came from a legacy/display-name value returned zero rows.
+        _sf = constants.normalize_job_stage(stage_f)
+        _variants = _stage_variants.get(_sf) or [stage_f]
+        _w.append("stage IN (%s)" % ",".join("?" * len(_variants)))
+        _p.extend(_variants)
     elif bucket:
         # Push bucket→stages so LIMIT/OFFSET is applied to the filtered set.
-        _bstages = [s["key"] for s in constants.JOB_STAGES if s.get("bucket") == bucket]
+        _bkeys = [s["key"] for s in constants.JOB_STAGES if s.get("bucket") == bucket]
+        _bstages = [raw for k in _bkeys for raw in _stage_variants.get(k, [k])]
         if _bstages:
             _w.append("stage IN (%s)" % ",".join("?" * len(_bstages)))
             _p.extend(_bstages)
@@ -448,6 +472,10 @@ def _write_stage_history(job_id, stage):
         pass
     db.insert("job_stage_history", {
         "job_id": job_id,
+        # Write BOTH columns. `milestone` (the stable key) was never populated here,
+        # so anything reading job_stage_history.milestone got nothing but the
+        # human-facing status_name — which is not safe to match on.
+        "milestone": constants.normalize_job_stage(stage),
         "status_name": constants.job_stage(stage)["name"],
         "started_at": today,
         "set_by": u.get("name") or u.get("email") or "CRM",
@@ -479,9 +507,16 @@ def advance(job_id):
     """Move the job to the next milestone (AccuLynx 'Advance Job')."""
     j = _require_job(job_id)
     if j:
-        idx = constants.JOB_STAGE_INDEX.get(j["stage"], 0)
-        if idx < len(constants.JOB_STAGES) - 1:
-            nxt = constants.JOB_STAGES[idx + 1]["key"]
+        # Delegate to constants.next_step() instead of re-deriving the index here.
+        # The local math had two defects: `closed` is index 19 and len-1 is 20, so
+        # advancing a CLOSED job moved it to JOB_STAGES[20] == "canceled"; and an
+        # unrecognized stage fell back to index 0, advancing the job to
+        # "finance_ntp" regardless of where it actually was. next_step() already
+        # guards both ("never auto-advance into Canceled") and returns None at a
+        # terminal, so a terminal job is now simply a no-op.
+        step = constants.next_step("job", constants.normalize_job_stage(j["stage"]))
+        if step and step.get("action") == "job_stage":
+            nxt = step["stage"]
             warn = _skip_warning(j, j["stage"], nxt)
             db.update("jobs", job_id, stage=nxt, stage_since=db.today())
             db.add_activity("job", job_id, "stage", "Advanced to %s" % constants.job_stage(nxt)["name"])

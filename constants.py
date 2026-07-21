@@ -102,12 +102,59 @@ JOB_INACTIVE = {"closed", "canceled"}
 LEAD_INACTIVE = {"won", "lost"}
 
 
+# Display NAME -> key. Importers (AccuLynx sync, CSV backfills) sometimes write
+# the human milestone name verbatim — "Permit Applied For" instead of
+# "permit_applied" — and a raw string like that used to match no pipeline column
+# at all, so the job silently DISAPPEARED from the milestone board while its
+# detail page still showed a stage badge. Resolving names here keeps the two in
+# agreement. Built lazily-ish at import: JOB_STAGES/LEAD_STAGES are final by now.
+JOB_STAGE_BY_NAME = {s["name"].strip().lower(): s["key"] for s in JOB_STAGES}
+LEAD_STAGE_BY_NAME = {s["name"].strip().lower(): s["key"] for s in LEAD_STAGES}
+
+
+def normalize_job_stage(key):
+    """Resolve ANY stage-ish string to a real JOB_STAGES key.
+
+    Accepts, in order: a current key, a legacy key (_OLD_JOB_STAGE_MAP), or an
+    AccuLynx display name. Anything unrecognized falls back to JOB_DEFAULT_STAGE
+    — the same fallback job_stage() has always used, but now applied in ONE
+    place so every consumer (board bucketing, badge, counts, filters) agrees on
+    where the record belongs instead of disagreeing silently.
+    """
+    k = (key or "").strip()
+    if k in JOB_STAGE_INDEX:
+        return k
+    low = k.lower()
+    if low in JOB_STAGE_INDEX:
+        return low
+    if low in _OLD_JOB_STAGE_MAP:
+        return _OLD_JOB_STAGE_MAP[low]
+    if low in JOB_STAGE_BY_NAME:
+        return JOB_STAGE_BY_NAME[low]
+    return JOB_DEFAULT_STAGE
+
+
+def normalize_lead_stage(key):
+    """Lead-side twin of normalize_job_stage()."""
+    k = (key or "").strip()
+    if k in LEAD_STAGE_INDEX:
+        return k
+    low = k.lower()
+    if low in LEAD_STAGE_INDEX:
+        return low
+    if low in _OLD_LEAD_STAGE_MAP:
+        return _OLD_LEAD_STAGE_MAP[low]
+    if low in LEAD_STAGE_BY_NAME:
+        return LEAD_STAGE_BY_NAME[low]
+    return LEAD_DEFAULT_STAGE
+
+
 def lead_stage(key):
-    return LEAD_STAGES[LEAD_STAGE_INDEX.get(key, 0)]
+    return LEAD_STAGES[LEAD_STAGE_INDEX[normalize_lead_stage(key)]]
 
 
 def job_stage(key):
-    return JOB_STAGES[JOB_STAGE_INDEX.get(key, 0)]
+    return JOB_STAGES[JOB_STAGE_INDEX[normalize_job_stage(key)]]
 
 
 def job_bucket(stage_key):

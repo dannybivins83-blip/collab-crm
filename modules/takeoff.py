@@ -15,6 +15,7 @@ import os
 import json
 import datetime
 import threading
+import time
 import uuid
 
 from flask import Blueprint, request, jsonify
@@ -373,6 +374,140 @@ def _index_cache_put(cache_key, lead_id, token, sheet_text):
             (cache_key, lead_id, token, payload, db.now(), db.now()))
     except Exception:
         pass
+
+
+def _takeoff_summary_pdf(fields, warnings, lead, file_name, work_type):
+    """Render the takeoff RESULT as a one-page PDF (bytes).
+
+    The upload flow already files the *input* plan set under "Drawing/Plans", but
+    nothing was ever written back for the takeoff itself — the extracted numbers
+    lived only in an activity note, so there was no takeoff document on the job.
+    This is that artifact. Returns None if reportlab is unavailable (the caller
+    then falls back to a plain-text summary rather than filing nothing).
+    """
+    try:
+        from reportlab.lib.pagesizes import LETTER
+        from reportlab.pdfgen import canvas as _canvas
+    except Exception:
+        return None
+
+    buf = io.BytesIO()
+    c = _canvas.Canvas(buf, pagesize=LETTER)
+    W, H = LETTER
+    y = H - 54
+
+    def line(txt, dy=14, font="Helvetica", size=9.5):
+        nonlocal y
+        if y < 54:
+            c.showPage()
+            y = H - 54
+        c.setFont(font, size)
+        c.drawString(54, y, str(txt)[:110])
+        y -= dy
+
+    line("ROOF TAKEOFF SUMMARY", 22, "Helvetica-Bold", 15)
+    line("Generated %s from %s" % (db.now(), file_name), 18, "Helvetica-Oblique", 8.5)
+
+    line("PROJECT", 15, "Helvetica-Bold", 10.5)
+    for lbl, val in (("Name", lead.get("name") or ""),
+                     # NOTE: the `leads` table has no state/zip columns — the mailing
+                     # pair (mail_state/mail_zip) is where they live. Jobs do have
+                     # state/zip, so accept either shape.
+                     ("Address", ", ".join(x for x in (
+                         lead.get("address"), lead.get("city"),
+                         lead.get("state") or lead.get("mail_state"),
+                         lead.get("zip") or lead.get("mail_zip")) if x)),
+                     ("Plan set", fields.get("plan_set_label") or ""),
+                     ("Roof system", work_type or "")):
+        if val:
+            line("   %-14s %s" % (lbl + ":", val))
+    y -= 6
+
+    line("MEASUREMENTS", 15, "Helvetica-Bold", 10.5)
+    if fields.get("total_sq"):
+        line("   %-24s %s squares%s" % (
+            "Roof area:", fields["total_sq"],
+            "  (ESTIMATED from scaled drawing)" if fields.get("area_is_estimated") else ""))
+    if fields.get("flat_sq"):
+        line("   %-24s %s squares" % ("Flat / low-slope:", fields["flat_sq"]))
+    if fields.get("predominant_pitch"):
+        line("   %-24s %s" % ("Predominant pitch:", fields["predominant_pitch"]))
+    for lbl, key in (("Ridge", "ridge_lf"), ("Hip", "hip_lf"), ("Valley", "valley_lf"),
+                     ("Rake", "rake_lf"), ("Eave / drip edge", "eave_lf"),
+                     ("Step flashing", "step_flash_lf")):
+        line("   %-24s %s LF" % (lbl + ":", fields.get(key) or 0))
+    y -= 6
+
+    wind = [(l, fields.get(k)) for l, k in (
+        ("Ultimate wind speed", "wind_speed_mph"), ("ASCE version", "asce_version"),
+        ("Risk category", "risk_category"), ("Exposure", "exposure_category"))
+        if fields.get(k)]
+    if wind:
+        line("WIND DESIGN", 15, "Helvetica-Bold", 10.5)
+        for lbl, val in wind:
+            line("   %-24s %s" % (lbl + ":", val))
+        y -= 6
+
+    if fields.get("scope_note"):
+        line("SCOPE", 15, "Helvetica-Bold", 10.5)
+        for chunk in _wrap(str(fields["scope_note"]), 100):
+            line("   " + chunk)
+        y -= 6
+
+    if warnings:
+        line("VERIFY BEFORE BIDDING", 15, "Helvetica-Bold", 10.5)
+        for w in warnings:
+            for i, chunk in enumerate(_wrap(str(w), 100)):
+                line(("   * " if i == 0 else "     ") + chunk, 12)
+
+    c.save()
+    return buf.getvalue()
+
+
+def _wrap(text, width):
+    """Greedy word wrap -> list of lines (no textwrap import needed at call sites)."""
+    words, out, cur = str(text).split(), [], ""
+    for w in words:
+        if cur and len(cur) + 1 + len(w) > width:
+            out.append(cur)
+            cur = w
+        else:
+            cur = (cur + " " + w).strip()
+    if cur:
+        out.append(cur)
+    return out or [""]
+
+
+def _file_takeoff_document(fields, warnings, lead, lead_id, job_id, file_name, work_type):
+    """Write the takeoff summary into the client's DOCUMENTS (Danny: "save the
+    takeoff in docs"). Best-effort: any failure returns None and the takeoff still
+    succeeds — but it is never silent, the caller logs the outcome."""
+    import config as _config
+    data = _takeoff_summary_pdf(fields, warnings, lead, file_name, work_type)
+    ext, orig = "pdf", "takeoff-summary.pdf"
+    if data is None:   # reportlab missing — still file something readable
+        parts = ["ROOF TAKEOFF SUMMARY", "Source: %s" % file_name, ""]
+        parts += ["%s: %s" % (k, fields.get(k)) for k in sorted(fields)]
+        parts += [""] + ["! %s" % w for w in (warnings or [])]
+        data = "\n".join(parts).encode("utf-8")
+        ext, orig = "txt", "takeoff-summary.txt"
+    fn = "%d_takeoff-summary-%s.%s" % (int(time.time() * 1000), lead_id, ext)
+    os.makedirs(_config.DOC_DIR, exist_ok=True)
+    path = os.path.join(_config.DOC_DIR, fn)
+    with open(path, "wb") as fh:
+        fh.write(data)
+    try:
+        from modules import gdrive
+        if gdrive.enabled():
+            gdrive.mirror(path, fn)
+    except Exception:
+        pass
+    row = {"category": "Measurement Report", "filename": fn, "original_name": orig,
+           "size": len(data), "lead_id": lead_id,
+           "notes": "AI takeoff from %s" % file_name}
+    if job_id:
+        row["job_id"] = job_id
+    return db.insert("documents", row)
 
 
 def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_id=None):
@@ -788,6 +923,12 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
             if existing_jobs:
                 target_job_id = existing_jobs[0]["id"]
                 job_upd = {k: v for k, v in {
+                    # Headline roof numbers — the job header showed a blank area/slope
+                    # after a successful takeoff because only the wind/architect fields
+                    # were mirrored here. measurements.save_job() sets these on a manual
+                    # save, so the automated path must too.
+                    "area": str(total_sq) if total_sq else "",
+                    "slope": fields.get("predominant_pitch") or "",
                     "wind_speed_mph": str(fields["wind_speed_mph"]) if fields.get("wind_speed_mph") else "",
                     "asce_version": fields.get("asce_version") or "",
                     "risk_category": fields.get("risk_category") or "",
@@ -824,15 +965,19 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                     "eave_lf":       fields.get("eave_lf") or 0,
                     "step_flash_lf": fields.get("step_flash_lf") or 0,
                 }
+                # Link the measurement to BOTH the lead and (when it exists) the job.
+                # Previously a converted lead got job_id ONLY, so measurements.for_lead()
+                # returned None and the LEAD page — the page the rep runs the takeoff
+                # from — showed an empty measurements panel even though extraction
+                # succeeded. Both ids make for_lead() and for_job() resolve the row.
+                try:
+                    db.execute("ALTER TABLE measurements ADD COLUMN lead_id INTEGER")
+                    db._COLCACHE.clear()
+                except Exception:
+                    pass
+                mdata["lead_id"] = lead_id
                 if target_job_id:
                     mdata["job_id"] = target_job_id
-                else:
-                    try:
-                        db.execute("ALTER TABLE measurements ADD COLUMN lead_id INTEGER")
-                        db._COLCACHE.clear()
-                    except Exception:
-                        pass
-                    mdata["lead_id"] = lead_id
                 try:
                     meas_id = db.insert("measurements", mdata)
                 except Exception:
@@ -846,16 +991,37 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
             if meas_id:
                 try:
                     from modules import estimates as _est
-                    ents = (db.all_rows("estimates", "job_id=?", (target_job_id,))
-                            if target_job_id
-                            else db.all_rows("estimates", "lead_id=?", (lead_id,)))
-                    if ents:
-                        for _e in ents:
+                    # Look up estimates on BOTH links. A lead that has been converted
+                    # keeps its original lead-linked estimate (job_id NULL) — the one
+                    # the rep actually has open — so a job_id-only lookup found nothing
+                    # and silently built a SECOND estimate, leaving the real one at
+                    # qty 0. Search lead_id OR job_id so the existing estimate is found.
+                    if target_job_id:
+                        ents = db.all_rows("estimates", "job_id=? OR lead_id=?",
+                                           (target_job_id, lead_id), "id DESC")
+                    else:
+                        ents = db.all_rows("estimates", "lead_id=?", (lead_id,), "id DESC")
+                    # Only DRAFTS get their quantities rewritten — a sent/approved/signed
+                    # estimate is a customer-facing record and must never be silently
+                    # re-priced by an automation (roof_reports._apply_to_client already
+                    # observes this rule; this path did not).
+                    drafts = [e for e in ents if (e.get("status") or "draft") == "draft"]
+                    if drafts:
+                        for _e in drafts:
                             _est._apply_measurement(_e["id"], mdata)
                         db.add_activity("lead", lead_id, "automation",
                                         "Takeoff measurements applied to estimate %s."
-                                        % (ents[0].get("number") or ents[0]["id"]))
-                        _progress("Applied measurements to %d estimate(s)." % len(ents))
+                                        % (drafts[0].get("number") or drafts[0]["id"]))
+                        _progress("Applied measurements to %d estimate(s)." % len(drafts))
+                    elif ents:
+                        # Estimates exist but all are locked (sent/signed) — do not
+                        # touch them and do not spawn a duplicate; flag it instead.
+                        db.add_activity("lead", lead_id, "automation",
+                                        "Takeoff measurements NOT applied — estimate %s "
+                                        "is %s (not a draft). Review manually."
+                                        % (ents[0].get("number") or ents[0]["id"],
+                                           ents[0].get("status")))
+                        _progress("Estimate is not a draft — measurements not applied.")
                     elif work_type:
                         _eid = _est.build_estimate(
                             lead_id=(None if target_job_id else lead_id),
@@ -867,6 +1033,22 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                         _progress("Built estimate from takeoff measurements.")
                 except Exception as _ae:
                     _progress("Estimate update skipped: %s" % _ae)
+
+            # Save the TAKEOFF ITSELF into the client's documents. Until now only the
+            # uploaded plan set was filed; the takeoff result existed nowhere the rep
+            # could open it.
+            takeoff_doc_id = None
+            try:
+                takeoff_doc_id = _file_takeoff_document(
+                    fields, warnings, lead, lead_id, target_job_id, file_name, work_type)
+                _progress("Takeoff summary filed to documents (doc #%s)." % takeoff_doc_id)
+            except Exception as _de:
+                _progress("Takeoff document NOT filed: %s" % _de)
+                try:
+                    db.add_activity("lead", lead_id, "automation",
+                                    "Takeoff summary document could not be saved: %s" % _de)
+                except Exception:
+                    pass
 
             # Activity note on the lead.
             note_parts = ["Plans uploaded: %s" % (fields.get("plan_set_label") or file_name)]
@@ -899,6 +1081,7 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
                 "lead_id": lead_id,
                 "job_id": target_job_id,
                 "measurement_id": meas_id,
+                "takeoff_document_id": takeoff_doc_id,
                 "squares": total_sq,
                 "lf": lf_summary,
                 "work_type": work_type,
