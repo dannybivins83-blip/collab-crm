@@ -923,7 +923,7 @@ TABLE_ALLOWLIST = {
     # module-level CREATE IF NOT EXISTS tables
     "notifications", "commissions", "custom_fields", "custom_values",
     "gmail_accounts", "takeoff_jobs", "demos", "signup_packets",
-    "signup_templates", "payments", "qxo_products", "portal_updates",
+    "signup_templates", "payments", "qxo_products", "portal_updates", "portal_tasks",
     # additional tables discovered via module scan
     "lead_sources", "contact_types", "material_catalog", "file_blobs",
     "acculynx_email_sync", "automation_fires", "submittal_components",

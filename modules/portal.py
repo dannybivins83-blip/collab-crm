@@ -67,6 +67,15 @@ for _t, _c in (("documents", "needs_sign INTEGER DEFAULT 0"), ("documents", "sig
         db.execute("ALTER TABLE %s ADD COLUMN %s" % (_t, _c))
     except Exception:
         pass
+# Homeowner accountability checklist — the homeowner can tick off their own to-dos and
+# it persists + logs to the office. Labels live in code (white-label); only the per-job
+# done-state is stored here (job_id + task key).
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS portal_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, job_id INTEGER, key TEXT,
+        done INTEGER DEFAULT 0, done_at TEXT)""")
+except Exception:
+    pass
 db._COLCACHE.clear()
 
 # Customer-facing "what to expect" — per phase: what WE do, your typical timeframe,
@@ -151,6 +160,36 @@ VALUE_STEPS = [
     (5, "Delivered your warranty documents"),
     (5, "Made sure you're 100% happy and asked how we did"),
 ]
+
+# Homeowner accountability tasks — the checkable "your to-do" list the HO portal writes
+# back. Seeded from the per-phase homeowner items in PHASE_INFO. `phase` orders them and
+# lets the UI surface what's relevant now. Keys are stable; edit labels freely (white-label).
+HO_TASKS = [
+    {"key": "sign_packet",   "phase": 0, "label": "Review & sign your sign-up package"},
+    {"key": "confirm_colors", "phase": 0, "label": "Confirm your color, material & product selections"},
+    {"key": "financing",     "phase": 0, "label": "Finish financing paperwork (if you're financing)"},
+    {"key": "hoa_app",       "phase": 1, "label": "Sign the HOA application (if you're in an HOA community)"},
+    {"key": "upload_hoa",    "phase": 1, "label": "Upload any HOA or insurance documents we request"},
+    {"key": "confirm_date",  "phase": 2, "label": "Confirm your install date"},
+    {"key": "move_vehicles", "phase": 3, "label": "Move vehicles away from the house & driveway on install day"},
+    {"key": "secure_items",  "phase": 3, "label": "Take down fragile wall hangings before tear-off"},
+    {"key": "pets_indoors",  "phase": 3, "label": "Keep pets indoors during the work"},
+    {"key": "walkthrough",   "phase": 5, "label": "Walk the property with us & confirm the magnet nail-sweep"},
+    {"key": "final_payment", "phase": 5, "label": "Make your final payment"},
+    {"key": "leave_review",  "phase": 5, "label": "Leave us a review"},
+]
+_HO_TASK_KEYS = {t["key"] for t in HO_TASKS}
+
+
+def ho_tasks_for(job_id):
+    """The homeowner checklist for a job: default labels merged with persisted done-state."""
+    state = {r["key"]: r for r in db.all_rows("portal_tasks", "job_id=?", (job_id,))}
+    out = []
+    for t in HO_TASKS:
+        r = state.get(t["key"])
+        out.append({"key": t["key"], "label": t["label"], "phase": t.get("phase"),
+                    "done": bool(r and r.get("done")), "done_at": (r or {}).get("done_at")})
+    return out
 
 # ---------------------------------------------------------------------------
 # Unified homeowner JOURNEY — one continuous, numbered, accountable roadmap that
@@ -1182,7 +1221,8 @@ def home(token):
                            tutorials=_tutorials(company), product_docs=product_docs, sysk=sysk,
                            photo_app_url=company.get("photo_app_url"),
                            journey=journey_steps("job", j, token),
-                           progress=journey_progress(journey_steps("job", j, token)))
+                           progress=journey_progress(journey_steps("job", j, token)),
+                           ho_tasks=ho_tasks_for(j["id"]))
 
 
 def _record_by_any_token(token):
@@ -1618,3 +1658,28 @@ def pay(token, inv_id=None):
         return redirect(link)
     flash("Online payment isn't set up yet — please contact us to pay.", "info")
     return redirect(url_for("portal.home", token=token) + "#payments")
+
+
+@bp.route("/<token>/task", methods=["POST"])
+def task(token):
+    """Homeowner ticks off (or un-ticks) one of their to-do items. Persists per-job and
+    logs to the office activity feed. Accepts form OR JSON: {key, done}. Returns JSON."""
+    j = _job_by_token(token)
+    if not j:
+        abort(404)
+    data = request.get_json(silent=True) or request.form
+    key = (data.get("key") or "").strip()
+    if key not in _HO_TASK_KEYS:
+        return jsonify({"ok": False, "error": "unknown task"}), 400
+    done = str(data.get("done", "1")).strip().lower() in ("1", "true", "yes", "on")
+    now = db.now() if done else None
+    existing = db.all_rows("portal_tasks", "job_id=? AND key=?", (j["id"], key))
+    if existing:
+        db.update("portal_tasks", existing[0]["id"], done=1 if done else 0, done_at=now)
+    else:
+        db.insert("portal_tasks", {"job_id": j["id"], "key": key,
+                                   "done": 1 if done else 0, "done_at": now})
+    label = next((t["label"] for t in HO_TASKS if t["key"] == key), key)
+    db.add_activity("job", j["id"], "note",
+                    "Homeowner %s: %s" % ("completed" if done else "un-checked", label))
+    return jsonify({"ok": True, "key": key, "done": done, "done_at": now})
