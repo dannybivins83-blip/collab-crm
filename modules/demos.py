@@ -42,7 +42,24 @@ try:
         sample_system TEXT DEFAULT 'shingle', created_by TEXT)""")
 except Exception:
     pass
+# Contractor leads captured by the public sales landing page (myroofportal.com root).
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS portal_leads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created TEXT, name TEXT, company TEXT, email TEXT, phone TEXT,
+        source_host TEXT)""")
+except Exception:
+    pass
 db._COLCACHE.clear()
+
+# Dedicated demo/sales domains (e.g. myroofportal.com). A bare visit to one of
+# these hosts' "/" serves the contractor-facing SALES LANDING PAGE (app.py wires
+# the before_request); the homeowner demo lives at /demo/<DEMO_SLUG> behind it.
+# Env-driven so this stays white-label, not hardcoded to one tenant.
+DEMO_HOSTS = {h.strip().lower() for h in
+              os.environ.get("CRM_DEMO_HOSTS", "myroofportal.com,www.myroofportal.com").split(",")
+              if h.strip()}
+DEMO_SLUG = os.environ.get("CRM_DEMO_SLUG", "roof-portal")
 
 # Ephemeral, process-local referral game state per demo slug (resets on restart —
 # this is a throwaway sales demo, never persisted).
@@ -289,3 +306,44 @@ def refer_share(slug):
 def refer_msg(slug):
     # Demo: accept and discard.
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Contractor-facing SALES landing page (login-free — served at the root of the
+# demo domains, e.g. myroofportal.com, via app.py's _demo_host_root hook; also
+# reachable at /portal-sales on any host for previewing).
+# ---------------------------------------------------------------------------
+
+def _on_demo_host():
+    host = (request.host or "").split(":")[0].lower()
+    return host in DEMO_HOSTS
+
+
+@bp.route("/portal-sales", endpoint="landing")
+def landing_view():
+    return render_template(
+        "portal_landing.html",
+        demo_url="/demo/%s" % DEMO_SLUG,
+        # Keep form + links relative to "/" when we're on the dedicated domain
+        # so the visitor's URL stays myroofportal.com.
+        lead_action=url_for("demo.landing_lead"),
+        thanks=(request.args.get("thanks") == "1"),
+        err=(request.args.get("err") == "1"))
+
+
+@bp.route("/portal-sales/lead", methods=["POST"], endpoint="landing_lead")
+def landing_lead():
+    f = request.form
+    name = (f.get("name") or "").strip()[:120]
+    company = (f.get("company") or "").strip()[:160]
+    email = (f.get("email") or "").strip()[:200]
+    phone = (f.get("phone") or "").strip()[:40]
+    base = "/" if _on_demo_host() else url_for("demo.landing")
+    # Require a name plus at least one way to reach them.
+    if not name or not (email or phone):
+        return redirect(base + "?err=1#get-started")
+    db.insert("portal_leads", {
+        "created": db.now(), "name": name, "company": company,
+        "email": email, "phone": phone,
+        "source_host": (request.host or "")[:120]})
+    return redirect(base + "?thanks=1#get-started")

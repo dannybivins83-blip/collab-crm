@@ -933,6 +933,8 @@ TABLE_ALLOWLIST = {
     "subcontractors", "claims", "claim_supplements", "inspections",
     "portal_messages", "sequences", "sequence_steps", "sequence_enrollments",
     "sequence_step_fires",
+    # Contractor leads captured by the public sales landing page (modules/demos.py).
+    "portal_leads",
 }
 
 _SAFE_COL_RE = _re.compile(r'^[a-zA-Z_][a-zA-Z0-9_.]*$')

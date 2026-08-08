@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#16223b" />
+<meta name="description" content="Your own branded customer portal for roofing — live progress tracking, payments, e-sign, and a referral engine, white-labeled under your company's brand." />
+<title>Roof Portal — Your Own Branded Customer Portal, Live in a Day</title>
+<style>
+  :root{
+    --brand:#16223b; --accent:#4680BF; --green:#8CC63F;
+    --ink:#16223b; --ink2:#3a4760; --mut:#6a778d; --line:#e7ecf3; --bg:#eef2f7;
+    --accent-tint:color-mix(in srgb, var(--accent) 9%, #fff);
+    --green-tint:color-mix(in srgb, var(--green) 16%, #fff);
+    --green-deep:color-mix(in srgb, var(--green) 78%, #1d2a14);
+    --r:16px; --sh-sm:0 1px 2px rgba(16,34,64,.06);
+    --sh:0 6px 22px -10px rgba(16,34,64,.20), 0 2px 6px -3px rgba(16,34,64,.10);
+  }
+  *{box-sizing:border-box} html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);font-size:15.5px;line-height:1.6;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}
+  .wrap{max-width:880px;margin:0 auto;padding:0 16px}
+
+  /* hero */
+  .hero{color:#fff;text-align:center;
+    padding:calc(52px + env(safe-area-inset-top)) 18px 62px;
+    background:linear-gradient(135deg, var(--brand) 0%, #1f3a63 55%, #24476C 100%);}
+  .hero .kicker{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:1.4px;
+    text-transform:uppercase;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
+    padding:6px 14px;border-radius:999px;margin-bottom:20px;color:#dfeaf7}
+  .hero h1{margin:0 auto 14px;font-size:clamp(28px,6vw,44px);line-height:1.14;
+    font-weight:800;letter-spacing:-.5px;max-width:680px}
+  .hero h1 em{font-style:normal;color:var(--green)}
+  .hero p.sub{margin:0 auto 30px;max-width:560px;font-size:clamp(15.5px,2.6vw,18px);
+    color:#c9d6e8;line-height:1.6}
+  .ctas{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+  .btn{display:inline-block;font-weight:800;font-size:16px;border-radius:12px;
+    padding:14px 26px;letter-spacing:.2px;transition:transform .12s ease, box-shadow .12s ease}
+  .btn:active{transform:scale(.98)}
+  .btn-primary{background:var(--green);color:#12210a;box-shadow:0 8px 24px -8px rgba(140,198,63,.55)}
+  .btn-primary:hover{box-shadow:0 10px 28px -6px rgba(140,198,63,.7)}
+  .btn-ghost{background:rgba(255,255,255,.10);color:#fff;border:1px solid rgba(255,255,255,.35)}
+  .btn-ghost:hover{background:rgba(255,255,255,.18)}
+  .hero .reach{margin-top:22px;font-size:13.5px;color:#a9bbd4}
+  .hero .reach a{color:#dfeaf7;font-weight:700}
+
+  /* benefits */
+  .benefits{padding:44px 0 8px}
+  .benefits h2, .lead h2{margin:0 0 6px;font-size:clamp(21px,4vw,27px);letter-spacing:-.3px;text-align:center}
+  .benefits .tag, .lead .tag{text-align:center;color:var(--mut);margin:0 0 26px;font-size:14.5px}
+  .grid{display:grid;grid-template-columns:1fr;gap:15px}
+  @media(min-width:720px){.grid{grid-template-columns:repeat(3,1fr)}}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--r);
+    padding:24px 22px;box-shadow:var(--sh)}
+  .card .ico{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;
+    justify-content:center;font-size:22px;margin-bottom:14px;background:var(--accent-tint)}
+  .card:nth-child(3) .ico{background:var(--green-tint)}
+  .card h3{margin:0 0 8px;font-size:17.5px;letter-spacing:-.2px}
+  .card p{margin:0;color:var(--ink2);font-size:14.5px;line-height:1.6}
+
+  /* demo strip */
+  .strip{margin:34px 0 0;text-align:center}
+  .strip .card{padding:28px 22px}
+  .strip p{margin:0 0 16px;color:var(--ink2);font-size:15px}
+
+  /* lead form */
+  .lead{padding:48px 0 20px}
+  form.leadform{background:#fff;border:1px solid var(--line);border-radius:var(--r);
+    padding:26px 22px;box-shadow:var(--sh);max-width:520px;margin:0 auto}
+  .leadform label{display:block;font-size:12.5px;font-weight:800;letter-spacing:.4px;
+    text-transform:uppercase;color:var(--mut);margin:0 0 5px}
+  .leadform .row{margin-bottom:15px}
+  .leadform input{width:100%;font:inherit;font-size:16px;padding:12px 13px;border-radius:10px;
+    border:1px solid #cdd7e4;background:#fbfcfe;color:var(--ink)}
+  .leadform input:focus{outline:2px solid var(--accent);border-color:var(--accent);background:#fff}
+  .leadform button{width:100%;font:inherit;font-weight:800;font-size:16.5px;cursor:pointer;
+    background:var(--accent);color:#fff;border:0;border-radius:12px;padding:14px;
+    letter-spacing:.2px;box-shadow:0 8px 22px -8px rgba(70,128,191,.6)}
+  .leadform button:active{transform:scale(.99)}
+  .leadform .fine{margin:12px 0 0;font-size:12.5px;color:var(--mut);text-align:center}
+  .flash{max-width:520px;margin:0 auto 16px;padding:14px 18px;border-radius:12px;
+    font-weight:700;font-size:15px;text-align:center}
+  .flash.ok{background:var(--green-tint);color:var(--green-deep);border:1px solid color-mix(in srgb, var(--green) 45%, #fff)}
+  .flash.err{background:#fdeeee;color:#8c2f2f;border:1px solid #f0c9c9}
+  .alt{max-width:520px;margin:18px auto 0;text-align:center;color:var(--ink2);font-size:14.5px}
+  .alt a{font-weight:800}
+
+  /* footer */
+  footer{margin-top:52px;padding:30px 18px calc(34px + env(safe-area-inset-bottom));
+    background:var(--brand);color:#a9bbd4;text-align:center;font-size:13.5px;line-height:1.8}
+  footer b{color:#fff}
+  footer a{color:#dfeaf7}
+  footer .fict{margin-top:8px;font-size:12px;opacity:.8}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="kicker">White-Label Customer Portal for Roofers</span>
+  <h1>Your Own Branded Customer Portal — <em>Live in a Day</em></h1>
+  <p class="sub">Give every homeowner a Domino's-tracker experience for their roof.
+    Fewer status calls, faster payments, more referrals.</p>
+  <div class="ctas">
+    <a class="btn btn-primary" href="{{ demo_url }}">See the Live Demo</a>
+    <a class="btn btn-ghost" href="#get-started">Get it for your company</a>
+  </div>
+  <p class="reach">Or reach us directly:
+    <a href="mailto:hello@roofportal.com">hello@roofportal.com</a> &nbsp;·&nbsp;
+    <a href="tel:+15614758615">(561)&nbsp;475-8615</a></p>
+</header>
+
+<section class="benefits">
+  <div class="wrap">
+    <h2>Why contractors switch</h2>
+    <p class="tag">Three things your homeowners will feel on day one.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="ico">&#128200;</div>
+        <h3>Transparency sells</h3>
+        <p>Progress, payments, and e-sign in one place. Homeowners watch their roof
+          move milestone by milestone instead of calling your office for updates.</p>
+      </div>
+      <div class="card">
+        <div class="ico">&#127912;</div>
+        <h3>Your brand, not ours</h3>
+        <p>Fully white-labeled — your logo, your colors, your company name on every
+          screen. Customers only ever see <b>you</b>.</p>
+      </div>
+      <div class="card">
+        <div class="ico">&#129309;</div>
+        <h3>Referrals built in</h3>
+        <p>A reward engine turns every finished roof into new leads. Happy homeowners
+          share their portal — and their neighbors become your next jobs.</p>
+      </div>
+    </div>
+
+    <div class="strip">
+      <div class="card">
+        <p>Don't take our word for it — open the live demo on your phone and tap around
+          like a homeowner would.</p>
+        <a class="btn btn-primary" href="{{ demo_url }}">See the Live Demo</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="lead" id="get-started">
+  <div class="wrap">
+    <h2>Get it for your company</h2>
+    <p class="tag">Tell us who you are and we'll set up your branded portal.</p>
+
+    {% if thanks %}
+      <div class="flash ok">Thanks — you're on the list. We'll reach out shortly to get
+        your branded portal set up.</div>
+    {% elif err %}
+      <div class="flash err">Please give us your name and at least an email or a phone
+        number so we can reach you.</div>
+    {% endif %}
+
+    <form class="leadform" method="post" action="{{ lead_action }}">
+      <div class="row">
+        <label for="f-name">Your name</label>
+        <input id="f-name" name="name" type="text" required autocomplete="name" placeholder="Jane Contractor" />
+      </div>
+      <div class="row">
+        <label for="f-company">Company</label>
+        <input id="f-company" name="company" type="text" autocomplete="organization" placeholder="Acme Roofing LLC" />
+      </div>
+      <div class="row">
+        <label for="f-email">Email</label>
+        <input id="f-email" name="email" type="email" autocomplete="email" placeholder="you@acmeroofing.com" />
+      </div>
+      <div class="row">
+        <label for="f-phone">Phone</label>
+        <input id="f-phone" name="phone" type="tel" autocomplete="tel" placeholder="(555) 123-4567" />
+      </div>
+      <button type="submit">Get my branded portal</button>
+      <p class="fine">No spam, no obligation — we'll reach out to walk you through it.</p>
+    </form>
+
+    <p class="alt">Prefer to talk now?
+      <a href="mailto:hello@roofportal.com">hello@roofportal.com</a> ·
+      <a href="tel:+15614758615">(561) 475-8615</a></p>
+  </div>
+</section>
+
+<footer>
+  <b>Collaborative Concepts LLC</b> — Lantana, FL<br />
+  <a href="tel:+15614758615">(561) 475-8615</a> ·
+  <a href="mailto:hello@roofportal.com">hello@roofportal.com</a>
+  <div class="fict">Demo data is fictitious.</div>
+</footer>
+
+</body>
+</html>

@@ -144,23 +144,22 @@ for _bp in (dashboard_bp, settings_bp, contacts_bp, leads_bp, jobs_bp, estimates
 
 
 # Demo-domain root: a bare visit to a dedicated demo domain (e.g. myroofportal.com)
-# serves the branded demo portal ON that domain — no off-site forward, URL stays put.
-# Host list + slug are env-driven so this is white-label, not hardcoded to one tenant.
-# Registered BEFORE the auth guard so the public demo route is reached without a login
-# bounce. Only the demo host's "/" is affected; the real CRM domain is untouched.
-_DEMO_HOSTS = {h.strip().lower() for h in
-               os.environ.get("CRM_DEMO_HOSTS", "myroofportal.com,www.myroofportal.com").split(",")
-               if h.strip()}
-_DEMO_SLUG = os.environ.get("CRM_DEMO_SLUG", "roof-portal")
+# serves the CONTRACTOR-FACING SALES LANDING PAGE on that domain — no off-site
+# forward, URL stays put. The homeowner demo portal is linked FROM the landing
+# page at /demo/<slug>. Host list + slug are env-driven (see modules/demos.py)
+# so this is white-label, not hardcoded to one tenant. Registered BEFORE the
+# auth guard so the public page is reached without a login bounce. Only the
+# demo host's "/" is affected; the real CRM domain is untouched.
+from modules import demos as _demos_mod
 
 
 @app.before_request
 def _demo_host_root():
-    from flask import request, redirect
+    from flask import request
     host = (request.host or "").split(":")[0].lower()
-    if host in _DEMO_HOSTS and request.path == "/":
-        # relative target → browser stays on the demo domain
-        return redirect("/demo/%s" % _DEMO_SLUG, code=302)
+    if host in _demos_mod.DEMO_HOSTS and request.path == "/":
+        # Render in place (no redirect) → browser stays at the domain root.
+        return _demos_mod.landing_view()
 
 
 # Real per-user login (registers its own blueprint + before-request guard).

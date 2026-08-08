@@ -74,6 +74,10 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # UI (demo.generator/create/delete) is intentionally NOT public.
           "demo.portal", "demo.design", "demo.design_request",
           "demo.refer_share", "demo.refer_msg",
+          # Contractor-facing sales landing page (myroofportal.com root) + its
+          # public lead-capture form. The visitor has no session/CSRF token —
+          # PUBLIC membership also exempts the POST from CSRF below.
+          "demo.landing", "demo.landing_lead",
           # Token-gated DB-restore + CSV imports: NOT session-auth'd. Their own
           # X-Restore-Token check is the gate (404 when unarmed/wrong). Must bypass
           # the login redirect so the gate returns 404, not a 302 to /login.
