@@ -298,6 +298,47 @@
   /* inline checklist links */
   .vlink{display:inline-block;margin:5px 10px 0 0;font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none}
   .vlink:hover{text-decoration:underline}
+
+  /* ===== ASCENT hero + live status ===== */
+  .asc-hero{padding:6px 2px 14px}
+  .asc-addr{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted,#6a7686);font-weight:700}
+  .asc-h1{font-size:clamp(30px,7vw,46px);line-height:1.02;letter-spacing:-.02em;margin:8px 0 6px;font-weight:800;color:#14202c}
+  .asc-sub{margin:0;font-size:16px;color:var(--muted,#5b6b7d);max-width:52ch}
+  .asc-live{padding:20px 20px 18px;border:1px solid var(--line,#e3e9f0);box-shadow:0 6px 22px rgba(20,40,80,.08)}
+  .asc-live-top{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a8690a}
+  .asc-dot{width:9px;height:9px;border-radius:50%;background:#e0a338;box-shadow:0 0 0 0 rgba(224,163,56,.6);animation:ascPulse 1.8s infinite}
+  @keyframes ascPulse{0%{box-shadow:0 0 0 0 rgba(224,163,56,.55)}70%{box-shadow:0 0 0 9px rgba(224,163,56,0)}100%{box-shadow:0 0 0 0 rgba(224,163,56,0)}}
+  .asc-ago{color:var(--muted,#8595a6);font-weight:600;letter-spacing:.04em;text-transform:none}
+  .asc-live-h{font-size:clamp(22px,4.5vw,28px);margin:9px 0 3px;font-weight:800;color:#14202c;letter-spacing:-.01em}
+  .asc-live-sub{font-size:13.5px;color:var(--muted,#5b6b7d);margin-bottom:16px}
+  .asc-track{display:flex;gap:4px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none}
+  .asc-track::-webkit-scrollbar{display:none}
+  .asc-step{flex:1;min-width:78px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative}
+  .asc-step:not(:first-child):before{content:"";position:absolute;left:-52%;top:15px;width:100%;height:3px;background:var(--line,#e3e9f0);border-radius:2px}
+  .asc-step.done:before,.asc-step.cur:before{background:#1f9d6b}
+  .asc-node{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;background:#eef2f7;color:#8895a4;border:2px solid transparent;position:relative;z-index:1}
+  .asc-step.done .asc-node{background:#1f9d6b;color:#fff}
+  .asc-step.cur .asc-node{background:#fff;color:#0b2b40;border-color:#e0a338;box-shadow:0 0 0 4px rgba(224,163,56,.18)}
+  .asc-lbl{font-size:11.5px;font-weight:700;color:#3a4753;margin-top:7px;line-height:1.15}
+  .asc-step:not(.done):not(.cur) .asc-lbl{color:#9aa6b3}
+  .asc-st{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:2px;color:#9aa6b3}
+  .asc-step.done .asc-st{color:#1f9d6b}.asc-step.cur .asc-st{color:#a8690a}
+  .asc-cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+  .asc-btn{flex:1;min-width:150px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:13px 16px;border-radius:11px;font-weight:800;font-size:14.5px;text-decoration:none;background:#fff;color:#0b2b40;border:1.5px solid var(--line,#dfe6ef)}
+  .asc-btn.primary{background:#0b2b40;color:#fff;border-color:#0b2b40}
+  .asc-btn:hover{filter:brightness(1.04)}
+  /* ===== ASCENT homeowner to-do checklist ===== */
+  .todo-hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .todo-prog{font-size:12.5px;font-weight:700;color:var(--muted,#6a7686)}
+  .todo{list-style:none;margin:10px 0 0;padding:0}
+  .todo li{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-top:1px solid var(--line,#eef2f7)}
+  .todo li:first-child{border-top:0}
+  .todo .box{flex:none;width:22px;height:22px;border-radius:6px;border:2px solid #c7d0da;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;transition:.15s}
+  .todo li.on .box{background:#1f9d6b;border-color:#1f9d6b}
+  .todo .box svg{width:14px;height:14px;opacity:0}
+  .todo li.on .box svg{opacity:1}
+  .todo .tl{font-size:14.5px;color:#25313d;line-height:1.3}
+  .todo li.on .tl{color:#8b97a3;text-decoration:line-through}
 </style>
 </head>
 <body{% if (signup_packet) or (pay_url and j._balance > 0) %} class="has-cta"{% endif %}>
@@ -311,34 +352,44 @@
     {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
   {% endwith %}
 
-  <!-- HERO + PROGRESS -->
-  <div class="card flush">
-    <div class="hero-band">
-      <h1>Hi{{ ' ' ~ j._first if j._first }}</h1>
-      <div class="addr">{{ pic('pin',14) }} {{ j.address }}{{ ', ' ~ j.city if j.city }} {{ j.state }} {{ j.zip }}</div>
-      <div class="badges">
-        <span class="pill green">{{ j._stage_name }}</span>
-        {% if j.work_type %}<span class="pill">{{ j.work_type }}</span>{% endif %}
+  <!-- ASCENT HERO + LIVE STATUS -->
+  {% set _phname = 'Proposal' if j._phase < 0 else (phases[j._phase] if j._phase < phases|length else phases[-1]) %}
+  {% set _live = {
+    "Proposal":["Your proposal is in the works","We're putting your project together — we'll be in touch very soon."],
+    "Approved":["You're approved — welcome aboard","Your project is officially a GO. Here's everything that happens next."],
+    "Permitting":["We're pulling your permit","At the city now — this stretch runs on their clock; we'll ping you the moment it's issued."],
+    "Scheduling":["Locking in your install date","Permit's in hand — we're ordering your materials and setting your crew date with you."],
+    "Installation":["Your roof is being installed","The crew is on the roof and photos are rolling in."],
+    "Final Inspection":["Final inspection is up next","Your roof is on — the finish line is in sight."],
+    "Complete":["All done — enjoy your new roof","Final walkthrough complete. Thank you for trusting us with your home."]
+  } %}
+  {% set _lv = _live.get(_phname, ["Your project is moving right along","Here's exactly what's next."]) %}
+  <div class="asc-hero">
+    <div class="asc-addr">{{ j.address }}{{ ', ' ~ j.city if j.city }}{{ ' ' ~ j.state if j.state }}{{ ' ' ~ j.zip if j.zip }}</div>
+    <h1 class="asc-h1">Hi {{ j._first or 'there' }}{% if _phname == 'Installation' %} — big day.{% elif _phname == 'Complete' %} — all done.{% else %}.{% endif %}</h1>
+    <p class="asc-sub">{{ _lv[1] }}</p>
+  </div>
+
+  <div class="asc-live card flush">
+    <div class="asc-live-top"><span class="asc-dot"></span> Live now · <span>{{ j._stage_name or _phname }}</span>{% if updates and updates[0].created %}<span class="asc-ago">· updated {{ updates[0].created }}</span>{% endif %}</div>
+    <h2 class="asc-live-h">{{ _lv[0] }}</h2>
+    <div class="asc-live-sub">Step {{ [j._phase + 2, 1]|max }} of {{ phases|length + 1 }} · {{ _lv[1] }}</div>
+    <div class="asc-track">
+      <div class="asc-step {{ 'done' if j._phase >= 0 else 'cur' }}">
+        <span class="asc-node">{{ '✓' if j._phase >= 0 else 1 }}</span><span class="asc-lbl">Proposal</span>
+        <span class="asc-st">{{ 'Signed' if j._phase >= 0 else 'Now' }}</span>
       </div>
+      {% for p in phases %}
+      <div class="asc-step {{ 'done' if loop.index0 < j._phase else ('cur' if loop.index0 == j._phase else '') }}">
+        <span class="asc-node">{{ '✓' if loop.index0 < j._phase else loop.index + 1 }}</span><span class="asc-lbl">{{ p }}</span>
+        <span class="asc-st">{% if loop.index0 < j._phase %}Done{% elif loop.index0 == j._phase %}Now{% else %}—{% endif %}</span>
+      </div>
+      {% endfor %}
     </div>
-    <div class="track-wrap">
-      <div class="track-head">
-        <span class="t">Project progress</span>
-        <span class="c">Step {{ [j._phase + 2, 1]|max }} of {{ phases|length + 1 }}</span>
-      </div>
-      <div class="track">
-        <!-- Proposal step — active for pre-approval stages, done once approved -->
-        <div class="step {{ 'done' if j._phase >= 0 else 'cur' }}">
-          <div class="dot">{{ '✓' if j._phase >= 0 else 1 }}</div>
-          <div class="lbl">Proposal</div>
-        </div>
-        {% for p in phases %}
-        <div class="step {{ 'done' if loop.index0 < j._phase else ('cur' if loop.index0 == j._phase else '') }}">
-          <div class="dot">{{ '✓' if loop.index0 < j._phase else loop.index + 1 }}</div>
-          <div class="lbl">{{ p }}</div>
-        </div>
-        {% endfor %}
-      </div>
+    <div class="asc-cta">
+      {% if j._has_billing and j._balance and j._balance > 0 %}<a class="asc-btn primary" href="{{ url_for('portal.pay', token=token) }}">{{ pic('card',16) }} Pay balance · {{ money(j._balance) }}</a>{% endif %}
+      {% if j.sitecam_url %}<a class="asc-btn" href="{{ j.sitecam_url }}" target="_blank" rel="noopener">{{ pic('camera',16) }} Today's photos</a>{% else %}<a class="asc-btn" href="#photos">{{ pic('camera',16) }} Your photos</a>{% endif %}
+      {% if company.phone %}<a class="asc-btn" href="tel:{{ company.phone }}">{{ pic('phone',16) }} Call {{ (j.rep or company.qualifier or 'us').split(' ')[0] }}</a>{% endif %}
     </div>
   </div>
 
@@ -353,26 +404,6 @@
         {% if company.phone %}<a class="btn ghost sm" href="tel:{{ company.phone }}">{{ pic('phone',16) }} Call</a>{% endif %}
         {% if company.email %}<a class="btn ghost sm" href="mailto:{{ company.email }}">{{ pic('mail',16) }} Email</a>{% endif %}
       </div>
-    </div>
-  </div>
-
-  <!-- LIVE STATUS (Domino's-style "your roof is HERE") -->
-  {% set _ph = 'Proposal' if j._phase < 0 else (phases[j._phase] if j._phase < phases|length else phases[-1]) %}
-  {% set _fun = {
-    "Proposal":["pencil","We're reviewing your proposal and putting your project together — we'll be in touch very soon!"],
-    "Approved":["party","Welcome aboard! Your project is officially a GO — here's everything that happens next."],
-    "Permitting":["pencil","We're at the city pulling your permit. This stretch runs on their clock — we'll ping you the moment it's issued."],
-    "Scheduling":["calendar","Permit's in hand! We're ordering your materials and locking in an install date with you."],
-    "Installation":["hammer","It's happening! Our crew is bringing your new roof to life — watch it on your Roof Cam below."],
-    "Final Inspection":["search","Final inspection time — the finish line is in sight!"],
-    "Complete":["house","All done — enjoy your beautiful new roof! Mind leaving us a quick review?"]
-  } %}
-  {% set _fe = _fun.get(_ph, ["building","Your project is moving right along — here's exactly what's next."]) %}
-  <div class="livebar" style="margin:0 0 15px">
-    <div class="lb-em">{{ pic(_fe[0], 28) }}</div>
-    <div style="min-width:0">
-      <div class="lb-stage"><span class="livedot"></span>Live now · {{ _ph }}</div>
-      <div class="lb-msg">{{ _fe[1] }}</div>
     </div>
   </div>
 
@@ -392,6 +423,41 @@
 
   <!-- UNIFIED JOURNEY ROADMAP (same component the prospect portal shows) -->
   {% include "_journey.html" %}
+
+  <!-- HOMEOWNER TO-DO CHECKLIST (writes back to the office) -->
+  {% if ho_tasks %}
+  <div class="card" id="todo">
+    <div class="todo-hd">
+      <div class="h">Your to-do list</div>
+      <span class="todo-prog" id="todoProg">{{ ho_tasks|selectattr('done')|list|length }} of {{ ho_tasks|length }} done</span>
+    </div>
+    <div class="muted" style="font-size:13px;margin-top:2px">Check these off as you go — your project team sees each one.</div>
+    <ul class="todo" id="todoList">
+      {% for t in ho_tasks %}
+      <li class="{{ 'on' if t.done }}" data-key="{{ t.key }}">
+        <span class="box" role="checkbox" tabindex="0" aria-checked="{{ 'true' if t.done else 'false' }}">{{ pic('check',14) }}</span>
+        <span class="tl">{{ t.label }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <script>
+  (function(){
+    var url="{{ url_for('portal.task', token=token) }}", list=document.getElementById('todoList');
+    var prog=document.getElementById('todoProg'), total={{ ho_tasks|length }};
+    function refresh(){prog.textContent=list.querySelectorAll('li.on').length+' of '+total+' done';}
+    function toggle(li){
+      var on=!li.classList.contains('on');
+      li.classList.toggle('on',on); li.querySelector('.box').setAttribute('aria-checked',on?'true':'false'); refresh();
+      fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:li.dataset.key,done:on})})
+        .then(function(r){if(!r.ok){li.classList.toggle('on',!on);refresh();}})
+        .catch(function(){li.classList.toggle('on',!on);refresh();});
+    }
+    list.addEventListener('click',function(e){var li=e.target.closest('li');if(li)toggle(li);});
+    list.addEventListener('keydown',function(e){if(e.key===' '||e.key==='Enter'){var li=e.target.closest('li');if(li){e.preventDefault();toggle(li);}}});
+  })();
+  </script>
+  {% endif %}
 
   <!-- MILESTONE CELEBRATION (confetti once per new step) -->
   {% if celebrate %}
