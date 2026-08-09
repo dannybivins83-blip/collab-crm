@@ -1,3 +1,4 @@
+{% from "_portal_icons.html" import pic %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -139,6 +140,32 @@
   .rung.won{opacity:1;border-color:var(--green);background:color-mix(in srgb,var(--green) 9%,#fff)}
   .rung .ic{font-size:20px} .rung .rw{flex:1;min-width:0;font-size:13px} .rung .tag{font-size:10px;font-weight:800;color:#3c6b16}
   @media(min-width:620px){.hero-band h1{font-size:28px} .card{padding:24px}}
+  /* ===== ASCENT hero + live status ===== */
+  .asc-hero{padding:6px 2px 14px}
+  .asc-addr{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#6a7686;font-weight:700}
+  .asc-h1{font-size:clamp(30px,7vw,46px);line-height:1.02;letter-spacing:-.02em;margin:8px 0 6px;font-weight:800;color:#14202c}
+  .asc-sub{margin:0;font-size:16px;color:#5b6b7d;max-width:52ch}
+  .asc-live{padding:20px 20px 18px;border:1px solid #e3e9f0;box-shadow:0 6px 22px rgba(20,40,80,.08)}
+  .asc-live-top{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a8690a}
+  .asc-dot{width:9px;height:9px;border-radius:50%;background:#e0a338;animation:ascPulse 1.8s infinite}
+  @keyframes ascPulse{0%{box-shadow:0 0 0 0 rgba(224,163,56,.55)}70%{box-shadow:0 0 0 9px rgba(224,163,56,0)}100%{box-shadow:0 0 0 0 rgba(224,163,56,0)}}
+  .asc-live-h{font-size:clamp(22px,4.5vw,28px);margin:9px 0 3px;font-weight:800;color:#14202c;letter-spacing:-.01em}
+  .asc-live-sub{font-size:13.5px;color:#5b6b7d;margin-bottom:16px}
+  .asc-track{display:flex;gap:4px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none}
+  .asc-track::-webkit-scrollbar{display:none}
+  .asc-step{flex:1;min-width:74px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative}
+  .asc-step:not(:first-child):before{content:"";position:absolute;left:-52%;top:15px;width:100%;height:3px;background:#e3e9f0;border-radius:2px}
+  .asc-step.done:before,.asc-step.cur:before{background:#1f9d6b}
+  .asc-node{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;background:#eef2f7;color:#8895a4;border:2px solid transparent;position:relative;z-index:1}
+  .asc-step.done .asc-node{background:#1f9d6b;color:#fff}
+  .asc-step.cur .asc-node{background:#fff;color:#0b2b40;border-color:#e0a338;box-shadow:0 0 0 4px rgba(224,163,56,.18)}
+  .asc-lbl{font-size:11.5px;font-weight:700;color:#3a4753;margin-top:7px;line-height:1.15}
+  .asc-step:not(.done):not(.cur) .asc-lbl{color:#9aa6b3}
+  .asc-st{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:2px;color:#9aa6b3}
+  .asc-step.done .asc-st{color:#1f9d6b}.asc-step.cur .asc-st{color:#a8690a}
+  .asc-cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+  .asc-btn{flex:1;min-width:150px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:13px 16px;border-radius:11px;font-weight:800;font-size:14.5px;text-decoration:none;background:#fff;color:#0b2b40;border:1.5px solid #dfe6ef}
+  .asc-btn.primary{background:#0b2b40;color:#fff;border-color:#0b2b40}
 </style>
 </head>
 <body>
@@ -153,48 +180,38 @@
     {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
   {% endwith %}
 
-  <!-- HERO + PROGRESS -->
-  <div class="card flush">
-    <div class="hero-band">
-      <h1>Hi {{ j._first }} 👋</h1>
-      <div class="addr">📍 {{ j.address }}, {{ j.city }} {{ j.state }} {{ j.zip }}</div>
-      <div class="badges">
-        <span class="pill green">{{ j._stage_name }}</span>
-        <span class="pill">{{ j.work_type }}</span>
-      </div>
-    </div>
-    <div class="track-wrap">
-      <div class="track-head">
-        <span class="t">Project progress</span>
-        <span class="c">Step {{ j._phase + 1 }} of {{ phases|length }}</span>
-      </div>
-      <div class="track">
-        {% for p in phases %}
-        <div class="step {{ 'done' if loop.index0 < j._phase else ('cur' if loop.index0 == j._phase else '') }}">
-          <div class="dot">{{ '✓' if loop.index0 < j._phase else loop.index }}</div>
-          <div class="lbl">{{ p }}</div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-
-  <!-- LIVE STATUS -->
-  {% set _ph = phases[j._phase] if j._phase < phases|length else phases[-1] %}
-  {% set _fun = {
-    "Approved":["🎉","Welcome aboard! Your project is officially a GO — here's everything that happens next."],
-    "Permitting":["📝","We're at the city pulling your permit. We'll ping you the moment it's issued."],
-    "Scheduling":["📅","Permit's in hand! We're ordering materials and locking in an install date with you."],
-    "Installation":["🔨","It's happening! Our crew is bringing your new roof to life — watch the updates roll in. 📸"],
-    "Final Inspection":["🔎","Final inspection time — the finish line is in sight!"],
-    "Complete":["🏡","All done — enjoy your beautiful new roof!"]
+  <!-- ASCENT HERO + LIVE STATUS -->
+  {% set _phname = phases[j._phase] if j._phase < phases|length else phases[-1] %}
+  {% set _live = {
+    "Approved":["You're approved — welcome aboard","Your project is officially a GO. Here's everything that happens next."],
+    "Permitting":["We're pulling your permit","At the city now — we'll ping you the moment it's issued."],
+    "Scheduling":["Locking in your install date","We're ordering your materials and setting your crew date with you."],
+    "Installation":["Your roof is being installed","The crew is on the roof and photos are rolling in."],
+    "Final Inspection":["Final inspection is up next","Your roof is on — the finish line is in sight."],
+    "Complete":["All done — enjoy your new roof","Thank you for trusting us with your home."]
   } %}
-  {% set _fe = _fun.get(_ph, ["🏗️","Your project is moving right along — here's exactly what's next."]) %}
-  <div class="livebar" style="margin:0 0 15px">
-    <div class="lb-em">{{ _fe[0] }}</div>
-    <div style="min-width:0">
-      <div class="lb-stage"><span class="livedot"></span>Live now · {{ _ph }}</div>
-      <div class="lb-msg">{{ _fe[1] }}</div>
+  {% set _lv = _live.get(_phname, ["Your project is moving right along","Here's exactly what's next."]) %}
+  <div class="asc-hero">
+    <div class="asc-addr">{{ j.address }}{{ ', ' ~ j.city if j.city }}{{ ' ' ~ j.state if j.state }}{{ ' ' ~ j.zip if j.zip }}</div>
+    <h1 class="asc-h1">Hi {{ j._first }}{% if _phname == 'Installation' %} — big day.{% elif _phname == 'Complete' %} — all done.{% else %}.{% endif %}</h1>
+    <p class="asc-sub">{{ _lv[1] }}</p>
+  </div>
+  <div class="asc-live card flush">
+    <div class="asc-live-top"><span class="asc-dot"></span> Live now · <span>{{ _phname }}</span></div>
+    <h2 class="asc-live-h">{{ _lv[0] }}</h2>
+    <div class="asc-live-sub">Step {{ j._phase + 1 }} of {{ phases|length }} · {{ _lv[1] }}</div>
+    <div class="asc-track">
+      {% for p in phases %}
+      <div class="asc-step {{ 'done' if loop.index0 < j._phase else ('cur' if loop.index0 == j._phase else '') }}">
+        <span class="asc-node">{{ '✓' if loop.index0 < j._phase else loop.index + 1 }}</span><span class="asc-lbl">{{ p }}</span>
+        <span class="asc-st">{% if loop.index0 < j._phase %}Done{% elif loop.index0 == j._phase %}Now{% else %}—{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="asc-cta">
+      {% if j._balance and j._balance > 0 %}<a class="asc-btn primary" href="#value">{{ pic('card',16) }} Pay balance · {{ money(j._balance) }}</a>{% endif %}
+      <a class="asc-btn" href="#value">{{ pic('camera',16) }} Today's photos</a>
+      {% if company.phone %}<a class="asc-btn" href="tel:{{ company.phone }}">{{ pic('phone',16) }} Call {{ (j.rep or 'us').split(' ')[0] }}</a>{% endif %}
     </div>
   </div>
 
