@@ -6,31 +6,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ company.name or 'Your Project' }} — Welcome</title>
 <style>
-  :root{--brand:{{ company.color_masthead or '#24476C' }}}
+  :root{--brand:{{ company.color_masthead or '#0B2B40' }};--ink:#14202c;--mut:#5b6b7d;--line:#e3e9f0}
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#eef2f7;color:#1c2733}
-  .top{background:var(--brand);color:#fff;padding:18px 20px;text-align:center}
-  .top h1{margin:0;font-size:18px;letter-spacing:.3px}
-  .wrap{max-width:620px;margin:0 auto;padding:18px}
-  .card{background:#fff;border:1px solid #dfe6ef;border-radius:14px;padding:22px;margin:14px 0;box-shadow:0 1px 4px rgba(20,40,80,.05)}
-  h2{margin:0 0 10px;font-size:20px}
-  .muted{color:#5b6b7d}
-  .row{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid #eef2f7;font-size:15px}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#eef2f7;color:var(--ink)}
+  .top{background:var(--brand);color:#fff;padding:16px 20px;text-align:center}
+  .top h1{margin:0;font-size:17px;letter-spacing:.3px;font-weight:800}
+  .wrap{max-width:640px;margin:0 auto;padding:18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;margin:14px 0;box-shadow:0 1px 4px rgba(20,40,80,.05)}
+  h2{margin:0 0 10px;font-size:19px;color:var(--ink)}
+  .muted{color:var(--mut)}
+  /* Ascent hero */
+  .asc-hero{padding:8px 4px 6px}
+  .asc-h1{font-size:clamp(28px,6.5vw,42px);line-height:1.04;letter-spacing:-.02em;margin:4px 0 8px;font-weight:800;color:var(--ink)}
+  .asc-sub{margin:0;font-size:16px;color:var(--mut);max-width:54ch}
+  .row{display:flex;gap:8px;padding:9px 0;border-bottom:1px solid #eef2f7;font-size:15px}
   .row:last-child{border-bottom:0}
-  .row .k{width:120px;color:#5b6b7d;flex:none}
+  .row .k{width:120px;color:var(--mut);flex:none}
   .row .v{font-weight:600}
-  .rep{display:flex;align-items:center;gap:12px;margin-top:6px}
-  .rep .av{width:44px;height:44px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
-  a.btn{display:inline-block;background:var(--brand);color:#fff;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700;margin-top:8px}
-  .foot{text-align:center;color:#8595a6;font-size:12px;padding:14px}
+  .rep{display:flex;align-items:center;gap:12px;margin-top:4px}
+  .rep .av{width:46px;height:46px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px;flex:none}
+  a.btn{display:inline-flex;align-items:center;gap:7px;background:var(--brand);color:#fff;text-decoration:none;padding:12px 18px;border-radius:11px;font-weight:800;margin-top:10px;font-size:14.5px}
+  a.btn:hover{filter:brightness(1.06)}
+  .foot{text-align:center;color:#8595a6;font-size:12px;padding:16px}
 </style>
 </head>
 <body>
   <div class="top"><h1>{{ company.name or 'Your Roofing Project' }}</h1></div>
   <div class="wrap">
-    <div class="card">
-      <h2>Welcome, {{ client }}!</h2>
-      <p class="muted">Thanks for reaching out to {{ company.name or 'us' }}. We've received your request and your project is in our system. This is your private project page — bookmark it; we'll keep it updated as things move forward.</p>
+
+    <div class="asc-hero">
+      <h1 class="asc-h1">Hi {{ client }}.</h1>
+      <p class="asc-sub">Thanks for reaching out to {{ company.name or 'us' }} — your project is in our system. This is your private project page; bookmark it and follow along as things move forward.</p>
     </div>
 
     {% include "_journey.html" %}
@@ -54,22 +60,10 @@
       <p class="muted">A member of our team will reach out shortly to schedule your inspection and measurements. Once we've prepared your estimate, it'll appear right here for you to review and approve.</p>
     </div>
 
-    <div class="card" style="background:linear-gradient(125deg,#fff7e6,#fff);border-color:#ffe2a8">
-      <h2>{{ pic('palette',20) }} Design Your Roof — while you wait</h2>
-      <p class="muted">Have some fun: mock up your new roof in different colors and styles, add your options, and request free samples. It'll be ready for your inspection visit.</p>
-      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.design', token=token) }}">{{ pic("palette",17) }} Open the Design Studio →</a>
-    </div>
-
-    <div class="card">
-      <h2>{{ pic('cap',20) }} Learn while you wait</h2>
-      <p class="muted">New to roofing decisions? Take a 2-minute tour of the systems and test your Roof IQ — so you walk into your inspection already an expert.</p>
-      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.learn', token=token) }}">{{ pic("cap",17) }} Open Roof School →</a>
-    </div>
-
     <div class="card" style="background:linear-gradient(125deg,#eef9f0,#fff);border-color:#cdeccf">
       <h2>{{ pic('food',20) }} HOA board or community?</h2>
       <p class="muted">We'll bring lunch and host a Q&amp;A for your residents or board — and if a specific tile manufacturer/color is required, we'll bring their reps.</p>
-      <a class="btn" style="background:var(--brand)" href="{{ url_for('portal.seminar', token=token) }}">{{ pic("food",17) }} Request a Lunch &amp; Learn →</a>
+      <a class="btn" href="{{ url_for('portal.seminar', token=token) }}">{{ pic("food",17) }} Request a Lunch &amp; Learn →</a>
     </div>
 
     <div class="card">
