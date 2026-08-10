@@ -166,6 +166,38 @@
   .asc-cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
   .asc-btn{flex:1;min-width:150px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:13px 16px;border-radius:11px;font-weight:800;font-size:14.5px;text-decoration:none;background:#fff;color:#0b2b40;border:1.5px solid #dfe6ef}
   .asc-btn.primary{background:#0b2b40;color:#fff;border-color:#0b2b40}
+  /* ===== showcase sections (Roof School / HOA / SiteCam / QuickBooks / Docs) ===== */
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#137a55;background:#e8f7f0;padding:3px 9px;border-radius:20px}
+  .sec-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .sec-h .h{margin:0}
+  .rs-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  @media(max-width:520px){.rs-grid{grid-template-columns:1fr}}
+  .rs-tile{border:1px solid var(--line,#e3e9f0);border-radius:12px;padding:12px;background:#fff}
+  .rs-top{display:flex;align-items:center;gap:9px}
+  .rs-sw{width:26px;height:26px;border-radius:7px;flex:none}
+  .rs-nm{font-weight:800;font-size:14px}
+  .rs-meta{font-size:11.5px;color:#6a7686;margin-top:1px}
+  .rs-bl{font-size:12.5px;color:#54606c;margin-top:7px;line-height:1.35}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
+  @media(max-width:520px){.pgrid{grid-template-columns:1fr 1fr}}
+  .ptile{border-radius:11px;overflow:hidden;border:1px solid var(--line,#e3e9f0);background:#fff}
+  .ptile .img{height:78px;display:flex;align-items:flex-end;padding:7px;color:#fff}
+  .ptile .img svg{opacity:.85}
+  .ptile .cap{padding:8px 9px}
+  .ptile .cap b{font-size:12.5px;display:block}
+  .ptile .cap span{font-size:11px;color:#6a7686}
+  .invrow,.docrow{display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid var(--line,#eef2f7)}
+  .invrow:first-of-type,.docrow:first-of-type{border-top:0}
+  .invrow .amt{margin-left:auto;font-weight:800}
+  .tag{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:20px}
+  .tag.ok{background:#e8f7f0;color:#137a55}.tag.due{background:#fff3df;color:#a8690a}.tag.up{background:#eef2f7;color:#76828f}
+  .docrow .di{flex:none;color:var(--accent,#0b2b40)}
+  .docrow .dn{font-weight:600;font-size:14px}.docrow .dk{font-size:11px;color:#6a7686}
+  .mini{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;padding:8px 13px;border-radius:9px;text-decoration:none;cursor:pointer;border:1.5px solid var(--accent,#0b2b40);color:var(--accent,#0b2b40);background:#fff;margin-left:auto}
+  .mini.solid{background:var(--accent,#0b2b40);color:#fff}
+  .uploadbox{margin-top:12px;border:1.6px dashed #c7d0da;border-radius:12px;padding:16px;text-align:center;color:#6a7686;font-size:13px}
+  #demoToast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#0b2b40;color:#fff;padding:12px 18px;border-radius:11px;font-size:13.5px;font-weight:600;box-shadow:0 8px 26px rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:.25s;max-width:88%;z-index:60}
+  #demoToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
@@ -210,7 +242,7 @@
     </div>
     <div class="asc-cta">
       {% if j._balance and j._balance > 0 %}<a class="asc-btn primary" href="#value">{{ pic('card',16) }} Pay balance · {{ money(j._balance) }}</a>{% endif %}
-      <a class="asc-btn" href="#value">{{ pic('camera',16) }} Today's photos</a>
+      <a class="asc-btn" href="#photos">{{ pic('camera',16) }} Today's photos</a>
       {% if company.phone %}<a class="asc-btn" href="tel:{{ company.phone }}">{{ pic('phone',16) }} Call {{ (j.rep or 'us').split(' ')[0] }}</a>{% endif %}
     </div>
   </div>
@@ -224,6 +256,87 @@
     </div>
     <div style="font-size:20px;color:var(--accent)">›</div>
   </a>
+
+  <!-- ROOF SCHOOL -->
+  <div class="card" id="learn">
+    <div class="sec-h"><div class="h">{{ pic('cap',18) }} Roof School</div><span class="badge">Homeowner education</span></div>
+    <div class="muted" style="font-size:13px">Know your roof before your inspection — systems, lifespans, and what Florida code requires.</div>
+    <div class="rs-grid">
+      {% for e in roof_edu %}
+      <div class="rs-tile">
+        <div class="rs-top"><span class="rs-sw" style="background:{{ e.hex }}"></span>
+          <div><div class="rs-nm">{{ e.name }}</div><div class="rs-meta">{{ e.life }} · {{ e.cost }}</div></div></div>
+        <div class="rs-bl">{{ e.blurb }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <a class="btn asc-btn" style="margin-top:14px;display:inline-flex" onclick="demoToast('Roof School — take the 2-minute tour and the Roof IQ quiz. (This is a demo.)')">{{ pic('cap',16) }} Start Roof School &amp; test your Roof IQ →</a>
+  </div>
+
+  <!-- HOA LUNCH & LEARN — invite / schedule -->
+  <div class="card" style="background:linear-gradient(125deg,#eef9f0,#fff);border-color:#cdeccf" id="hoa">
+    <div class="sec-h"><div class="h">{{ pic('food',18) }} HOA board or community?</div><span class="badge">Lunch &amp; Learn</span></div>
+    <div class="muted" style="font-size:13.5px">We'll bring lunch and host a Q&amp;A for your residents or board — and bring the manufacturer's reps if a specific tile/color is required.</div>
+    <form onsubmit="event.preventDefault();demoToast('Request sent! Your project contact will confirm a date. (This is a demo.)')" style="margin-top:12px;display:grid;gap:9px">
+      <input placeholder="Community / HOA name" style="padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px">
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <input type="date" style="flex:1;min-width:150px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px">
+        <input placeholder="# attendees" style="flex:1;min-width:120px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px">
+      </div>
+      <button class="btn asc-btn" type="submit" style="justify-content:center">{{ pic('food',16) }} Request / schedule a Lunch &amp; Learn</button>
+    </form>
+  </div>
+
+  <!-- SITECAM PHOTO FEED (integration) -->
+  <div class="card" id="photos">
+    <div class="sec-h"><div class="h">{{ pic('camera',18) }} Live job photos</div><span class="badge">{{ pic('camera',12) }} SiteCam integration</span></div>
+    <div class="muted" style="font-size:13px">Your crew's photos post here automatically as the job moves — straight from the field via SiteCam.</div>
+    <div class="pgrid">
+      {% for p in demo_photos %}
+      <div class="ptile">
+        <div class="img" style="background:linear-gradient(135deg,{{ p.hex }},{{ p.hex }}cc)">{{ pic('camera',18) }}</div>
+        <div class="cap"><b>{{ p.cap }}</b><span>{{ p.sub }}</span></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- QUICKBOOKS BILLING (integration) -->
+  <div class="card" id="billing">
+    <div class="sec-h"><div class="h">{{ pic('card',18) }} Invoices &amp; payments</div><span class="badge">QuickBooks integration</span></div>
+    <div class="muted" style="font-size:13px">Draws and payments sync live with QuickBooks — pay online in one tap.</div>
+    {% for inv in demo_invoices %}
+    <div class="invrow">
+      <span class="tag {{ 'ok' if inv.paid else ('due' if inv.status=='Due now' else 'up') }}">{{ inv.status }}</span>
+      <span>{{ inv.label }}</span>
+      <span class="amt">{{ inv.amount }}</span>
+    </div>
+    {% endfor %}
+    <a class="btn asc-btn" style="margin-top:14px;display:inline-flex" onclick="demoToast('Opens your QuickBooks payment link to pay the balance. (This is a demo.)')">{{ pic('card',16) }} Pay balance · $9,920 →</a>
+  </div>
+
+  <!-- DOCUMENTS — upload & sign -->
+  <div class="card" id="docs">
+    <div class="sec-h"><div class="h">{{ pic('doc',18) }} Documents — upload &amp; sign</div><span class="badge">E-signature</span></div>
+    <div class="muted" style="font-size:13px">Review, e-sign, and download everything in one place — and upload anything we ask for.</div>
+    {% for dc in demo_docs %}
+    <div class="docrow">
+      <span class="di">{{ pic('doc',18) }}</span>
+      <div style="min-width:0"><div class="dn">{{ dc.name }}</div><div class="dk">{{ dc.kind }}</div></div>
+      {% if dc.status=='signed' %}<span class="mini" style="border-color:#1f9d6b;color:#1f9d6b;cursor:default">{{ pic('check',14) }} Signed</span>
+      {% elif dc.status=='sign' %}<a class="mini solid" onclick="demoToast('Draw your signature and submit — the office is notified instantly. (This is a demo.)')">{{ pic('pencil',14) }} Sign now</a>
+      {% else %}<a class="mini" onclick="demoToast('Downloads your document. (This is a demo.)')">{{ pic('download',14) }} Download</a>{% endif %}
+    </div>
+    {% endfor %}
+    <div class="uploadbox" onclick="demoToast('Pick a file to upload — HOA approval, insurance, photos, anything. (This is a demo.)')">
+      {{ pic('doc',18) }} <b style="color:#3a4753">Upload a document</b> — HOA approval, insurance, etc.
+    </div>
+  </div>
+
+  <div id="demoToast"></div>
+  <script>
+  (function(){var t=document.getElementById('demoToast'),to;window.demoToast=function(m){t.textContent=m;t.classList.add('show');clearTimeout(to);to=setTimeout(function(){t.classList.remove('show');},3200);};})();
+  </script>
 
   <!-- PROJECT UPDATES FEED -->
   {% if updates %}

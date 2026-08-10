@@ -317,12 +317,34 @@ def portal_view(slug):
     phase = j["_phase"]
     value_steps, value_done = _value_steps(phase)
     link = url_for("demo.portal", slug=slug, _external=True)
+    # Synthetic showcase data so the demo demonstrates the SiteCam feed, QuickBooks
+    # billing, the document center + e-sign, and Roof School — no real records touched.
+    demo_photos = [
+        {"cap": "Tear-off complete", "sub": "Old roof removed, deck exposed", "hex": "#6b7280"},
+        {"cap": "Deck re-nail", "sub": "Every sheet re-nailed to code", "hex": "#8a6e4b"},
+        {"cap": "Peel-&-stick underlayment", "sub": "Secondary water barrier down", "hex": "#1f6f8b"},
+        {"cap": "Shingles going on", "sub": "6-nail high-wind pattern", "hex": "#374151"},
+        {"cap": "Ridge vent + caps", "sub": "Attic ventilation installed", "hex": "#4b5563"},
+        {"cap": "Final walkthrough", "sub": "Magnet nail-sweep done", "hex": "#2c4733"},
+    ]
+    demo_invoices = [
+        {"label": "Deposit (draw 1)", "amount": "$7,440", "status": "Paid", "paid": True},
+        {"label": "Materials draw", "amount": "$9,920", "status": "Due now", "paid": False},
+        {"label": "Completion draw", "amount": "$7,440", "status": "Upcoming", "paid": False},
+    ]
+    demo_docs = [
+        {"name": "Roofing Agreement", "kind": "Contract", "status": "signed"},
+        {"name": "Notice of Commencement", "kind": "NOC", "status": "sign"},
+        {"name": "Palm Beach County Permit", "kind": "Permit", "status": "sign"},
+        {"name": "25-Year Workmanship Warranty", "kind": "Warranty", "status": "ready"},
+    ]
     return render_template(
         "demo_portal.html", slug=slug, company=company, j=j,
         phases=portal.CUSTOMER_PHASES, checklist=_checklist(phase),
         value_steps=value_steps, value_done=value_done, value_total=len(value_steps),
         updates=_sample_updates(phase), referral=_referral_ctx(d, link),
-        demo_meta=d)
+        roof_edu=portal.ROOF_EDU, demo_photos=demo_photos,
+        demo_invoices=demo_invoices, demo_docs=demo_docs, demo_meta=d)
 
 
 @bp.route("/demo/<slug>/design")
