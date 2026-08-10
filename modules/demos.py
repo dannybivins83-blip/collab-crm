@@ -94,6 +94,35 @@ DEMO_SLUG = os.environ.get("CRM_DEMO_SLUG", "roof-portal")
 # this is a throwaway sales demo, never persisted).
 _REF_STATE = {}
 
+
+def _ensure_default_demo():
+    """Self-heal the default sales demo (the one wired to the demo domain) so its
+    branding matches config on every deploy. Env-driven so it stays white-label:
+    CRM_DEMO_SLUG picks the row, CRM_DEMO_SEED_NAME the display name. Creates it if
+    missing; refreshes branding ONLY while it still carries the old placeholder name
+    (never clobbers an intentionally-edited demo)."""
+    slug = (os.environ.get("CRM_DEMO_SLUG") or "roof-portal").strip()
+    if not slug:
+        return
+    name = (os.environ.get("CRM_DEMO_SEED_NAME") or "Summit Roofing Co.").strip()
+    brand = {"company_name": name,
+             "tagline": "Roofs done right — on time, every time.",
+             "website": "https://summitroofingco.com", "phone": "(555) 018-2440",
+             "color_masthead": "#0B2B40", "color_primary": "#1F8A9C",
+             "color_accent": "#E0A338", "sample_system": "shingle"}
+    try:
+        rows = db.all_rows("demos", "slug=?", (slug,))
+        if rows:
+            if (rows[0].get("company_name") or "") in ("", "Roof Portal", "Your Roofing Co."):
+                db.update("demos", rows[0]["id"], **brand)
+        else:
+            db.insert("demos", dict(brand, slug=slug, created=db.now(), created_by="seed"))
+    except Exception:
+        pass
+
+
+_ensure_default_demo()
+
 # A sensible default brand if a field is left blank (keeps the demo looking finished).
 _DEF_MASTHEAD = "#24476C"
 _DEF_PRIMARY = "#4680BF"
