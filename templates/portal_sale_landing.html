@@ -50,7 +50,7 @@
       <a href="{{ demo_url }}" class="btn-line" style="font-weight: 500; font-size: 20px; padding: 16px 28px; border-radius: 7px; white-space: nowrap;">See the live product</a>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 1px; background: rgba(233,238,247,0.14); border: 1px solid rgba(233,238,247,0.14); border-radius: 10px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%),1fr)); gap: 1px; background: rgba(233,238,247,0.14); border: 1px solid rgba(233,238,247,0.14); border-radius: 10px; overflow: hidden;">
       <div style="background: #16223b; padding: 28px;">
         <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.5); margin: 0 0 10px;">Asking</p>
         <p style="font-size: 32px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.02em;">$25,000</p>
@@ -76,7 +76,7 @@
 
       <p style="margin: 0 0 56px;"><a href="{{ demo_url }}" style="font-weight: 600; font-size: 20px; color: oklch(0.55 0.13 240);">Open the live demo →</a></p>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 32px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%),1fr)); gap: 32px;">
         <div>
           <p style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 14px;">Step 1</p>
           <h3 style="font-size: 24px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">You send one link</h3>
@@ -105,7 +105,7 @@
     <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 18px;">What's inside the portal</h2>
     <p style="font-size: 21.5px; line-height: 1.55; max-width: 720px; margin: 0 0 56px; color: rgba(233,238,247,0.7);">Every screen below already exists and is white-labeled per company — logo, colors and company name.</p>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); gap: 1px; background: rgba(233,238,247,0.14); border: 1px solid rgba(233,238,247,0.14); border-radius: 12px; overflow: hidden; margin-bottom: 64px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%),1fr)); gap: 1px; background: rgba(233,238,247,0.14); border: 1px solid rgba(233,238,247,0.14); border-radius: 12px; overflow: hidden; margin-bottom: 64px;">
       <div style="background: #16223b; padding: 32px;">
         <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Live status</p>
         <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Six-step milestone tracker</h3>
@@ -168,7 +168,7 @@
       </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px,1fr)); gap: 28px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%),1fr)); gap: 28px;">
       <figure style="margin: 0;">
         <img src="{{ url_for('static', filename='portal_sale/portal-checklist.png') }}" alt="Everything we're doing for you — 15 of 23 tasks done" style="display: block; width: 100%; height: auto; border: 1px solid rgba(233,238,247,0.16); border-radius: 10px;" />
         <figcaption style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; margin-top: 12px; color: rgba(233,238,247,0.55);">23 tasks, tracked in the open</figcaption>
@@ -195,7 +195,7 @@
   <section id="benefits" style="background: #f6f5f2; color: #1b2130; padding: 96px 40px;">
     <div style="max-width: 1180px; margin: 0 auto;">
       <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 56px;">Who it pays off for</h2>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px,1fr)); gap: 28px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%),1fr)); gap: 28px;">
         <div style="background: #ffffff; border: 1px solid rgba(27,33,48,0.1); border-radius: 12px; padding: 38px;">
           <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 22px;">For the homeowner</p>
           <ul style="list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; font-size: 19px; line-height: 1.5; color: rgba(27,33,48,0.82);">
@@ -259,7 +259,7 @@
       </div>
     </div>
 
-    <div style="margin-top: 32px; border: 1px solid oklch(0.5 0.1 240); border-radius: 12px; padding: 34px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 28px; align-items: center;">
+    <div style="margin-top: 32px; border: 1px solid oklch(0.5 0.1 240); border-radius: 12px; padding: 34px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%),1fr)); gap: 28px; align-items: center;">
       <div>
         <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.55); margin: 0 0 10px;">You keep</p>
         <p style="font-size: 44px; font-weight: 800; letter-spacing: -0.03em; margin: 0; color: oklch(0.85 0.11 240);">$39,496</p>
@@ -272,7 +272,7 @@
     <div style="max-width: 1180px; margin: 0 auto;">
       <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; max-width: 900px; margin: 0 0 56px; text-wrap: pretty;">Buy the name and the product together. Nothing to build, nothing to rebrand around.</h2>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px,1fr)); gap: 28px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%),1fr)); gap: 28px;">
         <div style="background: #ffffff; border: 1px solid rgba(27,33,48,0.1); border-radius: 12px; padding: 38px;">
           <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 22px;">01 — The domain</p>
           <h3 style="font-size: 31px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 14px;">myroofportal.com</h3>
@@ -315,7 +315,7 @@
   </section>
 
   <section id="terms" style="max-width: 1180px; margin: 0 auto; padding: 96px 40px;">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px,1fr)); gap: 56px; align-items: start;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%),1fr)); gap: 56px; align-items: start;">
       <div>
         <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 18px;">What transfers</h2>
         <p style="font-size: 21px; line-height: 1.6; margin: 0 0 28px; color: rgba(233,238,247,0.7);">Everything needed to run it without me. Escrow welcome, buyer's choice of service.</p>
@@ -335,7 +335,7 @@
   </section>
 
   <section id="offer" style="max-width: 1180px; margin: 0 auto; padding: 40px 40px 40px;">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px,1fr)); gap: 56px; align-items: start;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%),1fr)); gap: 56px; align-items: start;">
       <div>
         <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 18px;">Make an offer</h2>
         <p style="font-size: 21.5px; line-height: 1.6; margin: 0 0 32px; color: rgba(233,238,247,0.72); max-width: 460px;">Serious inquiries only. Tell me your number and how you plan to use it, and I'll come back the same day.</p>
@@ -360,7 +360,7 @@
           <label style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.55);">Name</label>
           <input type="text" name="name" required placeholder="Your name" style="font-family: 'Public Sans', sans-serif; font-size: 18.5px; color: #e9eef7; background: rgba(233,238,247,0.06); border: 1px solid rgba(233,238,247,0.16); border-radius: 6px; padding: 13px 14px; outline: none;" />
         </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 18px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%),1fr)); gap: 18px;">
           <div style="display: grid; gap: 8px;">
             <label style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.55);">Email</label>
             <input type="email" name="email" required placeholder="you@company.com" style="font-family: 'Public Sans', sans-serif; font-size: 18.5px; color: #e9eef7; background: rgba(233,238,247,0.06); border: 1px solid rgba(233,238,247,0.16); border-radius: 6px; padding: 13px 14px; outline: none; width: 100%;" />
