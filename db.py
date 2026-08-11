@@ -935,6 +935,8 @@ TABLE_ALLOWLIST = {
     "sequence_step_fires",
     # Contractor leads captured by the public sales landing page (modules/demos.py).
     "portal_leads",
+    # Purchase offers from the domain+software for-sale landing (modules/demos.py).
+    "portal_offers",
 }
 
 _SAFE_COL_RE = _re.compile(r'^[a-zA-Z_][a-zA-Z0-9_.]*$')

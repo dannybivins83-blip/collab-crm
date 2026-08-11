@@ -50,6 +50,15 @@ try:
         source_host TEXT)""")
 except Exception:
     pass
+# Purchase offers captured by the "domain + software for sale" landing page
+# (myroofportal.com root — the page that replaced the license-sales landing).
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS portal_offers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT, name TEXT, email TEXT, offer TEXT, message TEXT,
+        source_host TEXT)""")
+except Exception:
+    pass
 db._COLCACHE.clear()
 
 # Canonical product-demo brand — a generic, believable roofing company so the public
@@ -403,11 +412,40 @@ def _on_demo_host():
 
 @bp.route("/portal-sales", endpoint="landing")
 def landing_view():
+    """Domain + software FOR-SALE page (replaced the license-sales landing on
+    2026-08-11 — the old page stays reachable at /portal-sales/licensing)."""
+    return render_template(
+        "portal_sale_landing.html",
+        demo_url="/demo/%s" % DEMO_SLUG,
+        # Keep form + links relative so the visitor's URL stays myroofportal.com.
+        offer_action=url_for("demo.landing_offer"),
+        thanks=(request.args.get("thanks") == "1"),
+        err=(request.args.get("err") == "1"))
+
+
+@bp.route("/portal-sales/offer", methods=["POST"], endpoint="landing_offer")
+def landing_offer():
+    f = request.form
+    name = (f.get("name") or "").strip()[:120]
+    email = (f.get("email") or "").strip()[:200]
+    offer = (f.get("offer") or "").strip()[:60]
+    message = (f.get("message") or "").strip()[:2000]
+    base = "/" if _on_demo_host() else url_for("demo.landing")
+    if not (name and email and offer):
+        return redirect(base + "?err=1#offer")
+    db.insert("portal_offers", {
+        "created_at": db.now(), "name": name, "email": email,
+        "offer": offer, "message": message,
+        "source_host": (request.host or "")[:120]})
+    return redirect(base + "?thanks=1#offer")
+
+
+@bp.route("/portal-sales/licensing", endpoint="landing_licensing")
+def landing_licensing_view():
+    """The previous license-sales landing page, kept reachable for reference."""
     return render_template(
         "portal_landing.html",
         demo_url="/demo/%s" % DEMO_SLUG,
-        # Keep form + links relative to "/" when we're on the dedicated domain
-        # so the visitor's URL stays myroofportal.com.
         lead_action=url_for("demo.landing_lead"),
         thanks=(request.args.get("thanks") == "1"),
         err=(request.args.get("err") == "1"))
@@ -420,7 +458,8 @@ def landing_lead():
     company = (f.get("company") or "").strip()[:160]
     email = (f.get("email") or "").strip()[:200]
     phone = (f.get("phone") or "").strip()[:40]
-    base = "/" if _on_demo_host() else url_for("demo.landing")
+    # The license page (the only one carrying this form) lives at /licensing now.
+    base = url_for("demo.landing_licensing")
     # Require a name plus at least one way to reach them.
     if not name or not (email or phone):
         return redirect(base + "?err=1#get-started")
