@@ -344,7 +344,9 @@ def portal_view(slug):
         value_steps=value_steps, value_done=value_done, value_total=len(value_steps),
         updates=_sample_updates(phase), referral=_referral_ctx(d, link),
         roof_edu=portal.ROOF_EDU, demo_photos=demo_photos,
-        demo_invoices=demo_invoices, demo_docs=demo_docs, demo_meta=d)
+        demo_invoices=demo_invoices, demo_docs=demo_docs,
+        demo_sitecam_url=(d.get("sitecam_url") or os.environ.get("CRM_DEMO_SITECAM_URL") or "").strip(),
+        demo_meta=d)
 
 
 @bp.route("/demo/<slug>/design")
