@@ -45,6 +45,7 @@
   .demobar{background:color-mix(in srgb, var(--navy) 76%, #000);padding:12px 40px;text-align:center;
     font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:rgba(233,238,247,.7)}
   .demobar b{color:var(--amber);font-weight:500}
+  @media(max-width:640px){.demobar{padding:10px 16px;font-size:11px}}
   header{background:var(--navy);color:var(--on-navy)}
   .hd{padding-top:22px;padding-bottom:22px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
   .hd .nm{display:flex;align-items:center;gap:14px;font-size:24px;font-weight:800;letter-spacing:-.02em}
@@ -54,13 +55,13 @@
   /* hero */
   .hero{padding-top:56px}
   .hero .addr{font-family:'IBM Plex Mono',monospace;font-size:13.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin:0 0 18px}
-  .hero h1{font-size:clamp(38px,5vw,56px);font-weight:800;letter-spacing:-.035em;line-height:1.02;margin:0 0 14px}
-  .hero .sub{font-size:21px;line-height:1.5;margin:0 0 40px;color:rgba(27,33,48,.68)}
+  .hero h1{font-size:clamp(30px,8vw,56px);font-weight:800;letter-spacing:-.035em;line-height:1.02;margin:0 0 14px}
+  .hero .sub{font-size:clamp(17px,4.5vw,21px);line-height:1.5;margin:0 0 40px;color:rgba(27,33,48,.68)}
   .live{padding:36px}
   @media(max-width:640px){.live{padding:24px}}
   .live .lk{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber-deep);margin:0 0 16px}
-  .live h2{font-size:34px;font-weight:800;letter-spacing:-.025em;margin:0 0 10px}
-  .live .ls{font-size:18.5px;margin:0 0 40px;color:var(--mut2)}
+  .live h2{font-size:clamp(24px,5.5vw,34px);font-weight:800;letter-spacing:-.025em;margin:0 0 10px}
+  .live .ls{font-size:clamp(15.5px,4vw,18.5px);margin:0 0 40px;color:var(--mut2)}
   /* six-step tracker */
   .trk{position:relative;margin-bottom:40px}
   .trk .rail,.trk .fill{position:absolute;top:19px;height:2px}
@@ -75,23 +76,41 @@
   .trk .todo .lbl{color:rgba(27,33,48,.5)}
   .trk .st{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin:0}
   .trk .done .st{color:var(--blue-deep)} .trk .cur .st{color:var(--amber-deep)} .trk .todo .st{color:rgba(27,33,48,.35)}
-  @media(max-width:640px){.trk .lbl{font-size:12px}.trk .dot{width:32px;height:32px;font-size:14px}
-    .trk .rail,.trk .fill{top:15px}.trk .st{font-size:10px}}
+  /* mobile tracker: vertical steps (dot rail on the left) — the 6-across grid
+     can't fit 375px without cramping, so it becomes a clean vertical list */
+  @media(max-width:700px){
+    .trk{margin-bottom:28px}
+    .trk .rail,.trk .fill{display:none}
+    .trk .steps{grid-template-columns:1fr;gap:0;text-align:left}
+    .trk .steps>div{display:grid;grid-template-columns:40px minmax(0,1fr);column-gap:16px;align-items:center;position:relative;padding-bottom:22px}
+    .trk .steps>div:last-child{padding-bottom:0}
+    .trk .steps>div:not(:last-child):after{content:"";position:absolute;left:19px;top:44px;bottom:4px;width:2px;background:var(--line2)}
+    .trk .steps>div.done:not(:last-child):after{background:var(--blue)}
+    .trk .dot{grid-row:1/span 2;grid-column:1;margin:0}
+    .trk .lbl{grid-column:2;margin:0;font-size:16px}
+    .trk .st{grid-column:2;margin:2px 0 0}
+  }
   .cta-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:14px}
   .cta{display:block;font-size:18.5px;font-weight:600;padding:18px 22px;border-radius:8px;text-align:center;cursor:pointer}
   .cta.primary{background:var(--navy);color:var(--on-navy)} .cta.primary:hover{background:var(--navy-hover);color:var(--on-navy)}
   .cta.ghost{border:1px solid rgba(27,33,48,.18);color:var(--ink)} .cta.ghost:hover{border-color:rgba(27,33,48,.45);color:var(--ink)}
   /* design banner */
-  .design-cta{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-top:20px;
+  .design-cta{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-top:24px;
     background:var(--navy);border-radius:12px;padding:28px 32px;color:var(--on-navy)}
+  @media(max-width:640px){.design-cta{padding:22px}}
   .design-cta:hover{background:var(--navy-hover);color:var(--on-navy)}
   .design-cta .t{display:block;font-size:23px;font-weight:700;letter-spacing:-.015em;margin-bottom:6px}
   .design-cta .s{display:block;font-size:18px;color:rgba(233,238,247,.7)}
   .design-cta .ar{font-size:24px;color:var(--blue-lt)}
-  /* two-column layout */
-  .cols{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;padding-top:40px;padding-bottom:40px}
-  .col-main{flex:1 1 560px;min-width:0;display:grid;gap:24px}
-  .col-side{flex:1 1 300px;min-width:0;display:grid;gap:24px}
+  /* page grid — single column; sidebar rail (sticky) from 1024px. The rail is
+     its own grid column so main sections always fill the main column at one
+     consistent width and never render beside an empty gutter. */
+  .cols{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start;padding-top:40px;padding-bottom:40px}
+  .col-main,.col-side{min-width:0;display:grid;gap:24px}
+  @media(min-width:1024px){
+    .cols{grid-template-columns:minmax(0,1fr) 360px}
+    .col-side{position:sticky;top:16px}
+  }
   /* proposal stats */
   .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line2);border:1px solid var(--line2);border-radius:10px;overflow:hidden}
   .stat{background:#fff;padding:22px}
@@ -101,8 +120,8 @@
   @media(max-width:520px){.stats{grid-template-columns:1fr}.stat{padding:16px 22px}}
   /* list rows (invoices / docs) */
   .lrows{display:grid;gap:0;border-top:1px solid var(--line)}
-  .lrow{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0;border-bottom:1px solid var(--line)}
-  .lrow .lft{display:flex;align-items:center;gap:14px;font-size:18.5px}
+  .lrow{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;padding:18px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .lrow .lft{display:flex;align-items:center;gap:14px;font-size:18.5px;flex-wrap:wrap;min-width:0}
   .lrow .amt{font-size:19px;font-weight:600}
   .lrow.dim,.lrow.dim .amt{color:rgba(27,33,48,.6)}
   .chip{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;border-radius:99px;padding:4px 10px;white-space:nowrap}
@@ -145,6 +164,7 @@
   .rd ul li{display:flex;gap:12px}
   .rd ul li .b{color:rgba(27,33,48,.35)}
   .rd.here{padding:26px 28px;border-radius:10px;background:var(--paper);border:1px solid color-mix(in srgb, var(--amber) 45%, #fff);border-top:1px solid color-mix(in srgb, var(--amber) 45%, #fff);margin:8px 0}
+  @media(max-width:640px){.rd.here{padding:20px 16px}}
   .rd.here .yk{color:var(--amber-deep)}
   .rd.here ul{gap:10px;color:rgba(27,33,48,.82)}
   .youare{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber-deep);margin-left:8px}
@@ -437,37 +457,6 @@
       </ul>
       {% if referral.next_tier %}<p class="refgoal">{{ referral.next_tier.n - referral.signed }} more signed referral{{ 's' if (referral.next_tier.n - referral.signed) > 1 }} to win {{ referral.next_tier.reward }}.</p>{% endif %}
     </div>
-  </div>
-
-  <div class="col-side">
-
-    <!-- PROJECT CONTACT -->
-    <div id="contact" class="card">
-      <p class="k" style="margin-bottom:22px">Your project contact</p>
-      <div class="contact">
-        <div class="av">{{ (j.rep or company.name)[:1]|upper }}</div>
-        <div>
-          <p class="cn">{{ j.rep }}</p>
-          <p class="cc">{{ company.name }}</p>
-        </div>
-      </div>
-      <div class="cbtns">
-        {% if company.phone %}<a href="tel:{{ company.phone }}">Call</a>{% endif %}
-        {% if company.email %}<a href="mailto:{{ company.email }}">Email</a>{% endif %}
-      </div>
-    </div>
-
-    <!-- PROJECT UPDATES -->
-    {% if updates %}
-    <div class="card">
-      <p class="k" style="margin-bottom:20px">Your project updates</p>
-      <ul class="updl">
-        {% for u in updates %}
-        <li><span class="{{ 'd-amber' if loop.first else 'd-blue' }}">◉</span><span><b>{{ u.title }}</b> <span class="um">— milestone reached</span></span></li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
 
     <!-- ROOF SCHOOL -->
     <div id="design" class="card">
@@ -504,6 +493,37 @@
         <button type="submit">Request a Lunch &amp; Learn</button>
       </form>
     </div>
+  </div>
+
+  <div class="col-side">
+
+    <!-- PROJECT CONTACT -->
+    <div id="contact" class="card">
+      <p class="k" style="margin-bottom:22px">Your project contact</p>
+      <div class="contact">
+        <div class="av">{{ (j.rep or company.name)[:1]|upper }}</div>
+        <div>
+          <p class="cn">{{ j.rep }}</p>
+          <p class="cc">{{ company.name }}</p>
+        </div>
+      </div>
+      <div class="cbtns">
+        {% if company.phone %}<a href="tel:{{ company.phone }}">Call</a>{% endif %}
+        {% if company.email %}<a href="mailto:{{ company.email }}">Email</a>{% endif %}
+      </div>
+    </div>
+
+    <!-- PROJECT UPDATES -->
+    {% if updates %}
+    <div class="card">
+      <p class="k" style="margin-bottom:20px">Your project updates</p>
+      <ul class="updl">
+        {% for u in updates %}
+        <li><span class="{{ 'd-amber' if loop.first else 'd-blue' }}">◉</span><span><b>{{ u.title }}</b> <span class="um">— milestone reached</span></span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
   </div>
 </section>
 
