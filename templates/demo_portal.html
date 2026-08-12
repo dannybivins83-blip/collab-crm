@@ -28,6 +28,9 @@
     --mut:rgba(27,33,48,0.5); --mut2:rgba(27,33,48,0.62); --dim:rgba(27,33,48,0.45);
   }
   *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  /* in-page anchor targets stop clear of the viewport edge (and of the sticky rail) */
+  #school,#photos,#payments,#contact{scroll-margin-top:16px}
   body{margin:0;background:var(--paper);color:var(--ink);
     font-family:'Public Sans',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
   a{color:var(--blue-deep);text-decoration:none}
@@ -283,10 +286,13 @@
     </div>
   </div>
 
-  <a class="design-cta" href="{{ url_for('demo.design', slug=slug) }}">
+  {# Banner points at the on-page Roof School section. The Design Studio
+     (demo.design) is intentionally UNLINKED here per owner directive — the
+     route + template stay live and reachable by direct URL. #}
+  <a class="design-cta" href="#school">
     <span>
-      <span class="t">Design your roof &amp; pick your colors</span>
-      <span class="s">Mock up your roof, compare colors &amp; options, request samples</span>
+      <span class="t">Roof School</span>
+      <span class="s">Learn what goes into your roof — materials, lifespans and what drives cost</span>
     </span>
     <span class="ar">→</span>
   </a>
@@ -399,7 +405,7 @@
     </div>
 
     <!-- ROOF SCHOOL -->
-    <div id="design" class="card">
+    <div id="school" class="card">
       <div class="card-head">
         <p class="k">Roof School</p>
         <p class="k-blue">Education</p>
