@@ -143,14 +143,6 @@
   .wide-btn:hover{background:var(--navy-hover)}
   .wide-btn.ghost{background:transparent;color:var(--ink);font-size:18px;border:1px solid rgba(27,33,48,.18);padding:16px;margin-top:22px}
   .wide-btn.ghost:hover{border-color:rgba(27,33,48,.45)}
-  /* value checklist */
-  .vprog{height:8px;border-radius:99px;background:rgba(27,33,48,.1);overflow:hidden;margin-bottom:28px}
-  .vprog span{display:block;height:100%;background:var(--blue);transition:width .7s ease}
-  .vlist{list-style:none;margin:0;padding:0;display:grid;gap:14px;font-size:18px;line-height:1.45}
-  .vlist li{display:flex;gap:14px}
-  .vlist .done{color:var(--blue-deep)} .vlist .now{color:var(--amber-deep)}
-  .vlist li.todo{color:var(--dim)}
-  .vnow{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber-deep);white-space:nowrap}
   /* roadmap */
   .rd{padding:24px 0;border-top:1px solid var(--line)}
   .rd-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -303,6 +295,31 @@
 <section class="wrap cols">
   <div class="col-main">
 
+    <!-- ROADMAP -->
+    <div class="card">
+      <p class="k" style="margin-bottom:24px">What to expect — your roadmap</p>
+      <div style="display:grid;gap:0">
+        {% for s in checklist %}
+        <div class="rd {{ 'here' if s.current else ('future' if not s.done else '') }}">
+          <div class="rd-head">
+            <h3>{% if s.done %}<span class="ck">✓</span>{% endif %}{{ s.name }}{% if s.current %} <span class="youare">You are here</span>{% endif %}</h3>
+            {% if s.timeframe %}<span class="tf">{{ s.timeframe }}</span>{% endif %}
+          </div>
+          <p class="desc">{{ s.desc }}</p>
+          {% if s.you %}
+          <p class="yk">{{ 'Your part — do this now' if s.current else 'Your part' }}</p>
+          <ul>
+            {% for it in s.you %}
+            <li><span class="b">{{ '☐' if s.current else '·' }}</span>{{ it }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <p class="cardnote" style="font-size:16.5px;color:rgba(27,33,48,.55)">Timeframes are typical estimates — your project contact will confirm exact dates.</p>
+    </div>
+
     <!-- PROPOSAL -->
     <div class="card">
       <div class="card-head" style="margin-bottom:20px">
@@ -358,48 +375,6 @@
       <div class="uploadbox" onclick="demoToast('Pick a file to upload — HOA approval, insurance, photos, anything. (This is a demo.)')">Upload a document — HOA approval, insurance, etc.</div>
     </div>
 
-    <!-- VALUE CHECKLIST -->
-    <div class="card">
-      <div class="card-head" style="margin-bottom:18px">
-        <p class="k">Everything we're doing for you</p>
-        <p class="k-blue">{{ value_done }}/{{ value_total }} done</p>
-      </div>
-      <div class="vprog"><span style="width:{{ (100 * value_done / value_total)|round|int if value_total else 0 }}%"></span></div>
-      <ul class="vlist">
-        {% for v in value_steps %}
-        {% if v.done %}<li><span class="done">✓</span>{{ v.text }}</li>
-        {% elif v.current %}<li style="align-items:baseline"><span class="now">◉</span><span>{{ v.text }} <span class="vnow">happening now</span></span></li>
-        {% else %}<li class="todo"><span>○</span>{{ v.text }}</li>{% endif %}
-        {% endfor %}
-      </ul>
-      <p class="cardnote">Every box is real work the {{ company.name }} team does on your project — the standard you're paying for, tracked in the open.</p>
-    </div>
-
-    <!-- ROADMAP -->
-    <div class="card">
-      <p class="k" style="margin-bottom:24px">What to expect — your roadmap</p>
-      <div style="display:grid;gap:0">
-        {% for s in checklist %}
-        <div class="rd {{ 'here' if s.current else ('future' if not s.done else '') }}">
-          <div class="rd-head">
-            <h3>{% if s.done %}<span class="ck">✓</span>{% endif %}{{ s.name }}{% if s.current %} <span class="youare">You are here</span>{% endif %}</h3>
-            {% if s.timeframe %}<span class="tf">{{ s.timeframe }}</span>{% endif %}
-          </div>
-          <p class="desc">{{ s.desc }}</p>
-          {% if s.you %}
-          <p class="yk">{{ 'Your part — do this now' if s.current else 'Your part' }}</p>
-          <ul>
-            {% for it in s.you %}
-            <li><span class="b">{{ '☐' if s.current else '·' }}</span>{{ it }}</li>
-            {% endfor %}
-          </ul>
-          {% endif %}
-        </div>
-        {% endfor %}
-      </div>
-      <p class="cardnote" style="font-size:16.5px;color:rgba(27,33,48,.55)">Timeframes are typical estimates — your project contact will confirm exact dates.</p>
-    </div>
-
     <!-- LIVE JOB PHOTOS (SiteCam integration) -->
     <div id="photos" class="card">
       <div class="card-head">
@@ -421,41 +396,6 @@
         {% endfor %}
       </div>
       {% endif %}
-    </div>
-
-    <!-- REFERRAL GAME -->
-    <div class="dark" id="refGame">
-      <div class="card-head" style="margin-bottom:24px">
-        <p class="k">Referral game — level up &amp; win</p>
-        <p class="k-blue" id="refNext">{% if referral.next_level %}{{ referral.next_level.n - referral.shares }} more to {{ referral.next_level.name }}{% else %}Max level — you're a legend!{% endif %}</p>
-      </div>
-      <div class="reflvl">
-        <span style="font-size:22px" id="refIcon">{{ referral.level.ic }}</span>
-        <span class="ln" id="refLvlName">{{ referral.level.name }}</span>
-        <span class="ls" id="refShares">{{ referral.shares }} sent</span>
-      </div>
-      <div class="refbar"><div id="refFill" style="width:{{ ((referral.shares / (referral.next_level.n if referral.next_level else referral.shares or 1)) * 100)|round|int if referral.next_level else 100 }}%"></div></div>
-      <p class="lead">Your personal invite — edit it, then send it to neighbors. Every send levels you up:</p>
-      <textarea id="refMsg" rows="3">I'm getting my roof done by {{ company.name }} and they've been great! Get a free quote → {{ referral.link }}</textarea>
-      <div class="refbtns">
-        <button type="button" class="rb solid" onclick="sendRef()">Copy &amp; send</button>
-        <a class="rb line" id="refSms" href="sms:?&body=" onclick="bumpShare()">Text it</a>
-        <button type="button" class="rb line" onclick="saveRefMsg(this)">Save my message</button>
-      </div>
-
-      <div class="card-head" style="margin-bottom:18px">
-        <p class="k">Rewards you can unlock</p>
-        <p class="mono" style="font-size:13px;color:rgba(233,238,247,.5);margin:0">{{ referral.signed }} signed so far</p>
-      </div>
-      <ul class="ladder">
-        {% for t in referral.tiers %}
-        <li class="rung{{ ' won' if t.unlocked }}">
-          <span><b>{{ t.n }} referral{{ 's' if t.n > 1 }}</b> — {{ t.reward }}</span>
-          <span class="tag">{{ 'Unlocked ✓' if t.unlocked else 'Locked' }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-      {% if referral.next_tier %}<p class="refgoal">{{ referral.next_tier.n - referral.signed }} more signed referral{{ 's' if (referral.next_tier.n - referral.signed) > 1 }} to win {{ referral.next_tier.reward }}.</p>{% endif %}
     </div>
 
     <!-- ROOF SCHOOL -->
@@ -493,6 +433,42 @@
         <button type="submit">Request a Lunch &amp; Learn</button>
       </form>
     </div>
+
+    <!-- REFERRAL GAME -->
+    <div class="dark" id="refGame">
+      <div class="card-head" style="margin-bottom:24px">
+        <p class="k">Referral game — level up &amp; win</p>
+        <p class="k-blue" id="refNext">{% if referral.next_level %}{{ referral.next_level.n - referral.shares }} more to {{ referral.next_level.name }}{% else %}Max level — you're a legend!{% endif %}</p>
+      </div>
+      <div class="reflvl">
+        <span style="font-size:22px" id="refIcon">{{ referral.level.ic }}</span>
+        <span class="ln" id="refLvlName">{{ referral.level.name }}</span>
+        <span class="ls" id="refShares">{{ referral.shares }} sent</span>
+      </div>
+      <div class="refbar"><div id="refFill" style="width:{{ ((referral.shares / (referral.next_level.n if referral.next_level else referral.shares or 1)) * 100)|round|int if referral.next_level else 100 }}%"></div></div>
+      <p class="lead">Your personal invite — edit it, then send it to neighbors. Every send levels you up:</p>
+      <textarea id="refMsg" rows="3">I'm getting my roof done by {{ company.name }} and they've been great! Get a free quote → {{ referral.link }}</textarea>
+      <div class="refbtns">
+        <button type="button" class="rb solid" onclick="sendRef()">Copy &amp; send</button>
+        <a class="rb line" id="refSms" href="sms:?&body=" onclick="bumpShare()">Text it</a>
+        <button type="button" class="rb line" onclick="saveRefMsg(this)">Save my message</button>
+      </div>
+
+      <div class="card-head" style="margin-bottom:18px">
+        <p class="k">Rewards you can unlock</p>
+        <p class="mono" style="font-size:13px;color:rgba(233,238,247,.5);margin:0">{{ referral.signed }} signed so far</p>
+      </div>
+      <ul class="ladder">
+        {% for t in referral.tiers %}
+        <li class="rung{{ ' won' if t.unlocked }}">
+          <span><b>{{ t.n }} referral{{ 's' if t.n > 1 }}</b> — {{ t.reward }}</span>
+          <span class="tag">{{ 'Unlocked ✓' if t.unlocked else 'Locked' }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% if referral.next_tier %}<p class="refgoal">{{ referral.next_tier.n - referral.signed }} more signed referral{{ 's' if (referral.next_tier.n - referral.signed) > 1 }} to win {{ referral.next_tier.reward }}.</p>{% endif %}
+    </div>
+
   </div>
 
   <div class="col-side">
