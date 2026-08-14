@@ -178,6 +178,7 @@
   @media(max-width:700px){.photos{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .pht{position:relative;border-radius:10px;overflow:hidden;background:#e8edef;
     aspect-ratio:1/1;border:1px solid var(--line)}
+  .pht img{width:100%;height:100%;object-fit:cover}
   .pht .ph-in{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
     color:#93a1a8;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:8px}
   .pht time{position:absolute;left:8px;bottom:8px;background:rgb(7 28 43/.78);color:#fff;
@@ -203,7 +204,8 @@
   .cc-contact .bd{padding:22px}
   .cperson{display:flex;align-items:center;gap:16px;margin-bottom:18px}
   .cav{width:64px;height:64px;border-radius:50%;background:var(--teal);color:#fff;flex:none;
-    display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800}
+    display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;
+    object-fit:cover}
   .cperson b{display:block;font-size:19px;font-weight:800;letter-spacing:-.01em}
   .cperson span{display:block;color:var(--slate-500);font-size:14.5px}
   .clinks{display:grid;gap:12px}
@@ -477,8 +479,13 @@
         <div class="photos">
           {% for p in demo_photos[:4] %}
           <figure class="pht" style="margin:0">
+            {% if p.img %}
+            <img src="{{ url_for('static', filename=p.img) }}" alt="{{ p.cap }} — {{ p.sub }}"
+                 width="520" height="520" loading="lazy" decoding="async">
+            {% else %}
             <div class="ph-in">{{ p.cap }}</div>
-            <time>{{ p.sub }}</time>
+            {% endif %}
+            <time>{{ p.at or p.sub }}</time>
           </figure>
           {% endfor %}
         </div>
@@ -513,7 +520,12 @@
       </div>
       <div class="bd">
         <div class="cperson">
+          {% if demo_pm_photo %}
+          <img class="cav" src="{{ url_for('static', filename=demo_pm_photo) }}"
+               alt="{{ j.rep }}, Project Manager" width="128" height="128" loading="lazy">
+          {% else %}
           <span class="cav" aria-hidden="true">{{ (j.rep or company.name)[:1]|upper }}</span>
+          {% endif %}
           <span><b>{{ j.rep }}</b><span>Project Manager</span></span>
         </div>
         <div class="clinks">

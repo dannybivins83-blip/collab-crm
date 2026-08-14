@@ -329,10 +329,14 @@ def portal_view(slug):
     # Synthetic showcase data so the demo demonstrates the SiteCam feed, QuickBooks
     # billing, the document center + e-sign, and Roof School — no real records touched.
     demo_photos = [
-        {"cap": "Tear-off complete", "sub": "Old roof removed, deck exposed", "hex": "#6b7280"},
-        {"cap": "Deck re-nail", "sub": "Every sheet re-nailed to code", "hex": "#8a6e4b"},
-        {"cap": "Peel-&-stick underlayment", "sub": "Secondary water barrier down", "hex": "#1f6f8b"},
-        {"cap": "Shingles going on", "sub": "6-nail high-wind pattern", "hex": "#374151"},
+        {"cap": "Tear-off complete", "sub": "Old roof removed, deck exposed", "hex": "#6b7280",
+         "img": "portal_demo/job-1.jpg", "at": "7:18 AM"},
+        {"cap": "Deck re-nail", "sub": "Every sheet re-nailed to code", "hex": "#8a6e4b",
+         "img": "portal_demo/job-2.jpg", "at": "9:03 AM"},
+        {"cap": "Peel-&-stick underlayment", "sub": "Secondary water barrier down", "hex": "#1f6f8b",
+         "img": "portal_demo/job-3.jpg", "at": "10:47 AM"},
+        {"cap": "Shingles going on", "sub": "6-nail high-wind pattern", "hex": "#374151",
+         "img": "portal_demo/job-4.jpg", "at": "12:15 PM"},
         {"cap": "Ridge vent + caps", "sub": "Attic ventilation installed", "hex": "#4b5563"},
         {"cap": "Final walkthrough", "sub": "Magnet nail-sweep done", "hex": "#2c4733"},
     ]
@@ -353,6 +357,7 @@ def portal_view(slug):
         value_steps=value_steps, value_done=value_done, value_total=len(value_steps),
         updates=_sample_updates(phase), referral=_referral_ctx(d, link),
         roof_edu=portal.ROOF_EDU, demo_photos=demo_photos,
+        demo_pm_photo='portal_demo/pm-headshot.jpg',
         demo_invoices=demo_invoices, demo_docs=demo_docs,
         demo_sitecam_url=(d.get("sitecam_url") or os.environ.get("CRM_DEMO_SITECAM_URL") or "").strip(),
         demo_meta=d)
