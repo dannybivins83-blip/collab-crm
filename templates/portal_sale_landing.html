@@ -88,28 +88,11 @@ h1,h2,h3{line-height:1.12;letter-spacing:-.02em;margin:0}
 .proof div{display:flex;align-items:center;gap:9px}
 .proof svg{flex:none;color:var(--gold-500)}
 
-/* device composition */
+/* hero visual — composed roof + device image from the approved mockup */
 .devices{position:relative}
-.laptop{background:#101d27;border:10px solid #1b2b36;border-radius:14px;
-  box-shadow:var(--shadow-lg);overflow:hidden}
-.laptop img{width:100%;height:auto}
-.laptop-base{height:14px;background:linear-gradient(#20323e,#16242e);
-  border-radius:0 0 16px 16px;margin:0 -10px}
-.phone{position:absolute;right:-6px;bottom:-18px;width:26%;min-width:132px;
-  background:#101d27;border:7px solid #1b2b36;border-radius:22px;
-  box-shadow:var(--shadow-lg);overflow:hidden}
-.phone img{width:100%;height:auto}
-.pricecard{position:absolute;left:-8px;bottom:-26px;background:var(--navy-900);
-  border:1px solid var(--gold-500);border-radius:var(--r-md);padding:18px 26px;
-  box-shadow:var(--shadow-lg);text-align:center;max-width:230px}
-.pricecard b{display:block;font-size:clamp(30px,4vw,42px);font-weight:800;color:var(--gold-500);
-  letter-spacing:-.02em;line-height:1.05}
-.pricecard span{display:block;font-size:13.5px;color:rgb(255 255 255/.75);margin-top:8px;line-height:1.45}
-@media(max-width:1023px){
-  .devices{margin-top:8px;padding-bottom:70px}
-  .pricecard{left:0;bottom:0;position:relative;max-width:none;margin-top:26px}
-  .phone{width:30%;bottom:36px}
-}
+.devices img{width:100%;height:auto;border-radius:var(--r-md);
+  box-shadow:var(--shadow-lg);display:block}
+@media(max-width:1023px){.devices{margin-top:4px}}
 
 /* ---------- sections ---------- */
 section{padding:88px 0}
@@ -258,20 +241,9 @@ footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
     </div>
 
     <div class="devices">
-      <div class="laptop">
-        <img src="{{ url_for('static', filename='portal_sale/portal-screenshot.png') }}"
-             alt="The homeowner portal on a laptop, showing project progress, payment status and recent job photos"
-             width="1898" height="750" fetchpriority="high">
-        <div class="laptop-base" aria-hidden="true"></div>
-      </div>
-      <div class="phone">
-        <img src="{{ url_for('static', filename='portal_sale/portal-roadmap.png') }}"
-             alt="The same portal on a phone, showing the project roadmap" width="1300" height="672" loading="lazy">
-      </div>
-      <div class="pricecard">
-        <b class="tnum">$25,000</b>
-        <span>Domain, source code,<br>branding + 1 year support</span>
-      </div>
+      <img src="{{ url_for('static', filename='portal_sale/hero-visual.jpg') }}"
+           alt="The white-label homeowner portal shown on a laptop and phone over a South Florida tile roof, with the $25,000 asking price"
+           width="2088" height="1278" fetchpriority="high" decoding="async">
     </div>
   </div>
 </div>
