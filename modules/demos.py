@@ -358,6 +358,7 @@ def portal_view(slug):
         updates=_sample_updates(phase), referral=_referral_ctx(d, link),
         roof_edu=portal.ROOF_EDU, demo_photos=demo_photos,
         demo_pm_photo='portal_demo/pm-headshot.jpg',
+        demo_logo='portal_sale/brand/summit-roofing-demo-logo.svg',
         demo_invoices=demo_invoices, demo_docs=demo_docs,
         demo_sitecam_url=(d.get("sitecam_url") or os.environ.get("CRM_DEMO_SITECAM_URL") or "").strip(),
         demo_meta=d)
