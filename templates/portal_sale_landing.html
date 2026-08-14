@@ -162,8 +162,9 @@ section{padding:88px 0}
   border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--white)}
 .steps li{display:flex;gap:18px;padding:18px 24px;border-top:1px solid var(--line);font-size:16.5px}
 .steps li:first-child{border-top:0}
-.steps span{font-weight:800;color:var(--teal-600);font-size:14px;flex:none;
+.steps li>span:first-child{font-weight:800;color:var(--teal-600);font-size:14px;flex:none;
   width:26px;padding-top:3px}
+.steps li>span+span{flex:1 1 auto;min-width:0}
 
 .faq{max-width:820px;margin:0 auto;display:grid;gap:12px}
 .faq details{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);padding:0}
