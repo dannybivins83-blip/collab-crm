@@ -39,7 +39,8 @@
   img{max-width:100%;height:auto;display:block}
   h1,h2,h3{margin:0;line-height:1.15;letter-spacing:-.02em}
   .tnum{font-variant-numeric:tabular-nums}
-  .wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 32px}
+  @media(max-width:1023px){.wrap{padding:0 20px}}
   @media(max-width:640px){.wrap{padding:0 16px}}
   :focus-visible{outline:2px solid var(--teal);outline-offset:3px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
@@ -83,7 +84,7 @@
 
   /* ---------- greeting ---------- */
   .greet{padding:34px 0 22px}
-  .greet h1{font-size:clamp(27px,5.2vw,44px);font-weight:800;margin-bottom:14px}
+  .greet h1{font-size:clamp(26px,4.4vw,40px);font-weight:800;margin-bottom:14px}
   .pill{display:inline-flex;align-items:center;gap:9px;background:var(--teal);color:#fff;
     border-radius:999px;padding:9px 18px;font-size:13.5px;font-weight:700;
     letter-spacing:.08em;text-transform:uppercase}
@@ -100,20 +101,20 @@
   .cc-side{display:grid;gap:18px;align-content:start}
 
   /* milestone */
-  .mile h2{font-size:23px;font-weight:800;margin-bottom:20px}
+  .mile h2{font-size:22px;font-weight:800;margin-bottom:20px}
   .mile h2 small{font-weight:600;font-size:17px;color:var(--slate-500);letter-spacing:0}
   .trk{position:relative;margin-bottom:22px}
-  .trk .rail,.trk .fill{position:absolute;top:19px;height:3px;border-radius:2px}
+  .trk .rail,.trk .fill{position:absolute;top:17px;height:3px;border-radius:2px}
   .trk .rail{left:8.5%;right:8.5%;background:#e4e9eb}
   .trk .fill{left:8.5%;background:var(--teal)}
   .trk .steps{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
     gap:6px;text-align:center}
-  .trk .dot{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;
-    justify-content:center;margin:0 auto 10px;font-size:16px;font-weight:700}
+  .trk .dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;margin:0 auto 9px;font-size:15px;font-weight:700}
   .trk .done .dot{background:var(--teal);color:#fff}
   .trk .cur .dot{background:var(--teal);color:#fff;box-shadow:0 0 0 4px var(--gold)}
   .trk .todo .dot{background:#eceff1;color:#9aa6ad}
-  .trk .lbl{font-size:14px;font-weight:600;margin:0}
+  .trk .lbl{font-size:13.5px;font-weight:600;margin:0}
   .trk .cur .lbl{color:var(--teal-deep);font-weight:800}
   .trk .todo .lbl{color:#8d989f}
   .trk .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -129,7 +130,7 @@
     .trk .steps>div{display:grid;grid-template-columns:40px minmax(0,1fr);column-gap:14px;
       align-items:center;position:relative;padding-bottom:16px}
     .trk .steps>div:last-child{padding-bottom:0}
-    .trk .steps>div:not(:last-child):after{content:"";position:absolute;left:19px;top:44px;
+    .trk .steps>div:not(:last-child):after{content:"";position:absolute;left:17px;top:40px;
       bottom:2px;width:3px;background:#e4e9eb;border-radius:2px}
     .trk .steps>div.done:not(:last-child):after{background:var(--teal)}
     .trk .dot{margin:0}
@@ -154,7 +155,7 @@
   /* money */
   .money-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;
     text-align:center;margin-bottom:16px}
-  .money-row .mv{font-size:clamp(19px,2.4vw,25px);font-weight:800;letter-spacing:-.02em;margin:0}
+  .money-row .mv{font-size:clamp(18px,2.2vw,24px);font-weight:800;letter-spacing:-.02em;margin:0}
   .money-row .ml{font-size:13px;color:var(--slate-500);margin:2px 0 0}
   .money-row div+div{border-left:1px solid var(--line)}
   .money-row .due .mv{color:var(--teal-deep)}
@@ -439,7 +440,7 @@
     {% if _cur and _cur[0].you %}
     <ul>
       {% for it in _cur[0].you %}
-      <li><label><input type="checkbox">{{ it }}</label></li>
+      <li><label><input type="checkbox">{{ it.split("—")[0].split(";")[0].split(",")[0].split(" away ")[0].split(" and ")[0].split(" for your ")[0].split(" so ")[0].strip() }}</label></li>
       {% endfor %}
     </ul>
     {% else %}
