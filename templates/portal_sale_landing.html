@@ -1,390 +1,549 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<!-- MyRoofPortal sales homepage — redesigned per MyRoofPortal_Redesign_Handoff (2026-08-14)
+     Spec: 03_specs/homepage-spec.md · Tokens: 04_developer/design-tokens.css
+     Offer form still POSTs to demo.landing_offer — do not change the endpoint. -->
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#16223b">
-<meta name="description" content="myroofportal.com — the exact-match domain and the white-label homeowner portal that runs on it, sold together as one asset. One transfer, one owner, live on day one.">
-<title>myroofportal.com — Domain + Software For Sale</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#071c2b">
+<title>MyRoofPortal.com for Sale | Roofing Customer Portal + Domain</title>
+<meta name="description" content="Acquire MyRoofPortal.com and a complete white-label homeowner roofing portal with project tracking, payments, documents, photos and referrals.">
+<link rel="canonical" href="https://myroofportal.com/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
 <style>
-  body { margin: 0; background: #16223b; }
-  * { box-sizing: border-box; }
-  a { color: oklch(0.78 0.13 240); text-decoration: none; }
-  a:hover { color: oklch(0.88 0.09 240); }
-  /* Hover states (converted from the design tool's style-hover attributes) */
-  a.navlink { color: rgba(233,238,247,0.66); }
-  a.navlink:hover { color: #e9eef7; }
-  .btn-fill { background: oklch(0.78 0.13 240); color: #16223b; }
-  .btn-fill:hover { background: oklch(0.86 0.1 240); color: #16223b; }
-  a.btn-line { border: 1px solid rgba(233,238,247,0.25); color: #e9eef7; }
-  a.btn-line:hover { border-color: rgba(233,238,247,0.55); color: #e9eef7; }
+:root{
+  --navy-950:#071c2b; --navy-900:#0d2b3a; --navy-800:#123a4c;
+  --teal-600:#14858a; --teal-500:#1e9ba0; --sky-500:#178fe5;
+  --gold-500:#d7a438; --gold-100:#fff3d5;
+  --warm-50:#f7f5f0; --white:#fff;
+  --slate-700:#34454f; --slate-500:#6e7b82; --line:#d9dfe1;
+  --success:#17845b; --danger:#b8443b;
+  --content:1280px;
+  --r-sm:.5rem; --r-md:.75rem; --r-lg:1rem;
+  --shadow:0 10px 30px rgb(7 28 43/.08);
+  --shadow-lg:0 24px 60px rgb(7 28 43/.22);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important}
+}
+body{margin:0;background:var(--warm-50);color:var(--navy-950);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:var(--sky-500);text-decoration:none}
+h1,h2,h3{line-height:1.12;letter-spacing:-.02em;margin:0}
+.wrap{max-width:var(--content);margin:0 auto;padding:0 24px}
+:focus-visible{outline:2px solid var(--sky-500);outline-offset:3px}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- header ---------- */
+.hdr{position:sticky;top:0;z-index:60;background:var(--navy-950);
+  border-bottom:1px solid rgb(215 164 56/.35)}
+.hdr .wrap{display:flex;align-items:center;gap:20px;height:76px}
+.brand{font-weight:800;font-size:22px;color:#fff;letter-spacing:-.02em;white-space:nowrap}
+.brand span{color:var(--sky-500)}
+.nav{display:flex;gap:26px;margin-left:auto;font-size:13.5px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase}
+.nav a{color:rgb(255 255 255/.78)}
+.nav a:hover{color:#fff}
+.cta-gold{background:var(--gold-500);color:var(--navy-950);font-weight:700;
+  padding:13px 24px;border-radius:var(--r-sm);white-space:nowrap;font-size:16px;
+  border:0;cursor:pointer;display:inline-block}
+.cta-gold:hover{background:#e8b954}
+.navtoggle{display:none;margin-left:auto;background:transparent;border:1px solid rgb(255 255 255/.3);
+  color:#fff;border-radius:var(--r-sm);padding:10px 14px;font:inherit;font-size:15px;cursor:pointer}
+
+/* ---------- hero ---------- */
+.hero{position:relative;background:var(--navy-950);color:#fff;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;
+  background:url("{{ url_for('static', filename='portal_sale/brand/blueprint-roof-pattern.svg') }}") repeat;
+  opacity:.10}
+.hero::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(100deg,var(--navy-950) 0%,var(--navy-950) 44%,rgb(7 28 43/.72) 62%,rgb(7 28 43/.45) 100%)}
+.hero .wrap{position:relative;z-index:2;display:grid;gap:48px;
+  grid-template-columns:minmax(0,1fr);padding-top:64px;padding-bottom:72px}
+@media(min-width:1024px){.hero .wrap{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);
+  align-items:center;padding-top:80px;padding-bottom:88px}}
+.eyebrow{display:inline-block;border:1px solid var(--gold-500);color:var(--gold-500);
+  font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  padding:8px 16px;border-radius:var(--r-sm);margin-bottom:22px}
+.hero h1{font-size:clamp(40px,6.4vw,72px);font-weight:800;margin-bottom:20px}
+.hero h1 .dot{color:var(--gold-500)}
+.hero .sub{font-size:clamp(17px,2vw,21px);color:rgb(255 255 255/.82);max-width:34ch;margin:0 0 30px}
+.ctas{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:32px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  min-height:52px;padding:14px 26px;border-radius:var(--r-sm);font-weight:700;font-size:17px;
+  border:1px solid transparent;cursor:pointer;font-family:inherit}
+.btn-sky{background:var(--sky-500);color:#fff}
+.btn-sky:hover{background:#1481d1}
+.btn-outline-gold{background:transparent;color:var(--gold-500);border-color:var(--gold-500)}
+.btn-outline-gold:hover{background:rgb(215 164 56/.12)}
+.proof{display:flex;flex-wrap:wrap;gap:14px 26px;font-size:15px;color:rgb(255 255 255/.82)}
+.proof div{display:flex;align-items:center;gap:9px}
+.proof svg{flex:none;color:var(--gold-500)}
+
+/* device composition */
+.devices{position:relative}
+.laptop{background:#101d27;border:10px solid #1b2b36;border-radius:14px;
+  box-shadow:var(--shadow-lg);overflow:hidden}
+.laptop img{width:100%;height:auto}
+.laptop-base{height:14px;background:linear-gradient(#20323e,#16242e);
+  border-radius:0 0 16px 16px;margin:0 -10px}
+.phone{position:absolute;right:-6px;bottom:-18px;width:26%;min-width:132px;
+  background:#101d27;border:7px solid #1b2b36;border-radius:22px;
+  box-shadow:var(--shadow-lg);overflow:hidden}
+.phone img{width:100%;height:auto}
+.pricecard{position:absolute;left:-8px;bottom:-26px;background:var(--navy-900);
+  border:1px solid var(--gold-500);border-radius:var(--r-md);padding:18px 26px;
+  box-shadow:var(--shadow-lg);text-align:center;max-width:230px}
+.pricecard b{display:block;font-size:clamp(30px,4vw,42px);font-weight:800;color:var(--gold-500);
+  letter-spacing:-.02em;line-height:1.05}
+.pricecard span{display:block;font-size:13.5px;color:rgb(255 255 255/.75);margin-top:8px;line-height:1.45}
+@media(max-width:1023px){
+  .devices{margin-top:8px;padding-bottom:70px}
+  .pricecard{left:0;bottom:0;position:relative;max-width:none;margin-top:26px}
+  .phone{width:30%;bottom:36px}
+}
+
+/* ---------- sections ---------- */
+section{padding:88px 0}
+@media(max-width:767px){section{padding:60px 0}}
+.sec-head{text-align:center;max-width:60ch;margin:0 auto 52px}
+.sec-head h2{font-size:clamp(28px,3.6vw,42px);font-weight:800}
+.sec-head p{color:var(--slate-500);font-size:18px;margin:14px 0 0}
+.rule{width:64px;height:3px;background:var(--gold-500);border-radius:2px;margin:18px auto 0}
+.grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr))}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:28px;box-shadow:var(--shadow)}
+.card h3{font-size:19px;font-weight:700;margin-bottom:10px}
+.card p{color:var(--slate-700);font-size:15.5px;margin:0}
+.ico{width:52px;height:52px;border-radius:50%;background:#e8f3fd;color:var(--sky-500);
+  display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.alt{background:var(--white);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+/* feature groups */
+.fgroup{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);padding:28px}
+.fgroup h3{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--teal-600);margin-bottom:16px}
+.fgroup ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.fgroup li{display:flex;gap:11px;font-size:15.5px;color:var(--slate-700);line-height:1.5}
+.fgroup li svg{flex:none;color:var(--teal-600);margin-top:3px}
+
+/* savings table */
+.tbl{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.trow{display:grid;grid-template-columns:1.7fr 1fr .8fr;gap:16px;padding:16px 24px;
+  border-top:1px solid var(--line);font-size:15.5px;align-items:center}
+.trow:first-child{border-top:0;background:#eef2f4;font-size:12.5px;font-weight:800;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--slate-500)}
+.trow b{color:var(--teal-600)}
+.ttot{background:#eef7f7;font-weight:800;font-size:18px}
+@media(max-width:719px){
+  .trow{grid-template-columns:1fr;gap:4px;padding:16px 18px}
+  .trow:first-child{display:none}
+  .trow>span:nth-child(2)::before{content:"On your own: ";color:var(--slate-500)}
+  .trow>span:nth-child(3)::before{content:"Bundle: ";color:var(--slate-500)}
+}
+.keep{margin-top:26px;border:1px solid var(--teal-600);border-radius:var(--r-md);
+  padding:28px;display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));
+  align-items:center;background:var(--white)}
+.keep b{display:block;font-size:clamp(30px,4vw,44px);font-weight:800;color:var(--teal-600);letter-spacing:-.02em}
+
+.pills{display:flex;flex-wrap:wrap;gap:10px}
+.pill{background:var(--white);border:1px solid var(--line);border-radius:999px;
+  padding:10px 18px;font-size:15px;white-space:nowrap}
+
+.steps{display:grid;gap:0;list-style:none;margin:0;padding:0;
+  border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--white)}
+.steps li{display:flex;gap:18px;padding:18px 24px;border-top:1px solid var(--line);font-size:16.5px}
+.steps li:first-child{border-top:0}
+.steps span{font-weight:800;color:var(--teal-600);font-size:14px;flex:none;
+  width:26px;padding-top:3px}
+
+.faq{max-width:820px;margin:0 auto;display:grid;gap:12px}
+.faq details{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);padding:0}
+.faq summary{cursor:pointer;padding:20px 24px;font-weight:700;font-size:17px;list-style:none;
+  display:flex;justify-content:space-between;gap:16px;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-size:24px;color:var(--teal-600);font-weight:700;line-height:1}
+.faq details[open] summary::after{content:"\2212"}
+.faq p{margin:0;padding:0 24px 22px;color:var(--slate-700);font-size:16px}
+
+/* offer */
+.offer{background:var(--navy-950);color:#fff}
+.offer .wrap{display:grid;gap:44px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:900px){.offer .wrap{grid-template-columns:minmax(0,.95fr) minmax(0,1fr)}}
+.offer h2{font-size:clamp(28px,3.6vw,42px);font-weight:800;margin-bottom:16px}
+.offer .lede{color:rgb(255 255 255/.8);font-size:18px;max-width:46ch}
+.offer .contact{margin-top:26px;font-size:17px;line-height:2}
+.offer .contact a{color:var(--gold-500);font-weight:600}
+.form{background:var(--white);border-radius:var(--r-lg);padding:30px;box-shadow:var(--shadow-lg)}
+.form .row{margin-bottom:16px}
+.form .two{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))}
+.form label{display:block;font-size:12.5px;font-weight:800;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--slate-500);margin-bottom:6px}
+.form input,.form select,.form textarea{width:100%;font:inherit;font-size:16px;
+  padding:13px 14px;border:1px solid var(--line);border-radius:var(--r-sm);
+  background:#fbfcfd;color:var(--navy-950)}
+.form input:focus,.form select:focus,.form textarea:focus{outline:2px solid var(--sky-500);
+  outline-offset:1px;background:#fff}
+.form textarea{resize:vertical;min-height:88px}
+.form .submit{width:100%;background:var(--gold-500);color:var(--navy-950);border:0;
+  border-radius:var(--r-sm);padding:16px;font:inherit;font-weight:800;font-size:17.5px;cursor:pointer}
+.form .submit:hover{background:#e8b954}
+.form .fine{margin:14px 0 0;font-size:13px;color:var(--slate-500);text-align:center}
+.flash{border-radius:var(--r-md);padding:16px 20px;font-weight:600;margin-bottom:20px}
+.flash.ok{background:#e6f5ee;color:#0f5c40;border:1px solid #9dd3bb}
+.flash.err{background:#fdeeee;color:#8c2f2f;border:1px solid #f0c9c9}
+.thanks{background:var(--white);border-radius:var(--r-lg);padding:40px 30px;text-align:center;
+  box-shadow:var(--shadow-lg)}
+.thanks h3{font-size:24px;font-weight:800;margin-bottom:10px}
+.thanks p{color:var(--slate-700);margin:0}
+
+footer{background:var(--navy-900);color:rgb(255 255 255/.6);padding:34px 0;font-size:14.5px}
+footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+
+@media(max-width:899px){
+  .nav{display:none}
+  .nav.open{display:flex;position:absolute;top:76px;left:0;right:0;background:var(--navy-900);
+    flex-direction:column;gap:0;padding:8px 24px 18px;border-bottom:1px solid rgb(255 255 255/.12)}
+  .nav.open a{padding:13px 0;border-bottom:1px solid rgb(255 255 255/.08)}
+  .navtoggle{display:block}
+  .hdr .cta-gold{display:none}
+}
+@media(max-width:479px){.btn,.cta-gold{width:100%}.ctas{flex-direction:column}}
 </style>
-</head>
-<body>
 
-<div style="font-family: 'Public Sans', Helvetica, Arial, sans-serif; background: #16223b; color: #e9eef7; -webkit-font-smoothing: antialiased;">
+<header class="hdr">
+  <div class="wrap">
+    <a href="/" class="brand">myroofportal<span>.com</span></a>
+    <button class="navtoggle" aria-expanded="false" aria-controls="nav" id="navBtn">Menu</button>
+    <nav class="nav" id="nav" aria-label="Primary">
+      <a href="#overview">Overview</a>
+      <a href="#included">What's Included</a>
+      <a href="{{ demo_url }}">Demo</a>
+      <a href="#tech">Tech &amp; Security</a>
+      <a href="#transfer">Transfer Process</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a href="#offer" class="cta-gold">Make an Offer</a>
+  </div>
+</header>
 
-  <header style="display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px 40px; max-width: 1180px; margin: 0 auto;">
-    <div style="display: flex; align-items: center; gap: 14px;">
-      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; letter-spacing: -0.01em; color: #e9eef7;">myroofportal.com</span>
-      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(0.78 0.12 55); border: 1px solid oklch(0.55 0.09 55); border-radius: 99px; padding: 4px 10px; white-space: nowrap;">For sale</span>
-    </div>
-    <div style="display: flex; align-items: center; gap: 26px; font-size: 16.5px; color: rgba(233,238,247,0.66); flex-wrap: wrap; white-space: nowrap;">
-      <a href="#how" class="navlink">How it works</a>
-      <a href="#features" class="navlink">Features</a>
-      <a href="#savings" class="navlink">Savings</a>
-      <a href="#offer" class="btn-fill" style="font-weight: 600; padding: 9px 16px; border-radius: 6px;">Make an offer</a>
-    </div>
-  </header>
-
-  <section style="max-width: 1180px; margin: 0 auto; padding: 76px 40px 88px;">
-    <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(233,238,247,0.5); margin: 0 0 30px;">Domain + software — sold as one asset</p>
-    <h1 style="font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: clamp(46px, 8vw, 86px); line-height: 0.98; letter-spacing: -0.035em; margin: 0 0 28px; color: #ffffff;">myroofportal<span style="color: oklch(0.78 0.13 240);">.com</span></h1>
-    <p style="font-size: 28px; line-height: 1.45; max-width: 780px; margin: 0 0 44px; color: rgba(233,238,247,0.82); text-wrap: pretty;">Built by a roofer to help with client experience — the exact-match domain and the white-label homeowner portal that runs on it. One transfer, one owner, live on day one.</p>
-
-    <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 56px;">
-      <a href="#offer" class="btn-fill" style="font-weight: 600; font-size: 20px; padding: 16px 28px; border-radius: 7px; white-space: nowrap;">Make an offer</a>
-      <a href="{{ demo_url }}" class="btn-line" style="font-weight: 500; font-size: 20px; padding: 16px 28px; border-radius: 7px; white-space: nowrap;">See the live product</a>
-    </div>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%),1fr)); gap: 1px; background: rgba(233,238,247,0.14); border: 1px solid rgba(233,238,247,0.14); border-radius: 10px; overflow: hidden;">
-      <div style="background: #16223b; padding: 28px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.5); margin: 0 0 10px;">Asking</p>
-        <p style="font-size: 32px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.02em;">$25,000</p>
-        <p style="font-size: 16.5px; margin: 0; color: rgba(233,238,247,0.6);">Escrow or wire</p>
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Domain + Software</span>
+      <h1>Own the homeowner experience<span class="dot">.</span></h1>
+      <p class="sub">The exact-match domain and a complete white-label roofing portal—ready to brand, launch, and transfer.</p>
+      <div class="ctas">
+        <a class="btn btn-sky" href="{{ demo_url }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          View Live Demo</a>
+        <a class="btn btn-outline-gold" href="#offer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.6 13.4 12 22l-9-9V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/></svg>
+          Make an Offer</a>
       </div>
-      <div style="background: #16223b; padding: 28px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.5); margin: 0 0 10px;">Status</p>
-        <p style="font-size: 32px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.02em;">Built &amp; running</p>
-        <p style="font-size: 16.5px; margin: 0; color: rgba(233,238,247,0.6);">Live demo online today</p>
-      </div>
-      <div style="background: #16223b; padding: 28px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.5); margin: 0 0 10px;">Included</p>
-        <p style="font-size: 32px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.02em;">Branding + 1 yr support</p>
-        <p style="font-size: 16.5px; margin: 0; color: rgba(233,238,247,0.6);">Transfer in about a week</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="how" style="background: #f6f5f2; color: #1b2130; padding: 96px 40px;">
-    <div style="max-width: 1180px; margin: 0 auto;">
-      <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; max-width: 860px; margin: 0 0 18px; text-wrap: pretty;">One link, and the homeowner never has to call for an update again</h2>
-      <p style="font-size: 21.5px; line-height: 1.55; max-width: 720px; margin: 0 0 48px; color: rgba(27,33,48,0.68);">This is the live portal, branded for a demo company. Everything below is what your customer opens on their phone.</p>
-
-      <p style="margin: 0 0 56px;"><a href="{{ demo_url }}" style="font-weight: 600; font-size: 20px; color: oklch(0.55 0.13 240);">Open the live demo →</a></p>
-
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%),1fr)); gap: 32px;">
-        <div>
-          <p style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 14px;">Step 1</p>
-          <h3 style="font-size: 24px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">You send one link</h3>
-          <p style="font-size: 19px; line-height: 1.6; margin: 0; color: rgba(27,33,48,0.72);">No app to download, no password to reset. The portal opens with their name on it.</p>
-        </div>
-        <div>
-          <p style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 14px;">Step 2</p>
-          <h3 style="font-size: 24px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">They watch the job move</h3>
-          <p style="font-size: 19px; line-height: 1.6; margin: 0; color: rgba(27,33,48,0.72);">Approved, permitting, scheduling, installation, final inspection, complete — with crew photos as it happens.</p>
-        </div>
-        <div>
-          <p style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 14px;">Step 3</p>
-          <h3 style="font-size: 24px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">They sign and pay in place</h3>
-          <p style="font-size: 19px; line-height: 1.6; margin: 0; color: rgba(27,33,48,0.72);">Proposal, NOC, HOA docs and each draw — signed and paid from the same screen.</p>
-        </div>
-        <div>
-          <p style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 14px;">Step 4</p>
-          <h3 style="font-size: 24px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">They bring the neighbors</h3>
-          <p style="font-size: 19px; line-height: 1.6; margin: 0; color: rgba(27,33,48,0.72);">The referral game hands them a ready-to-send invite and rewards every signed job.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="features" style="max-width: 1180px; margin: 0 auto; padding: 96px 40px;">
-    <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 18px;">What's inside the portal</h2>
-    <p style="font-size: 21.5px; line-height: 1.55; max-width: 720px; margin: 0 0 56px; color: rgba(233,238,247,0.7);">Every screen below already exists and is white-labeled per company — logo, colors and company name.</p>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%),1fr)); gap: 1px; background: rgba(233,238,247,0.14); border: 1px solid rgba(233,238,247,0.14); border-radius: 12px; overflow: hidden; margin-bottom: 64px;">
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Live status</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Six-step milestone tracker</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Approved, permitting, scheduling, installation, final inspection, complete — with the current step marked NOW.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Proof of work</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Everything we're doing for you</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">All 23 tasks your crew and office actually perform, checked off in the open with a progress bar.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Expectations</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Roadmap with "your part"</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Each stage carries a timeframe and the short list of what the homeowner needs to do — move cars, keep pets in, sign the HOA app.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Money</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Proposal, draws &amp; payments</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Contract total, balance due and percent paid up front. Deposit, materials and completion draws sync live with QuickBooks and pay in one tap.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Paperwork</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Documents, upload &amp; e-sign</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Roofing agreement, Notice of Commencement, permit forms, HOA documents and warranty — signed, stored and downloadable. Homeowners upload what you ask for.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Job site</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Live job photos</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Tear-off, deck re-nail, underlayment — crew photos post automatically from the field as the job moves.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Selections</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Design your roof</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Homeowners mock up the roof, compare colors and options, and request samples — which is where bigger tickets come from.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Education</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Roof School</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Shingle, tile, standing-seam and TPO explained with lifespans and price tiers, plus a Roof IQ quiz. An educated homeowner argues less about price.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Communities</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">HOA Lunch &amp; Learn requests</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Boards book a lunch and Q&amp;A right from the portal — community name, date, headcount — and one roof turns into a whole street.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Growth</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Referral game with rewards</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Levels, a pre-written invite they can text in one tap, and unlockable rewards from a $50 gift card up to Roof Royalty at ten referrals.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Contact</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">Your project contact</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">A named human with call and email buttons, so the homeowner reaches the right person instead of the main line.</p>
-      </div>
-      <div style="background: #16223b; padding: 32px;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Your brand</p>
-        <h3 style="font-size: 23px; font-weight: 700; margin: 0 0 10px; letter-spacing: -0.015em;">White-labeled end to end</h3>
-        <p style="font-size: 18.5px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.68);">Your logo, colors and company name on every screen and every notification. Customers only ever see you.</p>
+      <div class="proof">
+        <div><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6Z"/><path d="m9 12 2 2 4-4"/></svg> Built &amp; Running</div>
+        <div><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Transfer in 7 Days</div>
+        <div><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19l7-7 3 3-7 7-3-3Z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5Z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg> White-Labeled</div>
       </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%),1fr)); gap: 28px;">
-      <figure style="margin: 0;">
-        <img src="{{ url_for('static', filename='portal_sale/portal-checklist.png') }}" alt="Everything we're doing for you — 15 of 23 tasks done" style="display: block; width: 100%; height: auto; border: 1px solid rgba(233,238,247,0.16); border-radius: 10px;" />
-        <figcaption style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; margin-top: 12px; color: rgba(233,238,247,0.55);">23 tasks, tracked in the open</figcaption>
+    <div class="devices">
+      <div class="laptop">
+        <img src="{{ url_for('static', filename='portal_sale/portal-screenshot.png') }}"
+             alt="The homeowner portal on a laptop, showing project progress, payment status and recent job photos"
+             width="1898" height="750" fetchpriority="high">
+        <div class="laptop-base" aria-hidden="true"></div>
+      </div>
+      <div class="phone">
+        <img src="{{ url_for('static', filename='portal_sale/portal-roadmap.png') }}"
+             alt="The same portal on a phone, showing the project roadmap" width="1300" height="672" loading="lazy">
+      </div>
+      <div class="pricecard">
+        <b class="tnum">$25,000</b>
+        <span>Domain, source code,<br>branding + 1 year support</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section id="overview">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Everything a homeowner needs. One branded link.</h2>
+      <div class="rule"></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.5"/><circle cx="3.5" cy="12" r="1.5"/><circle cx="3.5" cy="18" r="1.5"/></svg></div>
+        <h3>Real-Time Progress</h3>
+        <p>Clear milestones keep homeowners informed every step of the way.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-5-5-9 9"/></svg></div>
+        <h3>Project Photos</h3>
+        <p>Automatic uploads create a visual record of your work.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+        <h3>Payments &amp; Invoices</h3>
+        <p>Secure payments with real-time status and receipts.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg></div>
+        <h3>Documents &amp; Messages</h3>
+        <p>Centralized communication and files—organized and easy to access.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="included">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>See the live product</h2>
+      <p>This is the working portal, branded for a demo company. Everything below is what your customer opens on their phone.</p>
+      <div class="rule"></div>
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))">
+      <figure style="margin:0">
+        <img src="{{ url_for('static', filename='portal_sale/portal-checklist.png') }}" alt="Proof-of-work checklist showing 15 of 23 tasks completed" width="1300" height="672" loading="lazy" style="border:1px solid var(--line);border-radius:var(--r-md)">
       </figure>
-      <figure style="margin: 0;">
-        <img src="{{ url_for('static', filename='portal_sale/portal-payments.png') }}" alt="Invoices and payments with QuickBooks integration, documents with e-signature" style="display: block; width: 100%; height: auto; border: 1px solid rgba(233,238,247,0.16); border-radius: 10px;" />
-        <figcaption style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; margin-top: 12px; color: rgba(233,238,247,0.55);">Draws, payments and e-sign</figcaption>
+      <figure style="margin:0">
+        <img src="{{ url_for('static', filename='portal_sale/portal-payments.png') }}" alt="Invoices and payments with QuickBooks sync and e-signature documents" width="1300" height="672" loading="lazy" style="border:1px solid var(--line);border-radius:var(--r-md)">
       </figure>
-      <figure style="margin: 0;">
-        <img src="{{ url_for('static', filename='portal_sale/portal-roadmap.png') }}" alt="Roadmap stages with timeframes and the homeowner's part" style="display: block; width: 100%; height: auto; border: 1px solid rgba(233,238,247,0.16); border-radius: 10px;" />
-        <figcaption style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; margin-top: 12px; color: rgba(233,238,247,0.55);">Roadmap and "your part"</figcaption>
-      </figure>
-      <figure style="margin: 0;">
-        <img src="{{ url_for('static', filename='portal_sale/portal-photos.png') }}" alt="HOA lunch and learn request form, live job photos from the field" style="display: block; width: 100%; height: auto; border: 1px solid rgba(233,238,247,0.16); border-radius: 10px;" />
-        <figcaption style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; margin-top: 12px; color: rgba(233,238,247,0.55);">Lunch &amp; Learn and live photos</figcaption>
-      </figure>
-      <figure style="margin: 0;">
-        <img src="{{ url_for('static', filename='portal_sale/portal-referral.png') }}" alt="Referral game with levels, invite message and rewards" style="display: block; width: 100%; height: auto; border: 1px solid rgba(233,238,247,0.16); border-radius: 10px;" />
-        <figcaption style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; margin-top: 12px; color: rgba(233,238,247,0.55);">Referral game and rewards</figcaption>
+      <figure style="margin:0">
+        <img src="{{ url_for('static', filename='portal_sale/portal-photos.png') }}" alt="Live job photos posted from the field" width="1300" height="672" loading="lazy" style="border:1px solid var(--line);border-radius:var(--r-md)">
       </figure>
     </div>
-  </section>
+    <p style="text-align:center;margin-top:34px">
+      <a class="btn btn-sky" href="{{ demo_url }}">Open the live demo</a>
+    </p>
+  </div>
+</section>
 
-  <section id="benefits" style="background: #f6f5f2; color: #1b2130; padding: 96px 40px;">
-    <div style="max-width: 1180px; margin: 0 auto;">
-      <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 56px;">Who it pays off for</h2>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%),1fr)); gap: 28px;">
-        <div style="background: #ffffff; border: 1px solid rgba(27,33,48,0.1); border-radius: 12px; padding: 38px;">
-          <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 22px;">For the homeowner</p>
-          <ul style="list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; font-size: 19px; line-height: 1.5; color: rgba(27,33,48,0.82);">
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Knows exactly where the job stands without calling anyone</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Sees the work being done, photo by photo, the day it happens</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Knows what's expected of them before each stage starts</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Signs and pays in one place instead of chasing email attachments</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Learns enough about roofing to feel good about what they bought</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Gets paid to send neighbors your way</li>
-          </ul>
-        </div>
-        <div style="background: #ffffff; border: 1px solid rgba(27,33,48,0.1); border-radius: 12px; padding: 38px;">
-          <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 22px;">For the business</p>
-          <ul style="list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; font-size: 19px; line-height: 1.5; color: rgba(27,33,48,0.82);">
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Fewer status calls, less back and forth, less office time per job</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Draws collected faster because the balance and the pay button sit together</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Paperwork chased by the portal instead of by your coordinator</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Photo and task history that settles disputes before they start</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Referrals and HOA Lunch &amp; Learns arriving without ad spend</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>A brand experience that reads bigger than your competition</li>
-          </ul>
-        </div>
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Why roofing companies buy it</h2>
+      <div class="rule"></div>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>Fewer status calls</h3><p>Homeowners check the portal instead of calling the office for updates.</p></div>
+      <div class="card"><h3>Faster draws</h3><p>The balance and the pay button sit together, so payments land sooner.</p></div>
+      <div class="card"><h3>Stronger referrals</h3><p>A reward engine turns finished roofs into new leads without ad spend.</p></div>
+      <div class="card"><h3>Better proof</h3><p>Photo and task history settles disputes before they start.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head"><h2>What's inside the portal</h2><div class="rule"></div></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(290px,100%),1fr))">
+      <div class="fgroup">
+        <h3>Run the job</h3>
+        <ul>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Six-stage milestone tracker</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>23-task proof-of-work checklist</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Roadmap and homeowner responsibilities</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Live job photos</li>
+        </ul>
+      </div>
+      <div class="fgroup">
+        <h3>Collect and document</h3>
+        <ul>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Proposal and draws</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>QuickBooks payment sync</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Documents, upload and e-sign</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Warranty and permit records</li>
+        </ul>
+      </div>
+      <div class="fgroup">
+        <h3>Grow the account</h3>
+        <ul>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Design-your-roof selections</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Roof School</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>HOA Lunch &amp; Learn requests</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Referral rewards</li>
+        </ul>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section id="savings" style="max-width: 1180px; margin: 0 auto; padding: 96px 40px;">
-    <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 18px;">What you'd spend building this yourself</h2>
-    <p style="font-size: 21.5px; line-height: 1.55; max-width: 760px; margin: 0 0 48px; color: rgba(233,238,247,0.7);">Typical market cost to assemble the same thing from a developer and a stack of subscriptions, against buying it finished.</p>
-
-    <div style="border: 1px solid rgba(233,238,247,0.16); border-radius: 12px; overflow: hidden;">
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 18px 28px; background: rgba(233,238,247,0.07); font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.6);">
-        <span>Piece</span><span>On your own</span><span>Bundle</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 20px 28px; border-top: 1px solid rgba(233,238,247,0.12); font-size: 18.5px;">
-        <span>Custom portal build — tracker, 23-task workflow, e-sign, draws, referrals</span><span style="color: rgba(233,238,247,0.72);">$45,000 one-time</span><span style="color: oklch(0.78 0.13 240);">Included</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 20px 28px; border-top: 1px solid rgba(233,238,247,0.12); font-size: 18.5px;">
-        <span>Exact-match .com domain</span><span style="color: rgba(233,238,247,0.72);">$10,000 one-time</span><span style="color: oklch(0.78 0.13 240);">Included</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 20px 28px; border-top: 1px solid rgba(233,238,247,0.12); font-size: 18.5px;">
-        <span>Customer-portal subscription</span><span style="color: rgba(233,238,247,0.72);">$199/mo · $2,388/yr</span><span style="color: oklch(0.78 0.13 240);">Included</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 20px 28px; border-top: 1px solid rgba(233,238,247,0.12); font-size: 18.5px;">
-        <span>E-signature platform</span><span style="color: rgba(233,238,247,0.72);">$40/mo · $480/yr</span><span style="color: oklch(0.78 0.13 240);">Included</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 20px 28px; border-top: 1px solid rgba(233,238,247,0.12); font-size: 18.5px;">
-        <span>Job-photo app, 5 field users</span><span style="color: rgba(233,238,247,0.72);">$145/mo · $1,740/yr</span><span style="color: oklch(0.78 0.13 240);">Included</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 20px 28px; border-top: 1px solid rgba(233,238,247,0.12); font-size: 18.5px;">
-        <span>Referral program software</span><span style="color: rgba(233,238,247,0.72);">$99/mo · $1,188/yr</span><span style="color: oklch(0.78 0.13 240);">Included</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 20px 28px; border-top: 1px solid rgba(233,238,247,0.12); font-size: 18.5px;">
-        <span>Branding, setup and deployment</span><span style="color: rgba(233,238,247,0.72);">$2,500 one-time</span><span style="color: oklch(0.78 0.13 240);">Included</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 20px 28px; border-top: 1px solid rgba(233,238,247,0.12); font-size: 18.5px;">
-        <span>Hosting, updates and tech support</span><span style="color: rgba(233,238,247,0.72);">$100/mo · $1,200/yr</span><span style="color: oklch(0.78 0.13 240);">1 year included</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 1fr 0.8fr; gap: 20px; padding: 24px 28px; border-top: 1px solid rgba(233,238,247,0.28); font-size: 21px; font-weight: 600; background: rgba(233,238,247,0.05);">
-        <span>Year one, your own way</span><span>$64,496</span><span style="color: oklch(0.78 0.13 240);">$25,000</span>
-      </div>
+<section id="savings">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>What you'd spend building this yourself</h2>
+      <p>Typical market cost to assemble the same thing from a developer and a stack of subscriptions, against buying it finished.</p>
+      <div class="rule"></div>
     </div>
-
-    <div style="margin-top: 32px; border: 1px solid oklch(0.5 0.1 240); border-radius: 12px; padding: 34px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%),1fr)); gap: 28px; align-items: center;">
+    <div class="tbl">
+      <div class="trow"><span>Piece</span><span>On your own</span><span>Bundle</span></div>
+      <div class="trow"><span>Custom portal build — tracker, 23-task workflow, e-sign, draws, referrals</span><span class="tnum">$45,000 one-time</span><span><b>Included</b></span></div>
+      <div class="trow"><span>Exact-match .com domain</span><span class="tnum">$10,000 one-time</span><span><b>Included</b></span></div>
+      <div class="trow"><span>Customer-portal subscription</span><span class="tnum">$199/mo · $2,388/yr</span><span><b>Included</b></span></div>
+      <div class="trow"><span>E-signature platform</span><span class="tnum">$40/mo · $480/yr</span><span><b>Included</b></span></div>
+      <div class="trow"><span>Job-photo app, 5 field users</span><span class="tnum">$145/mo · $1,740/yr</span><span><b>Included</b></span></div>
+      <div class="trow"><span>Referral program software</span><span class="tnum">$99/mo · $1,188/yr</span><span><b>Included</b></span></div>
+      <div class="trow"><span>Branding, setup and deployment</span><span class="tnum">$2,500 one-time</span><span><b>Included</b></span></div>
+      <div class="trow"><span>Hosting, updates and tech support</span><span class="tnum">$100/mo · $1,200/yr</span><span><b>1 year included</b></span></div>
+      <div class="trow ttot"><span>Year one, your own way</span><span class="tnum">$64,496</span><span class="tnum" style="color:var(--teal-600)">$25,000</span></div>
+    </div>
+    <div class="keep">
       <div>
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.55); margin: 0 0 10px;">You keep</p>
-        <p style="font-size: 44px; font-weight: 800; letter-spacing: -0.03em; margin: 0; color: oklch(0.85 0.11 240);">$39,496</p>
+        <span style="font-size:12.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--slate-500)">You keep</span>
+        <b class="tnum">$39,496</b>
       </div>
-      <p style="font-size: 19px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.75);">And you own the asset instead of renting it — no monthly stack to cancel, no developer to keep on retainer, and the domain is yours for good.</p>
+      <p style="margin:0;color:var(--slate-700)">And you own the asset instead of renting it — no monthly stack to cancel, no developer on retainer, and the domain is yours for good.</p>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section id="bundle" style="background: #f6f5f2; color: #1b2130; padding: 96px 40px;">
-    <div style="max-width: 1180px; margin: 0 auto;">
-      <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; max-width: 900px; margin: 0 0 56px; text-wrap: pretty;">Buy the name and the product together. Nothing to build, nothing to rebrand around.</h2>
-
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%),1fr)); gap: 28px;">
-        <div style="background: #ffffff; border: 1px solid rgba(27,33,48,0.1); border-radius: 12px; padding: 38px;">
-          <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 22px;">01 — The domain</p>
-          <h3 style="font-size: 31px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 14px;">myroofportal.com</h3>
-          <p style="font-size: 20px; line-height: 1.6; color: rgba(27,33,48,0.72); margin: 0 0 24px;">A name homeowners already understand, so getting them into their portal takes one sentence. Less back and forth, less time on the phone.</p>
-          <ul style="list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; font-size: 18.5px; color: rgba(27,33,48,0.82);">
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Makes the homeowner experience better</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Easy for clients to use, nothing to explain</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Fewer status calls, less time on the phone</li>
-          </ul>
-        </div>
-        <div style="background: #ffffff; border: 1px solid rgba(27,33,48,0.1); border-radius: 12px; padding: 38px;">
-          <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.55 0.13 240); margin: 0 0 22px;">02 — The software</p>
-          <h3 style="font-size: 31px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 14px;">White-label homeowner portal</h3>
-          <p style="font-size: 20px; line-height: 1.6; color: rgba(27,33,48,0.72); margin: 0 0 24px;">The working product behind the name — tracker, 23-task checklist, roadmap, proposal and draws, documents, photos, Roof School and the referral game.</p>
-          <ul style="list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; font-size: 18.5px; color: rgba(27,33,48,0.82);">
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Full source code and deployment</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Unlimited projects and homeowners</li>
-            <li style="display: flex; gap: 12px;"><span style="color: oklch(0.6 0.13 240);">→</span>Live demo you can show customers today</li>
-          </ul>
-        </div>
-      </div>
-
-      <div style="margin-top: 72px; border-top: 1px solid rgba(27,33,48,0.13); padding-top: 48px;">
-        <h3 style="font-size: 32px; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 14px;">Integrates with the software you already run</h3>
-        <p style="font-size: 21.5px; line-height: 1.55; max-width: 700px; margin: 0 0 34px; color: rgba(27,33,48,0.68);">The portal sits on top of your existing stack instead of replacing it — invoicing, photos, CRM and measurements all keep working.</p>
-        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">QuickBooks</span>
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">CompanyCam</span>
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">AccuLynx</span>
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">JobNimbus</span>
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">EagleView</span>
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">Hover</span>
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">Stripe</span>
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">Google Calendar</span>
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">Twilio SMS</span>
-          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 16.5px; background: #ffffff; border: 1px solid rgba(27,33,48,0.14); border-radius: 99px; padding: 11px 20px; white-space: nowrap;">Zapier</span>
-        </div>
-      </div>
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head"><h2>Integrates with the software you already run</h2>
+      <p>The portal sits on top of your existing stack instead of replacing it.</p><div class="rule"></div></div>
+    <div class="pills" style="justify-content:center">
+      <span class="pill">QuickBooks</span><span class="pill">CompanyCam</span><span class="pill">AccuLynx</span>
+      <span class="pill">JobNimbus</span><span class="pill">EagleView</span><span class="pill">Hover</span>
+      <span class="pill">Stripe</span><span class="pill">Google Calendar</span><span class="pill">Twilio SMS</span>
+      <span class="pill">Zapier</span>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section id="terms" style="max-width: 1180px; margin: 0 auto; padding: 96px 40px;">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%),1fr)); gap: 56px; align-items: start;">
-      <div>
-        <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 18px;">What transfers</h2>
-        <p style="font-size: 21px; line-height: 1.6; margin: 0 0 28px; color: rgba(233,238,247,0.7);">Everything needed to run it without me. Escrow welcome, buyer's choice of service.</p>
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; line-height: 1.9; margin: 0; color: rgba(233,238,247,0.55);">Payment: escrow or wire<br />Handover: screen-share walkthrough<br />Support: 1 year of tech support included</p>
-      </div>
-      <ul style="list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid rgba(233,238,247,0.16);">
-        <li style="display: flex; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(233,238,247,0.16); font-size: 20px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: oklch(0.78 0.13 240); padding-top: 4px;">01</span><span>The myroofportal.com domain, unlocked with auth code</span></li>
-        <li style="display: flex; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(233,238,247,0.16); font-size: 20px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: oklch(0.78 0.13 240); padding-top: 4px;">02</span><span>Complete portal source code and database schema</span></li>
-        <li style="display: flex; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(233,238,247,0.16); font-size: 20px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: oklch(0.78 0.13 240); padding-top: 4px;">03</span><span>Hosting, DNS and SSL setup, moved to your accounts</span></li>
-        <li style="display: flex; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(233,238,247,0.16); font-size: 20px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: oklch(0.78 0.13 240); padding-top: 4px;">04</span><span>Marketing site, sales copy and the live demo instance</span></li>
-        <li style="display: flex; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(233,238,247,0.16); font-size: 20px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: oklch(0.78 0.13 240); padding-top: 4px;">05</span><span>hello@ mailbox, forms and inbound lead history</span></li>
-        <li style="display: flex; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(233,238,247,0.16); font-size: 20px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: oklch(0.78 0.13 240); padding-top: 4px;">06</span><span>Setup and branding checklist used for new clients</span></li>
-        <li style="display: flex; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(233,238,247,0.16); font-size: 20px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: oklch(0.78 0.13 240); padding-top: 4px;">07</span><span>Full brand integration completed before turnover — your logo, colors and company name live on every screen</span></li>
-        <li style="display: flex; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(233,238,247,0.16); font-size: 20px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: oklch(0.78 0.13 240); padding-top: 4px;">08</span><span>One year of tech support after the sale, included</span></li>
-      </ul>
+<section id="transfer">
+  <div class="wrap">
+    <div class="sec-head"><h2>What transfers</h2>
+      <p>Everything needed to run it without me. Escrow welcome, buyer's choice of service.</p><div class="rule"></div></div>
+    <ol class="steps">
+      <li><span>01</span><span>The myroofportal.com domain, unlocked with auth code</span></li>
+      <li><span>02</span><span>Complete portal source code and database schema</span></li>
+      <li><span>03</span><span>Hosting, DNS and SSL setup, moved to your accounts</span></li>
+      <li><span>04</span><span>Marketing site, sales copy and the live demo instance</span></li>
+      <li><span>05</span><span>Forms and inbound lead history</span></li>
+      <li><span>06</span><span>Setup and branding checklist used for new clients</span></li>
+      <li><span>07</span><span>Full brand integration completed before turnover — your logo, colors and company name on every screen</span></li>
+      <li><span>08</span><span>One year of tech support after the sale, included</span></li>
+    </ol>
+    <p style="margin-top:22px;color:var(--slate-500);font-size:15.5px">
+      Payment: escrow or wire &middot; Handover: screen-share walkthrough &middot; Support: 1 year included
+    </p>
+  </div>
+</section>
+
+<section class="alt" id="tech">
+  <div class="wrap">
+    <div class="sec-head"><h2>Tech &amp; security</h2><div class="rule"></div></div>
+    <div class="grid">
+      <div class="card"><h3>Runs anywhere</h3><p>Standards-based web application. No exotic infrastructure and no vendor lock-in.</p></div>
+      <div class="card"><h3>HTTPS throughout</h3><p>TLS on every request, with security headers and caching already configured.</p></div>
+      <div class="card"><h3>You hold the keys</h3><p>All credentials and integration secrets transfer to your accounts at handover.</p></div>
+      <div class="card"><h3>Your data, your host</h3><p>Deploy to your own hosting account. Nothing stays tied to the seller.</p></div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section id="offer" style="max-width: 1180px; margin: 0 auto; padding: 40px 40px 40px;">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%),1fr)); gap: 56px; align-items: start;">
-      <div>
-        <h2 style="font-size: clamp(34px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; margin: 0 0 18px;">Make an offer</h2>
-        <p style="font-size: 21.5px; line-height: 1.6; margin: 0 0 32px; color: rgba(233,238,247,0.72); max-width: 460px;">Serious inquiries only. Tell me your number and how you plan to use it, and I'll come back the same day.</p>
-        <p style="font-size: 20px; line-height: 1.9; margin: 0; color: rgba(233,238,247,0.72);">
-          <span style="color: rgba(233,238,247,0.72);">Use the offer form &#8594; replies same day</span><br />
-          <a href="tel:+15614758615">(561) 475-8615</a><br />
-          <span style="color: rgba(233,238,247,0.5);">Collaborative Concepts LLC · Lantana, FL</span>
-        </p>
-      </div>
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-head"><h2>Questions</h2><div class="rule"></div></div>
+    <div class="faq">
+      <details><summary>Is the domain sold separately from the software?</summary>
+        <p>No. The domain and the portal sell together as one asset. There are no partial sales.</p></details>
+      <details><summary>How does the transfer work?</summary>
+        <p>Payment by escrow or wire, then the domain auth code, source code, deployment and accounts move to you. Handover includes a screen-share walkthrough, and the process typically completes within about seven days.</p></details>
+      <details><summary>Can I rebrand it for my company?</summary>
+        <p>Yes — that is the point. The portal is white-labeled throughout: your logo, colors and company name appear on every screen. Full brand integration is completed before turnover.</p></details>
+      <details><summary>What support is included?</summary>
+        <p>One year of technical support after the sale.</p></details>
+      <details><summary>Can I see it working before buying?</summary>
+        <p>Yes. The live demo is open to anyone — no signup required. It runs the same code you would receive.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="offer" id="offer">
+  <div class="wrap">
+    <div>
+      <h2>Make an offer</h2>
+      <p class="lede">Serious inquiries only. Tell me your number and how you plan to use it, and I'll come back the same day.</p>
+      <p class="contact">
+        <a href="tel:+15614758615">(561) 475-8615</a><br>
+        <span style="color:rgb(255 255 255/.6)">Collaborative Concepts LLC &middot; Lantana, FL</span>
+      </p>
+    </div>
+    <div>
       {% if thanks %}
-      <div style="border: 1px solid oklch(0.5 0.1 240); border-radius: 12px; padding: 44px 34px; text-align: center;">
-        <p style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.78 0.13 240); margin: 0 0 16px;">Offer received</p>
-        <h3 style="font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 14px; color: #ffffff;">Thank you — I'll come back the same day.</h3>
-        <p style="font-size: 19px; line-height: 1.6; margin: 0; color: rgba(233,238,247,0.72);">Your offer is in. Watch your inbox for a reply, or call <a href="tel:+15614758615">(561) 475-8615</a> if it's urgent.</p>
-      </div>
+        <div class="thanks">
+          <h3>Offer received</h3>
+          <p>Thanks — I'll come back to you the same day.</p>
+        </div>
       {% else %}
-      <form method="POST" action="{{ offer_action }}" style="border: 1px solid rgba(233,238,247,0.16); border-radius: 12px; padding: 34px; display: grid; gap: 18px;">
-        {% if err %}
-        <p style="margin: 0; font-size: 16.5px; color: #f2a1a1; background: rgba(226,80,80,0.12); border: 1px solid rgba(226,80,80,0.4); border-radius: 6px; padding: 12px 14px;">Please fill in your name, email, and offer so I can get back to you.</p>
-        {% endif %}
-        <div style="display: grid; gap: 8px;">
-          <label style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.55);">Name</label>
-          <input type="text" name="name" required placeholder="Your name" style="font-family: 'Public Sans', sans-serif; font-size: 18.5px; color: #e9eef7; background: rgba(233,238,247,0.06); border: 1px solid rgba(233,238,247,0.16); border-radius: 6px; padding: 13px 14px; outline: none;" />
-        </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%),1fr)); gap: 18px;">
-          <div style="display: grid; gap: 8px;">
-            <label style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.55);">Email</label>
-            <input type="email" name="email" required placeholder="you@company.com" style="font-family: 'Public Sans', sans-serif; font-size: 18.5px; color: #e9eef7; background: rgba(233,238,247,0.06); border: 1px solid rgba(233,238,247,0.16); border-radius: 6px; padding: 13px 14px; outline: none; width: 100%;" />
+        {% if err %}<div class="flash err">Please add your name, a valid email and an offer amount.</div>{% endif %}
+        <form class="form" method="POST" action="{{ url_for('demo.landing_offer') }}">
+          <div class="row"><label for="o-name">Name</label>
+            <input id="o-name" name="name" type="text" autocomplete="name" required></div>
+          <div class="row"><label for="o-company">Company</label>
+            <input id="o-company" name="company" type="text" autocomplete="organization"></div>
+          <div class="row two">
+            <div><label for="o-email">Email</label>
+              <input id="o-email" name="email" type="email" autocomplete="email" required></div>
+            <div><label for="o-phone">Phone <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></label>
+              <input id="o-phone" name="phone" type="tel" autocomplete="tel"></div>
           </div>
-          <div style="display: grid; gap: 8px;">
-            <label style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.55);">Your offer</label>
-            <input type="text" name="offer" required placeholder="$" style="font-family: 'IBM Plex Mono', monospace; font-size: 18.5px; color: #e9eef7; background: rgba(233,238,247,0.06); border: 1px solid rgba(233,238,247,0.16); border-radius: 6px; padding: 13px 14px; outline: none; width: 100%;" />
+          <div class="row two">
+            <div><label for="o-offer">Your offer</label>
+              <input id="o-offer" name="offer" type="text" inputmode="numeric" placeholder="$" required></div>
+            <div><label for="o-terms">Preferred transaction</label>
+              <select id="o-terms" name="terms">
+                <option value="">No preference</option>
+                <option value="escrow">Escrow</option>
+                <option value="wire">Wire</option>
+              </select></div>
           </div>
-        </div>
-        <div style="display: grid; gap: 8px;">
-          <label style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(233,238,247,0.55);">Anything else</label>
-          <textarea rows="3" name="message" placeholder="How you'd use the domain and portal" style="font-family: 'Public Sans', sans-serif; font-size: 18.5px; color: #e9eef7; background: rgba(233,238,247,0.06); border: 1px solid rgba(233,238,247,0.16); border-radius: 6px; padding: 13px 14px; outline: none; resize: vertical;"></textarea>
-        </div>
-        <button type="submit" class="btn-fill" style="font-family: 'Public Sans', sans-serif; font-size: 20px; font-weight: 600; border: 0; border-radius: 7px; padding: 16px; cursor: pointer;">Send my offer</button>
-        <p style="margin: 0; font-size: 15px; color: rgba(233,238,247,0.45); text-align: center;">Domain and software sell together. No partial sales.</p>
-      </form>
+          <div class="row"><label for="o-use">Intended use</label>
+            <textarea id="o-use" name="message" rows="3" placeholder="How you'd use the domain and portal"></textarea></div>
+          <button class="submit" type="submit">Send my offer</button>
+          <p class="fine">Domain and software sell together. No partial sales.</p>
+        </form>
       {% endif %}
     </div>
-  </section>
+  </div>
+</section>
 
-  <footer style="max-width: 1180px; margin: 0 auto; padding: 40px; border-top: 1px solid rgba(233,238,247,0.12); display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap;">
-    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: rgba(233,238,247,0.45);">myroofportal.com — domain + software</span>
-    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; color: rgba(233,238,247,0.45);">Collaborative Concepts LLC · Lantana, FL</span>
-  </footer>
-</div>
-</body>
-</html>
+<footer>
+  <div class="wrap">
+    <span>myroofportal.com — domain + software</span>
+    <span>Collaborative Concepts LLC · Lantana, FL</span>
+  </div>
+</footer>
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Product",
+ "name":"MyRoofPortal.com — domain and white-label roofing customer portal",
+ "description":"Exact-match domain plus a complete white-label homeowner roofing portal with project tracking, payments, documents, photos and referrals.",
+ "brand":{"@type":"Brand","name":"MyRoofPortal"},
+ "offers":{"@type":"Offer","price":"25000","priceCurrency":"USD","availability":"https://schema.org/InStock"}}
+</script>
+
+<script>
+(function(){
+  var b=document.getElementById('navBtn'),n=document.getElementById('nav');
+  if(b&&n){b.addEventListener('click',function(){
+    var open=n.classList.toggle('open');
+    b.setAttribute('aria-expanded',open?'true':'false');
+  });
+  n.addEventListener('click',function(e){
+    if(e.target.tagName==='A'){n.classList.remove('open');b.setAttribute('aria-expanded','false');}
+  });}
+})();
+</script>

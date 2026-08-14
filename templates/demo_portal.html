@@ -3,244 +3,358 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="{{ company.color_masthead or '#16223b' }}" />
+<meta name="theme-color" content="{{ company.color_masthead or '#071c2b' }}" />
 <title>{{ company.name }} — Customer Portal (Demo)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
-  /* ===== Owner mockup design (2026-08-11) — supersedes the Ascent styling. =====
-     Brand colors stay data-driven: navy surfaces from company.color_masthead,
-     "blue" progress/links from company.color_primary, "amber" live-now accents
-     from company.color_accent — so every prospect demo renders in THEIR brand. */
+  /* ===== Command-center dashboard — MyRoofPortal_Redesign_Handoff 03_specs/portal-spec.md
+     (2026-08-14). Supersedes the long-document layout.
+     Brand stays DATA-DRIVEN: navy from company.color_masthead, teal from
+     company.color_primary, gold from company.color_accent — spec values are only
+     the defaults, so every prospect demo still renders in THEIR brand. ===== */
   :root{
-    --paper:#f6f5f2; --ink:#1b2130; --card:#ffffff;
-    --navy:{{ company.color_masthead or '#16223b' }};
-    --navy-deep:color-mix(in srgb, var(--navy) 72%, #000);
+    --navy:{{ company.color_masthead or '#071c2b' }};
+    --navy-900:color-mix(in srgb, var(--navy) 88%, #fff);
     --navy-hover:color-mix(in srgb, var(--navy) 86%, #fff);
-    --on-navy:#e9eef7;
-    --blue:{{ company.color_primary or '#4680bf' }};
-    --blue-deep:color-mix(in srgb, var(--blue) 80%, #000);
-    --blue-lt:color-mix(in srgb, var(--blue) 55%, #fff);
-    --amber:{{ company.color_accent or '#e0a338' }};
-    --amber-deep:color-mix(in srgb, var(--amber) 62%, #241300);
-    --line:rgba(27,33,48,0.1); --line2:rgba(27,33,48,0.12);
-    --mut:rgba(27,33,48,0.5); --mut2:rgba(27,33,48,0.62); --dim:rgba(27,33,48,0.45);
+    --teal:{{ company.color_primary or '#14858a' }};
+    --teal-deep:color-mix(in srgb, var(--teal) 82%, #000);
+    --teal-tint:color-mix(in srgb, var(--teal) 10%, #fff);
+    --gold:{{ company.color_accent or '#d7a438' }};
+    --gold-100:color-mix(in srgb, var(--gold) 22%, #fff);
+    --gold-deep:color-mix(in srgb, var(--gold) 62%, #241300);
+    --warm:#f7f5f0; --card:#fff; --ink:#071c2b;
+    --slate-700:#34454f; --slate-500:#6e7b82;
+    --line:#d9dfe1; --success:#17845b;
+    --r:14px; --shadow:0 10px 30px rgb(7 28 43/.07);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  /* in-page anchor targets stop clear of the viewport edge (and of the sticky rail) */
-  #school,#photos,#payments,#contact{scroll-margin-top:16px}
-  body{margin:0;background:var(--paper);color:var(--ink);
-    font-family:'Public Sans',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
-  a{color:var(--blue-deep);text-decoration:none}
-  a:hover{color:color-mix(in srgb, var(--blue-deep) 80%, #000)}
-  .mono{font-family:'IBM Plex Mono',monospace}
-  .k{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin:0}
-  .k-blue{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--blue-deep);margin:0}
-  .wrap{max-width:1180px;margin:0 auto;padding-left:40px;padding-right:40px}
-  @media(max-width:640px){.wrap{padding-left:18px;padding-right:18px}}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:32px}
-  @media(max-width:640px){.card{padding:22px}}
-  .card-head{display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:10px}
-  .flash{background:#e8f8f0;color:#0a7a5f;border:1px solid #bfe6d6;border-radius:10px;padding:13px 16px;margin:18px 0 0;font-weight:600}
-  /* demo bar + header */
-  .demobar{background:color-mix(in srgb, var(--navy) 76%, #000);padding:12px 40px;text-align:center;
-    font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:rgba(233,238,247,.7)}
-  .demobar b{color:var(--amber);font-weight:500}
-  @media(max-width:640px){.demobar{padding:10px 16px;font-size:11px}}
-  header{background:var(--navy);color:var(--on-navy)}
-  .hd{padding-top:22px;padding-bottom:22px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
-  .hd .nm{display:flex;align-items:center;gap:14px;font-size:24px;font-weight:800;letter-spacing:-.02em}
-  .hd .nm img{height:36px;background:#fff;border-radius:7px;padding:3px 7px;object-fit:contain}
-  .hd .tag{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-lt);
-    border:1px solid rgba(233,238,247,.28);border-radius:99px;padding:8px 16px;white-space:nowrap}
-  /* hero */
-  .hero{padding-top:56px}
-  .hero .addr{font-family:'IBM Plex Mono',monospace;font-size:13.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin:0 0 18px}
-  .hero h1{font-size:clamp(30px,8vw,56px);font-weight:800;letter-spacing:-.035em;line-height:1.02;margin:0 0 14px}
-  .hero .sub{font-size:clamp(17px,4.5vw,21px);line-height:1.5;margin:0 0 40px;color:rgba(27,33,48,.68)}
-  .live{padding:36px}
-  @media(max-width:640px){.live{padding:24px}}
-  .live .lk{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber-deep);margin:0 0 16px}
-  .live h2{font-size:clamp(24px,5.5vw,34px);font-weight:800;letter-spacing:-.025em;margin:0 0 10px}
-  .live .ls{font-size:clamp(15.5px,4vw,18.5px);margin:0 0 40px;color:var(--mut2)}
-  /* six-step tracker */
-  .trk{position:relative;margin-bottom:40px}
-  .trk .rail,.trk .fill{position:absolute;top:19px;height:2px}
-  .trk .rail{left:8.5%;right:8.5%;background:var(--line2)}
-  .trk .fill{left:8.5%;background:var(--blue)}
-  .trk .steps{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;text-align:center}
-  .trk .dot{width:40px;height:40px;border-radius:99px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:17px;font-weight:600}
-  .trk .done .dot{background:var(--blue);color:#fff;font-size:19px}
-  .trk .cur .dot{background:#fff;border:3px solid var(--amber);color:var(--ink)}
-  .trk .todo .dot{background:rgba(27,33,48,.07);color:var(--dim)}
-  .trk .lbl{font-size:16.5px;font-weight:600;margin:0 0 4px}
-  .trk .todo .lbl{color:rgba(27,33,48,.5)}
-  .trk .st{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin:0}
-  .trk .done .st{color:var(--blue-deep)} .trk .cur .st{color:var(--amber-deep)} .trk .todo .st{color:rgba(27,33,48,.35)}
-  /* mobile tracker: vertical steps (dot rail on the left) — the 6-across grid
-     can't fit 375px without cramping, so it becomes a clean vertical list */
+  #school,#photos,#payments,#contact,#details,#docs,#refGame{scroll-margin-top:20px}
+  body{margin:0;background:var(--warm);color:var(--ink);font-size:16px;line-height:1.55;
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  a{color:var(--teal-deep);text-decoration:none}
+  img{max-width:100%;display:block}
+  h1,h2,h3{margin:0;line-height:1.15;letter-spacing:-.02em}
+  .tnum{font-variant-numeric:tabular-nums}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+  @media(max-width:640px){.wrap{padding:0 16px}}
+  :focus-visible{outline:2px solid var(--teal);outline-offset:3px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    padding:24px;box-shadow:var(--shadow)}
+  .k{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--slate-500);margin:0}
+  .k-teal{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--teal-deep);margin:0}
+  .card-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+    flex-wrap:wrap;margin-bottom:12px}
+  .lead{color:var(--slate-700);margin:0 0 18px}
+  .flash{background:#e8f8f0;color:#0a7a5f;border:1px solid #bfe6d6;border-radius:10px;
+    padding:13px 16px;margin:16px 0 0;font-weight:600}
+
+  /* ---------- top bar ---------- */
+  .demobar{background:color-mix(in srgb,var(--navy) 80%,#000);color:rgb(255 255 255/.62);
+    padding:8px 24px;text-align:center;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+  .demobar b{color:var(--gold);font-weight:600}
+  .topbar{background:var(--navy);color:#fff;position:sticky;top:0;z-index:50}
+  .topbar .wrap{display:flex;align-items:center;gap:18px;min-height:72px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
+  .tb-brand{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .tb-brand img{height:34px;background:#fff;border-radius:7px;padding:3px 7px;object-fit:contain}
+  .tb-addr{display:flex;align-items:center;gap:8px;margin:0 auto;font-size:15px;
+    color:rgb(255 255 255/.85)}
+  .tb-addr svg{flex:none;opacity:.75}
+  .tb-right{display:flex;align-items:center;gap:14px;margin-left:auto}
+  .tb-person{display:flex;align-items:center;gap:10px}
+  .tb-av{width:38px;height:38px;border-radius:50%;background:var(--teal);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex:none}
+  .tb-person b{display:block;font-size:14.5px;font-weight:700;line-height:1.2}
+  .tb-person span{display:block;font-size:12.5px;color:rgb(255 255 255/.65)}
+  .tb-help{display:inline-flex;align-items:center;gap:7px;border:1px solid rgb(255 255 255/.32);
+    color:#fff;border-radius:9px;padding:9px 14px;font-size:14.5px;font-weight:600;
+    background:transparent;cursor:pointer;font-family:inherit;min-height:44px}
+  .tb-help:hover{background:rgb(255 255 255/.1)}
+  @media(max-width:900px){
+    .tb-addr{order:3;width:100%;margin:0;font-size:14px}
+    .tb-right{margin-left:auto}
+    .tb-person b,.tb-person span{display:none}
+  }
+
+  /* ---------- greeting ---------- */
+  .greet{padding:34px 0 22px}
+  .greet h1{font-size:clamp(27px,5.2vw,44px);font-weight:800;margin-bottom:14px}
+  .pill{display:inline-flex;align-items:center;gap:9px;background:var(--teal);color:#fff;
+    border-radius:999px;padding:9px 18px;font-size:13.5px;font-weight:700;
+    letter-spacing:.08em;text-transform:uppercase}
+  .pill .dotp{width:9px;height:9px;border-radius:50%;background:#fff;flex:none}
+
+  /* ---------- command center ---------- */
+  .cc{display:grid;gap:18px;grid-template-columns:minmax(0,1fr);padding-bottom:22px}
+  @media(min-width:1024px){
+    .cc{grid-template-columns:minmax(0,1.55fr) minmax(0,.85fr) minmax(0,1fr);
+      grid-template-areas:"mile part money" "prog prog side";align-items:start}
+    .cc-mile{grid-area:mile}.cc-part{grid-area:part}.cc-money{grid-area:money}
+    .cc-prog{grid-area:prog}.cc-side{grid-area:side}
+  }
+  .cc-side{display:grid;gap:18px;align-content:start}
+
+  /* milestone */
+  .mile h2{font-size:23px;font-weight:800;margin-bottom:20px}
+  .mile h2 small{font-weight:600;font-size:17px;color:var(--slate-500);letter-spacing:0}
+  .trk{position:relative;margin-bottom:22px}
+  .trk .rail,.trk .fill{position:absolute;top:19px;height:3px;border-radius:2px}
+  .trk .rail{left:8.5%;right:8.5%;background:#e4e9eb}
+  .trk .fill{left:8.5%;background:var(--teal)}
+  .trk .steps{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:6px;text-align:center}
+  .trk .dot{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;margin:0 auto 10px;font-size:16px;font-weight:700}
+  .trk .done .dot{background:var(--teal);color:#fff}
+  .trk .cur .dot{background:var(--teal);color:#fff;box-shadow:0 0 0 4px var(--gold)}
+  .trk .todo .dot{background:#eceff1;color:#9aa6ad}
+  .trk .lbl{font-size:14px;font-weight:600;margin:0}
+  .trk .cur .lbl{color:var(--teal-deep);font-weight:800}
+  .trk .todo .lbl{color:#8d989f}
+  .trk .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .mile-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));
+    gap:18px;border-top:1px solid var(--line);padding-top:18px}
+  .fact{display:flex;align-items:center;gap:13px}
+  .fact svg{flex:none;color:var(--teal)}
+  .fact .fl{font-size:13.5px;color:var(--slate-500);margin:0}
+  .fact .fv{font-size:19px;font-weight:800;margin:0;letter-spacing:-.01em}
   @media(max-width:700px){
-    .trk{margin-bottom:28px}
     .trk .rail,.trk .fill{display:none}
     .trk .steps{grid-template-columns:1fr;gap:0;text-align:left}
-    .trk .steps>div{display:grid;grid-template-columns:40px minmax(0,1fr);column-gap:16px;align-items:center;position:relative;padding-bottom:22px}
+    .trk .steps>div{display:grid;grid-template-columns:40px minmax(0,1fr);column-gap:14px;
+      align-items:center;position:relative;padding-bottom:16px}
     .trk .steps>div:last-child{padding-bottom:0}
-    .trk .steps>div:not(:last-child):after{content:"";position:absolute;left:19px;top:44px;bottom:4px;width:2px;background:var(--line2)}
-    .trk .steps>div.done:not(:last-child):after{background:var(--blue)}
-    .trk .dot{grid-row:1/span 2;grid-column:1;margin:0}
-    .trk .lbl{grid-column:2;margin:0;font-size:16px}
-    .trk .st{grid-column:2;margin:2px 0 0}
+    .trk .steps>div:not(:last-child):after{content:"";position:absolute;left:19px;top:44px;
+      bottom:2px;width:3px;background:#e4e9eb;border-radius:2px}
+    .trk .steps>div.done:not(:last-child):after{background:var(--teal)}
+    .trk .dot{margin:0}
   }
-  .cta-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:14px}
-  .cta{display:block;font-size:18.5px;font-weight:600;padding:18px 22px;border-radius:8px;text-align:center;cursor:pointer}
-  .cta.primary{background:var(--navy);color:var(--on-navy)} .cta.primary:hover{background:var(--navy-hover);color:var(--on-navy)}
-  .cta.ghost{border:1px solid rgba(27,33,48,.18);color:var(--ink)} .cta.ghost:hover{border-color:rgba(27,33,48,.45);color:var(--ink)}
-  /* design banner */
-  .design-cta{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-top:24px;
-    background:var(--navy);border-radius:12px;padding:28px 32px;color:var(--on-navy)}
-  @media(max-width:640px){.design-cta{padding:22px}}
-  .design-cta:hover{background:var(--navy-hover);color:var(--on-navy)}
-  .design-cta .t{display:block;font-size:23px;font-weight:700;letter-spacing:-.015em;margin-bottom:6px}
-  .design-cta .s{display:block;font-size:18px;color:rgba(233,238,247,.7)}
-  .design-cta .ar{font-size:24px;color:var(--blue-lt)}
-  /* page grid — single column; sidebar rail (sticky) from 1024px. The rail is
-     its own grid column so main sections always fill the main column at one
-     consistent width and never render beside an empty gutter. */
-  .cols{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start;padding-top:40px;padding-bottom:40px}
-  .col-main,.col-side{min-width:0;display:grid;gap:24px}
-  @media(min-width:1024px){
-    .cols{grid-template-columns:minmax(0,1fr) 360px}
-    .col-side{position:sticky;top:16px}
-  }
-  /* proposal stats */
-  .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line2);border:1px solid var(--line2);border-radius:10px;overflow:hidden}
-  .stat{background:#fff;padding:22px}
-  .stat .sk{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:0 0 8px}
-  .stat .sk.due{color:var(--amber-deep)}
-  .stat .sv{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:0}
-  @media(max-width:520px){.stats{grid-template-columns:1fr}.stat{padding:16px 22px}}
-  /* list rows (invoices / docs) */
-  .lrows{display:grid;gap:0;border-top:1px solid var(--line)}
-  .lrow{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;padding:18px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
-  .lrow .lft{display:flex;align-items:center;gap:14px;font-size:18.5px;flex-wrap:wrap;min-width:0}
-  .lrow .amt{font-size:19px;font-weight:600}
-  .lrow.dim,.lrow.dim .amt{color:rgba(27,33,48,.6)}
-  .chip{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;border-radius:99px;padding:4px 10px;white-space:nowrap}
-  .chip.ok{color:var(--blue-deep);border:1px solid color-mix(in srgb, var(--blue) 45%, #fff)}
-  .chip.due{color:var(--amber-deep);border:1px solid color-mix(in srgb, var(--amber) 55%, #fff)}
-  .chip.up{color:var(--mut);border:1px solid rgba(27,33,48,.18)}
-  .doc .dn{display:block;font-size:18.5px;font-weight:600}
-  .doc .dk{display:block;font-size:16px;color:rgba(27,33,48,.55)}
-  .dstat{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
-  .dstat.signed{color:var(--blue-deep)} .dstat.pending{color:var(--dim)}
-  .sign-btn{background:var(--navy);color:var(--on-navy);font-size:16px;font-weight:600;border-radius:6px;padding:10px 18px;white-space:nowrap;cursor:pointer;border:0;font-family:'Public Sans',sans-serif}
-  .sign-btn:hover{background:var(--navy-hover)}
-  .dl-btn{border:1px solid rgba(27,33,48,.18);background:#fff;color:var(--ink);font-size:16px;font-weight:600;border-radius:6px;padding:10px 18px;white-space:nowrap;cursor:pointer;font-family:'Public Sans',sans-serif}
-  .dl-btn:hover{border-color:rgba(27,33,48,.45)}
-  .uploadbox{margin-top:22px;border:1px dashed rgba(27,33,48,.28);border-radius:10px;padding:26px;text-align:center;font-size:17.5px;color:var(--mut2);cursor:pointer}
-  .cardnote{font-size:17px;margin:20px 0 0;color:rgba(27,33,48,.6)}
-  .lead{font-size:17.5px;margin:0 0 24px;color:var(--mut2)}
-  .wide-btn{font-family:'Public Sans',sans-serif;margin-top:24px;width:100%;background:var(--navy);color:var(--on-navy);font-size:19px;font-weight:600;border:0;border-radius:8px;padding:17px;cursor:pointer}
-  .wide-btn:hover{background:var(--navy-hover)}
-  .wide-btn.ghost{background:transparent;color:var(--ink);font-size:18px;border:1px solid rgba(27,33,48,.18);padding:16px;margin-top:22px}
-  .wide-btn.ghost:hover{border-color:rgba(27,33,48,.45)}
+
+  /* your part today */
+  .part{background:var(--gold-100);border:1px solid var(--gold);border-radius:var(--r);
+    overflow:hidden;box-shadow:var(--shadow)}
+  .part-h{display:flex;align-items:center;gap:12px;background:var(--gold);
+    color:var(--gold-deep);padding:18px 22px}
+  .part-h b{font-size:18px;font-weight:800}
+  .part-h .ic{width:34px;height:34px;border-radius:9px;background:rgb(255 255 255/.5);
+    display:flex;align-items:center;justify-content:center;flex:none}
+  .part ul{list-style:none;margin:0;padding:18px 22px 22px;display:grid;gap:2px}
+  .part li{display:flex;font-size:16px;color:var(--ink);line-height:1.45}
+  /* whole row is the tap target (>=44px) per responsive-spec.md */
+  .part li label{display:flex;align-items:center;gap:12px;cursor:pointer;width:100%;
+    min-height:44px;padding:4px 0}
+  .part input[type=checkbox]{width:22px;height:22px;flex:none;accent-color:var(--teal);cursor:pointer}
+  .part .none{padding:20px 22px 24px;color:var(--slate-700);margin:0}
+
+  /* money */
+  .money-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;
+    text-align:center;margin-bottom:16px}
+  .money-row .mv{font-size:clamp(19px,2.4vw,25px);font-weight:800;letter-spacing:-.02em;margin:0}
+  .money-row .ml{font-size:13px;color:var(--slate-500);margin:2px 0 0}
+  .money-row div+div{border-left:1px solid var(--line)}
+  .money-row .due .mv{color:var(--teal-deep)}
+  .bar{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .bar .track{flex:1;height:11px;background:#e9edee;border-radius:99px;overflow:hidden}
+  .bar .fillb{height:100%;background:var(--teal);border-radius:99px}
+  .bar b{font-size:17px;font-weight:800;color:var(--teal-deep)}
+  .btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+    min-height:52px;padding:14px 20px;border-radius:10px;font-size:17px;font-weight:700;
+    cursor:pointer;font-family:inherit;border:1px solid transparent;margin-bottom:10px}
+  .btn-teal{background:var(--teal);color:#fff}
+  .btn-teal:hover{background:var(--teal-deep)}
+  .btn-line{background:#fff;color:var(--ink);border-color:var(--line)}
+  .btn-line:hover{border-color:var(--slate-500)}
+
+  /* today's progress + timeline */
+  .prog-grid{display:grid;gap:24px;grid-template-columns:minmax(0,1fr)}
+  @media(min-width:860px){.prog-grid{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}}
+  .photos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  @media(max-width:700px){.photos{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .pht{position:relative;border-radius:10px;overflow:hidden;background:#e8edef;
+    aspect-ratio:1/1;border:1px solid var(--line)}
+  .pht .ph-in{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+    color:#93a1a8;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:8px}
+  .pht time{position:absolute;left:8px;bottom:8px;background:rgb(7 28 43/.78);color:#fff;
+    font-size:11.5px;font-weight:600;padding:4px 8px;border-radius:6px}
+  .tl{list-style:none;margin:0;padding:0;display:grid;gap:0}
+  .tl li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:14px;position:relative;
+    padding-bottom:20px}
+  .tl li:last-child{padding-bottom:0}
+  .tl li:not(:last-child)::after{content:"";position:absolute;left:14px;top:32px;bottom:2px;
+    width:2px;background:var(--line)}
+  .tl .tdot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;color:#fff;background:var(--teal);flex:none;z-index:1}
+  .tl .tdot.now{background:#fff;border:3px solid var(--teal);color:var(--teal)}
+  .tl .tt{font-size:12.5px;color:var(--slate-500);margin:0}
+  .tl .tn{font-size:16px;font-weight:700;margin:1px 0 2px}
+  .tl .td{font-size:14.5px;color:var(--slate-700);margin:0}
+
+  /* contact card */
+  .cc-contact{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    overflow:hidden;box-shadow:var(--shadow)}
+  .cc-contact .hd{background:var(--navy);color:#fff;padding:16px 22px;display:flex;
+    align-items:center;gap:10px;font-weight:700;font-size:16.5px}
+  .cc-contact .bd{padding:22px}
+  .cperson{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+  .cav{width:64px;height:64px;border-radius:50%;background:var(--teal);color:#fff;flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800}
+  .cperson b{display:block;font-size:19px;font-weight:800;letter-spacing:-.01em}
+  .cperson span{display:block;color:var(--slate-500);font-size:14.5px}
+  .clinks{display:grid;gap:12px}
+  .clinks a{display:flex;align-items:center;gap:10px;font-size:16.5px;font-weight:600;
+    color:var(--teal-deep);min-height:44px}
+  .reassure{margin-top:18px;background:var(--teal-tint);border-radius:10px;padding:14px 16px;
+    display:flex;gap:11px}
+  .reassure svg{flex:none;color:var(--teal)}
+  .reassure b{display:block;font-size:15px}
+  .reassure span{font-size:14px;color:var(--slate-700)}
+
+  /* quick access */
+  .quick{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));
+    padding-bottom:26px}
+  .qcard{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r);padding:20px;box-shadow:var(--shadow);color:var(--ink);min-height:44px}
+  .qcard:hover{border-color:var(--teal);color:var(--ink)}
+  .qcard .qi{color:var(--teal);flex:none}
+  .qcard b{display:block;font-size:17px;font-weight:800;letter-spacing:-.01em}
+  .qcard span{display:block;font-size:13.5px;color:var(--slate-500);line-height:1.4}
+  .qcard .qa{margin-left:auto;color:var(--slate-500);flex:none}
+
+  /* details disclosure */
+  .details-head{border-top:1px solid var(--line);padding:34px 0 18px}
+  .details-head h2{font-size:24px;font-weight:800}
+  .details-head p{color:var(--slate-500);margin:8px 0 0}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;align-items:start;padding-bottom:44px}
+  .col-main,.col-side2{min-width:0;display:grid;gap:22px}
+  @media(min-width:1024px){.cols{grid-template-columns:minmax(0,1fr) 340px}
+    .col-side2{position:sticky;top:92px}}
+
   /* roadmap */
-  .rd{padding:24px 0;border-top:1px solid var(--line)}
-  .rd-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
-  .rd h3{font-size:22px;font-weight:700;margin:0 0 8px;letter-spacing:-.015em}
-  .rd.future h3{color:rgba(27,33,48,.7)}
-  .rd h3 .ck{color:var(--blue-deep);margin-right:12px}
-  .rd .tf{font-family:'IBM Plex Mono',monospace;font-size:13px;color:rgba(27,33,48,.55);white-space:nowrap}
-  .rd .desc{font-size:18px;line-height:1.55;margin:0 0 16px;color:rgba(27,33,48,.68)}
-  .rd .yk{font-family:'IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
-  .rd ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:17.5px;color:rgba(27,33,48,.78)}
-  .rd ul li{display:flex;gap:12px}
-  .rd ul li .b{color:rgba(27,33,48,.35)}
-  .rd.here{padding:26px 28px;border-radius:10px;background:var(--paper);border:1px solid color-mix(in srgb, var(--amber) 45%, #fff);border-top:1px solid color-mix(in srgb, var(--amber) 45%, #fff);margin:8px 0}
-  @media(max-width:640px){.rd.here{padding:20px 16px}}
-  .rd.here .yk{color:var(--amber-deep)}
-  .rd.here ul{gap:10px;color:rgba(27,33,48,.82)}
-  .youare{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber-deep);margin-left:8px}
-  /* photos */
-  .pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:16px}
-  .ph .img{height:150px;border-radius:10px;border:1px solid var(--line2);
-    background-image:repeating-linear-gradient(135deg, rgba(27,33,48,.06) 0 10px, rgba(27,33,48,.015) 10px 20px);
-    display:flex;align-items:flex-end;padding:12px}
-  .ph .img span{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--mut)}
-  .ph b{display:block;font-size:18px;font-weight:600;margin:12px 0 4px}
-  .ph .ps{font-size:16px;margin:0;color:rgba(27,33,48,.6)}
-  /* referral (dark) */
-  .dark{background:var(--navy);color:var(--on-navy);border-radius:12px;padding:32px;border:0}
-  @media(max-width:640px){.dark{padding:22px}}
-  .dark .k{color:rgba(233,238,247,.6)} .dark .k-blue{color:var(--blue-lt)}
-  .reflvl{display:flex;align-items:baseline;gap:14px;margin-bottom:12px}
-  .reflvl .ln{font-size:26px;font-weight:700;letter-spacing:-.02em}
-  .reflvl .ls{font-size:17px;color:rgba(233,238,247,.6)}
-  .refbar{height:8px;border-radius:99px;background:rgba(233,238,247,.14);overflow:hidden;margin-bottom:28px}
-  .refbar #refFill{height:100%;background:var(--blue-lt);transition:width .5s}
-  .dark .lead{color:rgba(233,238,247,.7);margin-bottom:12px}
-  #refMsg{width:100%;border:1px solid rgba(233,238,247,.2);border-radius:8px;padding:18px;font-family:'Public Sans',sans-serif;
-    font-size:18px;line-height:1.5;color:rgba(233,238,247,.9);background:transparent;margin-bottom:18px;resize:vertical}
-  .refbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr));gap:14px;margin-bottom:34px}
-  .refbtns .rb{font-family:'Public Sans',sans-serif;font-size:18px;font-weight:600;border-radius:7px;padding:15px;cursor:pointer;text-align:center}
-  .rb.solid{background:var(--blue-lt);color:var(--navy);border:0}
-  .rb.solid:hover{background:color-mix(in srgb, var(--blue-lt) 70%, #fff)}
-  .rb.line{background:transparent;color:var(--on-navy);border:1px solid rgba(233,238,247,.25)}
-  .rb.line:hover{border-color:rgba(233,238,247,.55);color:var(--on-navy)}
-  .ladder{list-style:none;margin:0;padding:0;display:grid;gap:12px}
-  .rung{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid rgba(233,238,247,.16);border-radius:8px;padding:16px 20px;font-size:18px;color:rgba(233,238,247,.6)}
-  .rung.won{border-color:color-mix(in srgb, var(--amber) 55%, var(--navy));color:var(--on-navy)}
-  .rung b{font-weight:600}
-  .rung .tag{font-family:'IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
-  .rung.won .tag{color:var(--amber)}
-  .refgoal{font-size:17.5px;margin:20px 0 0;color:rgba(233,238,247,.7)}
-  /* sidebar: contact / updates / roof school / lunch & learn */
-  .contact{display:flex;align-items:center;gap:16px;margin-bottom:24px}
-  .contact .av{width:52px;height:52px;border-radius:99px;background:var(--navy);color:var(--on-navy);display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:600;flex:none}
-  .contact .cn{font-size:21px;font-weight:700;margin:0 0 2px;letter-spacing:-.015em}
-  .contact .cc{font-size:16.5px;margin:0;color:rgba(27,33,48,.6)}
-  .cbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .cbtns a{border:1px solid rgba(27,33,48,.18);color:var(--ink);font-size:17.5px;font-weight:600;padding:14px;border-radius:7px;text-align:center}
-  .cbtns a:hover{border-color:rgba(27,33,48,.45);color:var(--ink)}
-  .updl{list-style:none;margin:0;padding:0;display:grid;gap:0;border-top:1px solid var(--line)}
-  .updl li{display:flex;align-items:baseline;gap:12px;padding:15px 0;border-bottom:1px solid var(--line);font-size:18px}
-  .updl li:last-child{border-bottom:0}
-  .updl .d-blue{color:var(--blue-deep)} .updl .d-amber{color:var(--amber-deep)}
-  .updl b{font-weight:600} .updl .um{color:rgba(27,33,48,.6)}
-  .rstiles{display:grid;gap:14px}
-  .rstile{border:1px solid var(--line2);border-radius:10px;padding:20px}
-  .rstile .rn{font-size:19px;font-weight:700;margin:0 0 4px}
-  .rstile .rm{font-family:'IBM Plex Mono',monospace;font-size:13px;margin:0 0 10px;color:rgba(27,33,48,.55)}
-  .rstile .rb2{font-size:17px;line-height:1.5;margin:0;color:rgba(27,33,48,.68)}
+  .rd{border-left:3px solid var(--line);padding:0 0 26px 22px;position:relative}
+  .rd:last-child{padding-bottom:0}
+  .rd.here{border-left-color:var(--gold)}
+  .rd.done-s{border-left-color:var(--teal)}
+  .rd-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .rd h3{font-size:19px;font-weight:800}
+  .rd .ck{color:var(--teal);margin-right:8px}
+  .youare{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    background:var(--gold);color:var(--gold-deep);border-radius:999px;padding:4px 10px;
+    margin-left:8px;white-space:nowrap}
+  .rd .tf{font-size:13.5px;color:var(--slate-500);white-space:nowrap}
+  .rd .desc{color:var(--slate-700);margin:6px 0 0}
+  .rd .yk{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--teal-deep);margin:14px 0 6px}
+  .rd ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+  .rd li{display:flex;gap:10px;font-size:15.5px;color:var(--slate-700)}
+  .rd li .b{color:var(--teal)}
+  .rd.future h3,.rd.future .desc{color:#8d989f}
+
+  .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .stat{background:#fff;padding:18px}
+  .stat .sk{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--slate-500);margin:0 0 6px}
+  .stat .sk.due{color:var(--teal-deep)}
+  .stat .sv{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0}
+  @media(max-width:520px){.stats{grid-template-columns:1fr}}
+  .cardnote{font-size:15px;color:var(--slate-500);margin:16px 0 0}
+
+  .lrows{display:grid;border-top:1px solid var(--line)}
+  .lrow{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;
+    padding:15px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .lrow .lft{display:flex;align-items:center;gap:12px;font-size:16.5px;flex-wrap:wrap;min-width:0}
+  .lrow .amt{font-size:17px;font-weight:700}
+  .lrow.dim,.lrow.dim .amt{color:#8d989f}
+  .chip{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    border-radius:999px;padding:4px 10px;white-space:nowrap}
+  .chip.ok{background:#e6f5ee;color:var(--success)}
+  .chip.due{background:var(--gold-100);color:var(--gold-deep)}
+  .chip.up{background:#eef1f2;color:var(--slate-500)}
+  .dn{display:block;font-size:16.5px;font-weight:600}
+  .dk{display:block;font-size:13.5px;color:var(--slate-500)}
+  .dstat.signed{color:var(--success);font-weight:700;font-size:15px}
+  .sign-btn,.dl-btn,.wide-btn{font-family:inherit;cursor:pointer;border-radius:9px;font-weight:700}
+  .sign-btn{background:var(--teal);color:#fff;border:0;padding:10px 18px;font-size:15px;min-height:44px}
+  .dl-btn{background:#fff;color:var(--ink);border:1px solid var(--line);padding:10px 18px;
+    font-size:15px;min-height:44px}
+  .wide-btn{width:100%;background:var(--teal);color:#fff;border:0;padding:15px;font-size:17px;
+    margin-top:18px;min-height:52px}
+  .wide-btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .uploadbox{margin-top:18px;border:2px dashed var(--line);border-radius:10px;padding:22px;
+    text-align:center;color:var(--slate-500);cursor:pointer;font-size:15.5px}
+  .uploadbox:hover{border-color:var(--teal);color:var(--teal-deep)}
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:14px}
+  .ph .img{aspect-ratio:4/3;background:#e8edef;border:1px solid var(--line);border-radius:10px;
+    display:flex;align-items:center;justify-content:center;color:#93a1a8;font-size:12.5px;
+    letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+  .ph b{font-size:15.5px} .ph .ps{font-size:14px;color:var(--slate-500);margin:2px 0 0}
+  .rstiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:14px}
+  .rstile{border:1px solid var(--line);border-radius:10px;padding:18px}
+  .rstile .rn{font-size:16.5px;font-weight:800;margin:0}
+  .rstile .rm{font-size:13.5px;color:var(--teal-deep);margin:4px 0 8px;font-weight:600}
+  .rstile .rb2{font-size:14.5px;color:var(--slate-700);margin:0}
   .llform{display:grid;gap:12px}
-  .llform input{font-family:'Public Sans',sans-serif;font-size:17.5px;color:var(--ink);background:var(--paper);
-    border:1px solid rgba(27,33,48,.16);border-radius:7px;padding:14px;outline:none;width:100%}
-  .llrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(130px,100%),1fr));gap:12px}
-  .llform button{font-family:'Public Sans',sans-serif;background:var(--navy);color:var(--on-navy);font-size:18px;font-weight:600;border:0;border-radius:7px;padding:16px;cursor:pointer}
-  .llform button:hover{background:var(--navy-hover)}
-  /* footer */
-  footer{border-top:1px solid var(--line2);margin-top:16px}
-  .ft{padding-top:32px;padding-bottom:56px;display:grid;gap:8px;text-align:center}
-  .ft .f1{font-size:17px;margin:0;color:rgba(27,33,48,.65)}
-  .ft .f2{font-family:'IBM Plex Mono',monospace;font-size:13.5px;margin:0;color:var(--dim)}
-  #demoToast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 18px;border-radius:11px;font-size:13.5px;font-weight:600;box-shadow:0 8px 26px rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:.25s;max-width:88%;z-index:60}
+  .llform input{font:inherit;font-size:16px;padding:13px 14px;border:1px solid var(--line);
+    border-radius:9px;background:#fbfcfd;width:100%}
+  .llrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:12px}
+  .llform button{font:inherit;font-weight:700;font-size:16.5px;background:var(--teal);color:#fff;
+    border:0;border-radius:9px;padding:14px;cursor:pointer;min-height:52px}
+  .dark{background:var(--navy);color:#fff;border-radius:var(--r);padding:26px}
+  .dark .k{color:rgb(255 255 255/.55)} .dark .k-teal{color:var(--gold)}
+  .dark .lead{color:rgb(255 255 255/.75)}
+  .reflvl{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .reflvl .ln{font-size:19px;font-weight:800}
+  .reflvl .ls{font-size:14px;color:rgb(255 255 255/.6);margin-left:auto}
+  .refbar{height:9px;background:rgb(255 255 255/.16);border-radius:99px;overflow:hidden;margin-bottom:18px}
+  .refbar div{height:100%;background:var(--gold);border-radius:99px}
+  .dark textarea{width:100%;font:inherit;font-size:15.5px;padding:13px;border-radius:9px;
+    border:1px solid rgb(255 255 255/.2);background:rgb(255 255 255/.08);color:#fff;resize:vertical}
+  .refbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr));
+    gap:10px;margin:14px 0 26px}
+  .rb{font:inherit;font-weight:700;font-size:15.5px;border-radius:9px;padding:13px;cursor:pointer;
+    text-align:center;min-height:48px;display:flex;align-items:center;justify-content:center}
+  .rb.solid{background:var(--gold);color:var(--gold-deep);border:0}
+  .rb.line{background:transparent;color:#fff;border:1px solid rgb(255 255 255/.3)}
+  .ladder{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .rung{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:rgb(255 255 255/.06);border-radius:9px;padding:13px 16px;font-size:15.5px;flex-wrap:wrap}
+  .rung.won{background:rgb(255 255 255/.13)}
+  .rung .tag{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    color:rgb(255 255 255/.6)}
+  .rung.won .tag{color:var(--gold)}
+  .refgoal{margin:16px 0 0;color:var(--gold);font-weight:600}
+  .updl{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+  .updl li{display:flex;gap:11px;font-size:15.5px}
+  .d-gold{color:var(--gold)} .d-teal{color:var(--teal)}
+  .um{color:var(--slate-500)}
+  .contact{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+  .av{width:52px;height:52px;border-radius:50%;background:var(--teal);color:#fff;flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800}
+  .cn{font-size:18px;font-weight:800;margin:0} .cc2{color:var(--slate-500);margin:0;font-size:14.5px}
+  .cbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(120px,100%),1fr));gap:10px}
+  .cbtns a{border:1px solid var(--line);border-radius:9px;padding:12px;text-align:center;
+    font-weight:700;font-size:15.5px;min-height:44px;display:flex;align-items:center;justify-content:center}
+  footer{background:var(--navy);color:rgb(255 255 255/.6);padding:30px 0;text-align:center;font-size:14px}
+  footer .f1{color:#fff;font-weight:700;margin:0 0 6px;font-size:15.5px}
+  footer .f2{margin:0}
+  #demoToast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    background:var(--navy);color:#fff;padding:14px 20px;border-radius:10px;font-size:15px;
+    max-width:min(520px,92vw);opacity:0;pointer-events:none;transition:.25s;z-index:9999;
+    box-shadow:0 16px 40px rgb(7 28 43/.3)}
   #demoToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
 
-<div class="demobar">Demo portal — branded for <b>{{ company.name }}</b>. This is what your customers would see.</div>
+<div class="demobar">Demo portal — branded for <b>{{ company.name }}</b>. Sample data.</div>
 
-<header>
-  <div class="wrap hd">
-    <span class="nm">{% if company.logo_src %}<img src="{{ company.logo_src }}" alt="{{ company.name }}">{% endif %}{{ company.name }}</span>
-    <span class="tag">Customer portal</span>
-  </div>
-</header>
-
-{# Phase-aware hero copy — same data-driven map the previous version used. #}
+{# Phase-aware copy — never hard-code installation language (portal-spec.md). #}
 {% set _phname = phases[j._phase] if j._phase < phases|length else phases[-1] %}
 {% set _live = {
   "Approved":["You're approved — welcome aboard","Your project is officially a GO. Here's everything that happens next."],
@@ -251,64 +365,217 @@
   "Complete":["All done — enjoy your new roof","Thank you for trusting us with your home."]
 } %}
 {% set _lv = _live.get(_phname, ["Your project is moving right along","Here's exactly what's next."]) %}
+{% set _greet = {
+  "Approved":"you're approved.", "Permitting":"your permit is in progress.",
+  "Scheduling":"we're locking in your date.", "Installation":"your roof is going on today.",
+  "Final Inspection":"final inspection is next.", "Complete":"your roof is complete."
+} %}
+{% set _cur = checklist | selectattr('current') | list %}
 
-<section class="wrap hero">
+<header class="topbar">
+  <div class="wrap">
+    <span class="tb-brand">{% if company.logo_src %}<img src="{{ company.logo_src }}" alt="{{ company.name }}">{% endif %}{{ company.name }}</span>
+    <span class="tb-addr">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      {{ j.address }}{{ ', ' ~ j.city if j.city }}{{ ' ' ~ j.state if j.state }}
+    </span>
+    <span class="tb-right">
+      <span class="tb-person">
+        <span class="tb-av" aria-hidden="true">{{ (j.rep or company.name)[:1]|upper }}</span>
+        <span><b>{{ j.rep }}</b><span>Project Manager</span></span>
+      </span>
+      <button type="button" class="tb-help" onclick="demoToast('Opens help — FAQs and a direct line to your project contact. (This is a demo.)')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 4.2 2.8c-.8.4-1.3 1-1.3 1.9v.3"/><circle cx="12" cy="17.5" r=".6" fill="currentColor"/></svg>
+        Help</button>
+    </span>
+  </div>
+</header>
+
+<div class="wrap greet">
   {% with msgs = get_flashed_messages(with_categories=true) %}
     {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
   {% endwith %}
-  <p class="addr">{{ j.address }}{{ ', ' ~ j.city if j.city }}{{ ' ' ~ j.state if j.state }}{{ ' ' ~ j.zip if j.zip }}</p>
-  <h1>Hi {{ j._first }}{% if _phname == 'Installation' %} — big day.{% elif _phname == 'Complete' %} — all done.{% else %}.{% endif %}</h1>
-  <p class="sub">{{ _lv[1] }}</p>
+  <h1>Hi {{ j._first }}, {{ _greet.get(_phname, 'your project is moving right along.') }}</h1>
+  <span class="pill"><span class="dotp" aria-hidden="true"></span>Live · {{ _phname }}</span>
+</div>
 
-  <div class="card live">
-    <p class="lk">Live now · {{ _phname }}</p>
-    <h2>{{ _lv[0] }}</h2>
-    <p class="ls">Step {{ j._phase + 1 }} of {{ phases|length }} · {{ _lv[1] }}</p>
+<section class="wrap cc" aria-label="Project command center">
 
+  <!-- MILESTONE -->
+  <div class="card mile cc-mile">
+    <h2>{{ _phname }} <small>· Step {{ j._phase + 1 }} of {{ phases|length }}</small></h2>
     <div class="trk">
       <div class="rail"></div>
       {% if phases|length > 1 %}<div class="fill" style="width:{{ (83 * j._phase / (phases|length - 1))|round(1) }}%"></div>{% endif %}
       <div class="steps">
         {% for p in phases %}
         <div class="{{ 'done' if loop.index0 < j._phase else ('cur' if loop.index0 == j._phase else 'todo') }}">
-          <div class="dot">{{ '✓' if loop.index0 < j._phase else loop.index }}</div>
-          <p class="lbl">{{ p }}</p>
-          <p class="st">{% if loop.index0 < j._phase %}Done{% elif loop.index0 == j._phase %}Now{% else %}—{% endif %}</p>
+          <div class="dot" aria-hidden="true">{{ '✓' if loop.index0 < j._phase else loop.index }}</div>
+          <p class="lbl">{{ p }}<span class="sr">
+            {%- if loop.index0 < j._phase %} — completed{% elif loop.index0 == j._phase %} — current step{% else %} — not started{% endif -%}
+          </span></p>
         </div>
         {% endfor %}
       </div>
     </div>
-
-    <div class="cta-row">
-      {% if j._balance and j._balance > 0 %}<a class="cta primary" href="#payments">Pay balance · {{ money(j._balance) }}</a>{% endif %}
-      <a class="cta ghost" href="#photos">Today's photos</a>
-      {% if company.phone %}<a class="cta ghost" href="tel:{{ company.phone }}">Call {{ (j.rep or 'us').split(' ')[0] }}</a>{% endif %}
+    <div class="mile-facts">
+      <div class="fact">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 20v-2a4 4 0 0 0-3-3.9"/></svg>
+        <span><p class="fl">Crew arrived</p><p class="fv tnum">7:12 <span style="font-size:14px;font-weight:600">AM</span></p></span>
+      </div>
+      <div class="fact">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <span><p class="fl">Estimated completion</p><p class="fv">Tomorrow</p></span>
+      </div>
     </div>
   </div>
 
-  {# Banner points at the on-page Roof School section. The Design Studio
-     (demo.design) is intentionally UNLINKED here per owner directive — the
-     route + template stay live and reachable by direct URL. #}
-  <a class="design-cta" href="#school">
-    <span>
-      <span class="t">Roof School</span>
-      <span class="s">Learn what goes into your roof — materials, lifespans and what drives cost</span>
-    </span>
-    <span class="ar">→</span>
-  </a>
+  <!-- YOUR PART TODAY (contextual to the current stage) -->
+  <div class="part cc-part">
+    <div class="part-h">
+      <span class="ic" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg></span>
+      <b>Your part today</b>
+    </div>
+    {% if _cur and _cur[0].you %}
+    <ul>
+      {% for it in _cur[0].you %}
+      <li><label><input type="checkbox">{{ it }}</label></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="none">Nothing needed from you right now — we'll let you know the moment that changes.</p>
+    {% endif %}
+  </div>
+
+  <!-- MONEY -->
+  <div class="card cc-money">
+    <div class="money-row">
+      <div><p class="mv tnum">{{ money(j._value) }}</p><p class="ml">Contract</p></div>
+      <div><p class="mv tnum">{{ money(j._value - j._balance) }}</p><p class="ml">Paid</p></div>
+      <div class="due"><p class="mv tnum">{{ money(j._balance) }}</p><p class="ml">Due now</p></div>
+    </div>
+    <div class="bar">
+      <span class="track"><span class="fillb" style="width:{{ (j._paid_pct*100)|round|int }}%"></span></span>
+      <b class="tnum">{{ (j._paid_pct*100)|round|int }}%</b>
+    </div>
+    {% if j._balance and j._balance > 0 %}
+    <button type="button" class="btn btn-teal" onclick="demoToast('Opens your QuickBooks payment link to pay the balance. (This is a demo.)')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      Pay {{ money(j._balance) }} Balance</button>
+    {% endif %}
+    <a class="btn btn-line" href="#photos">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-5-5-9 9"/></svg>
+      View Today's Photos</a>
+  </div>
+
+  <!-- TODAY'S PROGRESS + TIMELINE -->
+  <div class="card cc-prog">
+    <div class="prog-grid">
+      <div>
+        <div class="card-head"><p class="k">Today's progress</p></div>
+        <div class="photos">
+          {% for p in demo_photos[:4] %}
+          <figure class="pht" style="margin:0">
+            <div class="ph-in">{{ p.cap }}</div>
+            <time>{{ p.sub }}</time>
+          </figure>
+          {% endfor %}
+        </div>
+        <p style="margin:14px 0 0"><a href="#photos" style="font-weight:700">View all photos →</a></p>
+      </div>
+      <div>
+        <div class="card-head"><p class="k">Timeline</p></div>
+        <ul class="tl">
+          {% for u in updates %}
+          <li>
+            <span class="tdot{{ ' now' if loop.first }}" aria-hidden="true">
+              {% if loop.first %}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="7" fill="currentColor"/></svg>
+              {% else %}<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 5 5L20 7"/></svg>{% endif %}
+            </span>
+            <span>
+              <p class="tt">{{ 'In progress' if loop.first else 'Completed' }}</p>
+              <p class="tn">{{ u.title }}</p>
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTACT -->
+  <div class="cc-side">
+    <div class="cc-contact" id="contact">
+      <div class="hd">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Your project contact
+      </div>
+      <div class="bd">
+        <div class="cperson">
+          <span class="cav" aria-hidden="true">{{ (j.rep or company.name)[:1]|upper }}</span>
+          <span><b>{{ j.rep }}</b><span>Project Manager</span></span>
+        </div>
+        <div class="clinks">
+          {% if company.phone %}
+          <a href="tel:{{ company.phone }}">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.1a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
+            Call {{ (j.rep or 'us').split(' ')[0] }}</a>
+          {% endif %}
+          {% if company.email %}
+          <a href="mailto:{{ company.email }}">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+            Message {{ (j.rep or 'us').split(' ')[0] }}</a>
+          {% endif %}
+        </div>
+        <div class="reassure">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6Z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span><b>We're here to help.</b><span>Questions or concerns? Reach out anytime.</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
+
+<!-- QUICK ACCESS -->
+<nav class="wrap quick" aria-label="Quick access">
+  <a class="qcard" href="#docs">
+    <svg class="qi" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+    <span><b>Documents</b><span>Permits, contract, invoices</span></span>
+    <svg class="qa" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+  </a>
+  <a class="qcard" href="{{ url_for('demo.design', slug=slug) }}">
+    <svg class="qi" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/></svg>
+    <span><b>Selections</b><span>Your colors and materials</span></span>
+    <svg class="qa" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+  </a>
+  <a class="qcard" href="#school">
+    <svg class="qi" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c3 2.5 9 2.5 12 0v-5"/></svg>
+    <span><b>Roof School</b><span>Learn about your roof</span></span>
+    <svg class="qa" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+  </a>
+  <a class="qcard" href="#refGame">
+    <svg class="qi" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>
+    <span><b>Referrals</b><span>Refer a friend, earn rewards</span></span>
+    <svg class="qa" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+  </a>
+</nav>
+
+<div class="wrap details-head" id="details">
+  <h2>Everything else about your project</h2>
+  <p>Your full roadmap, paperwork, photos and rewards — all still here.</p>
+</div>
 
 <section class="wrap cols">
   <div class="col-main">
 
     <!-- ROADMAP -->
     <div class="card">
-      <p class="k" style="margin-bottom:24px">What to expect — your roadmap</p>
+      <p class="k" style="margin-bottom:20px">What to expect — your roadmap</p>
       <div style="display:grid;gap:0">
         {% for s in checklist %}
-        <div class="rd {{ 'here' if s.current else ('future' if not s.done else '') }}">
+        <div class="rd {{ 'here' if s.current else ('future' if not s.done else 'done-s') }}">
           <div class="rd-head">
-            <h3>{% if s.done %}<span class="ck">✓</span>{% endif %}{{ s.name }}{% if s.current %} <span class="youare">You are here</span>{% endif %}</h3>
+            <h3>{% if s.done %}<span class="ck">✓</span>{% endif %}{{ s.name }}{% if s.current %}<span class="youare">You are here</span>{% endif %}</h3>
             {% if s.timeframe %}<span class="tf">{{ s.timeframe }}</span>{% endif %}
           </div>
           <p class="desc">{{ s.desc }}</p>
@@ -316,43 +583,39 @@
           <p class="yk">{{ 'Your part — do this now' if s.current else 'Your part' }}</p>
           <ul>
             {% for it in s.you %}
-            <li><span class="b">{{ '☐' if s.current else '·' }}</span>{{ it }}</li>
+            <li><span class="b" aria-hidden="true">{{ '☐' if s.current else '·' }}</span>{{ it }}</li>
             {% endfor %}
           </ul>
           {% endif %}
         </div>
         {% endfor %}
       </div>
-      <p class="cardnote" style="font-size:16.5px;color:rgba(27,33,48,.55)">Timeframes are typical estimates — your project contact will confirm exact dates.</p>
+      <p class="cardnote">Timeframes are typical estimates — your project contact will confirm exact dates.</p>
     </div>
 
     <!-- PROPOSAL -->
     <div class="card">
-      <div class="card-head" style="margin-bottom:20px">
-        <p class="k">Your proposal</p>
-        <p class="k-blue">Approved</p>
+      <div class="card-head" style="margin-bottom:18px">
+        <p class="k">Your proposal</p><p class="k-teal">Approved</p>
       </div>
-      <p style="font-size:20px;font-weight:600;margin:0 0 24px">#DEMO-1042 — {{ j.work_type }}</p>
+      <p style="font-size:19px;font-weight:700;margin:0 0 20px">#DEMO-1042 — {{ j.work_type }}</p>
       <div class="stats">
-        <div class="stat"><p class="sk">Contract</p><p class="sv">{{ money(j._value) }}</p></div>
-        <div class="stat"><p class="sk due">Balance due</p><p class="sv">{{ money(j._balance) }}</p></div>
-        <div class="stat"><p class="sk">Paid</p><p class="sv">{{ (j._paid_pct*100)|round|int }}%</p></div>
+        <div class="stat"><p class="sk">Contract</p><p class="sv tnum">{{ money(j._value) }}</p></div>
+        <div class="stat"><p class="sk due">Balance due</p><p class="sv tnum">{{ money(j._balance) }}</p></div>
+        <div class="stat"><p class="sk">Paid</p><p class="sv tnum">{{ (j._paid_pct*100)|round|int }}%</p></div>
       </div>
       <p class="cardnote">E-sign your proposal and pay each draw right here.</p>
     </div>
 
-    <!-- INVOICES & PAYMENTS (QuickBooks integration) -->
+    <!-- INVOICES & PAYMENTS -->
     <div id="payments" class="card">
-      <div class="card-head">
-        <p class="k">Invoices &amp; payments</p>
-        <p class="k-blue">QuickBooks</p>
-      </div>
+      <div class="card-head"><p class="k">Invoices &amp; payments</p><p class="k-teal">QuickBooks</p></div>
       <p class="lead">Draws and payments sync live with QuickBooks — pay online in one tap.</p>
       <div class="lrows">
         {% for inv in demo_invoices %}
         <div class="lrow{{ ' dim' if not inv.paid and inv.status != 'Due now' }}">
           <span class="lft"><span class="chip {{ 'ok' if inv.paid else ('due' if inv.status == 'Due now' else 'up') }}">{{ inv.status }}</span>{{ inv.label }}</span>
-          <span class="amt">{{ inv.amount }}</span>
+          <span class="amt tnum">{{ inv.amount }}</span>
         </div>
         {% endfor %}
       </div>
@@ -361,12 +624,9 @@
       {% endif %}
     </div>
 
-    <!-- DOCUMENTS — upload & sign -->
-    <div class="card">
-      <div class="card-head">
-        <p class="k">Documents — upload &amp; sign</p>
-        <p class="k-blue">E-signature</p>
-      </div>
+    <!-- DOCUMENTS -->
+    <div id="docs" class="card">
+      <div class="card-head"><p class="k">Documents — upload &amp; sign</p><p class="k-teal">E-signature</p></div>
       <p class="lead">Review, e-sign and download everything in one place — and upload anything we ask for.</p>
       <div class="lrows">
         {% for dc in demo_docs %}
@@ -381,12 +641,9 @@
       <div class="uploadbox" onclick="demoToast('Pick a file to upload — HOA approval, insurance, photos, anything. (This is a demo.)')">Upload a document — HOA approval, insurance, etc.</div>
     </div>
 
-    <!-- LIVE JOB PHOTOS (SiteCam integration) -->
+    <!-- LIVE JOB PHOTOS (SiteCam integration — preserved) -->
     <div id="photos" class="card">
-      <div class="card-head">
-        <p class="k">Live job photos</p>
-        <p class="k-blue">SiteCam</p>
-      </div>
+      <div class="card-head"><p class="k">Live job photos</p><p class="k-teal">SiteCam</p></div>
       <p class="lead">Your crew's photos post here automatically as the job moves — straight from the field via SiteCam.</p>
       {% if demo_sitecam_url %}
       <iframe src="{{ demo_sitecam_url }}" loading="lazy" referrerpolicy="origin" title="Job site photos"
@@ -395,7 +652,7 @@
       <div class="pgrid">
         {% for p in demo_photos %}
         <div class="ph">
-          <div class="img"><span>crew photo</span></div>
+          <div class="img">crew photo</div>
           <b>{{ p.cap }}</b>
           <p class="ps">{{ p.sub }}</p>
         </div>
@@ -406,10 +663,7 @@
 
     <!-- ROOF SCHOOL -->
     <div id="school" class="card">
-      <div class="card-head">
-        <p class="k">Roof School</p>
-        <p class="k-blue">Education</p>
-      </div>
+      <div class="card-head"><p class="k">Roof School</p><p class="k-teal">Education</p></div>
       <p class="lead">Know your roof before your inspection — systems, lifespans, and what Florida code requires.</p>
       <div class="rstiles">
         {% for e in roof_edu %}
@@ -425,16 +679,14 @@
 
     <!-- HOA LUNCH & LEARN -->
     <div class="card">
-      <div class="card-head">
-        <p class="k">HOA board or community?</p>
-        <p class="k-blue">Lunch &amp; learn</p>
-      </div>
-      <p class="lead" style="line-height:1.55;margin-bottom:22px">We'll bring lunch and host a Q&amp;A for your residents or board — and bring the manufacturer's reps if a specific tile or color is required.</p>
+      <div class="card-head"><p class="k">HOA board or community?</p><p class="k-teal">Lunch &amp; learn</p></div>
+      <p class="lead">We'll bring lunch and host a Q&amp;A for your residents or board — and bring the manufacturer's reps if a specific tile or color is required.</p>
       <form class="llform" onsubmit="event.preventDefault();demoToast('Request sent! Your project contact will confirm a date. (This is a demo.)')">
-        <input type="text" placeholder="Community / HOA name">
+        <label for="ll-name" class="k" style="margin-bottom:-4px">Community / HOA name</label>
+        <input id="ll-name" type="text" placeholder="Community / HOA name">
         <div class="llrow">
-          <input type="date" placeholder="mm/dd/yyyy">
-          <input type="text" placeholder="# attendees">
+          <input type="date" aria-label="Preferred date">
+          <input type="text" placeholder="# attendees" aria-label="Number of attendees">
         </div>
         <button type="submit">Request a Lunch &amp; Learn</button>
       </form>
@@ -442,9 +694,9 @@
 
     <!-- REFERRAL GAME -->
     <div class="dark" id="refGame">
-      <div class="card-head" style="margin-bottom:24px">
+      <div class="card-head" style="margin-bottom:20px">
         <p class="k">Referral game — level up &amp; win</p>
-        <p class="k-blue" id="refNext">{% if referral.next_level %}{{ referral.next_level.n - referral.shares }} more to {{ referral.next_level.name }}{% else %}Max level — you're a legend!{% endif %}</p>
+        <p class="k-teal" id="refNext">{% if referral.next_level %}{{ referral.next_level.n - referral.shares }} more to {{ referral.next_level.name }}{% else %}Max level — you're a legend!{% endif %}</p>
       </div>
       <div class="reflvl">
         <span style="font-size:22px" id="refIcon">{{ referral.level.ic }}</span>
@@ -453,16 +705,16 @@
       </div>
       <div class="refbar"><div id="refFill" style="width:{{ ((referral.shares / (referral.next_level.n if referral.next_level else referral.shares or 1)) * 100)|round|int if referral.next_level else 100 }}%"></div></div>
       <p class="lead">Your personal invite — edit it, then send it to neighbors. Every send levels you up:</p>
+      <label for="refMsg" class="k" style="display:block;margin-bottom:6px;color:rgb(255 255 255/.55)">Your invite message</label>
       <textarea id="refMsg" rows="3">I'm getting my roof done by {{ company.name }} and they've been great! Get a free quote → {{ referral.link }}</textarea>
       <div class="refbtns">
         <button type="button" class="rb solid" onclick="sendRef()">Copy &amp; send</button>
         <a class="rb line" id="refSms" href="sms:?&body=" onclick="bumpShare()">Text it</a>
         <button type="button" class="rb line" onclick="saveRefMsg(this)">Save my message</button>
       </div>
-
-      <div class="card-head" style="margin-bottom:18px">
+      <div class="card-head" style="margin-bottom:16px">
         <p class="k">Rewards you can unlock</p>
-        <p class="mono" style="font-size:13px;color:rgba(233,238,247,.5);margin:0">{{ referral.signed }} signed so far</p>
+        <p style="font-size:13px;color:rgb(255 255 255/.5);margin:0">{{ referral.signed }} signed so far</p>
       </div>
       <ul class="ladder">
         {% for t in referral.tiers %}
@@ -474,34 +726,26 @@
       </ul>
       {% if referral.next_tier %}<p class="refgoal">{{ referral.next_tier.n - referral.signed }} more signed referral{{ 's' if (referral.next_tier.n - referral.signed) > 1 }} to win {{ referral.next_tier.reward }}.</p>{% endif %}
     </div>
-
   </div>
 
-  <div class="col-side">
-
-    <!-- PROJECT CONTACT -->
-    <div id="contact" class="card">
-      <p class="k" style="margin-bottom:22px">Your project contact</p>
+  <div class="col-side2">
+    <div class="card">
+      <p class="k" style="margin-bottom:18px">Your project contact</p>
       <div class="contact">
-        <div class="av">{{ (j.rep or company.name)[:1]|upper }}</div>
-        <div>
-          <p class="cn">{{ j.rep }}</p>
-          <p class="cc">{{ company.name }}</p>
-        </div>
+        <div class="av" aria-hidden="true">{{ (j.rep or company.name)[:1]|upper }}</div>
+        <div><p class="cn">{{ j.rep }}</p><p class="cc2">{{ company.name }}</p></div>
       </div>
       <div class="cbtns">
         {% if company.phone %}<a href="tel:{{ company.phone }}">Call</a>{% endif %}
         {% if company.email %}<a href="mailto:{{ company.email }}">Email</a>{% endif %}
       </div>
     </div>
-
-    <!-- PROJECT UPDATES -->
     {% if updates %}
     <div class="card">
-      <p class="k" style="margin-bottom:20px">Your project updates</p>
+      <p class="k" style="margin-bottom:18px">Your project updates</p>
       <ul class="updl">
         {% for u in updates %}
-        <li><span class="{{ 'd-amber' if loop.first else 'd-blue' }}">◉</span><span><b>{{ u.title }}</b> <span class="um">— milestone reached</span></span></li>
+        <li><span class="{{ 'd-gold' if loop.first else 'd-teal' }}" aria-hidden="true">◉</span><span><b>{{ u.title }}</b> <span class="um">— milestone reached</span></span></li>
         {% endfor %}
       </ul>
     </div>
@@ -510,13 +754,13 @@
 </section>
 
 <footer>
-  <div class="wrap ft">
+  <div class="wrap">
     <p class="f1">{{ company.name }}{% if company.phone %} · {{ company.phone }}{% endif %}</p>
     <p class="f2">This is a branded demo of the customer portal. Sample data — no real project.</p>
   </div>
 </footer>
 
-<div id="demoToast"></div>
+<div id="demoToast" role="status" aria-live="polite"></div>
 <script>
 (function(){var t=document.getElementById('demoToast'),to;window.demoToast=function(m){t.textContent=m;t.classList.add('show');clearTimeout(to);to=setTimeout(function(){t.classList.remove('show');},3200);};})();
 var REFTOK={{ slug|tojson }};
@@ -540,7 +784,8 @@ function saveRefMsg(b){var fd=new URLSearchParams();fd.append('msg',refBody());
   fetch('/demo/'+REFTOK+'/refer/msg',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd})
     .then(function(){b.textContent='✓ Saved';setTimeout(function(){b.textContent='Save my message';},1500);});}
 document.getElementById('refSms').addEventListener('click',function(){this.href='sms:?&body='+encodeURIComponent(refBody());});
-function refConfetti(){for(var i=0;i<60;i++){(function(){var c=document.createElement('div');
+function refConfetti(){if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  for(var i=0;i<60;i++){(function(){var c=document.createElement('div');
   c.style.cssText='position:fixed;top:-10px;left:'+Math.random()*100+'vw;width:9px;height:9px;z-index:99999;border-radius:2px;background:hsl('+Math.floor(Math.random()*360)+',90%,55%);pointer-events:none';
   document.body.appendChild(c);var top=0,L=parseFloat(c.style.left),drift=(Math.random()-.5)*40,t=0;
   var iv=setInterval(function(){t+=1;top+=4+Math.random()*3;c.style.top=top+'px';c.style.left=(L+Math.sin(t/8)*drift/10)+'vw';c.style.transform='rotate('+t*20+'deg)';

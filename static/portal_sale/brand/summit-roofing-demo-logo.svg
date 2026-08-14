@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" role="img" aria-labelledby="title desc">
+  <title id="title">Summit Roofing Company</title>
+  <desc id="desc">Demo logo with two roof peaks.</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 66 56 22l42 44" stroke="#0D2B3A" stroke-width="10"/>
+    <path d="M54 66 83 36l30 30" stroke="#D7A438" stroke-width="8"/>
+    <path d="M45 66h60" stroke="#0D2B3A" stroke-width="8"/>
+  </g>
+  <text x="132" y="58" fill="#0D2B3A" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800">Summit Roofing Co.</text>
+</svg>
+

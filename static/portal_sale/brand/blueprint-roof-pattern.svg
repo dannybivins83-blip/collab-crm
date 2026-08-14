@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" role="img" aria-labelledby="title desc">
+  <title id="title">Roof blueprint pattern</title>
+  <desc id="desc">Subtle architectural roofline pattern for decorative backgrounds.</desc>
+  <g fill="none" stroke="#178FE5" stroke-opacity=".14" stroke-width="1.2">
+    <path d="M40 380 220 190l180 190 130-140 230 240"/>
+    <path d="M96 380 220 248l124 132M458 380l72-78 72 78"/>
+    <path d="M0 420h800M0 440h800M0 460h800"/>
+    <path d="M80 0v480M160 0v480M240 0v480M320 0v480M400 0v480M480 0v480M560 0v480M640 0v480M720 0v480" stroke-opacity=".05"/>
+    <circle cx="220" cy="190" r="7"/><circle cx="530" cy="240" r="7"/>
+  </g>
+</svg>

@@ -1,0 +1,62 @@
+:root {
+  --mrp-navy-950: #071c2b;
+  --mrp-navy-900: #0d2b3a;
+  --mrp-navy-800: #123a4c;
+  --mrp-teal-600: #14858a;
+  --mrp-teal-500: #1e9ba0;
+  --mrp-sky-500: #178fe5;
+  --mrp-gold-500: #d7a438;
+  --mrp-gold-100: #fff3d5;
+  --mrp-warm-50: #f7f5f0;
+  --mrp-white: #ffffff;
+  --mrp-slate-700: #34454f;
+  --mrp-slate-500: #6e7b82;
+  --mrp-line: #d9dfe1;
+  --mrp-success: #17845b;
+  --mrp-danger: #b8443b;
+
+  --mrp-font-sans: Inter, Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mrp-content: 78rem;
+  --mrp-radius-sm: 0.5rem;
+  --mrp-radius-md: 0.75rem;
+  --mrp-radius-lg: 1rem;
+  --mrp-shadow-card: 0 10px 30px rgb(7 28 43 / 0.08);
+  --mrp-focus: 0 0 0 3px rgb(23 143 229 / 0.35);
+
+  --mrp-space-1: 0.25rem;
+  --mrp-space-2: 0.5rem;
+  --mrp-space-3: 0.75rem;
+  --mrp-space-4: 1rem;
+  --mrp-space-5: 1.25rem;
+  --mrp-space-6: 1.5rem;
+  --mrp-space-8: 2rem;
+  --mrp-space-10: 2.5rem;
+  --mrp-space-12: 3rem;
+  --mrp-space-16: 4rem;
+  --mrp-space-24: 6rem;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--mrp-navy-950);
+  background: var(--mrp-warm-50);
+  font-family: var(--mrp-font-sans);
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mrp-sky-500);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
