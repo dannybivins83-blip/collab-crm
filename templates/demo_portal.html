@@ -83,7 +83,7 @@
   }
 
   /* ---------- greeting ---------- */
-  .greet{padding:34px 0 22px;position:relative}
+  .greet{padding-top:34px;padding-bottom:22px;position:relative}
   /* roofline graphic behind the greeting (mockup) — decorative, hidden from AT */
   .greet::after{content:"";position:absolute;right:0;top:0;bottom:0;width:min(48%,720px);
     background:url("{{ url_for('static', filename='portal_demo/roofline.jpg') }}") right bottom/contain no-repeat;
@@ -99,7 +99,7 @@
   /* ---------- command center ---------- */
   .cc{display:grid;gap:18px;grid-template-columns:minmax(0,1fr);padding-bottom:22px}
   @media(min-width:1024px){
-    .cc{grid-template-columns:minmax(0,1.5fr) minmax(0,.54fr) minmax(0,1fr);
+    .cc{grid-template-columns:minmax(0,1.35fr) minmax(0,.92fr) minmax(0,1fr);
       grid-template-areas:"mile part money" "prog prog side";align-items:start}
     .cc-mile{grid-area:mile}.cc-part{grid-area:part}.cc-money{grid-area:money}
     .cc-prog{grid-area:prog}.cc-side{grid-area:side}
