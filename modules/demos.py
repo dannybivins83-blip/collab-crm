@@ -351,8 +351,35 @@ def portal_view(slug):
         {"name": "Palm Beach County Permit", "kind": "Permit", "status": "sign"},
         {"name": "25-Year Workmanship Warranty", "kind": "Warranty", "status": "ready"},
     ]
+    # Instacart-style add-on marketplace — browse & "Add" upgrades to your project.
+    addon_cats = [
+        {"key": "gutters", "name": "Gutters & Drainage", "tag": "Protect your new roof", "icon": "droplet", "items": [
+            {"name": "Seamless Aluminum Gutters", "price": "$1,850", "unit": "whole home", "blurb": "5\" K-style, color-matched to your roof", "badge": "Popular"},
+            {"name": "Leaf-Guard Gutter Protection", "price": "$690", "unit": "", "blurb": "Never clean your gutters again", "badge": ""},
+            {"name": "Downspout Extensions", "price": "$120", "unit": "", "blurb": "Move water away from your foundation", "badge": ""},
+            {"name": "Copper Half-Round Upgrade", "price": "$4,200", "unit": "", "blurb": "Premium coastal look", "badge": "Premium"},
+        ]},
+        {"key": "maint", "name": "Maintenance Plans", "tag": "Keep your warranty valid", "icon": "shield", "items": [
+            {"name": "Annual Roof Checkup", "price": "$199", "unit": "/yr", "blurb": "Yearly inspection + tune-up", "badge": "Best value"},
+            {"name": "Premium Care Plan", "price": "$349", "unit": "/yr", "blurb": "2 visits/yr + priority scheduling", "badge": "Popular"},
+            {"name": "Gutter Cleaning (2x/yr)", "price": "$149", "unit": "/yr", "blurb": "Spring & fall clean-outs", "badge": ""},
+            {"name": "Storm Response Membership", "price": "$99", "unit": "/yr", "blurb": "Priority post-storm inspection", "badge": ""},
+        ]},
+        {"key": "inspect", "name": "Inspections", "tag": "Save on insurance", "icon": "search", "items": [
+            {"name": "Wind Mitigation Inspection", "price": "$125", "unit": "", "blurb": "Can lower your insurance premium", "badge": "Insurance discount"},
+            {"name": "Drone Roof Inspection", "price": "$99", "unit": "", "blurb": "HD aerial photos + report", "badge": ""},
+            {"name": "Post-Storm Damage Inspection", "price": "Free", "unit": "", "blurb": "After any named storm", "badge": "Free"},
+            {"name": "4-Point Home Inspection", "price": "$150", "unit": "", "blurb": "For insurance or closing", "badge": ""},
+        ]},
+        {"key": "upgrades", "name": "Roof Upgrades", "tag": "Add before install day", "icon": "star", "items": [
+            {"name": "Ridge Vent + Attic Ventilation", "price": "$650", "unit": "", "blurb": "Cooler attic, longer roof life", "badge": "Recommended"},
+            {"name": "Hurricane-Rated Skylights", "price": "$1,200", "unit": "each", "blurb": "Natural light, impact-rated", "badge": ""},
+            {"name": "Peel-&-Stick Underlayment Upgrade", "price": "$900", "unit": "", "blurb": "Max secondary water barrier", "badge": "Popular"},
+            {"name": "Extended 25-Yr Workmanship Warranty", "price": "$450", "unit": "", "blurb": "Double your coverage", "badge": ""},
+        ]},
+    ]
     return render_template(
-        "demo_portal.html", slug=slug, company=company, j=j,
+        "demo_portal.html", slug=slug, company=company, j=j, addon_cats=addon_cats,
         phases=portal.CUSTOMER_PHASES, checklist=_checklist(phase),
         value_steps=value_steps, value_done=value_done, value_total=len(value_steps),
         updates=_sample_updates(phase), referral=_referral_ctx(d, link),
