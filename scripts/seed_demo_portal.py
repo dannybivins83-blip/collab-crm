@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import db
 
 SLUG = "roof-portal"
-NAME = "Summit Roofing Co."
+NAME = "KLR Roofing"
 TAGLINE = "Roofs done right — on time, every time."
 SYSTEM = "shingle"
 # Coastal, 4-color palette (matches the flat portal theme).
@@ -56,7 +56,7 @@ def main(argv):
     rid = db.insert("demos", {
         "created": db.now(), "slug": slug, "company_name": name,
         "logo_url": "", "tagline": TAGLINE, "phone": "(555) 018-2440",
-        "website": "https://summitroofingco.com",
+        "website": "https://klrroofing.com",
         "color_masthead": MASTHEAD, "color_primary": PRIMARY, "color_accent": ACCENT,
         "sample_system": system, "created_by": "seed"})
     print("CREATED /demo/%s (id=%s)" % (slug, rid))

@@ -67,8 +67,8 @@ db._COLCACHE.clear()
 # auto-seeded placeholder ("Roof Portal") to this brand. Only ever touches the auto-seeded
 # row (created_by='seed') — never a manually-created demo.
 _DEMO_DEFAULT = {
-    "company_name": "Summit Roofing Co.", "tagline": "Roofs done right — on time, every time.",
-    "phone": "(555) 018-2440", "website": "https://summitroofingco.com",
+    "company_name": "KLR Roofing", "tagline": "Roofs done right — on time, every time.",
+    "phone": "(555) 018-2440", "website": "https://klrroofing.com",
     "color_masthead": "#0B2B40", "color_primary": "#1F8A9C", "color_accent": "#E0A338",
     "sample_system": "shingle",
 }
@@ -80,7 +80,7 @@ def _ensure_default_demo():
         if not rows:
             db.insert("demos", dict(_DEMO_DEFAULT, created=db.now(), slug="roof-portal",
                                     logo_url="", created_by="seed"))
-        elif rows[0].get("created_by") == "seed" and (rows[0].get("company_name") or "") in ("", "Roof Portal"):
+        elif rows[0].get("created_by") == "seed" and (rows[0].get("company_name") or "") in ("", "Roof Portal", "Summit Roofing Co."):
             db.update("demos", rows[0]["id"], company_name=_DEMO_DEFAULT["company_name"],
                       tagline=_DEMO_DEFAULT["tagline"], phone=_DEMO_DEFAULT["phone"],
                       website=_DEMO_DEFAULT["website"])
@@ -113,16 +113,16 @@ def _ensure_default_demo():
     slug = (os.environ.get("CRM_DEMO_SLUG") or "roof-portal").strip()
     if not slug:
         return
-    name = (os.environ.get("CRM_DEMO_SEED_NAME") or "Summit Roofing Co.").strip()
+    name = (os.environ.get("CRM_DEMO_SEED_NAME") or "KLR Roofing").strip()
     brand = {"company_name": name,
              "tagline": "Roofs done right — on time, every time.",
-             "website": "https://summitroofingco.com", "phone": "(555) 018-2440",
+             "website": "https://klrroofing.com", "phone": "(555) 018-2440",
              "color_masthead": "#0B2B40", "color_primary": "#1F8A9C",
              "color_accent": "#E0A338", "sample_system": "shingle"}
     try:
         rows = db.all_rows("demos", "slug=?", (slug,))
         if rows:
-            if (rows[0].get("company_name") or "") in ("", "Roof Portal", "Your Roofing Co."):
+            if (rows[0].get("company_name") or "") in ("", "Roof Portal", "Your Roofing Co.", "Summit Roofing Co."):
                 db.update("demos", rows[0]["id"], **brand)
         else:
             db.insert("demos", dict(brand, slug=slug, created=db.now(), created_by="seed"))
