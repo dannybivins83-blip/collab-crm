@@ -240,8 +240,7 @@
   .details-head p{color:var(--slate-500);margin:8px 0 0}
   .cols{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;align-items:start;padding-bottom:44px}
   .col-main,.col-side2{min-width:0;display:grid;gap:22px}
-  @media(min-width:1024px){.cols{grid-template-columns:minmax(0,1fr) 340px}
-    .col-side2{position:sticky;top:92px}}
+  @media(min-width:1024px){.cols{grid-template-columns:minmax(0,1fr)}}
 
   /* roadmap */
   .rd{border-left:3px solid var(--line);padding:0 0 26px 22px;position:relative}
@@ -694,20 +693,6 @@
       <p class="cardnote">Timeframes are typical estimates — your project contact will confirm exact dates.</p>
     </div>
 
-    <!-- PROPOSAL -->
-    <div class="card">
-      <div class="card-head" style="margin-bottom:18px">
-        <p class="k">Your proposal</p><p class="k-teal">Approved</p>
-      </div>
-      <p style="font-size:19px;font-weight:700;margin:0 0 20px">#DEMO-1042 — {{ j.work_type }}</p>
-      <div class="stats">
-        <div class="stat"><p class="sk">Contract</p><p class="sv tnum">{{ money(j._value) }}</p></div>
-        <div class="stat"><p class="sk due">Balance due</p><p class="sv tnum">{{ money(j._balance) }}</p></div>
-        <div class="stat"><p class="sk">Paid</p><p class="sv tnum">{{ (j._paid_pct*100)|round|int }}%</p></div>
-      </div>
-      <p class="cardnote">E-sign your proposal and pay each draw right here.</p>
-    </div>
-
     <!-- INVOICES & PAYMENTS -->
     <div id="payments" class="card">
       <div class="card-head"><p class="k">Invoices &amp; payments</p><p class="k-teal">QuickBooks</p></div>
@@ -829,29 +814,6 @@
     </div>
   </div>
 
-  <div class="col-side2">
-    <div class="card">
-      <p class="k" style="margin-bottom:18px">Your project contact</p>
-      <div class="contact">
-        <div class="av" aria-hidden="true">{{ (j.rep or company.name)[:1]|upper }}</div>
-        <div><p class="cn">{{ j.rep }}</p><p class="cc2">{{ company.name }}</p></div>
-      </div>
-      <div class="cbtns">
-        {% if company.phone %}<a href="tel:{{ company.phone }}">Call</a>{% endif %}
-        {% if company.email %}<a href="mailto:{{ company.email }}">Email</a>{% endif %}
-      </div>
-    </div>
-    {% if updates %}
-    <div class="card">
-      <p class="k" style="margin-bottom:18px">Your project updates</p>
-      <ul class="updl">
-        {% for u in updates %}
-        <li><span class="{{ 'd-gold' if loop.first else 'd-teal' }}" aria-hidden="true">◉</span><span><b>{{ u.title }}</b> <span class="um">— milestone reached</span></span></li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-  </div>
 </section>
 
 <footer>
