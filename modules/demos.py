@@ -69,7 +69,7 @@ db._COLCACHE.clear()
 _DEMO_DEFAULT = {
     "company_name": "KLR Roofing", "tagline": "Roofs done right — on time, every time.",
     "phone": "(555) 018-2440", "website": "https://klrroofing.com",
-    "color_masthead": "#0B2B40", "color_primary": "#1F8A9C", "color_accent": "#E0A338",
+    "color_masthead": "#15201A", "color_primary": "#37B34A", "color_accent": "#2A8F3A",
     "sample_system": "shingle",
 }
 
@@ -117,13 +117,16 @@ def _ensure_default_demo():
     brand = {"company_name": name,
              "tagline": "Roofs done right — on time, every time.",
              "website": "https://klrroofing.com", "phone": "(555) 018-2440",
-             "color_masthead": "#0B2B40", "color_primary": "#1F8A9C",
-             "color_accent": "#E0A338", "sample_system": "shingle"}
+             "color_masthead": "#15201A", "color_primary": "#37B34A",
+             "color_accent": "#2A8F3A", "sample_system": "shingle"}
     try:
         rows = db.all_rows("demos", "slug=?", (slug,))
         if rows:
-            if (rows[0].get("company_name") or "") in ("", "Roof Portal", "Your Roofing Co.", "Summit Roofing Co."):
-                db.update("demos", rows[0]["id"], **brand)
+            r0 = rows[0]
+            stale_name = (r0.get("company_name") or "") in ("", "Roof Portal", "Your Roofing Co.", "Summit Roofing Co.")
+            stale_color = r0.get("created_by") == "seed" and (r0.get("color_primary") or "") != brand["color_primary"]
+            if stale_name or stale_color:
+                db.update("demos", r0["id"], **brand)
         else:
             db.insert("demos", dict(brand, slug=slug, created=db.now(), created_by="seed"))
     except Exception:

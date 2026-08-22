@@ -22,9 +22,9 @@ NAME = "KLR Roofing"
 TAGLINE = "Roofs done right — on time, every time."
 SYSTEM = "shingle"
 # Coastal, 4-color palette (matches the flat portal theme).
-MASTHEAD = "#0B2B40"   # harbor navy
-PRIMARY = "#1F8A9C"    # sea teal
-ACCENT = "#E0A338"     # sand gold
+MASTHEAD = "#15201A"   # harbor navy
+PRIMARY = "#37B34A"    # sea teal
+ACCENT = "#2A8F3A"     # sand gold
 
 
 def main(argv):
