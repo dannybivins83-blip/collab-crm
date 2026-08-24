@@ -266,6 +266,12 @@
   .rd li{display:flex;gap:10px;font-size:15.5px;color:var(--slate-700)}
   .rd li .b{color:var(--teal)}
   .rd.future h3,.rd.future .desc{color:#8d989f}
+  .rd>summary{list-style:none;cursor:pointer;position:relative;padding-right:30px}
+  .rd>summary::-webkit-details-marker{display:none}
+  .rd>summary::after{content:"+";position:absolute;right:2px;top:-1px;font-size:23px;line-height:1;
+    color:var(--slate-500);font-weight:400}
+  .rd[open]>summary::after{content:"–"}
+  .rd[open]>summary{margin-bottom:2px}
 
   .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);
     border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -718,24 +724,27 @@
 
     <!-- ROADMAP -->
     <div class="card">
-      <p class="k" style="margin-bottom:20px">What to expect — your roadmap</p>
+      <p class="k" style="margin-bottom:6px">What to expect — your roadmap</p>
+      <p class="lead">Your project step by step — tap any stage to expand.</p>
       <div style="display:grid;gap:0">
         {% for s in checklist %}
-        <div class="rd {{ 'here' if s.current else ('future' if not s.done else 'done-s') }}">
-          <div class="rd-head">
+        <details class="rd {{ 'here' if s.current else ('future' if not s.done else 'done-s') }}">
+          <summary class="rd-head">
             <h3>{% if s.done %}<span class="ck">✓</span>{% endif %}{{ s.name }}{% if s.current %}<span class="youare">You are here</span>{% endif %}</h3>
             {% if s.timeframe %}<span class="tf">{{ s.timeframe }}</span>{% endif %}
+          </summary>
+          <div class="rd-body">
+            <p class="desc">{{ s.desc }}</p>
+            {% if s.you %}
+            <p class="yk">{{ 'Your part — do this now' if s.current else 'Your part' }}</p>
+            <ul>
+              {% for it in s.you %}
+              <li><span class="b" aria-hidden="true">{{ '☐' if s.current else '·' }}</span>{{ it }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
           </div>
-          <p class="desc">{{ s.desc }}</p>
-          {% if s.you %}
-          <p class="yk">{{ 'Your part — do this now' if s.current else 'Your part' }}</p>
-          <ul>
-            {% for it in s.you %}
-            <li><span class="b" aria-hidden="true">{{ '☐' if s.current else '·' }}</span>{{ it }}</li>
-            {% endfor %}
-          </ul>
-          {% endif %}
-        </div>
+        </details>
         {% endfor %}
       </div>
       <p class="cardnote">Timeframes are typical estimates — your project contact will confirm exact dates.</p>
