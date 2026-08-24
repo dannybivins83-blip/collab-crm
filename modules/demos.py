@@ -373,28 +373,28 @@ def portal_view(slug):
     # Instacart-style add-on marketplace — browse & "Add" upgrades to your project.
     addon_cats = [
         {"key": "gutters", "name": "Gutters & Drainage", "tag": "Protect your new roof", "icon": "droplet", "items": [
-            {"name": "Seamless Aluminum Gutters", "price": "$1,850", "unit": "whole home", "blurb": "5\" K-style, color-matched to your roof", "badge": "Popular"},
-            {"name": "Leaf-Guard Gutter Protection", "price": "$690", "unit": "", "blurb": "Never clean your gutters again", "badge": ""},
-            {"name": "Downspout Extensions", "price": "$120", "unit": "", "blurb": "Move water away from your foundation", "badge": ""},
-            {"name": "Copper Half-Round Upgrade", "price": "$4,200", "unit": "", "blurb": "Premium coastal look", "badge": "Premium"},
+            {"name": "Seamless Aluminum Gutters", "price": "$1,850", "unit": "whole home", "blurb": "5\" K-style, color-matched to your roof", "badge": "Popular", "img": "demo/addons/01-seamless-aluminum-gutters.webp"},
+            {"name": "Leaf-Guard Gutter Protection", "price": "$690", "unit": "", "blurb": "Never clean your gutters again", "badge": "", "img": "demo/addons/02-leaf-guard-gutter-protection.webp"},
+            {"name": "Downspout Extensions", "price": "$120", "unit": "", "blurb": "Move water away from your foundation", "badge": "", "img": "demo/addons/03-downspout-extensions.webp"},
+            {"name": "Copper Half-Round Upgrade", "price": "$4,200", "unit": "", "blurb": "Premium coastal look", "badge": "Premium", "img": "demo/addons/04-copper-half-round-upgrade.webp"},
         ]},
         {"key": "maint", "name": "Maintenance Plans", "tag": "Keep your warranty valid", "icon": "shield", "items": [
-            {"name": "Annual Roof Checkup", "price": "$199", "unit": "/yr", "blurb": "Yearly inspection + tune-up", "badge": "Best value"},
-            {"name": "Premium Care Plan", "price": "$349", "unit": "/yr", "blurb": "2 visits/yr + priority scheduling", "badge": "Popular"},
-            {"name": "Gutter Cleaning (2x/yr)", "price": "$149", "unit": "/yr", "blurb": "Spring & fall clean-outs", "badge": ""},
-            {"name": "Storm Response Membership", "price": "$99", "unit": "/yr", "blurb": "Priority post-storm inspection", "badge": ""},
+            {"name": "Annual Roof Checkup", "price": "$199", "unit": "/yr", "blurb": "Yearly inspection + tune-up", "badge": "Best value", "img": "demo/addons/05-annual-roof-checkup.webp"},
+            {"name": "Premium Care Plan", "price": "$349", "unit": "/yr", "blurb": "2 visits/yr + priority scheduling", "badge": "Popular", "img": "demo/addons/06-premium-care-plan.webp"},
+            {"name": "Gutter Cleaning (2x/yr)", "price": "$149", "unit": "/yr", "blurb": "Spring & fall clean-outs", "badge": "", "img": "demo/addons/07-gutter-cleaning-2x-year.webp"},
+            {"name": "Storm Response Membership", "price": "$99", "unit": "/yr", "blurb": "Priority post-storm inspection", "badge": "", "img": "demo/addons/08-storm-response-membership.webp"},
         ]},
         {"key": "inspect", "name": "Inspections", "tag": "Save on insurance", "icon": "search", "items": [
-            {"name": "Wind Mitigation Inspection", "price": "$125", "unit": "", "blurb": "Can lower your insurance premium", "badge": "Insurance discount"},
-            {"name": "Drone Roof Inspection", "price": "$99", "unit": "", "blurb": "HD aerial photos + report", "badge": ""},
-            {"name": "Post-Storm Damage Inspection", "price": "Free", "unit": "", "blurb": "After any named storm", "badge": "Free"},
-            {"name": "4-Point Home Inspection", "price": "$150", "unit": "", "blurb": "For insurance or closing", "badge": ""},
+            {"name": "Wind Mitigation Inspection", "price": "$125", "unit": "", "blurb": "Can lower your insurance premium", "badge": "Insurance discount", "img": "demo/addons/09-wind-mitigation-inspection.webp"},
+            {"name": "Drone Roof Inspection", "price": "$99", "unit": "", "blurb": "HD aerial photos + report", "badge": "", "img": "demo/addons/10-drone-roof-inspection.webp"},
+            {"name": "Post-Storm Damage Inspection", "price": "Free", "unit": "", "blurb": "After any named storm", "badge": "Free", "img": "demo/addons/11-post-storm-damage-inspection.webp"},
+            {"name": "4-Point Home Inspection", "price": "$150", "unit": "", "blurb": "For insurance or closing", "badge": "", "img": "demo/addons/12-four-point-home-inspection.webp"},
         ]},
         {"key": "upgrades", "name": "Roof Upgrades", "tag": "Add before install day", "icon": "star", "items": [
-            {"name": "Ridge Vent + Attic Ventilation", "price": "$650", "unit": "", "blurb": "Cooler attic, longer roof life", "badge": "Recommended"},
-            {"name": "Hurricane-Rated Skylights", "price": "$1,200", "unit": "each", "blurb": "Natural light, impact-rated", "badge": ""},
-            {"name": "Peel-&-Stick Underlayment Upgrade", "price": "$900", "unit": "", "blurb": "Max secondary water barrier", "badge": "Popular"},
-            {"name": "Extended 25-Yr Workmanship Warranty", "price": "$450", "unit": "", "blurb": "Double your coverage", "badge": ""},
+            {"name": "Ridge Vent + Attic Ventilation", "price": "$650", "unit": "", "blurb": "Cooler attic, longer roof life", "badge": "Recommended", "img": "demo/addons/13-ridge-vent-attic-ventilation.webp"},
+            {"name": "Hurricane-Rated Skylights", "price": "$1,200", "unit": "each", "blurb": "Natural light, impact-rated", "badge": "", "img": "demo/addons/14-hurricane-rated-skylights.webp"},
+            {"name": "Peel-&-Stick Underlayment Upgrade", "price": "$900", "unit": "", "blurb": "Max secondary water barrier", "badge": "Popular", "img": "demo/addons/15-peel-stick-underlayment-upgrade.webp"},
+            {"name": "Extended 25-Yr Workmanship Warranty", "price": "$450", "unit": "", "blurb": "Double your coverage", "badge": "", "img": "demo/addons/16-extended-25yr-workmanship-warranty.webp"},
         ]},
     ]
     return render_template(
