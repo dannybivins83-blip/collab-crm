@@ -335,17 +335,26 @@ def portal_view(slug):
     link = url_for("demo.portal", slug=slug, _external=True)
     # Synthetic showcase data so the demo demonstrates the SiteCam feed, QuickBooks
     # billing, the document center + e-sign, and Roof School — no real records touched.
+    # Real KLR job photos (curated install sequence — served from static/demo/).
     demo_photos = [
-        {"cap": "Tear-off complete", "sub": "Old roof removed, deck exposed", "hex": "#6b7280",
-         "img": "portal_demo/job-1.jpg", "at": "7:18 AM"},
-        {"cap": "Deck re-nail", "sub": "Every sheet re-nailed to code", "hex": "#8a6e4b",
-         "img": "portal_demo/job-2.jpg", "at": "9:03 AM"},
-        {"cap": "Peel-&-stick underlayment", "sub": "Secondary water barrier down", "hex": "#1f6f8b",
-         "img": "portal_demo/job-3.jpg", "at": "10:47 AM"},
-        {"cap": "Shingles going on", "sub": "6-nail high-wind pattern", "hex": "#374151",
-         "img": "portal_demo/job-4.jpg", "at": "12:15 PM"},
-        {"cap": "Ridge vent + caps", "sub": "Attic ventilation installed", "hex": "#4b5563"},
-        {"cap": "Final walkthrough", "sub": "Magnet nail-sweep done", "hex": "#2c4733"},
+        {"cap": "Before — your existing roof", "sub": "Day 1", "at": "7:12 AM",
+         "img": "demo/klr-shingle-1-before.jpg", "hex": "#6b7280"},
+        {"cap": "Tear-off complete", "sub": "Stripped to the deck", "at": "9:40 AM",
+         "img": "demo/klr-shingle-2-tearoff.jpg", "hex": "#8a6e4b"},
+        {"cap": "New shingles going on", "sub": "6-nail high-wind pattern", "at": "3:05 PM",
+         "img": "demo/klr-shingle-5-install.jpg", "hex": "#374151"},
+        {"cap": "Your new roof", "sub": "Cleaned up & magnet-swept", "at": "Finished",
+         "img": "demo/klr-shingle-6-finished.jpg", "hex": "#2c4733"},
+        {"cap": "Deck re-nailed to code", "sub": "Every sheet secured", "at": "11:05 AM",
+         "img": "demo/klr-shingle-3-deck.jpg", "hex": "#5b4a3a"},
+        {"cap": "Peel-&-stick underlayment", "sub": "Secondary water barrier down", "at": "1:20 PM",
+         "img": "demo/klr-shingle-4-dryin.jpg", "hex": "#1f6f8b"},
+    ]
+    # Recent-work gallery — real finished roofs across systems (marketing showcase).
+    recent_work = [
+        {"img": "demo/klr-shingle-6-finished.jpg", "system": "Architectural Shingle"},
+        {"img": "demo/klr-tile-finished.jpg", "system": "Concrete Tile"},
+        {"img": "demo/klr-metal-finished.jpg", "system": "Standing-Seam Metal"},
     ]
     demo_invoices = [
         {"label": "Deposit (draw 1)", "amount": "$7,440", "status": "Paid", "paid": True},
@@ -390,7 +399,7 @@ def portal_view(slug):
         phases=portal.CUSTOMER_PHASES, checklist=_checklist(phase),
         value_steps=value_steps, value_done=value_done, value_total=len(value_steps),
         updates=_sample_updates(phase), referral=_referral_ctx(d, link),
-        roof_edu=portal.ROOF_EDU, demo_photos=demo_photos,
+        roof_edu=portal.ROOF_EDU, demo_photos=demo_photos, recent_work=recent_work,
         demo_pm_photo='portal_demo/pm-headshot.jpg',
         demo_logo='portal_sale/brand/summit-roofing-demo-logo.svg',
         demo_invoices=demo_invoices, demo_docs=demo_docs,
