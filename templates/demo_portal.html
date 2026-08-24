@@ -301,8 +301,9 @@
   .sign-btn{background:var(--teal);color:#fff;border:0;padding:10px 18px;font-size:15px;min-height:44px}
   .dl-btn{background:#fff;color:var(--ink);border:1px solid var(--line);padding:10px 18px;
     font-size:15px;min-height:44px}
-  .wide-btn{width:100%;background:var(--teal);color:#fff;border:0;padding:15px;font-size:17px;
-    margin-top:18px;min-height:52px}
+  .wide-btn{display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;
+    width:100%;background:var(--teal);color:#fff;border:0;padding:15px;font-size:17px;
+    margin-top:18px;min-height:52px;text-decoration:none}
   .wide-btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
   .uploadbox{margin-top:18px;border:2px dashed var(--line);border-radius:10px;padding:22px;
     text-align:center;color:var(--slate-500);cursor:pointer;font-size:15.5px}
@@ -731,7 +732,7 @@
         <details class="rd {{ 'here' if s.current else ('future' if not s.done else 'done-s') }}">
           <summary class="rd-head">
             <h3>{% if s.done %}<span class="ck">✓</span>{% endif %}{{ s.name }}{% if s.current %}<span class="youare">You are here</span>{% endif %}</h3>
-            {% if s.timeframe %}<span class="tf">{{ s.timeframe }}</span>{% endif %}
+            {% if s.timeframe and s.timeframe != "—" %}<span class="tf">{{ s.timeframe }}</span>{% endif %}
           </summary>
           <div class="rd-body">
             <p class="desc">{{ s.desc }}</p>
@@ -748,7 +749,7 @@
         {% endfor %}
       </div>
       <p class="cardnote">Timeframes are typical estimates — your project contact will confirm exact dates.</p>
-      <a class="wide-btn" href="#faqs" style="margin-top:4px">Have a question? Read our FAQs ↓</a>
+      <a class="wide-btn" href="#faqs">Have a question? Read our FAQs ↓</a>
     </div>
 
     <!-- FAQs (accordion, by category) -->
