@@ -1206,23 +1206,46 @@ def home(token):
     for u in unseen:
         db.update("portal_updates", u["id"], seen=1)
     thread = thread_messages(j["id"])
-    return render_template("portal_dashboard.html", j=j, token=token,
-                           thread=thread,
-                           referral=referral_ctx("job", j),
-                           value_steps=value_steps, value_done=value_done,
-                           value_total=len(value_steps),
-                           updates=updates, celebrate=celebrate,
-                           phases=CUSTOMER_PHASES, estimates=estimates, photos=photos,
-                           documents=documents, docs_to_sign=docs_to_sign, invoices=invoices,
-                           payments=payments,
-                           activity=activity, pay_url=j.get("pay_url"), signup_packet=signup_packet,
-                           rep=rep, draws=constants.DRAW_SCHEDULE,
-                           checklist=checklist, contract=contract,
-                           tutorials=_tutorials(company), product_docs=product_docs, sysk=sysk,
-                           photo_app_url=company.get("photo_app_url"),
-                           journey=journey_steps("job", j, token),
-                           progress=journey_progress(journey_steps("job", j, token)),
-                           ho_tasks=ho_tasks_for(j["id"]))
+    # ---- Render the polished portal (mirrors the demo exactly, real data) ----
+    from modules import demos as _demos
+    if (j.get("_phase") or 0) < 0:
+        j["_phase"] = 0  # pre-approval jobs show "Approved", never wrap to "Complete"
+    comp = dict(company)
+    comp["logo_src"] = comp.get("logo_src") or ""
+    comp["color_masthead"] = comp.get("color_masthead") or "#15201A"
+    comp["color_primary"] = comp.get("color_primary") or "#37B34A"
+    comp["color_accent"] = comp.get("color_accent") or "#2A8F3A"
+    # Real job photos -> the "today's progress" strip (portal_file magic-link URLs).
+    demo_photos = [{"src": url_for("portal.portal_file", token=token,
+                                   subpath="photos/" + p["filename"]),
+                    "cap": p.get("caption") or "", "at": (p.get("created") or "")[:10]}
+                   for p in photos if p.get("filename")][:8]
+    # Real documents -> the docs hub (e-sign the ones the office requested).
+    demo_docs = []
+    _sign_ids = set()
+    for dd in docs_to_sign:
+        _sign_ids.add(dd["id"])
+        demo_docs.append({"name": dd.get("original_name") or "Document",
+                          "kind": dd.get("category") or "Document", "status": "sign",
+                          "sign_url": url_for("portal.sign_doc", token=token, doc_id=dd["id"])})
+    for dd in documents:
+        if dd["id"] in _sign_ids or not dd.get("filename"):
+            continue
+        demo_docs.append({"name": dd.get("original_name") or "Document",
+                          "kind": dd.get("category") or "Document",
+                          "status": "signed" if dd.get("signed_at") else "ready",
+                          "url": url_for("portal.portal_file", token=token,
+                                         subpath="documents/" + dd["filename"])})
+    pay_href = (url_for("portal.pay", token=token)
+                if (j.get("pay_url") and (j.get("_balance") or 0) > 0) else "")
+    return render_template(
+        "demo_portal.html", live=True, token=token, slug="",
+        company=comp, j=j, phases=CUSTOMER_PHASES, checklist=checklist,
+        value_steps=value_steps, value_done=value_done, value_total=len(value_steps),
+        updates=updates, referral=referral_ctx("job", j), roof_edu=ROOF_EDU,
+        demo_photos=demo_photos, recent_work=_demos.RECENT_WORK, addon_cats=_demos.ADDON_CATS,
+        demo_docs=demo_docs, demo_pm_photo="", demo_logo="",
+        pay_href=pay_href, doc_upload_url=url_for("portal.upload_doc", token=token))
 
 
 def _record_by_any_token(token):
