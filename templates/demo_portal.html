@@ -124,8 +124,8 @@
   .trk .done .dot{background:var(--teal);color:#fff}
   .trk .cur .dot{background:var(--teal);color:#fff;box-shadow:0 0 0 4px var(--gold)}
   .trk .todo .dot{background:#eceff1;color:#9aa6ad}
-  .trk .lbl{font-size:11.5px;font-weight:600;margin:0;line-height:1.2;padding:0 3px;
-    text-align:center;overflow-wrap:break-word;word-break:break-word;hyphens:auto}
+  .trk .lbl{font-size:11px;font-weight:600;margin:0;line-height:1.16;padding:0 2px;
+    text-align:center;word-break:normal;overflow-wrap:normal;hyphens:none;letter-spacing:-.1px}
   .trk .cur .lbl{color:var(--teal-deep);font-weight:800}
   .trk .todo .lbl{color:#8d989f}
   .trk .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -553,7 +553,10 @@
   <div class="card cc-prog" id="photos">
     <div class="prog-grid">
       <div>
-        <div class="card-head"><p class="k">Today's progress</p></div>
+        <div class="card-head" style="flex-direction:column;align-items:flex-start;gap:3px;margin-bottom:14px">
+          <p class="k-teal">Full transparency</p>
+          <p class="k" style="font-size:14px;letter-spacing:.04em;color:var(--ink);text-transform:none;font-weight:800">{{ _phname }} — real-time job progress photos</p>
+        </div>
         <div class="photos">
           {% for p in demo_photos[:4] %}
           <figure class="pht" style="margin:0">
