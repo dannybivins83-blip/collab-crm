@@ -82,6 +82,9 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # root) + its public offer form; the old license page stays public at
           # /portal-sales/licensing. No session/CSRF token on these visitors.
           "demo.landing_offer", "demo.landing_licensing",
+          # Email gate on the sales page: the "see the live demo" form. Public
+          # visitor, no session/CSRF token — capture email then open the demo.
+          "demo.demo_request",
           # Token-gated DB-restore + CSV imports: NOT session-auth'd. Their own
           # X-Restore-Token check is the gate (404 when unarmed/wrong). Must bypass
           # the login redirect so the gate returns 404, not a 302 to /login.

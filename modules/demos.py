@@ -59,6 +59,13 @@ try:
         source_host TEXT)""")
 except Exception:
     pass
+# Email addresses captured by the "see the live demo" gate on the sales home page.
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS demo_access_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created TEXT, email TEXT, slug TEXT, source_host TEXT)""")
+except Exception:
+    pass
 db._COLCACHE.clear()
 
 # Canonical product-demo brand — a generic, believable roofing company so the public
@@ -271,7 +278,11 @@ def generator():
     for x in demos:
         x["_link"] = url_for("demo.portal", slug=x["slug"], _external=True)
         x["_logo_src"] = _logo_src(x.get("logo_url"))
-    return render_template("demo_generator.html", demos=demos,
+    try:
+        access = db.all_rows("demo_access_requests", order="id DESC")[:200]
+    except Exception:
+        access = []
+    return render_template("demo_generator.html", demos=demos, access=access,
                            defaults={"masthead": _DEF_MASTHEAD, "primary": _DEF_PRIMARY,
                                      "accent": _DEF_ACCENT})
 
@@ -471,6 +482,8 @@ def landing_view():
         demo_url="/demo/%s" % DEMO_SLUG,
         # Keep form + links relative so the visitor's URL stays myroofportal.com.
         offer_action=url_for("demo.landing_offer"),
+        demo_request_action=url_for("demo.demo_request"),
+        demo_err=(request.args.get("demoerr") == "1"),
         thanks=(request.args.get("thanks") == "1"),
         err=(request.args.get("err") == "1"))
 
@@ -490,6 +503,20 @@ def landing_offer():
         "offer": offer, "message": message,
         "source_host": (request.host or "")[:120]})
     return redirect(base + "?thanks=1#offer")
+
+
+@bp.route("/portal-sales/demo-request", methods=["POST"], endpoint="demo_request")
+def demo_request():
+    """Email gate for the live demo: capture the visitor's email, then open the
+    demo. Low-friction — email only, no approval step."""
+    email = (request.form.get("email") or "").strip()[:200]
+    base = "/" if _on_demo_host() else url_for("demo.landing")
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        return redirect(base + "?demoerr=1#see-demo")
+    db.insert("demo_access_requests", {
+        "created": db.now(), "email": email, "slug": DEMO_SLUG,
+        "source_host": (request.host or "")[:120]})
+    return redirect(url_for("demo.portal", slug=DEMO_SLUG))
 
 
 @bp.route("/portal-sales/licensing", endpoint="landing_licensing")
