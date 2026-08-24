@@ -104,9 +104,9 @@
   .cc{display:grid;gap:18px;grid-template-columns:minmax(0,1fr);padding-bottom:22px}
   @media(min-width:1024px){
     .cc{grid-template-columns:minmax(0,1.35fr) minmax(0,.92fr) minmax(0,1fr);
-      grid-template-areas:"mile part money" "prog prog side";align-items:start}
+      grid-template-areas:"mile part money" "docs docs docs" "prog prog side";align-items:start}
     .cc-mile{grid-area:mile}.cc-part{grid-area:part}.cc-money{grid-area:money}
-    .cc-prog{grid-area:prog}.cc-side{grid-area:side}
+    .cc-docs{grid-area:docs}.cc-prog{grid-area:prog}.cc-side{grid-area:side}
   }
   .cc-side{display:grid;gap:18px;align-content:start}
 
@@ -308,6 +308,27 @@
   .uploadbox{margin-top:18px;border:2px dashed var(--line);border-radius:10px;padding:22px;
     text-align:center;color:var(--slate-500);cursor:pointer;font-size:15.5px}
   .uploadbox:hover{border-color:var(--teal);color:var(--teal-deep)}
+  /* ---------- document hub ---------- */
+  .dhub-list{display:grid;gap:10px;margin-top:4px}
+  .docrow{display:flex;align-items:center;gap:14px;padding:13px 14px;border:1px solid var(--line);
+    border-radius:12px;background:var(--card)}
+  .docrow .di{width:40px;height:40px;flex:none;border-radius:9px;display:flex;align-items:center;
+    justify-content:center;background:var(--teal-tint);color:var(--teal-deep)}
+  .docrow .dmeta{min-width:0;flex:1}
+  .docrow .dn{font-weight:700;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .docrow .dk{font-size:12.5px;color:var(--slate-500);margin-top:1px}
+  .dstat{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    padding:4px 9px;border-radius:999px;white-space:nowrap;flex:none}
+  .dstat.ok{background:var(--teal-tint);color:var(--teal-deep)}
+  .dstat.wait{background:#fff2dc;color:#9a6100}
+  .docrow .dact{flex:none}
+  .docrow .sign-btn,.docrow .dl-btn{min-height:40px;padding:8px 16px;font-size:14px}
+  @media(max-width:560px){
+    .docrow{flex-wrap:wrap}
+    .docrow .dmeta{flex:1 1 60%}
+    .docrow .dact{width:100%;order:5}
+    .docrow .dact .sign-btn,.docrow .dact .dl-btn{width:100%}
+  }
   .pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:14px}
   .ph .img{aspect-ratio:4/3;background:#e8edef;border:1px solid var(--line);border-radius:10px;
     display:flex;align-items:center;justify-content:center;color:#93a1a8;font-size:12.5px;
@@ -556,6 +577,36 @@
     <a class="btn btn-line" href="#photos">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-5-5-9 9"/></svg>
       View Today's Photos</a>
+  </div>
+
+  <!-- DOCUMENT HUB (view / e-sign / upload — all project docs) -->
+  <div class="card cc-docs" id="docs">
+    <div class="card-head">
+      <div><p class="k">Project documents</p><p class="k-teal">View, e-sign &amp; upload — all in one place</p></div>
+      <button type="button" class="dl-btn" onclick="demoToast('Opens a file picker to upload a document to your project. (This is a demo.)')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-3"/></svg>Upload</button>
+    </div>
+    <div class="dhub-list">
+      {% for d in demo_docs %}
+      <div class="docrow">
+        <span class="di" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg></span>
+        <div class="dmeta"><div class="dn">{{ d.name }}</div><div class="dk">{{ d.kind }}</div></div>
+        {% if d.status == 'signed' %}
+        <span class="dstat ok">✓ Signed</span>
+        <span class="dact"><button type="button" class="dl-btn" onclick="demoToast('Downloads your signed copy of this document. (This is a demo.)')">View</button></span>
+        {% elif d.status == 'sign' %}
+        <span class="dstat wait">Needs signature</span>
+        <span class="dact"><button type="button" class="sign-btn" onclick="demoToast('Opens the secure e-sign flow to sign this document. (This is a demo.)')">Sign now</button></span>
+        {% else %}
+        <span class="dstat ok">Ready</span>
+        <span class="dact"><button type="button" class="dl-btn" onclick="demoToast('Opens this document to view or download. (This is a demo.)')">View</button></span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="uploadbox" onclick="demoToast('Drag &amp; drop or tap to upload — insurance docs, HOA forms, anything we ask for. (This is a demo.)')">
+      ⬆&nbsp; Drag &amp; drop or tap to upload a document
+    </div>
   </div>
 
   <!-- TODAY'S PROGRESS + TIMELINE -->
