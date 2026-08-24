@@ -352,9 +352,12 @@ def portal_view(slug):
     ]
     # Recent-work gallery — real finished roofs across systems (marketing showcase).
     recent_work = [
-        {"img": "demo/klr-shingle-6-finished.jpg", "system": "Architectural Shingle"},
-        {"img": "demo/klr-tile-finished.jpg", "system": "Concrete Tile"},
         {"img": "demo/klr-metal-finished.jpg", "system": "Standing-Seam Metal"},
+        {"img": "demo/klr-tile-finished.jpg", "system": "Concrete Tile"},
+        {"img": "demo/klr-shingle-6-finished.jpg", "system": "Architectural Shingle"},
+        {"img": "demo/klr-metal-2.jpg", "system": "Metal — Clean Lines"},
+        {"img": "demo/klr-shingle-3-deck.jpg", "system": "New Deck & Dry-In"},
+        {"img": "demo/klr-shingle-2-tearoff.jpg", "system": "Tear-Off Day"},
     ]
     demo_invoices = [
         {"label": "Deposit (draw 1)", "amount": "$7,440", "status": "Paid", "paid": True},
@@ -401,7 +404,7 @@ def portal_view(slug):
         updates=_sample_updates(phase), referral=_referral_ctx(d, link),
         roof_edu=portal.ROOF_EDU, demo_photos=demo_photos, recent_work=recent_work,
         demo_pm_photo='portal_demo/pm-headshot.jpg',
-        demo_logo='portal_sale/brand/summit-roofing-demo-logo.svg',
+        demo_logo='',
         demo_invoices=demo_invoices, demo_docs=demo_docs,
         demo_sitecam_url=(d.get("sitecam_url") or os.environ.get("CRM_DEMO_SITECAM_URL") or "").strip(),
         demo_meta=d)
