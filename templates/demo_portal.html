@@ -104,11 +104,13 @@
   .cc{display:grid;gap:18px;grid-template-columns:minmax(0,1fr);padding-bottom:22px}
   @media(min-width:1024px){
     .cc{grid-template-columns:minmax(0,1.35fr) minmax(0,.92fr) minmax(0,1fr);
-      grid-template-areas:"mile part money" "docs docs docs" "prog prog side";align-items:start}
+      grid-template-areas:"mile part side" "mile part money" "docs docs docs" "prog prog prog";align-items:start}
     .cc-mile{grid-area:mile}.cc-part{grid-area:part}.cc-money{grid-area:money}
     .cc-docs{grid-area:docs}.cc-prog{grid-area:prog}.cc-side{grid-area:side}
   }
   .cc-side{display:grid;gap:18px;align-content:start}
+  /* stacking order on mobile (single-column); desktop uses named grid-areas which ignore order */
+  .cc-mile{order:1}.cc-part{order:2}.cc-side{order:3}.cc-money{order:4}.cc-docs{order:5}.cc-prog{order:6}
 
   /* milestone */
   .mile h2{font-size:22px;font-weight:800;margin-bottom:20px}
