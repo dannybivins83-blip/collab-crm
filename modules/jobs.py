@@ -325,6 +325,63 @@ def new():
                            contacts=db.all_rows("contacts", order="last_name"), mode="new")
 
 
+# Homeowner-portal phase -> representative pipeline stage (portal derives the
+# customer-facing tracker phase from the job's stage via portal._STAGE_TO_PHASE).
+_PHASE_STAGE = [
+    ("Approved", "approved"),
+    ("Permitting", "permit_applied"),
+    ("Scheduling", "precon_needed"),
+    ("Installation", "install_started"),
+    ("Final Inspection", "final_needed"),
+    ("Complete", "completed"),
+]
+
+
+@bp.route("/homeowner", methods=["GET", "POST"])
+def homeowner_new():
+    """Dead-simple 'add a homeowner -> get their portal link' creator. Collects the
+    essentials, spins up a real job + portal token, then lands on the job detail where
+    the homeowner's private portal link is ready to open/copy/send."""
+    if request.method == "POST":
+        f = request.form
+        name = (f.get("name") or "").strip()
+        if not name:
+            flash("Enter the homeowner's name.", "error")
+            return redirect(url_for("jobs.homeowner_new"))
+        stage = dict(_PHASE_STAGE).get((f.get("phase") or "Approved").strip(), "approved")
+        data = {
+            "name": name,
+            "phone": (f.get("phone") or "").strip(),
+            "email": (f.get("email") or "").strip(),
+            "address": (f.get("address") or "").strip(),
+            "city": (f.get("city") or "").strip(),
+            "state": (f.get("state") or "FL").strip(),
+            "zip": (f.get("zip") or "").strip(),
+            "system": (f.get("system") or "shingle").strip().lower(),
+            "contract_value": (f.get("contract_value") or "").strip(),
+            "rep": (f.get("rep") or "").strip(),
+            "stage": stage,
+            "stage_since": db.today(),
+            "department": current_department(),
+        }
+        from modules import acculynx_sync as S
+        data["rid"] = S.next_job_number()
+        job_id = db.insert("jobs", data)
+        db.add_activity("job", job_id, "stage", "Homeowner added via quick creator")
+        # Generate the homeowner's private portal magic-link now so it's ready to send.
+        try:
+            from modules import portal as _portal
+            _portal.ensure_token(job_id)
+        except Exception:
+            pass
+        flash("Homeowner added — their portal link is ready below (Portal / Copy link).", "ok")
+        return redirect(url_for("jobs.detail", job_id=job_id))
+    reps = [u.get("name") for u in db.all_rows("users", order="name") if u.get("name")]
+    return render_template("homeowner_new.html",
+                           phases=[p for p, _ in _PHASE_STAGE],
+                           systems=["shingle", "tile", "metal", "flat"], reps=reps)
+
+
 def _prefill_from_gc():
     """When New Job is opened as ?gc=<contact_id>, pre-fill the GC's name/company/
     phone/email/rep so the user only needs to add the new property + work type."""

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}New Homeowner{% endblock %}
+{% block body %}
+<div class="page-head"><h1>➕ New Homeowner</h1></div>
+<form method="post" class="card" style="max-width:700px">
+  <p style="color:var(--muted);margin:0 0 18px">
+    Add a homeowner and we'll create their project and a private portal link you can
+    send right away. You can fill in the rest later on the job.</p>
+
+  <div class="row">
+    <div class="field"><label>Homeowner name *</label>
+      <input name="name" required autofocus placeholder="Jane Homeowner"></div>
+    <div class="field"><label>Phone</label>
+      <input name="phone" placeholder="(561) 555-0142"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Email</label>
+      <input name="email" type="email" placeholder="jane@email.com"></div>
+    <div class="field"><label>Contract value</label>
+      <input name="contract_value" placeholder="$24,800"></div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:2"><label>Property address</label>
+      <input name="address" placeholder="1428 Coastal Breeze Dr"></div>
+    <div class="field"><label>City</label>
+      <input name="city" placeholder="Boca Raton"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>State</label><input name="state" value="FL"></div>
+    <div class="field"><label>ZIP</label><input name="zip" placeholder="33431"></div>
+    <div class="field"><label>Roof system</label>
+      <select name="system">{% for s in systems %}<option value="{{ s }}">{{ s|capitalize }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Current phase</label>
+      <select name="phase">{% for p in phases %}<option>{{ p }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Rep</label>
+      <select name="rep"><option value="">—</option>{% for r in reps %}<option>{{ r }}</option>{% endfor %}</select></div>
+  </div>
+
+  <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn accent" type="submit">{{ icon('home') }} Create homeowner + portal</button>
+    <a class="btn" href="{{ url_for('jobs.board') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}
