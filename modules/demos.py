@@ -123,8 +123,12 @@ def _ensure_default_demo():
         rows = db.all_rows("demos", "slug=?", (slug,))
         if rows:
             r0 = rows[0]
+            # This is THE default demo (slug=CRM_DEMO_SLUG, wired to the demo domain), so it
+            # always self-heals to the configured brand — regardless of created_by. (The
+            # created_by guard only matters for per-prospect demos, which have other slugs.)
             stale_name = (r0.get("company_name") or "") in ("", "Roof Portal", "Your Roofing Co.", "Summit Roofing Co.")
-            stale_color = r0.get("created_by") == "seed" and (r0.get("color_primary") or "") != brand["color_primary"]
+            stale_color = (r0.get("color_primary") or "") != brand["color_primary"] \
+                or (r0.get("color_masthead") or "") != brand["color_masthead"]
             if stale_name or stale_color:
                 db.update("demos", r0["id"], **brand)
         else:
