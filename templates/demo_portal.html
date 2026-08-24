@@ -104,7 +104,7 @@
   .cc{display:grid;gap:18px;grid-template-columns:minmax(0,1fr);padding-bottom:22px}
   @media(min-width:1024px){
     .cc{grid-template-columns:repeat(3,minmax(0,1fr));
-      grid-template-areas:"mile money side" "docs docs docs" "prog prog prog";align-items:start}
+      grid-template-areas:"mile money side" "docs docs docs" "prog prog prog";align-items:stretch}
     .cc-mile{grid-area:mile}.cc-money{grid-area:money}.cc-side{grid-area:side}
     .cc-docs{grid-area:docs}.cc-prog{grid-area:prog}
   }
