@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Permits module — per-job permit tracking + the SeaBreeze permit-packet builder.
+"""Permits module — per-job permit tracking + the permit-packet builder.
 
-Folds in the existing build.py engine (SeaBreeze_Permit_Library) so a fully
+Folds in the existing build.py engine (the Permit Library) so a fully
 pre-filled county permit packet PDF can be generated straight from a job: pick
 AHJ + system + underlayment + product, attach the RoofGraf report, click Build.
 """
@@ -22,7 +22,7 @@ PERMIT_STATUS = ["prep", "submitted", "approved", "closed"]
 FIELDS = ["job_id", "ahj", "county", "system", "permit_number", "submitted_date",
           "approved_date", "notes"]
 
-# Make the permit-packet builder importable (engine + SeaBreeze_Permit_Library).
+# Make the permit-packet builder importable (engine + Permit_Library).
 # packet_builder_handoff/ is now inside the repo (whitelabel-crm/packet_builder_handoff/)
 # so Render can reach it.  Fall back to the legacy sibling-dir location for local
 # installs that haven't pulled the new copy yet.
@@ -181,7 +181,7 @@ def save(permit_id):
 
 @bp.route("/<int:permit_id>/build", methods=["POST"])
 def build_packet(permit_id):
-    """Generate a permit packet PDF via the SeaBreeze build engine."""
+    """Generate a permit packet PDF via the tenant build engine."""
     p = db.get("permits", permit_id)
     if not p:
         return redirect(url_for("permits.index"))

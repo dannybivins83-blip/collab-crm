@@ -112,8 +112,8 @@ def _run_worker(lead_id, path, name="plans.pdf", doc_id=None):
         db.execute(
             "INSERT INTO takeoff_jobs (token,lead_id,profile,status,progress,file_path,"
             "created,updated) VALUES (?,?,?,?,?,?,?,?)",
-            (token, lead_id, "seabreeze", "queued", "Queued...", path, db.now(), db.now()))
-    TK._run_takeoff_worker(token, path, name, lead_id, "seabreeze", APP, doc_id)
+            (token, lead_id, "test", "queued", "Queued...", path, db.now(), db.now()))
+    TK._run_takeoff_worker(token, path, name, lead_id, "test", APP, doc_id)
     with APP.app_context():
         row = db.all_rows("takeoff_jobs", "token=?", (token,))[0]
     assert row["status"] == "done", row.get("progress")

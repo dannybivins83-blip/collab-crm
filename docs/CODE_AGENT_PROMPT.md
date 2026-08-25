@@ -40,7 +40,7 @@ breaking what works**, matching the existing conventions and the AccuLynx look/t
 - **Money math**: reuse `theme.est_num`, `theme.money`, `theme.money_k`. Estimate totals already
   live in `modules/estimates.py` (`estimate_totals`, `_load_sections`); reuse, don't duplicate.
 - **Keep it runnable after every phase.** After each phase: restart, log in
-  (`owner@seabreezeroofing.com` / `seabreeze2026`), and confirm no page 500s
+  (`owner@[your-domain].com` / `[set CRM_DEFAULT_PASSWORD env var]`), and confirm no page 500s
   (smoke-test pattern: `app.test_client()` POST `/login` then GET each new route).
 - Match AccuLynx **terminology**: Worksheet, Order, Order Manager, Workflow Manager, Commission,
   Profit Analysis, Milestone, Lead Rank.

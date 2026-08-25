@@ -1,10 +1,10 @@
 # White-Label Roofing/Construction CRM
 
 A self-hostable, offline, **re-brandable AccuLynx-style CRM** for roofing &
-construction contractors. Default skin is **SeaBreeze Roofing & Sheet Metal,
-Inc.**, but every brand element (name, logo, colors, license #, contact info,
-terms) is loaded from one `company_settings` row — change it in **Settings** and
-the whole app + every generated PDF re-brands instantly. Resell to any contractor.
+construction contractors. Default skin is **configured via company_settings on
+first deploy**, but every brand element (name, logo, colors, license #, contact
+info, terms) is loaded from one `company_settings` row — change it in **Settings**
+and the whole app + every generated PDF re-brands instantly. Resell to any contractor.
 
 ## Run
 
@@ -51,7 +51,7 @@ static/app.css  theme via CSS variables fed from company colors
 ```
 
 The pipeline stages, per-stage checklists, draw schedule, and estimate-template
-mapping mirror the working SeaBreeze `job-manager.html` and the AccuLynx template
+mapping mirror the working `job-manager.html` and the AccuLynx template
 set, so the domain model matches the real workflow.
 
 ## Re-branding for another contractor

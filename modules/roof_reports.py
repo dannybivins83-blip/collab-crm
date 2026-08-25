@@ -9,7 +9,7 @@ Config (env, set in the host dashboard — Render is the live host, Vercel is ro
 the repo is public so no secrets live here). Declared in render.yaml as sync:false:
     ROOF_ENGINE_URL      e.g. https://150-136-152-240.nip.io
     ROOF_ENGINE_API_KEY  the engine's X-API-Key — must equal the engine VM's ROOF_API_KEYS
-    ROOF_BRAND           brand id in the engine (default "seabreeze")
+    ROOF_BRAND           brand id in the engine (set via env var; defaults to empty)
 
 The engine runs reports asynchronously, so /new just starts the job and the
 detail page polls /status — this keeps every request short (well under any host
@@ -39,7 +39,7 @@ bp = Blueprint("roof_reports", __name__, url_prefix="/roof-reports")
 
 ENGINE_URL = (os.environ.get("ROOF_ENGINE_URL") or "").rstrip("/")
 ENGINE_KEY = os.environ.get("ROOF_ENGINE_API_KEY") or ""
-BRAND = os.environ.get("ROOF_BRAND", "seabreeze")
+BRAND = os.environ.get("ROOF_BRAND") or ""
 
 
 def _configured():

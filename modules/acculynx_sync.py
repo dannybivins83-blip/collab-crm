@@ -460,7 +460,7 @@ db._COLCACHE.clear()
 
 
 def _parse_job_name(name):
-    """Decode a SeaBreeze job name into structured parts. Format varies (parens or
+    """Decode a job name into structured parts. Format varies (parens or
     dashes), so each field is matched independently. Returns only what's found:
     {year, jobno, system, squares, ahj, rep}. System code = material letter + squares
     (e.g. T28 = Tile, 28 squares)."""
@@ -494,7 +494,7 @@ def _parse_job_name(name):
     return out
 
 
-# ---- Reverse maps: compose a canonical SeaBreeze job name from structured parts ----
+# ---- Reverse maps: compose a canonical job name from structured parts ----
 # Canonical format (documented convention):  R-YY###: Client (AHJ) (RoofCode+Sq) (Rep)
 #   RoofCode = material letter + squares, e.g. T28 = Tile 28 sq.  L suffix = still a lead.
 _AHJ_CODE = {v: k for k, v in _AHJ_MAP.items()}          # "Palm Beach County" -> "PBC"
@@ -2180,7 +2180,7 @@ def internal_test():
 # ===========================================================================
 
 # How the collector decides which document is the roof report. Confirmed live on
-# SeaBreeze jobs: reports sit in the dedicated "Roof Report" document folder with
+# Roof-report jobs: reports sit in the dedicated "Roof Report" document folder with
 # a filename like "Roof-Report-{guid}.pdf"; manually-uploaded ones may instead say
 # "RoofGraf"/"EagleView". Separators vary (space, hyphen, underscore), so the
 # patterns allow [\s_-] between words. Folder OR file match counts; permit/NOC/

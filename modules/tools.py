@@ -135,7 +135,7 @@ def export():
 _ACTION_BY_BUCKET = {"lead": "Sign-Up Docs", "prospect": "Sign-Up Docs",
                      "approved": "Job Docs", "completed": "Closeout + Final Pay",
                      "invoiced": "Final Payment / Lien Release"}
-# Fallback checklist when a stage doesn't define one (mirrors the SeaBreeze docs sheet).
+# Fallback checklist when a stage doesn't define one (mirrors the reference docs sheet).
 _DEFAULT_CHECKLIST = {
     "approved": ["Signed proposal", "Color/material selection confirmed", "Insurance/scope docs",
                  "Scan ALL signed docs into job folder", "Email copies of signed docs to client",
@@ -149,7 +149,7 @@ _DEFAULT_CHECKLIST = {
 
 def _card(kind, r, sd, fs):
     """Build one rich call-sheet card: contact + where-it-stands + checklist + the
-    30/30/30/10 draw schedule with amounts + paid %. Mirrors the SeaBreeze job sheet."""
+    30/30/30/10 draw schedule with amounts + paid %. Mirrors the reference job sheet."""
     checks = db.load_json(r.get("checks"), {})
     labels = sd.get("checklist") or _DEFAULT_CHECKLIST.get(sd["bucket"], [])
     checklist = [{"label": lbl, "done": bool(checks.get("%s:%d" % (sd["key"], i)))}

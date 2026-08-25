@@ -70,7 +70,7 @@ try:
         token TEXT UNIQUE NOT NULL,
         lead_id INTEGER,
         job_id INTEGER,
-        profile TEXT DEFAULT 'seabreeze',
+        profile TEXT DEFAULT '',
         status TEXT DEFAULT 'queued',
         progress TEXT,
         result TEXT,

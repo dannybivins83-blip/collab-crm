@@ -553,7 +553,7 @@ def _photo_bucket(phase):
 # "recent jobs like yours" galleries always show working images — no local file syncing,
 # no AccuLynx. City/area only on the SiteCam side (no homeowner names/addresses).
 _SC_API = os.environ.get("SITECAM_API_URL", "https://sitecam-api.onrender.com").rstrip("/")
-_SC_TENANT = os.environ.get("SITECAM_TENANT", "seabreeze")
+_SC_TENANT = os.environ.get("SITECAM_TENANT") or ""
 
 
 def sitecam_showcase_photos(sysk, limit=6, per=8):

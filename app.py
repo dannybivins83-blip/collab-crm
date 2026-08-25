@@ -4,8 +4,8 @@
 Run:  python app.py   (opens http://127.0.0.1:5050)
 
 A self-hostable, offline, re-brandable AccuLynx-style CRM. The default skin is
-SeaBreeze Roofing, but every brand element is loaded from the company_settings
-table so the app can be resold to any contractor (see Settings → Company).
+configured via company_settings on first deploy, so the app can be resold to
+any contractor (see Settings → Company).
 """
 import os
 import socket

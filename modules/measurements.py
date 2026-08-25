@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Roof Measurements (RoofGraf / EagleView-style) — squares, pitch, linear footage.
 
-Per the SeaBreeze workflow these come from a RoofGraf report Karla uploads. The
+Per the tenant workflow these come from a RoofGraf report uploaded to the job. The
 measurement record drives estimate quantities (squares → SQ lines, ridge/hip/
 valley/eave/rake → the matching linear-foot lines).
 """

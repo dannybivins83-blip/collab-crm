@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """SiteCam — embedded field-photo platform (CompanyCam-style).
 
-SiteCam is the company's own app (photos.seabreezeroofing.com / sitecam-web on
+SiteCam is the company's own field-photo app (sitecam-web on
 Render). It allows iframe embedding (no X-Frame-Options / frame-ancestors), so we
 host it full-screen inside the CRM. The URL is a white-label company setting.
 

@@ -57,7 +57,7 @@ with c.session_transaction() as s:
 HDR = {"X-CSRFToken": T}
 
 # Dev-fallback shared secret (env override cleared by the harness -> deterministic).
-SECRET = "seabreeze-webhook-secret"
+SECRET = "test-webhook-secret-for-tests"
 def _sig(raw):
     return hmac.new(SECRET.encode(), raw, hashlib.sha256).hexdigest()
 

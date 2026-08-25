@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Company Document Library — reusable SeaBreeze docs (warranties, product/color
+"""Company Document Library — reusable tenant docs (warranties, product/color
 charts, per-AHJ permit packages, licenses/COI, sign-up packages, cheat sheets).
 Browse/search, attach to a job, or upload more. Contextual helpers surface the
 right docs by AHJ (permit packages) and system (sign-up packages / warranties)."""
