@@ -382,6 +382,121 @@ def homeowner_new():
                            systems=["shingle", "tile", "metal", "flat"], reps=reps)
 
 
+# --- Bulk import homeowners from a JobNimbus (or any) CSV export -------------
+_JN_ALIASES = {
+    "name":  ["display name", "full name", "name", "contact name", "customer",
+              "customer name", "job name", "primary contact", "contact"],
+    "first": ["first name", "first", "fname"],
+    "last":  ["last name", "last", "lname"],
+    "email": ["email", "email address", "primary email", "e-mail"],
+    "mobile": ["mobile phone", "mobile", "cell", "cell phone"],
+    "phone": ["home phone", "phone", "primary phone", "phone number",
+              "work phone", "office phone"],
+    "address": ["address line 1", "address", "street", "street address",
+                "address1", "property address", "service address", "job address"],
+    "city":  ["city", "town"],
+    "state": ["state", "province", "st"],
+    "zip":   ["zip", "zip code", "postal code", "postal", "zipcode"],
+    "rep":   ["sales rep", "rep", "assigned to", "salesperson", "assigned user", "owner"],
+    "value": ["contract value", "job value", "value", "amount", "total",
+              "estimate total", "approved estimate total"],
+    "status": ["status name", "job status", "status", "stage"],
+    "system": ["system", "roof type", "roofing system", "material"],
+}
+_STATUS_TO_PHASE = [
+    ("permit", "permit_applied"), ("schedul", "precon_needed"),
+    ("install", "install_started"), ("production", "install_started"),
+    ("in progress", "install_started"), ("final", "final_needed"),
+    ("inspect", "final_needed"), ("complete", "completed"),
+    ("closed", "completed"), ("paid", "completed"), ("won", "completed"),
+    ("approv", "approved"), ("sold", "approved"), ("sign", "approved"),
+]
+
+
+def _pick(row, hmap, keys):
+    for k in keys:
+        h = hmap.get(k)
+        if h is not None and (row.get(h) or "").strip():
+            return (row.get(h) or "").strip()
+    return ""
+
+
+@bp.route("/homeowner/import", methods=["GET", "POST"])
+def homeowner_import():
+    """Upload a JobNimbus CSV export -> create a homeowner + portal link per row,
+    then show every link ready to copy/email/text. Columns are auto-matched."""
+    if request.method == "GET":
+        return render_template("homeowner_import.html", results=None)
+    up = request.files.get("file")
+    if not up or not up.filename:
+        flash("Choose a CSV file exported from JobNimbus.", "error")
+        return redirect(url_for("jobs.homeowner_import"))
+    import csv
+    import io
+    default_system = (request.form.get("system") or "shingle").strip().lower()
+    default_stage = dict(_PHASE_STAGE).get((request.form.get("phase") or "Approved").strip(), "approved")
+    try:
+        raw = up.read().decode("utf-8-sig", errors="replace")
+        reader = csv.DictReader(io.StringIO(raw))
+        rows = list(reader)
+        hmap = {(h or "").strip().lower(): h for h in (reader.fieldnames or [])}
+    except Exception:
+        flash("Could not read that file — export it as a .csv and try again.", "error")
+        return redirect(url_for("jobs.homeowner_import"))
+    from modules import acculynx_sync as S
+    from modules import portal as _portal
+    dept = current_department()
+    existing = db.all_rows("jobs")
+    seen_email = {(r.get("email") or "").strip().lower() for r in existing if (r.get("email") or "").strip()}
+    seen_na = {((r.get("name") or "").strip().lower() + "|" + (r.get("address") or "").strip().lower()) for r in existing}
+    created, skipped = [], []
+    for row in rows:
+        name = _pick(row, hmap, _JN_ALIASES["name"])
+        if not name:
+            name = (_pick(row, hmap, _JN_ALIASES["first"]) + " " + _pick(row, hmap, _JN_ALIASES["last"])).strip()
+        if not name:
+            continue
+        email = _pick(row, hmap, _JN_ALIASES["email"])
+        addr = _pick(row, hmap, _JN_ALIASES["address"])
+        na = name.strip().lower() + "|" + addr.strip().lower()
+        if (email and email.lower() in seen_email) or na in seen_na:
+            skipped.append({"name": name, "email": email})
+            continue
+        status = _pick(row, hmap, _JN_ALIASES["status"]).lower()
+        stage = default_stage
+        for frag, st in _STATUS_TO_PHASE:
+            if frag in status:
+                stage = st
+                break
+        system = (_pick(row, hmap, _JN_ALIASES["system"]) or default_system).strip().lower()
+        if system not in ("shingle", "tile", "metal", "flat"):
+            system = default_system
+        data = {
+            "name": name, "email": email, "address": addr,
+            "phone": _pick(row, hmap, _JN_ALIASES["mobile"]) or _pick(row, hmap, _JN_ALIASES["phone"]),
+            "city": _pick(row, hmap, _JN_ALIASES["city"]),
+            "state": _pick(row, hmap, _JN_ALIASES["state"]) or "FL",
+            "zip": _pick(row, hmap, _JN_ALIASES["zip"]),
+            "system": system,
+            "contract_value": _pick(row, hmap, _JN_ALIASES["value"]),
+            "rep": _pick(row, hmap, _JN_ALIASES["rep"]),
+            "stage": stage, "stage_since": db.today(), "department": dept,
+        }
+        data["rid"] = S.next_job_number()
+        jid = db.insert("jobs", data)
+        db.add_activity("job", jid, "stage", "Homeowner bulk-imported from JobNimbus CSV")
+        tok = _portal.ensure_token(jid) or ""
+        seen_email.add((email or "").lower())
+        seen_na.add(na)
+        created.append({"id": jid, "name": name, "email": email, "phone": data["phone"],
+                        "url": url_for("portal.home", token=tok, _external=True) if tok else ""})
+    flash("Imported %d homeowner%s%s." % (
+        len(created), "" if len(created) == 1 else "s",
+        (" — %d skipped (already in CRM)" % len(skipped)) if skipped else ""), "ok")
+    return render_template("homeowner_import.html",
+                           results={"created": created, "skipped": skipped}, total=len(rows))
+
+
 def _prefill_from_gc():
     """When New Job is opened as ?gc=<contact_id>, pre-fill the GC's name/company/
     phone/email/rep so the user only needs to add the new property + work type."""

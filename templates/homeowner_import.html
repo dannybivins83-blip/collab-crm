@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Import Homeowners{% endblock %}
+{% block body %}
+<div class="page-head"><h1>📥 Import homeowners from JobNimbus</h1></div>
+
+{% if not results %}
+<form method="post" enctype="multipart/form-data" class="card" style="max-width:720px">
+  <p style="color:var(--muted);margin:0 0 18px">
+    Export your customers (or jobs) from <b>JobNimbus</b> as a <b>CSV</b>, then upload it here.
+    We'll create a project + a private portal link for every row and hand you all the links to
+    send. Columns are matched automatically (name, address, email, phone, rep, status).</p>
+
+  <div class="field" style="margin-bottom:16px">
+    <label>JobNimbus CSV file *</label>
+    <input type="file" name="file" accept=".csv,text/csv" required>
+  </div>
+  <div class="row">
+    <div class="field"><label>Default roof system</label>
+      <select name="system">
+        <option value="shingle">Shingle</option><option value="tile">Tile</option>
+        <option value="metal">Metal</option><option value="flat">Flat</option>
+      </select>
+      <span style="font-size:12px;color:var(--muted)">Used when the CSV doesn't say.</span>
+    </div>
+    <div class="field"><label>Default phase</label>
+      <select name="phase">
+        {% for p in ['Approved','Permitting','Scheduling','Installation','Final Inspection','Complete'] %}
+        <option>{{ p }}</option>{% endfor %}
+      </select>
+      <span style="font-size:12px;color:var(--muted)">We map the CSV "Status" when we recognize it.</span>
+    </div>
+  </div>
+  <div style="margin-top:20px;display:flex;gap:12px;align-items:center">
+    <button class="btn green" type="submit">Import &amp; create portals</button>
+    <a class="btn ghost" href="{{ url_for('jobs.homeowner_new') }}">Add one homeowner instead</a>
+  </div>
+  <p style="font-size:12.5px;color:var(--muted);margin:16px 0 0">
+    Duplicates are skipped automatically (same email, or same name + address already in the CRM).
+    Nothing is emailed automatically — you'll get the links to send yourself.</p>
+</form>
+
+{% else %}
+<div class="card" style="max-width:960px">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h3 style="margin:0">Created {{ results.created|length }} portal{{ '' if results.created|length == 1 else 's' }}
+      {% if results.skipped %}<span style="font-weight:400;color:var(--muted)">· {{ results.skipped|length }} skipped</span>{% endif %}</h3>
+    <div style="display:flex;gap:10px">
+      <button class="btn" type="button" onclick="copyAll()">Copy all links</button>
+      <button class="btn ghost" type="button" onclick="downloadCsv()">Download CSV</button>
+      <a class="btn ghost" href="{{ url_for('jobs.homeowner_import') }}">Import another file</a>
+    </div>
+  </div>
+
+  {% if results.created %}
+  <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:14px">
+    <thead><tr style="text-align:left;background:#f4f6f8">
+      <th style="padding:10px 12px">Homeowner</th>
+      <th style="padding:10px 12px">Portal link</th>
+      <th style="padding:10px 12px;width:220px">Send</th>
+    </tr></thead>
+    <tbody>
+    {% for c in results.created %}
+    <tr style="border-top:1px solid #e6eaec" data-name="{{ c.name }}" data-email="{{ c.email }}" data-phone="{{ c.phone }}" data-url="{{ c.url }}">
+      <td style="padding:10px 12px">
+        <a href="{{ url_for('jobs.detail', job_id=c.id) }}" style="font-weight:700">{{ c.name }}</a>
+        <div style="color:var(--muted);font-size:12.5px">{{ c.email or '—' }}{% if c.phone %} · {{ c.phone }}{% endif %}</div>
+      </td>
+      <td style="padding:10px 12px">
+        <a href="{{ c.url }}" target="_blank" rel="noopener" style="word-break:break-all">{{ c.url }}</a>
+      </td>
+      <td style="padding:10px 12px;white-space:nowrap">
+        <button class="btn ghost sm" type="button" onclick="copyOne(this)">Copy</button>
+        {% if c.email %}<a class="btn ghost sm" href="mailto:{{ c.email }}?subject=Your%20project%20portal&body=Hi%20{{ c.name|urlencode }}%2C%0A%0AHere%27s%20your%20private%20project%20portal%3A%0A{{ c.url|urlencode }}%0A%0AYou%20can%20track%20progress%2C%20see%20photos%2C%20e-sign%2C%20and%20pay%20right%20there.">Email</a>{% endif %}
+        {% if c.phone %}<a class="btn ghost sm" href="sms:{{ c.phone }}?&body=Here%27s%20your%20project%20portal%3A%20{{ c.url|urlencode }}">Text</a>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="margin-top:16px;color:var(--muted)">No new homeowners were created from that file.</p>
+  {% endif %}
+
+  {% if results.skipped %}
+  <details style="margin-top:18px"><summary style="cursor:pointer;font-weight:700">{{ results.skipped|length }} skipped (already in CRM)</summary>
+    <div style="margin-top:8px;color:var(--muted);font-size:13.5px">
+      {% for s in results.skipped %}<div>{{ s.name }}{% if s.email %} · {{ s.email }}{% endif %}</div>{% endfor %}
+    </div>
+  </details>
+  {% endif %}
+</div>
+
+<script>
+function rowData(){return Array.prototype.map.call(document.querySelectorAll('tr[data-url]'),function(r){return r.dataset;});}
+function copyOne(b){var r=b.closest('tr');navigator.clipboard.writeText(r.dataset.url);b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1400);}
+function copyAll(){var t=rowData().map(function(d){return d.name+'\t'+d.url;}).join('\n');navigator.clipboard.writeText(t);var b=event.target;b.textContent='Copied!';setTimeout(function(){b.textContent='Copy all links';},1600);}
+function downloadCsv(){var rows=[['Name','Email','Phone','Portal URL']].concat(rowData().map(function(d){return [d.name,d.email,d.phone,d.url];}));
+var csv=rows.map(function(r){return r.map(function(x){return '"'+String(x||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+var a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='homeowner-portals.csv';document.body.appendChild(a);a.click();a.remove();}
+</script>
+{% endif %}
+{% endblock %}
