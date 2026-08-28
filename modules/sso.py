@@ -59,9 +59,16 @@ ASSERTION_VERSION = 1
 def _tenant_key():
     """This CRM's tenant key in the connected-app ecosystem.
 
-    The SeaBreeze CRM maps to the ``seabreeze`` tenant. Override per-deployment
-    with the SSO_TENANT_KEY env var (e.g. a La Gala CRM would set ``lagala``)."""
-    return (os.environ.get("SSO_TENANT_KEY") or "seabreeze").strip().lower()
+    The CRM tenant key is set via SSO_TENANT_KEY env var or company_settings.crm_tenant_slug.
+    Override per-deployment with the SSO_TENANT_KEY env var (e.g. a La Gala CRM would set ``lagala``)."""
+    import db as _db
+    _slug = os.environ.get("SSO_TENANT_KEY") or ""
+    if not _slug:
+        try:
+            _slug = _db.get_setting("crm_tenant_slug") or ""
+        except Exception:
+            _slug = ""
+    return _slug.strip().lower() or "tenant"
 
 
 # ---------------------------------------------------------------------------

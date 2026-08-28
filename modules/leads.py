@@ -836,7 +836,7 @@ def _run_takeoff_route(lead_id, _uuid, _threading, _time, _tre, current_app, _ru
     f = request.files.get("plans_file")
     if not f or not f.filename:
         return jsonify({"ok": False, "error": "No file uploaded"}), 400
-    profile = request.form.get("bid_as_profile") or l.get("bid_as_profile") or "seabreeze"
+    profile = request.form.get("bid_as_profile") or l.get("bid_as_profile") or ""
     if profile != l.get("bid_as_profile"):
         db.update("leads", lead_id, bid_as_profile=profile)
     fn = "%d_%s" % (int(_time.time() * 1000),
@@ -882,7 +882,7 @@ def retry_takeoff(lead_id, token):
     file_path = old.get("file_path") or ""
     if not file_path or not os.path.exists(file_path):
         return jsonify({"ok": False, "error": "Uploaded file no longer on disk — please re-upload"}), 400
-    profile = old.get("profile") or "seabreeze"
+    profile = old.get("profile") or ""
     new_token = str(_uuid.uuid4())
     db.execute(
         "INSERT INTO takeoff_jobs (token,lead_id,profile,status,progress,file_path,created,updated) "

@@ -2,7 +2,7 @@
 """AHJ (Authority Having Jurisdiction) resolver + roof-type → system mapping.
 
 When a lead is entered we resolve the permit office (AHJ) from the property
-address by matching the municipality against the SeaBreeze permit library's 70
+address by matching the municipality against the tenant permit library's 70
 PBC/Broward municipalities. Incorporated city -> that city's building dept;
 otherwise fall back to the county. The roof work type maps to a permit system
 (shingle/tile/metal/flat) used to auto-create the permit.

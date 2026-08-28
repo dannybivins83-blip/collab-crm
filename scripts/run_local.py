@@ -55,7 +55,7 @@ def main():
     os.environ["DATABASE_URL"] = ""
     os.environ.setdefault("CRM_PORT", "5000")
 
-    print("SeaBreeze CRM — desktop mode (all features)")
+    print("CRM — desktop mode (all features)")
     print("  secrets loaded: %d key(s)" % len(loaded))   # names/values never printed
     print("  database:       local SQLite (data/crm.db)")
 

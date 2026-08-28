@@ -274,7 +274,7 @@ function lcGate(form,pct){
           <div class="field" style="flex:0 0 auto">
             <label>Bid as</label>
             <select id="tj-profile" name="bid_as_profile">
-              <option value="seabreeze" {{ 'selected' if (l.bid_as_profile or 'seabreeze')=='seabreeze' }}>SeaBreeze Roofing</option>
+              <option value="" {{ 'selected' if not l.bid_as_profile }}>{{ settings.name or 'Default' }}</option>
               <option value="lagala" {{ 'selected' if l.bid_as_profile=='lagala' }}>La Gala (Tilt Patchers)</option>
             </select>
           </div>
@@ -296,7 +296,7 @@ function lcGate(form,pct){
         {% for tj in takeoff_jobs %}
         <div class="rowline">
           <span class="badge {{ 'ok' if tj.status=='done' else ('warn' if tj.status in ('queued','running') else 'error') }}">{{ tj.status }}</span>
-          {{ tj.created[:16] }} — profile: {{ tj.profile or 'seabreeze' }}
+          {{ tj.created[:16] }} — profile: {{ tj.profile or 'default' }}
           {% if tj.job_id %}<a href="{{ url_for('jobs.detail', job_id=tj.job_id) }}" style="margin-left:8px">View job →</a>{% endif %}
         </div>
         {% endfor %}

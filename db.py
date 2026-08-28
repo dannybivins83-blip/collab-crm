@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """SQLite layer for the white-label CRM: schema + generic CRUD helpers.
 
-Patterned after SeaBreeze_Ops/db.py but generalized so every module shares the
+Generalized from the original ops db.py so every module shares the
 same insert/update/get helpers. All brandable values live in `company_settings`.
 """
 import os
@@ -1228,14 +1228,14 @@ def save_company(data):
 
 
 # ---------------------------------------------------------------------------
-# Seed: default SeaBreeze brand + an admin user + a little sample data
+# Seed: reference tenant brand (demo data) + an admin user + a little sample data
 # ---------------------------------------------------------------------------
 
 def _seed_if_empty():
     # White-label default: a fresh deploy boots NEUTRAL ("Your Company" + one admin),
-    # NOT branded as the SeaBreeze reference tenant. Set CRM_SEED_DEMO=seabreeze (or 1)
-    # to seed the SeaBreeze brand + sample data for demos/the reference instance.
-    # (The live SeaBreeze instance is already seeded, so this guard never re-runs there.)
+    # NOT branded as the demo reference tenant. Set CRM_SEED_DEMO=seabreeze (or 1)
+    # to seed the demo brand + sample data for demos/the reference instance.
+    # (The live reference instance is already seeded, so this guard never re-runs there.)
     _demo = os.environ.get("CRM_SEED_DEMO", "").strip().lower() in (
         "1", "true", "yes", "seabreeze", "demo")
     if not get_company():

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Domain model for the white-label roofing CRM.
 
-These definitions mirror the working SeaBreeze `job-manager.html` (pipeline
+These definitions mirror the working `job-manager.html` (pipeline
 stages, per-stage checklists, follow-up clocks, draw schedule) and the AccuLynx
 estimate-template mapping. They are brand-agnostic: nothing here names a company.
 Everything brandable lives in the `company_settings` table (see theme.py).
@@ -40,7 +40,7 @@ LEAD_STAGES = [
 
 # ---------------------------------------------------------------------------
 # Production pipeline (Jobs module) -- AccuLynx milestones, EXACT names + order
-# captured live for SeaBreeze REROOF. Each tagged with its top-level bucket.
+# captured live for the reference REROOF workflow. Each tagged with its top-level bucket.
 # ---------------------------------------------------------------------------
 JOB_STAGES = [
     {"key": "approved",          "name": "Approved",                    "bucket": "approved", "follow_after": 2,
@@ -489,7 +489,7 @@ ESTIMATE_TEMPLATES = {
     "metal_5v": {
         "name": "5V Crimp Estimating Template",
         "work_types": ["Roofing - Metal (5V Crimp)"],
-        # Calibrated from a real SeaBreeze 5V job: DM500 5V Crimp 24-ga panel $148.62/SQ,
+        # Calibrated from a real 5V job: DM500 5V Crimp 24-ga panel $148.62/SQ,
         # 5V install $100/SQ, tear-off + dry-in $110/SQ, Polyglass MTS underlayment $64/SQ.
         # 5V is the budget metal system (exposed-fastener screw-down) vs standing seam.
         "lines": [
@@ -541,7 +541,7 @@ ESTIMATE_TEMPLATES = {
     "flat_tpo": {
         "name": "Commercial TPO Estimate",
         "work_types": ["Roofing - Flat (TPO)"],
-        # SeaBreeze's real flat work is hot-mop built-up + 3-ply SA (see flat_hotmop /
+        # The reference flat work is hot-mop built-up + 3-ply SA (see flat_hotmop /
         # flat_sa, calibrated from 8 real jobs); no TPO jobs exist to calibrate against,
         # so this commercial-TPO template stays market-standard FL costs.
         "lines": [
@@ -616,7 +616,7 @@ ESTIMATE_TEMPLATES = {
     "shingle_flat": {
         "name": "2025 Shingle & Flat Split Estimating Template",
         "work_types": ["Shingle + Flat"],
-        # Exact AccuLynx BOM from SeaBreeze's live Template Manager (verified PDF 2026-06-12).
+        # Exact AccuLynx BOM from the reference live Template Manager (verified PDF 2026-06-12).
         # Two sections mirror AccuLynx exactly: "Slope Section" and "Flat Section".
         # Sell prices in AccuLynx = cost / (1 - 0.30); we store cost, CRM derives sell price.
         # Units: BX=box, RL=roll, EA=each, SQ=square(100sf), BD=bundle, JB=job, SQ=square.
@@ -884,7 +884,7 @@ ESTIMATE_TEMPLATES = {
 
 # ---------------------------------------------------------------------------
 # Scope-of-work narratives per template (AccuLynx-style lettered clauses).
-# The shingle scope is the real SeaBreeze proposal language captured live from
+# The shingle scope is the real reference proposal language captured live from
 # my.acculynx.com. These print on the proposal under each estimate section.
 # ---------------------------------------------------------------------------
 SCOPE_TEMPLATES = {
@@ -1106,7 +1106,7 @@ def resources_for(work_type):
 # Options" section (qty 0 = not included until the rep turns it on). Matched to
 # the lead/job work type so the right premium options are always presented.
 # ---------------------------------------------------------------------------
-# These mirror SeaBreeze's real AccuLynx upgrade templates (Shingle/Tile/Metal
+# These mirror the reference AccuLynx upgrade templates (Shingle/Tile/Metal
 # "Upgrades"), which are customer accept/decline scope options priced per job.
 # Costs here are best-effort defaults (qty 0 — the rep turns one on and adjusts the
 # price). The shared options (skylights, gutters, hurricane clips, wall flashing &
