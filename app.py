@@ -308,6 +308,14 @@ def healthz():
     return jsonify(ok=True, sha=_build_sha())
 
 
+@app.route("/import")
+def import_app():
+    """Clean, memorable entry for the standalone 'upload homeowners' app
+    (Add-to-Home-Screen friendly). Lands on the CSV importer."""
+    from flask import redirect, url_for
+    return redirect(url_for("jobs.homeowner_import"))
+
+
 
 
 def _free_port(preferred):
