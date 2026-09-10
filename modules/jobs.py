@@ -402,6 +402,7 @@ _JN_ALIASES = {
               "estimate total", "approved estimate total"],
     "status": ["status name", "job status", "status", "stage"],
     "system": ["system", "roof type", "roofing system", "material"],
+    "photos": ["photos", "photo urls", "companycam photos", "photo_urls"],
 }
 _STATUS_TO_PHASE = [
     ("permit", "permit_applied"), ("schedul", "precon_needed"),
@@ -484,8 +485,15 @@ def homeowner_import():
         }
         data["rid"] = S.next_job_number()
         jid = db.insert("jobs", data)
-        db.add_activity("job", jid, "stage", "Homeowner bulk-imported from JobNimbus CSV")
+        db.add_activity("job", jid, "stage", "Homeowner bulk-imported from CSV")
         tok = _portal.ensure_token(jid) or ""
+        # Optional: real job photos baked into the CSV (pipe-separated URLs) →
+        # shown in the portal's progress strip. Used by the CompanyCam bridge.
+        photos_cell = _pick(row, hmap, _JN_ALIASES["photos"])
+        for i, purl in enumerate([u.strip() for u in photos_cell.split("|") if u.strip()][:8]):
+            db.insert("ext_photos", {"job_id": jid, "source": "companycam",
+                                     "url": purl, "thumb": purl, "captured": "",
+                                     "sort": i, "created": db.now()})
         seen_email.add((email or "").lower())
         seen_na.add(na)
         created.append({"id": jid, "name": name, "email": email, "phone": data["phone"],
