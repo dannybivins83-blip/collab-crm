@@ -23,7 +23,7 @@ import constants
 bp = Blueprint("portal", __name__, url_prefix="/portal")
 
 # Ensure the token column + portal config columns exist (module-load convention).
-for _c in ("portal_token TEXT", "portal_token_expires TEXT"):
+for _c in ("portal_token TEXT", "portal_token_expires TEXT", "companycam_id TEXT"):
     try:
         db.execute("ALTER TABLE jobs ADD COLUMN %s" % _c)
     except Exception:
@@ -74,6 +74,13 @@ try:
     db.execute("""CREATE TABLE IF NOT EXISTS portal_tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT, job_id INTEGER, key TEXT,
         done INTEGER DEFAULT 0, done_at TEXT)""")
+except Exception:
+    pass
+# External (CompanyCam) job photos shown in the portal, referenced by URL.
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS ext_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, job_id INTEGER, source TEXT,
+        url TEXT, thumb TEXT, captured TEXT, sort INTEGER DEFAULT 0, created TEXT)""")
 except Exception:
     pass
 db._COLCACHE.clear()
@@ -1215,11 +1222,17 @@ def home(token):
     comp["color_masthead"] = comp.get("color_masthead") or "#15201A"
     comp["color_primary"] = comp.get("color_primary") or "#37B34A"
     comp["color_accent"] = comp.get("color_accent") or "#2A8F3A"
-    # Real job photos -> the "today's progress" strip (portal_file magic-link URLs).
-    demo_photos = [{"src": url_for("portal.portal_file", token=token,
-                                   subpath="photos/" + p["filename"]),
-                    "cap": p.get("caption") or "", "at": (p.get("created") or "")[:10]}
-                   for p in photos if p.get("filename")][:8]
+    # Job photos -> the "today's progress" strip. External (CompanyCam) photos
+    # win when present; otherwise fall back to photos uploaded into the CRM.
+    ext = db.all_rows("ext_photos", "job_id=?", (j["id"],), "sort ASC, id ASC")
+    if ext:
+        demo_photos = [{"src": e.get("url"), "cap": "", "at": e.get("captured") or ""}
+                       for e in ext if e.get("url")][:8]
+    else:
+        demo_photos = [{"src": url_for("portal.portal_file", token=token,
+                                       subpath="photos/" + p["filename"]),
+                        "cap": p.get("caption") or "", "at": (p.get("created") or "")[:10]}
+                       for p in photos if p.get("filename")][:8]
     # Real documents -> the docs hub (e-sign the ones the office requested).
     demo_docs = []
     _sign_ids = set()

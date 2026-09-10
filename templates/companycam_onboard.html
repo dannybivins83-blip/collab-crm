@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Onboard from CompanyCam{% endblock %}
+{% block body %}
+<div class="page-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+  <h1>📸 Onboard from CompanyCam</h1>
+  <a class="btn ghost" href="{{ url_for('jobs.homeowner_import') }}">CSV import instead</a>
+</div>
+
+{% if not enabled %}
+<div class="card" style="max-width:720px">
+  <h3 style="margin:0 0 8px">Connect CompanyCam</h3>
+  <p style="color:var(--muted);margin:0 0 14px">
+    This pulls your real CompanyCam jobs — name, address, and the crew's job photos —
+    so you can turn each one into a homeowner portal in a single click.</p>
+  <ol style="color:var(--muted);line-height:1.9;margin:0 0 8px;padding-left:18px">
+    <li>In CompanyCam, open <b>Account → Integrations → Access Tokens</b> and create a token.</li>
+    <li>Send it to Danny's setup — it gets saved as <code>COMPANYCAM_API_TOKEN</code> and this page lights up.</li>
+  </ol>
+  <p style="color:var(--muted);font-size:13px;margin:8px 0 0">No token is shown here for security. Once set, refresh this page.</p>
+</div>
+
+{% else %}
+<p style="color:var(--muted);margin:-6px 0 18px;max-width:760px">
+  Your real CompanyCam jobs. Onboarding creates a homeowner portal with the job's photos pulled in.
+  {% if jn %}Contact info is pre-filled from JobNimbus by address.{% else %}Add an email/phone to send the link (or leave blank and copy it from the job).{% endif %}
+</p>
+
+<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:16px">
+  {% for p in projects %}
+  <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+    <div style="height:120px;background:#eef2f4 center/cover no-repeat{% if p.feature_image %} url('{{ p.feature_image }}'){% endif %};position:relative">
+      <span class="pill" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px">{{ p.photo_count }} 📷</span>
+    </div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:2px;flex:1">
+      <div style="font-weight:800">{{ p.person }}</div>
+      <div style="color:var(--muted);font-size:13px">{{ p.address }}{% if p.city %}, {{ p.city }}{% endif %} {{ p.state }}</div>
+      <div style="color:var(--muted);font-size:12px;text-transform:capitalize">{{ p.system }} · {{ p.name.split(';')[1] if ';' in p.name else 'roof' }}</div>
+
+      {% if p.done %}
+      <div style="margin-top:12px"><span class="pill" style="background:var(--green,#37b34a);color:#fff">✓ Onboarded</span></div>
+      {% else %}
+      <form method="post" action="{{ url_for('jobs.companycam_onboard') }}" style="margin-top:12px;display:grid;gap:8px">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <input type="hidden" name="cc_id" value="{{ p.id }}">
+        <input type="hidden" name="person" value="{{ p.person }}">
+        <input type="hidden" name="address" value="{{ p.address }}">
+        <input type="hidden" name="city" value="{{ p.city }}">
+        <input type="hidden" name="state" value="{{ p.state }}">
+        <input type="hidden" name="zip" value="{{ p.zip }}">
+        <input type="hidden" name="system" value="{{ p.system }}">
+        <div style="display:flex;gap:8px">
+          <input name="email" type="email" placeholder="Email (to send)" value="{{ p.email }}" style="flex:1;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+          <input name="phone" type="tel" placeholder="Phone" value="{{ p.phone }}" style="width:120px;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select name="phase" style="font:inherit;font-size:14px;padding:8px;border:1px solid var(--line);border-radius:8px">
+            {% for ph in ['Approved','Permitting','Scheduling','Installation','Final Inspection','Complete'] %}
+            <option {% if ph == 'Installation' %}selected{% endif %}>{{ ph }}</option>{% endfor %}
+          </select>
+          <button class="btn green" type="submit" style="flex:1">Onboard → portal</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div style="margin-top:22px;display:flex;gap:10px;align-items:center">
+  {% if page > 1 %}<a class="btn ghost" href="{{ url_for('jobs.companycam_list', page=page-1) }}">← Newer</a>{% endif %}
+  {% if projects|length >= 50 %}<a class="btn ghost" href="{{ url_for('jobs.companycam_list', page=page+1) }}">Older →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

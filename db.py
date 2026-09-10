@@ -939,6 +939,8 @@ TABLE_ALLOWLIST = {
     "portal_offers",
     # Emails captured by the "see the live demo" gate (modules/demos.py).
     "demo_access_requests",
+    # External (CompanyCam) job photos rendered in the portal (modules/portal.py).
+    "ext_photos",
 }
 
 _SAFE_COL_RE = _re.compile(r'^[a-zA-Z_][a-zA-Z0-9_.]*$')

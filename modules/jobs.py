@@ -497,6 +497,86 @@ def homeowner_import():
                            results={"created": created, "skipped": skipped}, total=len(rows))
 
 
+# --- One-click onboard from CompanyCam (+ optional JobNimbus contact lookup) ---
+@bp.route("/companycam")
+def companycam_list():
+    """List the roofer's real CompanyCam jobs so each can be onboarded to a
+    portal in one click. Falls back to a 'connect' state when no token is set."""
+    from modules import onboard_sources as I
+    if not I.cc_enabled():
+        return render_template("companycam_onboard.html", enabled=False, projects=[])
+    try:
+        page = max(1, int(request.args.get("page") or 1))
+    except ValueError:
+        page = 1
+    projects = I.cc_list_projects(page=page, per_page=50)
+    existing = {(r.get("companycam_id") or "") for r in db.all_rows("jobs")}
+    for p in projects:
+        p["done"] = p["id"] in existing
+        p["person"] = I.clean_person_name(p["name"])
+        p["system"] = I.guess_system(p["name"])
+        # Prefill contact from JobNimbus by address when that key is present.
+        if I.jn_enabled() and not p["done"]:
+            hit = I.jn_contact_for_address(p["address"], p["city"])
+            p["email"] = hit.get("email", "")
+            p["phone"] = hit.get("phone", "")
+        else:
+            p["email"] = p["phone"] = ""
+    return render_template("companycam_onboard.html", enabled=True,
+                           projects=projects, page=page, jn=I.jn_enabled())
+
+
+@bp.route("/companycam/onboard", methods=["POST"])
+def companycam_onboard():
+    """Create a homeowner job + portal from one CompanyCam project, pulling its
+    real job photos into the portal."""
+    from modules import onboard_sources as I
+    from modules import acculynx_sync as S
+    from modules import portal as _portal
+    f = request.form
+    cc_id = (f.get("cc_id") or "").strip()
+    name = (f.get("person") or "").strip() or "Homeowner"
+    if not cc_id:
+        flash("Missing CompanyCam project.", "error")
+        return redirect(url_for("jobs.companycam_list"))
+    # Don't double-onboard the same CompanyCam project.
+    dupe = db.all_rows("jobs", "companycam_id=?", (cc_id,))
+    if dupe:
+        flash("That job is already onboarded.", "ok")
+        return redirect(url_for("jobs.detail", job_id=dupe[0]["id"]))
+    stage = dict(_PHASE_STAGE).get((f.get("phase") or "Installation").strip(), "install_started")
+    data = {
+        "name": name, "email": (f.get("email") or "").strip(),
+        "phone": (f.get("phone") or "").strip(),
+        "address": (f.get("address") or "").strip(),
+        "city": (f.get("city") or "").strip(),
+        "state": (f.get("state") or "FL").strip(),
+        "zip": (f.get("zip") or "").strip(),
+        "system": (f.get("system") or "shingle").strip().lower(),
+        "rep": (f.get("rep") or "").strip(),
+        "companycam_id": cc_id, "stage": stage, "stage_since": db.today(),
+        "department": current_department(),
+    }
+    data["rid"] = S.next_job_number()
+    jid = db.insert("jobs", data)
+    db.add_activity("job", jid, "stage", "Onboarded from CompanyCam (project %s)" % cc_id)
+    tok = _portal.ensure_token(jid) or ""
+    # Pull the crew's real job photos into the portal.
+    n = 0
+    try:
+        for i, ph in enumerate(I.cc_project_photos(cc_id, per_page=24)):
+            db.insert("ext_photos", {"job_id": jid, "source": "companycam",
+                                     "url": ph["url"], "thumb": ph.get("thumb") or ph["url"],
+                                     "captured": ph.get("captured") or "", "sort": i,
+                                     "created": db.now()})
+            n += 1
+    except Exception:
+        pass
+    flash("Onboarded %s — portal ready%s." % (
+        name, (" with %d photos" % n) if n else ""), "ok")
+    return redirect(url_for("jobs.detail", job_id=jid))
+
+
 def _prefill_from_gc():
     """When New Job is opened as ?gc=<contact_id>, pre-fill the GC's name/company/
     phone/email/rep so the user only needs to add the new property + work type."""

@@ -3,7 +3,10 @@
 {% block body %}
 <div class="page-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
   <h1>➕ New Homeowner</h1>
-  <a class="btn ghost" href="{{ url_for('jobs.homeowner_import') }}">📥 Bulk import from JobNimbus CSV</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <a class="btn ghost" href="{{ url_for('jobs.companycam_list') }}">📸 Onboard from CompanyCam</a>
+    <a class="btn ghost" href="{{ url_for('jobs.homeowner_import') }}">📥 Bulk import CSV</a>
+  </div>
 </div>
 <form method="post" class="card" style="max-width:700px">
   <p style="color:var(--muted);margin:0 0 18px">
