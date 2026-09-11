@@ -487,7 +487,7 @@
     <span class="tb-right">
       <span class="tb-person">
         <span class="tb-av" aria-hidden="true">{{ (j.rep or company.name)[:1]|upper }}</span>
-        <span><b>{{ j.rep }}</b><span>Project Manager</span></span>
+        <span><b>{{ j.rep or company.name }}</b><span>{{ 'Project Manager' if j.rep else 'Your project team' }}</span></span>
       </span>
       <span class="tb-contact">
         <a class="tb-ico" href="tel:{{ company.phone }}" aria-label="Call {{ j.rep }}" title="Call">
@@ -673,7 +673,7 @@
           {% else %}
           <span class="cav" aria-hidden="true">{{ (j.rep or company.name)[:1]|upper }}</span>
           {% endif %}
-          <span><b>{{ j.rep }}</b><span>Project Manager</span></span>
+          <span><b>{{ j.rep or company.name }}</b><span>{{ 'Project Manager' if j.rep else 'Your project team' }}</span></span>
         </div>
         <div class="clinks">
           {% if company.phone %}
