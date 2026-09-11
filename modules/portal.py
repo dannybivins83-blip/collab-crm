@@ -138,7 +138,7 @@ def _tutorials(company):
 # Map the detailed production milestone -> a friendly customer-facing phase.
 CUSTOMER_PHASES = [p["name"] for p in PHASE_INFO]
 
-# Homeowner-facing "value" checklist — the SeaBreeze team playbook translated into
+# Homeowner-facing "value" checklist — the production-team playbook translated into
 # what the CUSTOMER gets, grouped by the production phase it's completed in. Items
 # auto-check as the project advances, so the homeowner sees the value rack up.
 # phase: -1 = pre-sale (always done by the time they're in the portal), 0..5 = phases.

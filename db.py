@@ -1243,14 +1243,14 @@ def _seed_if_empty():
     if not get_company():
         if _demo:
             save_company({
-                "name": "SeaBreeze Roofing & Sheet Metal, Inc.",
-                "legal_name": "SeaBreeze Roofing & Sheet Metal, Inc.",
+                "name": "KLR Roofing Corp",
+                "legal_name": "KLR Roofing Corp",
                 "tagline": "Florida Roofing Done Right",
-                "license": "CCC1328689", "qualifier": "Jacintho Carreiro",
-                "address": "2600 High Ridge Rd", "city": "Boynton Beach",
-                "state": "FL", "zip": "33426",
-                "phone": "(561) 555-0100", "email": "office@seabreezeroofing.com",
-                "website": "seabreezeroofing.com",
+                "license": "", "qualifier": "",
+                "address": "6535 Patricia Dr.", "city": "West Palm Beach",
+                "state": "FL", "zip": "33413",
+                "phone": "(561) 555-0100", "email": "",
+                "website": "",
                 "color_primary": "#4680BF", "color_accent": "#8CC63F",
                 "color_warn": "#F78300", "color_danger": "#E25050",  # AccuLynx-matched (live-verified)
                 "default_county": "Palm Beach County",
