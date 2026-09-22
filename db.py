@@ -1243,11 +1243,11 @@ def _seed_if_empty():
     if not get_company():
         if _demo:
             save_company({
-                "name": "KLR Roofing Corp",
-                "legal_name": "KLR Roofing Corp",
+                "name": "Summit Roofing Co.",
+                "legal_name": "Summit Roofing Co.",
                 "tagline": "Florida Roofing Done Right",
                 "license": "", "qualifier": "",
-                "address": "6535 Patricia Dr.", "city": "West Palm Beach",
+                "address": "1200 Example Way", "city": "West Palm Beach",
                 "state": "FL", "zip": "33413",
                 "phone": "(561) 555-0100", "email": "",
                 "website": "",

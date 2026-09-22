@@ -696,11 +696,11 @@
   </div>
 </section>
 
-<!-- RECENT WORK — real KLR projects across systems -->
+<!-- RECENT WORK — demo projects across roof systems -->
 {% if recent_work %}
 <section class="wrap" style="padding-top:4px">
   <div class="card">
-    <div class="card-head"><p class="k">Recent KLR projects</p><p class="k-teal">Real roofs, real crews</p></div>
+    <div class="card-head"><p class="k">Recent projects</p><p class="k-teal">Real roofs, real crews</p></div>
     <div class="rw">
       {% for w in recent_work %}
       <a href="#photos"><img src="{{ url_for('static', filename=w.img) }}" alt="{{ w.system }} roof" loading="lazy" width="800" height="600"><span class="rw-lbl">{{ w.system }}</span></a>

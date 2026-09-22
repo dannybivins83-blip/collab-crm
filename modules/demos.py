@@ -74,8 +74,8 @@ db._COLCACHE.clear()
 # auto-seeded placeholder ("Roof Portal") to this brand. Only ever touches the auto-seeded
 # row (created_by='seed') — never a manually-created demo.
 _DEMO_DEFAULT = {
-    "company_name": "KLR Roofing", "tagline": "Roofs done right — on time, every time.",
-    "phone": "(555) 018-2440", "website": "https://klrroofing.com",
+    "company_name": "Summit Roofing Co.", "tagline": "Roofs done right — on time, every time.",
+    "phone": "(555) 018-2440", "website": "https://summitroofing.example.com",
     "color_masthead": "#15201A", "color_primary": "#37B34A", "color_accent": "#2A8F3A",
     "sample_system": "shingle",
 }
@@ -87,7 +87,7 @@ def _ensure_default_demo():
         if not rows:
             db.insert("demos", dict(_DEMO_DEFAULT, created=db.now(), slug="roof-portal",
                                     logo_url="", created_by="seed"))
-        elif rows[0].get("created_by") == "seed" and (rows[0].get("company_name") or "") in ("", "Roof Portal", "Summit Roofing Co."):
+        elif rows[0].get("created_by") == "seed" and (rows[0].get("company_name") or "") in ("", "Roof Portal", "KLR Roofing"):
             db.update("demos", rows[0]["id"], company_name=_DEMO_DEFAULT["company_name"],
                       tagline=_DEMO_DEFAULT["tagline"], phone=_DEMO_DEFAULT["phone"],
                       website=_DEMO_DEFAULT["website"])
@@ -120,10 +120,10 @@ def _ensure_default_demo():
     slug = (os.environ.get("CRM_DEMO_SLUG") or "roof-portal").strip()
     if not slug:
         return
-    name = (os.environ.get("CRM_DEMO_SEED_NAME") or "KLR Roofing").strip()
+    name = (os.environ.get("CRM_DEMO_SEED_NAME") or "Summit Roofing Co.").strip()
     brand = {"company_name": name,
              "tagline": "Roofs done right — on time, every time.",
-             "website": "https://klrroofing.com", "phone": "(555) 018-2440",
+             "website": "https://summitroofing.example.com", "phone": "(555) 018-2440",
              "color_masthead": "#15201A", "color_primary": "#37B34A",
              "color_accent": "#2A8F3A", "sample_system": "shingle"}
     try:
@@ -333,12 +333,12 @@ def delete(slug):
 # (portal.py imports these so the live portal mirrors the demo exactly).
 # ---------------------------------------------------------------------------
 RECENT_WORK = [
-    {"img": "demo/klr-metal-finished.jpg", "system": "Standing-Seam Metal"},
-    {"img": "demo/klr-tile-finished.jpg", "system": "Concrete Tile"},
-    {"img": "demo/klr-shingle-6-finished.jpg", "system": "Architectural Shingle"},
-    {"img": "demo/klr-metal-2.jpg", "system": "Metal — Clean Lines"},
-    {"img": "demo/klr-shingle-3-deck.jpg", "system": "New Deck & Dry-In"},
-    {"img": "demo/klr-shingle-2-tearoff.jpg", "system": "Tear-Off Day"},
+    {"img": "demo/demo-metal-finished.jpg", "system": "Standing-Seam Metal"},
+    {"img": "demo/demo-tile-finished.jpg", "system": "Concrete Tile"},
+    {"img": "demo/demo-shingle-6-finished.jpg", "system": "Architectural Shingle"},
+    {"img": "demo/demo-metal-2.jpg", "system": "Metal — Clean Lines"},
+    {"img": "demo/demo-shingle-3-deck.jpg", "system": "New Deck & Dry-In"},
+    {"img": "demo/demo-shingle-2-tearoff.jpg", "system": "Tear-Off Day"},
 ]
 ADDON_CATS = [
     {"key": "gutters", "name": "Gutters & Drainage", "tag": "Protect your new roof", "icon": "droplet", "items": [
@@ -386,20 +386,20 @@ def portal_view(slug):
     link = url_for("demo.portal", slug=slug, _external=True)
     # Synthetic showcase data so the demo demonstrates the SiteCam feed, QuickBooks
     # billing, the document center + e-sign, and Roof School — no real records touched.
-    # Real KLR job photos (curated install sequence — served from static/demo/).
+    # Curated install-sequence job photos (generic demo set — served from static/demo/).
     demo_photos = [
         {"cap": "Before — your existing roof", "sub": "Day 1", "at": "7:12 AM",
-         "img": "demo/klr-shingle-1-before.jpg", "hex": "#6b7280"},
+         "img": "demo/demo-shingle-1-before.jpg", "hex": "#6b7280"},
         {"cap": "Tear-off complete", "sub": "Stripped to the deck", "at": "9:40 AM",
-         "img": "demo/klr-shingle-2-tearoff.jpg", "hex": "#8a6e4b"},
+         "img": "demo/demo-shingle-2-tearoff.jpg", "hex": "#8a6e4b"},
         {"cap": "New shingles going on", "sub": "6-nail high-wind pattern", "at": "3:05 PM",
-         "img": "demo/klr-shingle-5-install.jpg", "hex": "#374151"},
+         "img": "demo/demo-shingle-5-install.jpg", "hex": "#374151"},
         {"cap": "Your new roof", "sub": "Cleaned up & magnet-swept", "at": "Finished",
-         "img": "demo/klr-shingle-6-finished.jpg", "hex": "#2c4733"},
+         "img": "demo/demo-shingle-6-finished.jpg", "hex": "#2c4733"},
         {"cap": "Deck re-nailed to code", "sub": "Every sheet secured", "at": "11:05 AM",
-         "img": "demo/klr-shingle-3-deck.jpg", "hex": "#5b4a3a"},
+         "img": "demo/demo-shingle-3-deck.jpg", "hex": "#5b4a3a"},
         {"cap": "Peel-&-stick underlayment", "sub": "Secondary water barrier down", "at": "1:20 PM",
-         "img": "demo/klr-shingle-4-dryin.jpg", "hex": "#1f6f8b"},
+         "img": "demo/demo-shingle-4-dryin.jpg", "hex": "#1f6f8b"},
     ]
     # Recent-work gallery — real finished roofs across systems (marketing showcase).
     recent_work = RECENT_WORK
