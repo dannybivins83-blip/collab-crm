@@ -24,6 +24,7 @@ import time
 import secrets
 
 from flask import (Blueprint, render_template, request, redirect, url_for,
+                   Response,
                    abort, flash, jsonify)
 
 import config
@@ -66,7 +67,59 @@ try:
         created TEXT, email TEXT, slug TEXT, source_host TEXT)""")
 except Exception:
     pass
+# First-party funnel events for the sales page. The internal DB is the source of
+# truth for traffic/conversion — ad blockers make third-party analytics a floor,
+# not a measurement. GA4 is optional (GA4_MEASUREMENT_ID) and purely additive.
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS portal_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created TEXT, kind TEXT, path TEXT, referrer TEXT,
+        ua TEXT, source_host TEXT)""")
+except Exception:
+    pass
+# Whether the owner alert for each captured lead actually went out. Without this,
+# a silent mailer failure is indistinguishable from "no leads yet".
+for _t in ("portal_offers", "portal_leads", "demo_access_requests"):
+    try:
+        db._ensure_column(_t, "notified", "INTEGER DEFAULT 0")
+    except Exception:
+        pass
 db._COLCACHE.clear()
+
+# ---------------------------------------------------------------------------
+# Lead alerts + first-party funnel tracking
+# ---------------------------------------------------------------------------
+def _notify_to():
+    """Where sales alerts go. Override with PORTAL_NOTIFY_TO."""
+    return (os.environ.get("PORTAL_NOTIFY_TO")
+            or "daniel@collaborativeconceptsfl.com").strip()
+
+
+def _notify(subject, body):
+    """Best-effort owner alert. True only if the mail actually went out. Never
+    raises and never blocks the visitor: the DB row is the durable record, this
+    is the nudge on top of it."""
+    try:
+        from modules import gmail as _gm
+        if not _gm.smtp_configured():
+            return False
+        return bool(_gm._smtp_send(_notify_to(), subject, body))
+    except Exception:
+        return False
+
+
+def _log_event(kind, path=""):
+    """Record a funnel event. Silent on failure — tracking must never break a page."""
+    try:
+        db.insert("portal_events", {
+            "created": db.now(), "kind": (kind or "")[:40],
+            "path": (path or request.path or "")[:200],
+            "referrer": (request.referrer or "")[:300],
+            "ua": (request.headers.get("User-Agent") or "")[:300],
+            "source_host": (request.host or "")[:120]})
+    except Exception:
+        pass
+
 
 # Canonical product-demo brand — a generic, believable roofing company so the public
 # demo shows a real-looking roofer, not the operating tenant's name or the product name.
@@ -489,6 +542,9 @@ def _on_demo_host():
 def landing_view():
     """Domain + software FOR-SALE page (replaced the license-sales landing on
     2026-08-11 — the old page stays reachable at /portal-sales/licensing)."""
+    # Server-side view log: survives ad blockers and JS being off, so the funnel
+    # denominator is real. The client beacon adds CTA clicks on top.
+    _log_event("page_view_server")
     return render_template(
         "portal_sale_landing.html",
         demo_url="/demo/%s" % DEMO_SLUG,
@@ -497,6 +553,7 @@ def landing_view():
         demo_request_action=url_for("demo.demo_request"),
         demo_err=(request.args.get("demoerr") == "1"),
         thanks=(request.args.get("thanks") == "1"),
+        ga4_id=(os.environ.get("GA4_MEASUREMENT_ID") or "").strip(),
         err=(request.args.get("err") == "1"))
 
 
@@ -510,10 +567,18 @@ def landing_offer():
     base = "/" if _on_demo_host() else url_for("demo.landing")
     if not (name and email and offer):
         return redirect(base + "?err=1#offer")
+    body = "\n".join([
+        "A purchase offer came in on %s" % (request.host or "myroofportal.com"),
+        "", "Name:    %s" % name, "Email:   %s" % email,
+        "Offer:   %s" % offer, "", "Message:", (message or "(none)"),
+        "", "Reply straight to %s — full list at /portal-sales/inbox" % email])
+    sent = _notify("MyRoofPortal OFFER: %s - %s" % (offer, name), body)
     db.insert("portal_offers", {
         "created_at": db.now(), "name": name, "email": email,
         "offer": offer, "message": message,
-        "source_host": (request.host or "")[:120]})
+        "source_host": (request.host or "")[:120],
+        "notified": 1 if sent else 0})
+    _log_event("offer_submit")
     return redirect(base + "?thanks=1#offer")
 
 
@@ -525,10 +590,86 @@ def demo_request():
     base = "/" if _on_demo_host() else url_for("demo.landing")
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         return redirect(base + "?demoerr=1#see-demo")
+    sent = _notify("MyRoofPortal demo opened: %s" % email,
+                   "\n".join(["%s just opened the live demo on %s."
+                              % (email, (request.host or "myroofportal.com")),
+                              "", "Full list: /portal-sales/inbox"]))
     db.insert("demo_access_requests", {
         "created": db.now(), "email": email, "slug": DEMO_SLUG,
-        "source_host": (request.host or "")[:120]})
+        "source_host": (request.host or "")[:120],
+        "notified": 1 if sent else 0})
+    _log_event("demo_gate")
     return redirect(url_for("demo.portal", slug=DEMO_SLUG))
+
+
+@bp.route("/portal-sales/inbox", endpoint="sales_inbox")
+def sales_inbox():
+    """Everything the public sales pages captured, in one place. Login-gated
+    (the endpoint is deliberately absent from auth.PUBLIC). This page exists so a
+    captured lead can never be invisible, even if the mailer is down."""
+    def _rows(t, order):
+        try:
+            return db.all_rows(t, order=order)[:300]
+        except Exception:
+            return []
+    offers = _rows("portal_offers", "id DESC")
+    leads = _rows("portal_leads", "id DESC")
+    access = _rows("demo_access_requests", "id DESC")
+    events = _rows("portal_events", "id DESC")
+    counts = {}
+    for e in events:
+        counts[e.get("kind") or "?"] = counts.get(e.get("kind") or "?", 0) + 1
+    from modules import gmail as _gm
+    try:
+        mail_ok = _gm.smtp_configured()
+    except Exception:
+        mail_ok = False
+    return render_template("portal_sales_inbox.html",
+                           offers=offers, leads=leads, access=access,
+                           events=events[:100], counts=counts,
+                           mail_ok=mail_ok, notify_to=_notify_to())
+
+
+@bp.route("/portal-sales/ev", methods=["POST"], endpoint="track_event")
+def track_event():
+    """First-party funnel beacon. Public by design (anonymous visitors) and
+    records nothing a visitor did not already send in the request."""
+    kind = (request.form.get("k") or request.args.get("k") or "").strip()[:40]
+    if kind:
+        _log_event(kind, request.form.get("p") or "")
+    return ("", 204)
+
+
+@bp.route("/robots.txt", endpoint="robots")
+def robots():
+    """Let the sale page be indexed; keep the internal surfaces out of search."""
+    host = (request.host or "myroofportal.com").split(":")[0]
+    body = "\n".join([
+        "User-agent: *",
+        "Allow: /$",
+        "Allow: /demo/",
+        "Disallow: /portal-sales/inbox",
+        "Disallow: /demos",
+        "Disallow: /jobs",
+        "Disallow: /settings",
+        "Disallow: /login",
+        "Sitemap: https://%s/sitemap.xml" % host,
+        ""])
+    return Response(body, mimetype="text/plain")
+
+
+@bp.route("/sitemap.xml", endpoint="sitemap")
+def sitemap():
+    host = (request.host or "myroofportal.com").split(":")[0]
+    urls = ["https://%s/" % host,
+            "https://%s/demo/%s" % (host, DEMO_SLUG),
+            "https://%s/portal-sales/licensing" % host]
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for u in urls:
+        parts.append("  <url><loc>%s</loc><changefreq>weekly</changefreq></url>" % u)
+    parts.append("</urlset>")
+    return Response("\n".join(parts), mimetype="application/xml")
 
 
 @bp.route("/portal-sales/licensing", endpoint="landing_licensing")
@@ -554,8 +695,17 @@ def landing_lead():
     # Require a name plus at least one way to reach them.
     if not name or not (email or phone):
         return redirect(base + "?err=1#get-started")
+    sent = _notify("MyRoofPortal lead: %s (%s)" % (name, company or "no company"),
+                   "\n".join(["New contractor lead on %s"
+                              % (request.host or "myroofportal.com"), "",
+                              "Name:    %s" % name, "Company: %s" % (company or "-"),
+                              "Email:   %s" % (email or "-"),
+                              "Phone:   %s" % (phone or "-"), "",
+                              "Full list: /portal-sales/inbox"]))
     db.insert("portal_leads", {
         "created": db.now(), "name": name, "company": company,
         "email": email, "phone": phone,
-        "source_host": (request.host or "")[:120]})
+        "source_host": (request.host or "")[:120],
+        "notified": 1 if sent else 0})
+    _log_event("lead_submit")
     return redirect(base + "?thanks=1#get-started")

@@ -7,6 +7,20 @@
 <title>MyRoofPortal.com for Sale | Roofing Customer Portal + Domain</title>
 <meta name="description" content="Acquire MyRoofPortal.com and a complete white-label homeowner roofing portal with project tracking, payments, documents, photos and referrals.">
 <link rel="canonical" href="https://myroofportal.com/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<!-- Open Graph / Twitter: controls how the link renders when it is pasted into
+     an email, a DM or a marketplace listing — i.e. exactly how buyers receive it. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MyRoofPortal">
+<meta property="og:url" content="https://myroofportal.com/">
+<meta property="og:title" content="MyRoofPortal.com for Sale — Roofing Customer Portal + Exact-Match Domain">
+<meta property="og:description" content="An exact-match domain plus a complete white-label homeowner roofing portal: project tracking, payments, documents, photos and referrals. Transfers in 7 days.">
+<meta property="og:image" content="https://myroofportal.com/static/demo/demo-shingle-6-finished.jpg">
+<meta property="og:image:alt" content="A finished roof from the MyRoofPortal demo project gallery">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MyRoofPortal.com for Sale — Roofing Customer Portal + Domain">
+<meta name="twitter:description" content="Domain + complete white-label roofing homeowner portal. Built, running, transfers in 7 days.">
+<meta name="twitter:image" content="https://myroofportal.com/static/demo/demo-shingle-6-finished.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -531,3 +545,39 @@ footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
   });}
 })();
 </script>
+
+<!-- First-party funnel tracking. The internal DB is the source of truth: ad
+     blockers make third-party analytics a floor, not a measurement. GA4 loads
+     only when GA4_MEASUREMENT_ID is configured, and is purely additive. -->
+<script>
+(function () {
+  function hit(kind, extra) {
+    try {
+      var b = new FormData();
+      b.append("k", kind);
+      b.append("p", extra || location.pathname);
+      if (navigator.sendBeacon) { navigator.sendBeacon("/portal-sales/ev", b); }
+      else { fetch("/portal-sales/ev", { method: "POST", body: b, keepalive: true }); }
+    } catch (e) { /* tracking must never break the page */ }
+  }
+  hit("page_view");
+  document.addEventListener("click", function (ev) {
+    var a = ev.target && ev.target.closest ? ev.target.closest("a,button") : null;
+    if (!a) return;
+    var href = (a.getAttribute("href") || "");
+    var label = (a.textContent || "").trim().slice(0, 40);
+    if (href.indexOf("#offer") >= 0 || /make an offer/i.test(label)) hit("cta_offer", label);
+    else if (href.indexOf("/demo/") >= 0 || /demo/i.test(label)) hit("cta_demo", label);
+    else if (href.indexOf("tel:") === 0) hit("cta_call", href.slice(4, 24));
+  }, true);
+})();
+</script>
+{% if ga4_id %}
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ ga4_id }}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '{{ ga4_id }}');
+</script>
+{% endif %}

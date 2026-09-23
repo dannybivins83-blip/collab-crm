@@ -85,6 +85,10 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # Email gate on the sales page: the "see the live demo" form. Public
           # visitor, no session/CSRF token — capture email then open the demo.
           "demo.demo_request",
+          # First-party funnel beacon + SEO files on the public sales host.
+          # The beacon stores only what the request already carried; the inbox
+          # endpoint (demo.sales_inbox) is deliberately NOT public.
+          "demo.track_event", "demo.robots", "demo.sitemap",
           # Token-gated DB-restore + CSV imports: NOT session-auth'd. Their own
           # X-Restore-Token check is the gate (404 when unarmed/wrong). Must bypass
           # the login redirect so the gate returns 404, not a 302 to /login.

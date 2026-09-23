@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Sales Inbox — MyRoofPortal{% endblock %}
+{% block body %}
+<div class="page-head"><h1>📥 Sales Inbox</h1></div>
+<p class="muted" style="margin:-6px 0 16px;max-width:760px">
+  Everything the public sales pages captured. This page is the safety net: a lead
+  is recorded here even if the alert email fails, so nothing is ever invisible.
+</p>
+
+{% if mail_ok %}
+  <div class="card" style="border-left:4px solid var(--ok,#17845b);margin-bottom:16px">
+    <b>Alerts are on.</b> New offers and leads email <b>{{ notify_to }}</b>.
+  </div>
+{% else %}
+  <div class="card" style="border-left:4px solid var(--danger,#b8443b);margin-bottom:16px">
+    <b>Alerts are OFF — nothing is being emailed.</b> Set <code>SMTP_FROM</code> and
+    <code>SMTP_PASSWORD</code> (Gmail app password) in the environment to email
+    <b>{{ notify_to }}</b>. Rows below are still captured regardless.
+  </div>
+{% endif %}
+
+<div class="card" style="margin-bottom:18px">
+  <h3 style="margin:0 0 10px">Funnel</h3>
+  {% if counts %}
+    {% for k, n in counts.items() %}
+      <span class="pill" style="display:inline-block;margin:0 8px 8px 0;padding:5px 12px;
+            border-radius:20px;background:var(--panel-2,#eee)"><b>{{ n }}</b> {{ k }}</span>
+    {% endfor %}
+  {% else %}<p class="muted">No events recorded yet.</p>{% endif %}
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <h3 style="margin:0 0 10px">Purchase offers ({{ offers|length }})</h3>
+  {% if offers %}
+  <div style="overflow-x:auto"><table class="table" style="width:100%">
+    <thead><tr><th>When</th><th>Name</th><th>Email</th><th>Offer</th><th>Message</th><th>Alerted</th></tr></thead>
+    <tbody>
+    {% for o in offers %}
+      <tr>
+        <td>{{ o.created_at }}</td><td><b>{{ o.name }}</b></td>
+        <td><a href="mailto:{{ o.email }}">{{ o.email }}</a></td>
+        <td><b>{{ o.offer }}</b></td>
+        <td style="max-width:340px">{{ o.message or '—' }}</td>
+        <td>{{ '✅' if o.notified else '⚠️ no' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="muted">No offers yet.</p>{% endif %}
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <h3 style="margin:0 0 10px">Contractor leads ({{ leads|length }})</h3>
+  {% if leads %}
+  <div style="overflow-x:auto"><table class="table" style="width:100%">
+    <thead><tr><th>When</th><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Alerted</th></tr></thead>
+    <tbody>
+    {% for l in leads %}
+      <tr><td>{{ l.created }}</td><td><b>{{ l.name }}</b></td><td>{{ l.company or '—' }}</td>
+      <td><a href="mailto:{{ l.email }}">{{ l.email or '—' }}</a></td>
+      <td>{{ l.phone or '—' }}</td><td>{{ '✅' if l.notified else '⚠️ no' }}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="muted">No leads yet.</p>{% endif %}
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <h3 style="margin:0 0 10px">Demo opens ({{ access|length }})</h3>
+  {% if access %}
+  <div style="overflow-x:auto"><table class="table" style="width:100%">
+    <thead><tr><th>When</th><th>Email</th><th>Demo</th><th>Alerted</th></tr></thead>
+    <tbody>
+    {% for a in access %}
+      <tr><td>{{ a.created }}</td><td><a href="mailto:{{ a.email }}">{{ a.email }}</a></td>
+      <td>{{ a.slug }}</td><td>{{ '✅' if a.notified else '⚠️ no' }}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="muted">Nobody has opened the demo yet.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h3 style="margin:0 0 10px">Recent events</h3>
+  {% if events %}
+  <div style="overflow-x:auto;max-height:420px"><table class="table" style="width:100%">
+    <thead><tr><th>When</th><th>Kind</th><th>Path</th><th>Referrer</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr><td>{{ e.created }}</td><td><b>{{ e.kind }}</b></td><td>{{ e.path }}</td>
+      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis">{{ e.referrer or '—' }}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="muted">No events yet.</p>{% endif %}
+</div>
+{% endblock %}

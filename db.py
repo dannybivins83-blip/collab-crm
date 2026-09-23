@@ -939,6 +939,8 @@ TABLE_ALLOWLIST = {
     "portal_offers",
     # Emails captured by the "see the live demo" gate (modules/demos.py).
     "demo_access_requests",
+    # First-party funnel events for the public sales page (modules/demos.py).
+    "portal_events",
     # External (CompanyCam) job photos rendered in the portal (modules/portal.py).
     "ext_photos",
 }
