@@ -171,6 +171,25 @@ def register(app):
     @app.context_processor
     def _inject():
         company = db.get_company()
+        # This app also serves the public sale/demo domains (myroofportal.com).
+        # Those hosts must NEVER render the operating tenant's identity: no company
+        # name, tagline, contractor license numbers, address or logo. Without this,
+        # /login on the for-sale domain advertises a real client to prospective buyers.
+        try:
+            from flask import request as _rq
+            from modules import demos as _demos
+            _host = (_rq.host or "").split(":")[0].lower()
+            if _host in getattr(_demos, "DEMO_HOSTS", ()):  # public product host
+                company = dict(company or {})
+                company.update({
+                    "name": "MyRoofPortal", "legal_name": "MyRoofPortal",
+                    "tagline": "The customer portal for roofers",
+                    "license": "", "qualifier": "", "logo_path": "",
+                    "address": "", "city": "", "state": "", "zip": "",
+                    "phone": "", "email": "", "website": "myroofportal.com",
+                })
+        except Exception:
+            pass
         depts = departments(company)
         current = session.get("department")
         if current not in depts:
