@@ -120,7 +120,11 @@ def _ensure_default_demo():
     slug = (os.environ.get("CRM_DEMO_SLUG") or "roof-portal").strip()
     if not slug:
         return
-    name = (os.environ.get("CRM_DEMO_SEED_NAME") or "Summit Roofing Co.").strip()
+    # Never let a stale env var brand the public demo with an operating tenant's name.
+    _env_name = (os.environ.get("CRM_DEMO_SEED_NAME") or "").strip()
+    if _env_name.lower() in ("", "klr roofing", "klr roofing corp", "seabreeze", "seabreeze roofing"):
+        _env_name = ""
+    name = _env_name or "Summit Roofing Co."
     brand = {"company_name": name,
              "tagline": "Roofs done right — on time, every time.",
              "website": "https://summitroofing.example.com", "phone": "(555) 018-2440",
@@ -133,7 +137,7 @@ def _ensure_default_demo():
             # This is THE default demo (slug=CRM_DEMO_SLUG, wired to the demo domain), so it
             # always self-heals to the configured brand — regardless of created_by. (The
             # created_by guard only matters for per-prospect demos, which have other slugs.)
-            stale_name = (r0.get("company_name") or "") in ("", "Roof Portal", "Your Roofing Co.", "Summit Roofing Co.")
+            stale_name = (r0.get("company_name") or "") in ("", "Roof Portal", "Your Roofing Co.", "KLR Roofing")
             stale_color = (r0.get("color_primary") or "") != brand["color_primary"] \
                 or (r0.get("color_masthead") or "") != brand["color_masthead"]
             if stale_name or stale_color:
