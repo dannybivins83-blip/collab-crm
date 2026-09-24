@@ -179,16 +179,54 @@ from modules.acculynx_sync import start_auto_sync
 start_auto_sync(app)
 
 
+# Error pages. error.html extends base.html — masthead with the tenant brand,
+# department switcher, the whole internal nav/tools menu, notifications and the
+# POST /logout form. Public endpoints (demo portals, homeowner portals, the
+# sales landing) can abort 404/403 for a client that has no session, so rendering
+# that template unconditionally handed the full authenticated shell to anonymous
+# visitors of myroofportal.com. Anonymous callers get the standalone public shell.
+_PLAIN_ERROR = ("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\">"
+                "<title>%(code)s</title></head><body style=\"font-family:sans-serif;"
+                "text-align:center;padding:60px\"><h1>%(code)s</h1><p>%(msg)s</p>"
+                "</body></html>")
+
+
+def _error_page(code, msg):
+    from flask import render_template as _rt, session
+    signed_in = bool(session.get("user_id"))
+    try:
+        tpl = "error.html" if signed_in else "error_public.html"
+        return _rt(tpl, code=code, msg=msg), code
+    except Exception:
+        # A 500 often means the DB is down, which also breaks the template
+        # context processors (company/theme). Never let the error page 500.
+        return (_PLAIN_ERROR % {"code": code, "msg": msg}, code,
+                {"Content-Type": "text/html; charset=utf-8"})
+
+
+@app.errorhandler(400)
+def _bad_request(e):
+    return _error_page(400, "Bad request.")
+
+
+@app.errorhandler(403)
+def _forbidden(e):
+    return _error_page(403, "You don't have access to that.")
+
+
 @app.errorhandler(404)
 def _not_found(e):
-    from flask import render_template as _rt
-    return _rt("error.html", code=404, msg="Page not found."), 404
+    return _error_page(404, "Page not found.")
+
+
+@app.errorhandler(405)
+def _method_not_allowed(e):
+    return _error_page(405, "That method isn't allowed here.")
 
 
 @app.errorhandler(500)
 def _server_error(e):
-    from flask import render_template as _rt
-    return _rt("error.html", code=500, msg="Something went wrong."), 500
+    return _error_page(500, "Something went wrong.")
 
 
 # Extensions we'll let render inline; everything else (e.g. .html/.svg/.js) downloads

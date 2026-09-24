@@ -183,10 +183,16 @@ def register(app):
                 company = dict(company or {})
                 company.update({
                     "name": "MyRoofPortal", "legal_name": "MyRoofPortal",
+                    # brand_short is what base.html prints in the masthead — it
+                    # was still showing the tenant's short name on this host.
+                    "brand_short": "MyRoofPortal",
                     "tagline": "The customer portal for roofers",
                     "license": "", "qualifier": "", "logo_path": "",
+                    "logo_src": "", "support_url": "",
                     "address": "", "city": "", "state": "", "zip": "",
                     "phone": "", "email": "", "website": "myroofportal.com",
+                    "social_facebook": "", "social_instagram": "",
+                    "social_google": "", "social_twitter": "", "social_youtube": "",
                 })
         except Exception:
             pass
