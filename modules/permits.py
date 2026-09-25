@@ -541,7 +541,24 @@ _WIDGET_HTML = """<!DOCTYPE html>
           setProgress(100, "Complete! Your permit packet is ready.");
           var btn = document.getElementById("download-btn");
           btn.style.display = "block";
-          btn.onclick = function(){ window.open(BASE + dlUrl + "?api_key=" + encodeURIComponent(KEY), "_blank"); };
+          // The API key travels in the X-Permit-API-Key HEADER, never in the URL:
+          // a "?api_key=..." download link leaks the key into browser history, the
+          // Referer header and every proxy/access log between here and the CRM.
+          // Fetch the PDF with the header and hand the browser a blob instead.
+          btn.onclick = function(){
+            btn.disabled = true;
+            fetch(BASE + dlUrl, {headers: {"X-Permit-API-Key": KEY}})
+              .then(function(r){ if(!r.ok){ throw new Error("HTTP " + r.status); } return r.blob(); })
+              .then(function(blob){
+                var u = URL.createObjectURL(blob);
+                var a = document.createElement("a");
+                a.href = u; a.download = "permit-packet.pdf";
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(function(){ URL.revokeObjectURL(u); }, 30000);
+              })
+              .catch(function(err){ showError("Download failed: " + err.message); })
+              .then(function(){ btn.disabled = false; });
+          };
           document.getElementById("build-btn").disabled = false;
         } else if(d.status === "error"){
           clearInterval(_poll);

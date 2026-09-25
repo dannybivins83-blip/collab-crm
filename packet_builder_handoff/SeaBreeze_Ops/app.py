@@ -44,6 +44,78 @@ print('  Packets save to: %s' % OUTPUT_DIR)
 BUILDER_FIELDS = ['owner', 'address', 'city', 'zip', 'phone', 'pcn', 'legal',
                   'existing', 'area', 'slope', 'mrh', 'exposure', 'value']
 
+# ---------------------------------------------------------------------------
+# DEMO MODE  (env: PACKET_BUILDER_DEMO -- DEFAULT OFF)
+#
+# This is an INTERNAL tool and the live feed is the point, so nothing changes
+# unless the flag is explicitly turned on. With PACKET_BUILDER_DEMO=1 the client
+# picker, the roof/parcel lookup and the county PCN lookup all serve obviously
+# fictional records instead of touching jobs-data.js, the CRM DB or a live
+# county-appraiser API -- a safe surface for screenshots, demos and handoffs
+# that never puts a real homeowner's name, mobile number, street address or
+# contract value on screen.
+#
+# Read per request (not at import) so it can be flipped without a rebuild.
+# ---------------------------------------------------------------------------
+_DEMO_ON = ('1', 'true', 'yes', 'on')
+
+
+def demo_mode():
+    return (os.environ.get('PACKET_BUILDER_DEMO') or '').strip().lower() in _DEMO_ON
+
+
+# Fictional clients -- same shape _parse_feed() returns. The names, the 555-01xx
+# numbers (the block reserved for fiction) and the addresses are all invented.
+DEMO_CLIENTS = {
+    'jobs': [
+        {'label': 'R-90001 - Maria Gonzalez  (DEMO)', 'owner': 'Maria Gonzalez',
+         'address': '1420 SW 12th Ave', 'city': 'Boca Raton', 'zip': '33486',
+         'phone': '(561) 555-0142', 'value': '42000.00', 'rid': 'R-90001',
+         'group': 'Job Process'},
+        {'label': 'R-90002 - James Whitfield  (DEMO)', 'owner': 'James Whitfield',
+         'address': '305 NE 7th St', 'city': 'Delray Beach', 'zip': '33444',
+         'phone': '(561) 555-0188', 'value': '19500.00', 'rid': 'R-90002',
+         'group': 'Job Process'},
+        {'label': 'R-90003 - Coastal Holdings LLC  (DEMO)', 'owner': 'Coastal Holdings LLC',
+         'address': '880 Ocean Dr', 'city': 'Boynton Beach', 'zip': '33435',
+         'phone': '(561) 555-0210', 'value': '68000.00', 'rid': 'R-90003',
+         'group': 'Job Process'},
+    ],
+    'prospects': [
+        {'label': 'R-90101 - Avery Lindqvist  (DEMO)', 'owner': 'Avery Lindqvist',
+         'address': '77 Example Palm Way', 'city': 'Boca Raton', 'zip': '33487',
+         'phone': '(561) 555-0119', 'value': '', 'rid': 'R-90101',
+         'group': 'Prospects'},
+        {'label': 'R-90102 - Sample Family Trust  (DEMO)', 'owner': 'Sample Family Trust',
+         'address': '14 Demo Harbour Ct', 'city': 'Delray Beach', 'zip': '33444',
+         'phone': '(561) 555-0164', 'value': '', 'rid': 'R-90102',
+         'group': 'Prospects'},
+    ],
+}
+
+# Fictional roof/parcel payloads keyed by the demo R-number (shape mirrors
+# _crm_roofinfo()). Anything not listed simply comes back "not found".
+DEMO_ROOFINFO = {
+    'R-90001': {'found': True, 'rid': 'R-90001', 'area': '2,850', 'squares': 28.5,
+                'slope': '5', 'mrh': '16', 'exposure': 'C', 'existing': 'Concrete Tile',
+                'pcn': '06-42-47-36-11-001-0010', 'legal': 'SANDALFOOT COVE SEC 4 LT 1 BLK 3',
+                'value': '42000.00', 'system': 'Tile', 'source': 'DEMO DATA (not a real job)'},
+    'R-90002': {'found': True, 'rid': 'R-90002', 'area': '2,100', 'squares': 21.0,
+                'slope': '6', 'mrh': '14', 'exposure': 'C', 'existing': 'Asphalt Shingle',
+                'pcn': '12-43-46-09-01-005-0050', 'legal': 'OSCEOLA PARK LT 5 BLK 1',
+                'value': '19500.00', 'system': 'Shingle', 'source': 'DEMO DATA (not a real job)'},
+    'R-90003': {'found': True, 'rid': 'R-90003', 'area': '3,400', 'squares': 34.0,
+                'slope': '3', 'mrh': '18', 'exposure': 'D', 'existing': 'Standing Seam Metal',
+                'pcn': '08-43-45-27-03-001-0120', 'legal': 'COQUINA COVE LT 12',
+                'value': '68000.00', 'system': 'Metal', 'source': 'DEMO DATA (not a real job)'},
+}
+
+# Canned parcel answer for the "look up PCN & legal" button while in demo mode,
+# so a demo never fires a live county-appraiser query for an invented address.
+DEMO_PCN = {'pcn': '06-42-47-36-11-001-0010',
+            'legal': 'SANDALFOOT COVE SEC 4 LT 1 BLK 3',
+            'matched': 'DEMO DATA - not a county record', 'count': 1, 'demo': True}
+
 app = Flask(__name__)
 db.init_db()
 
@@ -190,7 +262,8 @@ def builder():
         if v:
             pf[k] = v
     return render_template('builder.html', ahjs=build.list_ahjs(),
-                           systems=list(build.SYSTEMS.keys()), pf=pf, job_id=job_id)
+                           systems=list(build.SYSTEMS.keys()), pf=pf, job_id=job_id,
+                           demo_mode=demo_mode())
 
 
 def _parse_feed(path, group):
@@ -224,7 +297,16 @@ def _parse_feed(path, group):
 
 @app.route('/clients')
 def clients():
-    """Client list (jobs + prospects) from the dashboard feeds, for the builder picker."""
+    """Client list (jobs + prospects) from the dashboard feeds, for the builder picker.
+
+    The live feed carries real homeowner names, mobile numbers, addresses and
+    contract values and those strings become the visible option labels of the
+    Step-1 dropdown, so PACKET_BUILDER_DEMO=1 swaps in fictional records
+    instead. Default is OFF -- the live feed, exactly as before."""
+    if demo_mode():
+        return jsonify({'jobs': [dict(c) for c in DEMO_CLIENTS['jobs']],
+                        'prospects': [dict(c) for c in DEMO_CLIENTS['prospects']],
+                        'demo': True})
     root = os.path.dirname(os.path.dirname(HERE))  # the 'acculynx roofr reprot' project root
     return jsonify({
         'jobs': _parse_feed(os.path.join(root, 'jobs-data.js'), 'Job Process'),
@@ -346,8 +428,15 @@ def _crm_roofinfo(rid, owner, address):
 @app.route('/roofinfo')
 def roofinfo():
     """Roof + parcel data for a picked client, from the CRM's synced local DB.
-    Matched by R-number first, then by owner name (+ street number)."""
-    return jsonify(_crm_roofinfo(request.args.get('rid', ''),
+    Matched by R-number first, then by owner name (+ street number).
+
+    In demo mode this never opens the live CRM DB -- it answers out of the
+    fictional DEMO_ROOFINFO table, keyed by the demo R-number."""
+    rid = request.args.get('rid', '')
+    if demo_mode():
+        return jsonify(dict(DEMO_ROOFINFO.get((rid or '').strip().upper(),
+                                              {'found': False}), demo=True))
+    return jsonify(_crm_roofinfo(rid,
                                  request.args.get('owner', ''),
                                  request.args.get('address', '')))
 
@@ -532,6 +621,9 @@ def pcn_lookup():
     """Look up a county parcel id + legal by street number + name.
     Broward (BCPA) when ?county=broward or a Broward AHJ is passed; else Palm Beach County."""
     import urllib.request, urllib.parse, json as _json
+    if demo_mode():
+        # Demo mode: canned answer, never a live county-appraiser query.
+        return jsonify(dict(DEMO_PCN))
     if request.args.get('county', '').strip().lower() == 'broward' or _is_broward_ahj(request.args.get('ahj', '')):
         return jsonify(_broward_lookup())
     sn = re.sub(r'[^0-9]', '', request.args.get('street_no', ''))

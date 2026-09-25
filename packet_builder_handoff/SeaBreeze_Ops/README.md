@@ -93,6 +93,34 @@ Two ways to use it:
 
 ---
 
+## Demo mode (for screenshots, demos and handoffs)
+
+The Step-1 client picker, the roof/parcel auto-fill and the "look up PCN & legal" button
+normally read **live data**: the AccuLynx feed (`jobs-data.js` / `prospects-data.js`), the
+CRM's synced `crm.db`, and the county appraiser APIs. That means a real homeowner's name,
+mobile number, street address and contract value are on screen — fine internally, not fine
+in a screenshot, a screen-share or a handoff build.
+
+Set `PACKET_BUILDER_DEMO=1` and all three serve **obviously fictional** records instead,
+with a yellow DEMO MODE banner on the page. Nothing else changes; packets still build.
+
+```
+set PACKET_BUILDER_DEMO=1
+python app.py
+```
+
+**The flag is OFF by default** — with it unset the tool behaves exactly as it always has.
+It is read per request, so you can flip it and just reload the page.
+
+| env var | default | effect |
+|---|---|---|
+| `PACKET_BUILDER_DEMO` | *(off)* | `1`/`true`/`yes`/`on` → fictional clients, roof data and PCN lookup |
+| `SEABREEZE_OUTPUT` | Google Drive, then `output/` | where finished packets are written |
+| `SEABREEZE_PORT` | `5000` | first port to try |
+| `CRM_DB_PATH` | auto-discovered | path to the CRM's `crm.db` for roof measurements |
+
+---
+
 ## Files
 
 | File | Purpose |

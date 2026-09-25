@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
-"""One-off: build the CORRECTED Flat / Hot-Mop BUR permit packet for
-Lawrence Buck, 1963 NE 6th St, Deerfield Beach (R-26040).
-The original packet on disk was a TILE packet (wrong system); the signed
-estimate is a flat hot-mopped built-up roof on a wood deck.
+"""Build a Flat / Hot-Mop BUR permit packet for a Deerfield Beach job.
+
+Originally a one-off for a single job whose first packet was built with the
+wrong system (TILE) when the signed estimate was a flat hot-mopped built-up
+roof on a wood deck.
+
+The job's identity is NOT hard-coded here: this repository is published, and an
+owner name + street address + mobile number + recorded legal description is
+customer PII. Point PERMIT_CLIENT_JSON at a JSON file holding the real job (see
+CLIENT below); with nothing set, the script runs end-to-end against an obviously
+fictional sample so the layout can still be exercised.
 
 System (authoritative, from the SeaBreeze library): Johns Manville GlasPly
 hot-mop BUR over wood deck, NOA 25-0911.04 (max design pressure -90 psf).
@@ -22,14 +29,36 @@ TPL  = os.path.join(LIB, "Broward_County", "_System_Templates", "Flat",
                     "HVHZ_Section_C_Flat_HotMop_BUR_WoodDeck_TEMPLATE.pdf")
 JMNOA= os.path.join(LIB, "Broward_County", "Product_Approvals_Library", "Flat_Roof",
                     "BUR_HotMop_JM_GlasPly_MiamiDade_NOA_25-0911.04.pdf")
-OUT  = r"C:\Users\kjburnz\Downloads\Lawrence_Buck_Deerfield_Beach_Flat_HotMop_BUR_Permit_Packet.pdf"
+OUT  = os.environ.get('PERMIT_OUT') or os.path.join(
+    os.path.expanduser('~'), 'Downloads', 'Deerfield_Beach_Flat_HotMop_BUR_Permit_Packet.pdf')
 
 NAVY=HexColor('#1a3a5c'); BLUE=HexColor('#4a90b8'); INK=HexColor('#10357a'); RED=HexColor('#c00000')
 
-CLIENT = dict(owner="Lawrence Buck", address="1963 Northeast 6th Street",
-              city="Deerfield Beach", zip="33441", phone="(561) 756-5945",
-              legal="OCEAN VUE 3-34 B LOT 28,29 W1/2 BLK 7", pcn="", value="45,622",
-              job="R-26040")
+# The real job lives OUTSIDE the repo. Put it in a JSON file with the same keys
+# and point PERMIT_CLIENT_JSON at it, or drop it next to this script as
+# `_client.local.json` (gitignored). Falls back to a fictional sample.
+_CLIENT_SAMPLE = dict(owner="Maria Gonzalez", address="1420 Southwest 12th Street",
+                      city="Deerfield Beach", zip="33441", phone="(561) 555-0142",
+                      legal="SAMPLE SUBDIVISION 1-23 A LOT 1 BLK 1", pcn="",
+                      value="45,000", job="R-90001")
+
+
+def _load_client():
+    import json
+    path = (os.environ.get('PERMIT_CLIENT_JSON') or '').strip() or \
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '_client.local.json')
+    try:
+        with io.open(path, encoding='utf-8') as fh:
+            data = json.load(fh)
+        if isinstance(data, dict):
+            return dict(_CLIENT_SAMPLE, **data)
+    except Exception:
+        pass
+    print('NOTE: no client JSON found (%s) - using the fictional sample.' % path)
+    return dict(_CLIENT_SAMPLE)
+
+
+CLIENT = _load_client()
 
 # ---- wind worksheet inputs (ASCE 7-22 / RAS-128, h=12 ft, Exp C) ----
 V=170.0; Kh=0.85; Kzt=1.0; Kd=0.85; Ke=1.0

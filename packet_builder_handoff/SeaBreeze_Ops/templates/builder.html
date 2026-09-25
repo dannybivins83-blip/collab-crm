@@ -61,6 +61,15 @@
     / Permit Packet Builder
   </div>
 
+  {% if demo_mode %}
+  <div style="margin-bottom:14px;padding:10px 14px;background:#fff7e6;border:2px solid #e0a800;
+              border-radius:8px;color:#7a4f01;font-weight:700;font-size:13px">
+    DEMO MODE &mdash; the client list, roof data and parcel lookup below are fictional sample
+    records. No live client feed, CRM database or county appraiser is being read.
+    Unset <code>PACKET_BUILDER_DEMO</code> to go back to live data.
+  </div>
+  {% endif %}
+
   {% if job_id and pf %}
   <div class="jobtag">Building for job #{{ job_id }} — <strong>{{ pf.owner }}</strong>. The packet will be attached to this job.</div>
   {% endif %}
@@ -76,7 +85,7 @@
 
   <!-- 1 client -->
   <div class="panel show" id="p1">
-    <h2>Verify Client Info</h2><p class="lead">Job-specific details for this client. SeaBreeze contractor info is filled automatically.</p>
+    <h2>Verify Client Info</h2><p class="lead">Job-specific details for this client. Contractor info is filled automatically.</p>
     <div class="full" style="margin-bottom:14px;padding:12px 14px;background:#eef6ff;border:1px solid #bcd9f5;border-radius:8px">
       <label style="font-weight:700">&#11015; Load a client from your board</label>
       <select id="clientpick" onchange="loadClient(this.value)" style="width:100%;padding:9px;margin-top:4px">
@@ -173,16 +182,16 @@
       });
     </script>
     <div class="grid">
-      <div><label class="req">Owner Name</label><input id="owner" value="{{ pf.owner or '' }}" placeholder="John &amp; Gina Iconomou"></div>
-      <div><label>Phone</label><input id="phone" value="{{ pf.phone or '' }}" placeholder="(561) 756-5945"></div>
-      <div class="full"><label class="req">Property Address</label><input id="address" value="{{ pf.address or '' }}" placeholder="297 NW 64th Street"></div>
+      <div><label class="req">Owner Name</label><input id="owner" value="{{ pf.owner or '' }}" placeholder="Maria Gonzalez"></div>
+      <div><label>Phone</label><input id="phone" value="{{ pf.phone or '' }}" placeholder="(561) 555-0142"></div>
+      <div class="full"><label class="req">Property Address</label><input id="address" value="{{ pf.address or '' }}" placeholder="1420 SW 12th Ave"></div>
       <div><label>City</label><input id="city" value="{{ pf.city or '' }}" placeholder="(defaults to AHJ)"></div>
-      <div><label>Zip</label><input id="zip" value="{{ pf.zip or '' }}" placeholder="33487"></div>
-      <div><label>PCN / Parcel #</label><input id="pcn" value="{{ pf.pcn or '' }}" placeholder="06-43-47-05-18-006-0070">
+      <div><label>Zip</label><input id="zip" value="{{ pf.zip or '' }}" placeholder="33486"></div>
+      <div><label>PCN / Parcel #</label><input id="pcn" value="{{ pf.pcn or '' }}" placeholder="06-42-47-36-11-001-0010">
         <a href="#" id="pcnlink" onclick="lookupPCN(false);return false" style="font-size:12px;color:#2f6df6;font-weight:600">&#128269; look up PCN &amp; legal (county appraiser)</a></div>
-      <div><label>Legal Description</label><input id="legal" value="{{ pf.legal or '' }}" placeholder="BOCA TEECA SEC 5 LT 7 BLK 6" oninput="legalEdited()"><div class="muted" style="font-size:11px">Needed to fully complete the NOC &amp; permit app</div><div id="legalWarn" style="display:none;font-size:11px;color:#b45309;font-weight:700;margin-top:3px">&#9888; Auto-derived from county GIS &mdash; APPROXIMATE. Verify &amp; paste the exact recorded legal from PBCPA (incl. plat book, e.g. &ldquo;IN PB49P179&rdquo;) before building.</div></div>
+      <div><label>Legal Description</label><input id="legal" value="{{ pf.legal or '' }}" placeholder="SANDALFOOT COVE SEC 4 LT 1 BLK 3" oninput="legalEdited()"><div class="muted" style="font-size:11px">Needed to fully complete the NOC &amp; permit app</div><div id="legalWarn" style="display:none;font-size:11px;color:#b45309;font-weight:700;margin-top:3px">&#9888; Auto-derived from county GIS &mdash; APPROXIMATE. Verify &amp; paste the exact recorded legal from PBCPA (incl. plat book, e.g. &ldquo;IN PB49P179&rdquo;) before building.</div></div>
       <div><label>Existing Roof</label><input id="existing" value="{{ pf.existing or '' }}" placeholder="Asphalt Shingle"></div>
-      <div><label>Est. Value $</label><input id="value" value="{{ pf.value or '' }}" placeholder="67,734.00"></div>
+      <div><label>Est. Value $</label><input id="value" value="{{ pf.value or '' }}" placeholder="42,000.00"></div>
       <div><label>Total Roof Area (sf)</label><input id="area" value="{{ pf.area or '' }}" placeholder="from RoofGraf"></div>
       <div><label>Roof Slope (x/12)</label><input id="slope" value="{{ pf.slope or '' }}" placeholder="6"></div>
       <div><label>Mean Roof Height (ft)</label><input id="mrh" value="{{ pf.mrh or '' }}" placeholder="15"></div>
