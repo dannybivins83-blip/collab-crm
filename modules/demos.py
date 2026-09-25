@@ -84,6 +84,14 @@ for _t in ("portal_offers", "portal_leads", "demo_access_requests"):
         db._ensure_column(_t, "notified", "INTEGER DEFAULT 0")
     except Exception:
         pass
+# Bot-farmed offers are kept but flagged, so a real offer is never dropped and
+# the owner is not paged for crypto spam.
+for _t, _c, _d in (("portal_offers", "spam", "INTEGER DEFAULT 0"),
+                   ("portal_offers", "spam_reason", "TEXT")):
+    try:
+        db._ensure_column(_t, _c, _d)
+    except Exception:
+        pass
 db._COLCACHE.clear()
 
 # ---------------------------------------------------------------------------
@@ -106,6 +114,50 @@ def _notify(subject, body):
         return bool(_gm._smtp_send(_notify_to(), subject, body))
     except Exception:
         return False
+
+
+_SPAM_WORDS = (
+    "lamborghini", "usdt", "btc", "bitcoin", "jackpot", "promo code", "playstation",
+    "telegra.ph", "graph.org", "freeurlredirect", "casino", "crypto", "withdrawal",
+    "you have (1) message", "transfer401", "viagra", "seo services", "backlink",
+)
+_URL_RE = re.compile(r"https?://|www\.", re.I)
+
+
+def _spam_score(name, email, offer, message):
+    """Return (score, reasons). >=2 means almost certainly bot-farmed.
+
+    Never used to drop a submission -- only to skip the owner alert and mark the
+    row, so a false positive costs a notification, not a lead.
+    """
+    blob = " ".join((name, offer, message)).lower()
+    reasons = []
+    if any(w in blob for w in _SPAM_WORDS):
+        reasons.append("spam-keyword")
+    if _URL_RE.search(name) or _URL_RE.search(offer):
+        reasons.append("url-in-name-or-offer")
+    if name and offer and name.strip().lower() == offer.strip().lower():
+        reasons.append("name-equals-offer")
+    if _URL_RE.search(message or "") and len(message or "") < 200:
+        reasons.append("link-only-message")
+    # An offer field with no digit at all is not an offer.
+    if offer and not re.search(r"\d", offer):
+        reasons.append("offer-has-no-number")
+    if len(name) > 60:
+        reasons.append("name-too-long")
+    if _looks_random(name) or _looks_random(offer):
+        reasons.append("random-token")
+    return len(reasons), reasons
+
+
+def _looks_random(v):
+    """True for keyboard-mash tokens like 'PLIcJslJMuPyYmvpcQU'. Deliberately
+    narrow: a single word, long, with a burst of interior capitals -- a real
+    person's name or company does not look like this."""
+    v = (v or "").strip()
+    if len(v) < 12 or " " in v:
+        return False
+    return sum(1 for ch in v[1:] if ch.isupper()) >= 4
 
 
 def _log_event(kind, path=""):
@@ -436,6 +488,7 @@ def portal_view(slug):
     d = _get_demo(slug)
     if not d:
         abort(404)
+    _log_event("demo_view", "/demo/%s" % slug)
     company = _demo_company(d)
     j = _sample_job(d)
     phase = j["_phase"]
@@ -567,18 +620,30 @@ def landing_offer():
     base = "/" if _on_demo_host() else url_for("demo.landing")
     if not (name and email and offer):
         return redirect(base + "?err=1#offer")
-    body = "\n".join([
-        "A purchase offer came in on %s" % (request.host or "myroofportal.com"),
-        "", "Name:    %s" % name, "Email:   %s" % email,
-        "Offer:   %s" % offer, "", "Message:", (message or "(none)"),
-        "", "Reply straight to %s — full list at /portal-sales/inbox" % email])
-    sent = _notify("MyRoofPortal OFFER: %s - %s" % (offer, name), body)
-    db.insert("portal_offers", {
+    score, reasons = _spam_score(name, email, offer, message)
+    is_spam = score >= 2
+    sent = False
+    if not is_spam:
+        body = "\n".join([
+            "A purchase offer came in on %s" % (request.host or "myroofportal.com"),
+            "", "Name:    %s" % name, "Email:   %s" % email,
+            "Offer:   %s" % offer, "", "Message:", (message or "(none)"),
+            "", "Reply straight to %s — full list at /portal-sales/inbox" % email])
+        sent = _notify("MyRoofPortal OFFER: %s - %s" % (offer, name), body)
+    row = {
         "created_at": db.now(), "name": name, "email": email,
         "offer": offer, "message": message,
         "source_host": (request.host or "")[:120],
-        "notified": 1 if sent else 0})
-    _log_event("offer_submit")
+        "notified": 1 if sent else 0}
+    try:
+        row["spam"] = 1 if is_spam else 0
+        row["spam_reason"] = (",".join(reasons))[:200]
+        db.insert("portal_offers", row)
+    except Exception:
+        row.pop("spam", None)
+        row.pop("spam_reason", None)
+        db.insert("portal_offers", row)
+    _log_event("offer_spam" if is_spam else "offer_submit")
     return redirect(base + "?thanks=1#offer")
 
 

@@ -979,5 +979,35 @@ function render(){cnt.textContent=items.length;fab.classList.toggle('show',items
 return {add:function(b){var n=b.dataset.name;if(b.classList.contains('in')){items=items.filter(function(x){return x!==n;});b.classList.remove('in');b.textContent='+ Add';demoToast('Removed '+n+'.{% if not live %} (This is a demo.){% endif %}');}else{items.push(n);b.classList.add('in');b.textContent='✓ Added';demoToast('Added '+n+' — your rep will confirm the price and add it to your project.{% if not live %} (This is a demo.){% endif %}');}render();},
 view:function(){if(items.length)demoToast(items.length+' add-on'+(items.length>1?'s':'')+' on your project: '+items.join(', ')+'.{% if not live %} (This is a demo.){% endif %}');}};})();
 </script>
+<script>
+/* First-party funnel beacon -- the demo is the money page, so it must be
+   measurable. Fails silent; never blocks the page. */
+(function () {
+  function hit(kind, extra) {
+    try {
+      var b = new FormData();
+      b.append("k", kind);
+      b.append("p", extra || location.pathname);
+      if (navigator.sendBeacon) { navigator.sendBeacon("/portal-sales/ev", b); }
+      else { fetch("/portal-sales/ev", { method: "POST", body: b, keepalive: true }); }
+    } catch (e) { /* tracking must never break the page */ }
+  }
+  hit("demo_open");
+  var deep = false;
+  window.addEventListener("scroll", function () {
+    if (!deep && (window.scrollY > document.body.scrollHeight * 0.5)) { deep = true; hit("demo_scroll_50"); }
+  }, { passive: true });
+  document.addEventListener("click", function (ev) {
+    var a = ev.target && ev.target.closest ? ev.target.closest("a,button") : null;
+    if (!a) return;
+    var label = (a.textContent || "").trim().slice(0, 40);
+    var id = a.id || "";
+    if (id === "refSms" || /copy & send/i.test(label)) hit("demo_refer", label);
+    else if (/pay/i.test(label)) hit("demo_pay", label);
+    else if (/add/i.test(label)) hit("demo_addon", label);
+    else if (/sign/i.test(label)) hit("demo_sign", label);
+  }, true);
+})();
+</script>
 </body>
 </html>
