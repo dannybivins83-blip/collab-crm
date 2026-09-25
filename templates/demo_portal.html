@@ -815,6 +815,104 @@
       <a class="wide-btn" href="#faqs">Have a question? Read our FAQs ↓</a>
     </div>
 
+    <!-- PROOF OF WORK -->
+    <div class="card" id="proof">
+      <p class="k" style="margin-bottom:6px">Proof of work &mdash; {{ value_done }} of {{ value_total }} done</p>
+      <p class="lead">Every box is real work the {{ company.name }} team does on your project &mdash; the standard you're paying for, tracked in the open.</p>
+      <div class="vbar"><div class="vfill" style="width:{{ ((value_done / (value_total or 1)) * 100)|round|int }}%"></div></div>
+      <div class="vlist">
+        {% for v in value_steps %}
+        <div class="vrow {{ 'vdone' if v.done else ('vcur' if v.current else 'vhide') }}">
+          <span class="vic" aria-hidden="true">{% if v.done %}&#10003;{% elif v.current %}&#9679;{% else %}&#9675;{% endif %}</span>
+          <span class="vtx">{{ v.text }}</span>
+          {% if v.current %}<span class="youare">In progress</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <button class="wide-btn" type="button" data-n="{{ value_total }}" onclick="toggleVMore(this)">Show all {{ value_total }} steps &#8595;</button>
+    </div>
+
+    <!-- REFERRAL GAME -->
+    <div class="card" id="refGame">
+      <p class="k" style="margin-bottom:6px">Referral rewards &mdash; level up &amp; win</p>
+      <p class="lead">Share your roof, unlock real rewards. Every send levels you up.</p>
+      <div class="refhdr">
+        <div class="reflvl"><span id="refIcon">{{ referral.level.ic }}</span>
+          <span><b id="refLvlName">{{ referral.level.name }}</b><br><span class="muted" id="refShares">{{ referral.shares }} sent</span></span></div>
+        <div class="refnext muted" id="refNext">
+          {% if referral.next_level %}{{ referral.next_level.n - referral.shares }} more to <b>{{ referral.next_level.name }}</b> {{ referral.next_level.ic }}{% else %}Max level &mdash; you're a legend!{% endif %}</div>
+      </div>
+      <div class="refbar"><div id="refFill" class="reffill" style="width:{{ ((referral.shares / (referral.next_level.n if referral.next_level else referral.shares or 1)) * 100)|round|int if referral.next_level else 100 }}%"></div></div>
+
+      <p class="yk" style="margin:14px 0 6px">Your personal invite &mdash; edit it, then send it to neighbors</p>
+      <textarea id="refMsg" rows="3">I'm getting my roof done by {{ company.name }} and they've been great! Get a free quote: {{ referral.link }}</textarea>
+      <div class="refbtns">
+        <button class="btn-ref" type="button" onclick="sendRef()">Copy &amp; send</button>
+        <a class="btn-ref ghost" id="refSms" href="sms:?&body=" onclick="bumpShare()">Text it</a>
+      </div>
+
+      <p class="yk" style="margin:18px 0 8px">Rewards you can unlock <span class="muted" style="text-transform:none;font-weight:600">({{ referral.signed }} signed so far)</span></p>
+      <div class="ladder">
+        {% for t in referral.tiers %}
+        <div class="rung {{ 'won' if t.unlocked }}">
+          <span class="ic" aria-hidden="true">{% if t.unlocked %}{{ t.ic }}{% else %}&#128274;{% endif %}</span>
+          <span class="rw"><b>{{ t.n }} referral{{ 's' if t.n>1 }}</b> &mdash; {{ t.reward }}</span>
+          {% if t.unlocked %}<span class="tag">UNLOCKED &#10003;</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% if referral.next_tier %}<p class="cardnote"><b>{{ referral.next_tier.n - referral.signed }}</b> more signed referral{{ 's' if (referral.next_tier.n - referral.signed)>1 }} to win <b>{{ referral.next_tier.reward }}</b>.</p>{% endif %}
+    </div>
+    <style>
+      .vbar,.refbar{height:10px;background:#e7ecf3;border-radius:999px;margin-top:12px;overflow:hidden}
+      .vfill,.reffill{height:100%;background:var(--primary,#123a63);border-radius:999px;transition:width .4s}
+      .vlist{margin-top:14px;display:grid;gap:0}
+      .vrow{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line,#e7ecf3);font-size:14px}
+      .vrow:last-child{border-bottom:0}
+      .vrow.vhide{display:none} #proof.vshow .vrow.vhide{display:flex}
+      .vic{flex:0 0 18px;text-align:center;font-weight:700;color:var(--primary,#123a63)}
+      .vrow.vhide .vic{color:#9fb0c4} .vdone .vtx{color:#3c4a5a} .vcur .vtx{font-weight:600}
+      #refGame textarea{width:100%;box-sizing:border-box;border:1px solid var(--line,#e7ecf3);border-radius:10px;padding:10px;font:inherit;font-size:13.5px;resize:vertical}
+      .refhdr{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+      .reflvl{display:flex;align-items:center;gap:10px} .reflvl>span:first-child{font-size:30px}
+      .refnext{font-size:12.5px;text-align:right}
+      .refbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+      .btn-ref{appearance:none;border:1px solid var(--primary,#123a63);background:var(--primary,#123a63);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;font-size:14px;cursor:pointer;text-decoration:none;display:inline-block}
+      .btn-ref.ghost{background:#fff;color:var(--primary,#123a63)}
+      .ladder{display:grid;gap:8px;margin-top:4px}
+      .rung{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line,#e7ecf3);border-radius:10px;font-size:14px;background:#fff}
+      .rung.won{border-color:#1c7c4a;background:#f2fbf6}
+      .rung .ic{flex:0 0 20px;text-align:center} .rung .rw{flex:1}
+      .rung .tag{font-size:11px;font-weight:700;color:#1c7c4a;letter-spacing:.04em}
+    </style>
+    <script>
+      function toggleVMore(b){var c=document.getElementById('proof'),open=c.classList.toggle('vshow');
+        b.textContent=open?'Show fewer ↑':('Show all '+b.dataset.n+' steps ↓');}
+      function refText(){return document.getElementById('refMsg').value;}
+      function syncSms(){var a=document.getElementById('refSms');if(a)a.href='sms:?&body='+encodeURIComponent(refText());}
+      syncSms();document.getElementById('refMsg').addEventListener('input',syncSms);
+      function bumpShare(){
+        fetch('{{ url_for("demo.refer_share", slug=slug) }}',{method:'POST'})
+          .then(function(r){return r.json();}).then(function(d){
+            if(!d||!d.ok)return;
+            document.getElementById('refShares').textContent=d.shares+' sent';
+            document.getElementById('refIcon').textContent=d.icon;
+            document.getElementById('refLvlName').textContent=d.level;
+            var f=document.getElementById('refFill');
+            if(d.nextAt){f.style.width=Math.round(d.shares/d.nextAt*100)+'%';
+              document.getElementById('refNext').innerHTML=(d.nextAt-d.shares)+' more to <b>'+d.next+'</b>';}
+            else {f.style.width='100%';document.getElementById('refNext').textContent='Max level — max level reached!';}
+            if(d.leveledUp)demoToast('Level up! You are now '+d.level+' '+d.icon);
+          }).catch(function(){});
+      }
+      function sendRef(){
+        var t=refText();
+        var done=function(){demoToast('Invite copied — paste it to a neighbor.{% if not live %} (This is a demo.){% endif %}');bumpShare();};
+        if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(done);}
+        else{var a=document.getElementById('refMsg');a.select();try{document.execCommand('copy');}catch(e){}done();}
+      }
+    </script>
+
     <!-- FAQs (accordion, by category) -->
     <div class="card" id="faqs">
       <p class="k" style="margin-bottom:6px">Frequently asked questions</p>
