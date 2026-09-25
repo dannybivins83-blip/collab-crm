@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyRoofPortal — Your Own Branded Customer Portal for Roofers</title>
+<meta name="description" content="Give every homeowner a private, branded portal: live progress, photos, documents to e-sign, and online payments — all under your company name. Live in about a day.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://myroofportal.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MyRoofPortal">
+<meta property="og:title" content="Your own branded customer portal for roofers">
+<meta property="og:description" content="Homeowners watch their roof job stage by stage, sign docs, see photos and pay — all under your name. Live in about a day.">
+<meta property="og:url" content="https://myroofportal.com/">
+<meta property="og:image" content="https://myroofportal.com{{ url_for('static', filename='portal_sale/portal-screenshot.png') }}">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy-950:#071c2b; --navy-900:#0d2b3a; --navy-800:#123a4c;
+  --teal-600:#14858a; --teal-500:#1e9ba0; --sky-500:#178fe5;
+  --gold-500:#d7a438; --gold-100:#fff3d5;
+  --warm-50:#f7f5f0; --white:#fff;
+  --slate-700:#34454f; --slate-500:#6e7b82; --line:#d9dfe1;
+  --success:#17845b; --danger:#b8443b;
+  --content:1280px;
+  --r-sm:.5rem; --r-md:.75rem; --r-lg:1rem;
+  --shadow:0 10px 30px rgb(7 28 43/.08);
+  --shadow-lg:0 24px 60px rgb(7 28 43/.22);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important}
+}
+body{margin:0;background:var(--warm-50);color:var(--navy-950);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--sky-500);text-decoration:none}
+h1,h2,h3{line-height:1.12;letter-spacing:-.02em;margin:0}
+.wrap{max-width:var(--content);margin:0 auto;padding:0 32px}
+@media(max-width:1023px){.wrap{padding:0 20px}}
+:focus-visible{outline:2px solid var(--sky-500);outline-offset:3px}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- header ---------- */
+.hdr{position:sticky;top:0;z-index:60;background:var(--navy-950);
+  border-bottom:1px solid rgb(215 164 56/.35)}
+.hdr .wrap{display:flex;align-items:center;gap:20px;height:76px}
+.brand{font-weight:800;font-size:22px;color:#fff;letter-spacing:-.02em;white-space:nowrap}
+.brand span{color:var(--sky-500)}
+.nav{display:flex;gap:26px;margin-left:auto;font-size:13.5px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase}
+.nav a{color:rgb(255 255 255/.78)}
+.nav a:hover{color:#fff}
+.cta-gold{background:var(--gold-500);color:var(--navy-950);font-weight:700;
+  padding:13px 24px;border-radius:var(--r-sm);white-space:nowrap;font-size:16px;
+  border:0;cursor:pointer;display:inline-block}
+.cta-gold:hover{background:#e8b954}
+.navtoggle{display:none;margin-left:auto;background:transparent;border:1px solid rgb(255 255 255/.3);
+  color:#fff;border-radius:var(--r-sm);padding:10px 14px;font:inherit;font-size:15px;cursor:pointer}
+
+/* ---------- hero ---------- */
+.hero{position:relative;background:var(--navy-950);color:#fff;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;
+  background:url("{{ url_for('static', filename='portal_sale/brand/blueprint-roof-pattern.svg') }}") repeat;
+  opacity:.10}
+.hero::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(100deg,var(--navy-950) 0%,var(--navy-950) 44%,rgb(7 28 43/.72) 62%,rgb(7 28 43/.45) 100%)}
+.hero .wrap{position:relative;z-index:2;display:grid;gap:48px;
+  grid-template-columns:minmax(0,1fr);padding-top:64px;padding-bottom:72px}
+@media(min-width:1024px){.hero .wrap{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);
+  align-items:center;padding-top:80px;padding-bottom:88px}}
+.eyebrow{display:inline-block;border:1px solid var(--gold-500);color:var(--gold-500);
+  font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  padding:8px 16px;border-radius:var(--r-sm);margin-bottom:22px}
+.hero h1{font-size:clamp(40px,6.4vw,72px);font-weight:800;margin-bottom:20px}
+.hero h1 .dot{color:var(--gold-500)}
+.hero .sub{font-size:clamp(17px,2vw,21px);color:rgb(255 255 255/.82);max-width:34ch;margin:0 0 30px}
+.ctas{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:32px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  min-height:52px;padding:14px 26px;border-radius:var(--r-sm);font-weight:700;font-size:17px;
+  border:1px solid transparent;cursor:pointer;font-family:inherit}
+.btn-sky{background:var(--sky-500);color:#fff}
+.btn-sky:hover{background:#1481d1}
+.btn-outline-gold{background:transparent;color:var(--gold-500);border-color:var(--gold-500)}
+.btn-outline-gold:hover{background:rgb(215 164 56/.12)}
+.proof{display:flex;flex-wrap:wrap;gap:14px 26px;font-size:15px;color:rgb(255 255 255/.82)}
+.proof div{display:flex;align-items:center;gap:9px}
+.proof svg{flex:none;color:var(--gold-500)}
+
+/* hero visual — composed roof + device image from the approved mockup */
+.devices{position:relative}
+.devices img{width:100%;height:auto;border-radius:var(--r-md);
+  box-shadow:var(--shadow-lg);display:block}
+@media(max-width:1023px){.devices{margin-top:4px}}
+
+/* ---------- sections ---------- */
+section{padding:88px 0}
+@media(max-width:767px){section{padding:60px 0}}
+.sec-head{text-align:center;max-width:60ch;margin:0 auto 52px}
+.sec-head h2{font-size:clamp(28px,3.6vw,42px);font-weight:800}
+.sec-head p{color:var(--slate-500);font-size:18px;margin:14px 0 0}
+.rule{width:64px;height:3px;background:var(--gold-500);border-radius:2px;margin:18px auto 0}
+.grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr))}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:28px;box-shadow:var(--shadow)}
+.card h3{font-size:19px;font-weight:700;margin-bottom:10px}
+.card p{color:var(--slate-700);font-size:15.5px;margin:0}
+.ico{width:52px;height:52px;border-radius:50%;background:#e8f3fd;color:var(--sky-500);
+  display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.alt{background:var(--white);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+/* feature groups */
+.fgroup{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);padding:28px}
+.fgroup h3{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--teal-600);margin-bottom:16px}
+.fgroup ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.fgroup li{display:flex;gap:11px;font-size:15.5px;color:var(--slate-700);line-height:1.5}
+.fgroup li svg{flex:none;color:var(--teal-600);margin-top:3px}
+
+/* savings table */
+.tbl{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.trow{display:grid;grid-template-columns:1.7fr 1fr .8fr;gap:16px;padding:16px 24px;
+  border-top:1px solid var(--line);font-size:15.5px;align-items:center}
+.trow:first-child{border-top:0;background:#eef2f4;font-size:12.5px;font-weight:800;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--slate-500)}
+.trow b{color:var(--teal-600)}
+.ttot{background:#eef7f7;font-weight:800;font-size:18px}
+@media(max-width:719px){
+  .trow{grid-template-columns:1fr;gap:4px;padding:16px 18px}
+  .trow:first-child{display:none}
+  .trow>span:nth-child(2)::before{content:"On your own: ";color:var(--slate-500)}
+  .trow>span:nth-child(3)::before{content:"Bundle: ";color:var(--slate-500)}
+}
+.keep{margin-top:26px;border:1px solid var(--teal-600);border-radius:var(--r-md);
+  padding:28px;display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));
+  align-items:center;background:var(--white)}
+.keep b{display:block;font-size:clamp(30px,4vw,44px);font-weight:800;color:var(--teal-600);letter-spacing:-.02em}
+
+.pills{display:flex;flex-wrap:wrap;gap:10px}
+.pill{background:var(--white);border:1px solid var(--line);border-radius:999px;
+  padding:10px 18px;font-size:15px;white-space:nowrap}
+
+.steps{display:grid;gap:0;list-style:none;margin:0;padding:0;
+  border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--white)}
+.steps li{display:flex;gap:18px;padding:18px 24px;border-top:1px solid var(--line);font-size:16.5px}
+.steps li:first-child{border-top:0}
+.steps li>span:first-child{font-weight:800;color:var(--teal-600);font-size:14px;flex:none;
+  width:26px;padding-top:3px}
+.steps li>span+span{flex:1 1 auto;min-width:0}
+
+.faq{max-width:820px;margin:0 auto;display:grid;gap:12px}
+.faq details{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);padding:0}
+.faq summary{cursor:pointer;padding:20px 24px;font-weight:700;font-size:17px;list-style:none;
+  display:flex;justify-content:space-between;gap:16px;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-size:24px;color:var(--teal-600);font-weight:700;line-height:1}
+.faq details[open] summary::after{content:"\2212"}
+.faq p{margin:0;padding:0 24px 22px;color:var(--slate-700);font-size:16px}
+
+/* offer */
+.offer{background:var(--navy-950);color:#fff}
+.offer .wrap{display:grid;gap:44px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:900px){.offer .wrap{grid-template-columns:minmax(0,.95fr) minmax(0,1fr)}}
+.offer h2{font-size:clamp(28px,3.6vw,42px);font-weight:800;margin-bottom:16px}
+.offer .lede{color:rgb(255 255 255/.8);font-size:18px;max-width:46ch}
+.offer .contact{margin-top:26px;font-size:17px;line-height:2}
+.offer .contact a{color:var(--gold-500);font-weight:600}
+.form{background:var(--white);border-radius:var(--r-lg);padding:30px;box-shadow:var(--shadow-lg)}
+.form .row{margin-bottom:16px}
+.form .two{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))}
+.form label{display:block;font-size:12.5px;font-weight:800;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--slate-500);margin-bottom:6px}
+.form input,.form select,.form textarea{width:100%;font:inherit;font-size:16px;
+  padding:13px 14px;border:1px solid var(--line);border-radius:var(--r-sm);
+  background:#fbfcfd;color:var(--navy-950)}
+.form input:focus,.form select:focus,.form textarea:focus{outline:2px solid var(--sky-500);
+  outline-offset:1px;background:#fff}
+.form textarea{resize:vertical;min-height:88px}
+.form .submit{width:100%;background:var(--gold-500);color:var(--navy-950);border:0;
+  border-radius:var(--r-sm);padding:16px;font:inherit;font-weight:800;font-size:17.5px;cursor:pointer}
+.form .submit:hover{background:#e8b954}
+.form .fine{margin:14px 0 0;font-size:13px;color:var(--slate-500);text-align:center}
+.flash{border-radius:var(--r-md);padding:16px 20px;font-weight:600;margin-bottom:20px}
+.flash.ok{background:#e6f5ee;color:#0f5c40;border:1px solid #9dd3bb}
+.flash.err{background:#fdeeee;color:#8c2f2f;border:1px solid #f0c9c9}
+.thanks{background:var(--white);border-radius:var(--r-lg);padding:40px 30px;text-align:center;
+  box-shadow:var(--shadow-lg)}
+.thanks h3{font-size:24px;font-weight:800;margin-bottom:10px}
+.thanks p{color:var(--slate-700);margin:0}
+
+footer{background:var(--navy-900);color:rgb(255 255 255/.6);padding:34px 0;font-size:14.5px}
+footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+
+@media(max-width:899px){
+  .nav{display:none}
+  .nav.open{display:flex;position:absolute;top:76px;left:0;right:0;background:var(--navy-900);
+    flex-direction:column;gap:0;padding:8px 24px 18px;border-bottom:1px solid rgb(255 255 255/.12)}
+  .nav.open a{padding:13px 0;border-bottom:1px solid rgb(255 255 255/.08)}
+  .navtoggle{display:block}
+  .hdr .cta-gold{display:none}
+}
+@media(max-width:479px){.btn,.cta-gold{width:100%}.ctas{flex-direction:column}}
+
+/* --- roofer page additions, same tokens --- */
+.painrow{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.pain{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);padding:22px}
+.pain h3{margin:0 0 6px;font-size:1.05rem;color:var(--navy-900)}
+.pain p{margin:0;color:var(--slate-700);font-size:.95rem;line-height:1.6}
+.pain .q{display:block;font-style:italic;color:var(--slate-500);margin-bottom:10px;font-size:.92rem}
+.shots{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:8px}
+.shot{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.shot{display:flex;flex-direction:column}
+.shot img{width:100%;aspect-ratio:16/9;object-fit:cover;object-position:top center;display:block;border-bottom:1px solid var(--line)}
+.shot .cap{margin-top:auto}
+.shot .cap{padding:14px 16px}
+.shot .cap b{display:block;color:var(--navy-900);font-size:.98rem;margin-bottom:3px}
+.shot .cap span{color:var(--slate-500);font-size:.88rem;line-height:1.5}
+.tiers{display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:start}
+.tier{background:var(--white);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px;position:relative}
+.tier.feat{border-color:var(--gold-500);box-shadow:var(--shadow)}
+.tier .tag{position:absolute;top:-12px;left:28px;background:var(--gold-500);color:var(--navy-950);
+  font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 11px;border-radius:999px}
+.tier h3{margin:4px 0 2px;font-size:1.15rem;color:var(--navy-900)}
+.tier .price{font-size:2.5rem;font-weight:800;color:var(--navy-950);line-height:1.1;margin:10px 0 2px}
+.tier .price small{font-size:.95rem;font-weight:500;color:var(--slate-500)}
+.tier .was{color:var(--slate-500);font-size:.9rem;margin:0 0 16px}
+.tier ul{list-style:none;margin:0 0 20px;padding:0}
+.tier li{display:flex;gap:9px;align-items:flex-start;padding:6px 0;font-size:.94rem;color:var(--slate-700)}
+.tier li svg{flex:0 0 17px;margin-top:3px;color:var(--success)}
+.tier .btn{width:100%;justify-content:center}
+.guar{margin-top:16px;color:var(--slate-500);font-size:.86rem;text-align:center}
+.howrow{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));counter-reset:s}
+.how{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);padding:22px;position:relative}
+.how::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:32px;height:32px;
+  border-radius:50%;background:var(--navy-900);color:#fff;font-weight:700;font-size:.9rem;margin-bottom:12px}
+.how h3{margin:0 0 5px;font-size:1rem;color:var(--navy-900)}
+.how p{margin:0;color:var(--slate-700);font-size:.92rem;line-height:1.6}
+.leadwrap{max-width:560px;margin:0 auto}
+.acq{background:var(--navy-950);color:#cfe0ea;padding:26px 0;font-size:.92rem}
+.acq .wrap{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.acq a{color:var(--gold-500);font-weight:600}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="wrap">
+    <a href="/" class="brand">myroofportal<span>.com</span></a>
+    <button class="navtoggle" aria-expanded="false" aria-controls="nav" id="navBtn">Menu</button>
+    <nav class="nav" id="nav" aria-label="Primary">
+      <a href="#why">Why</a>
+      <a href="#see">What They See</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#how">How It Works</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a href="#get-started" class="cta-gold">Get My Portal</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">For Roofing Contractors</span>
+      <h1>Your name on the portal<span class="dot">.</span></h1>
+      <p class="sub">Every homeowner gets a private, branded page: live progress, job photos,
+        documents to e-sign, and a Pay button. Your logo, your colors — not ours.</p>
+      <div class="ctas">
+        <a class="btn btn-sky" href="{{ demo_url }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          See the Live Demo</a>
+        <a class="btn btn-outline-gold" href="#pricing">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          See Pricing</a>
+      </div>
+      <div class="proof">
+        <div><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6Z"/><path d="m9 12 2 2 4-4"/></svg> Fully White-Labeled</div>
+        <div><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Live in About a Day</div>
+        <div><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg> No App to Build</div>
+      </div>
+    </div>
+
+    <div class="devices">
+      <img src="{{ url_for('static', filename='portal_sale/portal-screenshot.png') }}"
+           alt="The branded homeowner portal on a phone, showing the live progress tracker for a roof replacement"
+           fetchpriority="high" decoding="async">
+    </div>
+  </div>
+</div>
+
+<section id="why">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>The three calls you stop taking</h2>
+      <div class="rule"></div>
+    </div>
+    <div class="painrow">
+      <div class="pain">
+        <span class="q">&ldquo;What&rsquo;s happening with my roof?&rdquo;</span>
+        <h3>They can already see it</h3>
+        <p>The tracker shows exactly which stage the job is in, what happens next, and
+          roughly when &mdash; updated as your crew moves.</p>
+      </div>
+      <div class="pain">
+        <span class="q">&ldquo;I never got that paperwork.&rdquo;</span>
+        <h3>It&rsquo;s in their portal</h3>
+        <p>Permits, the notice of commencement, the warranty &mdash; stored in one place and
+          signed from a phone, so nothing waits on a scanner.</p>
+      </div>
+      <div class="pain">
+        <span class="q">&ldquo;Can I pay you next week?&rdquo;</span>
+        <h3>There&rsquo;s a Pay button</h3>
+        <p>Each draw shows up the moment it&rsquo;s due, with a receipt when it clears.
+          Fewer chased checks, faster draws.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="see">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>What your customer opens</h2>
+      <p>This is the working product, branded for a sample company. Open the demo on your
+        phone &mdash; it&rsquo;s exactly what a homeowner gets.</p>
+      <div class="rule"></div>
+    </div>
+    <div class="shots">
+      <div class="shot">
+        <img src="{{ url_for('static', filename='portal_sale/portal-roadmap.png') }}" alt="Project roadmap showing each stage of the roof replacement with the current stage highlighted" loading="lazy">
+        <div class="cap"><b>Live progress</b><span>Six stages, plain English, and a &ldquo;you are here&rdquo; marker.</span></div>
+      </div>
+      <div class="shot">
+        <img src="{{ url_for('static', filename='portal_sale/portal-checklist.png') }}" alt="Proof-of-work checklist showing completed and in-progress tasks alongside the balance due" loading="lazy">
+        <div class="cap"><b>23-step proof of work</b><span>Every task your team actually does, checked off in the open.</span></div>
+      </div>
+      <div class="shot">
+        <img src="{{ url_for('static', filename='portal_sale/portal-photos.jpg') }}" alt="Job photo gallery showing the roof at tear-off, dry-in and completion" loading="lazy">
+        <div class="cap"><b>Job photos</b><span>Tear-off to final walk &mdash; a visual record that sells the next job.</span></div>
+      </div>
+      <div class="shot">
+        <img src="{{ url_for('static', filename='portal_sale/portal-documents.png') }}" alt="Project documents list — roofing agreement signed, notice of commencement and permit awaiting signature, warranty ready to view" loading="lazy">
+        <div class="cap"><b>Documents &amp; e-sign</b><span>Agreement, NOC, permit, warranty &mdash; signed from a phone.</span></div>
+      </div>
+      <div class="shot">
+        <img src="{{ url_for('static', filename='portal_sale/portal-referral.png') }}" alt="Referral rewards screen showing progress toward unlocking rewards" loading="lazy">
+        <div class="cap"><b>Referral rewards</b><span>Finished roofs turn into neighbor referrals without ad spend.</span></div>
+      </div>
+      <div class="shot" style="display:grid;place-items:center;padding:28px;text-align:center">
+        <div>
+          <b style="display:block;color:var(--navy-900);margin-bottom:8px">Don&rsquo;t take our word for it</b>
+          <span style="color:var(--slate-500);font-size:.9rem;display:block;margin-bottom:16px">Open the real thing. No signup, 60 seconds.</span>
+          <a class="btn btn-sky" href="{{ demo_url }}">Open the Live Demo</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Pricing</h2>
+      <p>Annual plans. White-label setup, branding and data migration are included in both.</p>
+      <div class="rule"></div>
+    </div>
+    <div class="tiers">
+      <div class="tier feat">
+        <span class="tag">Founding Member</span>
+        <h3>For the first roofers in</h3>
+        <div class="price">$1,997<small>/year</small></div>
+        <p class="was">Regularly $2,970/yr &mdash; your rate stays locked as long as you stay.</p>
+        <ul>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Your logo, colors and company name</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Unlimited projects and homeowners</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Progress tracker, photos, documents, payments</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Referral rewards engine</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>White-label setup and branding included</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Data migration from your current system</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Hosting, updates and support</li>
+        </ul>
+        <a class="btn btn-sky" href="#get-started">Claim a Founding Spot</a>
+      </div>
+      <div class="tier">
+        <h3>Territory Exclusive</h3>
+        <div class="price">$4,997<small>/year</small></div>
+        <p class="was">You are the only roofer in your city running it.</p>
+        <ul>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Everything in Founding Member</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Exclusive to your market &mdash; competitors locked out</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Priority support and feature requests</li>
+          <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Co-branded launch assets for your sales team</li>
+        </ul>
+        <a class="btn btn-outline-gold" href="#get-started">Lock My Territory</a>
+      </div>
+    </div>
+    <p class="guar">14-day money-back guarantee. No long-term contract.</p>
+  </div>
+</section>
+
+<section class="alt" id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>How it works</h2>
+      <div class="rule"></div>
+    </div>
+    <div class="howrow">
+      <div class="how"><h3>Tell us your brand</h3><p>Logo, colors, phone, website. That&rsquo;s the whole setup form.</p></div>
+      <div class="how"><h3>We brand and launch it</h3><p>We stand up your portal and send you the link &mdash; usually inside a day.</p></div>
+      <div class="how"><h3>Bring your customers over</h3><p>Import your current and past jobs in one CSV. We do the migration.</p></div>
+      <div class="how"><h3>Send the link</h3><p>Each homeowner gets their own private page. Nothing to install.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="offer" id="get-started">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Get it for your company</h2>
+      <p>Tell us who you are and we&rsquo;ll set up your branded portal. No card required to start.</p>
+    </div>
+
+    {% if thanks %}
+      <div class="flash thanks">Thanks &mdash; you&rsquo;re on the list. We&rsquo;ll reach out shortly to get your branded portal set up.</div>
+    {% elif err %}
+      <div class="flash">Please give us your name and at least an email or a phone number so we can reach you.</div>
+    {% endif %}
+
+    <div class="leadwrap">
+      <form class="form" method="post" action="{{ lead_action }}">
+        <div class="fgroup">
+          <label for="f-name">Your name</label>
+          <input id="f-name" name="name" type="text" required autocomplete="name" placeholder="Jane Contractor">
+        </div>
+        <div class="fgroup">
+          <label for="f-company">Company</label>
+          <input id="f-company" name="company" type="text" autocomplete="organization" placeholder="Acme Roofing LLC">
+        </div>
+        <div class="fgroup">
+          <label for="f-email">Email</label>
+          <input id="f-email" name="email" type="email" autocomplete="email" placeholder="you@acmeroofing.com">
+        </div>
+        <div class="fgroup">
+          <label for="f-phone">Phone</label>
+          <input id="f-phone" name="phone" type="tel" autocomplete="tel" placeholder="(555) 123-4567">
+        </div>
+        <button class="btn btn-sky" type="submit">Send it over</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Questions roofers ask</h2>
+      <div class="rule"></div>
+    </div>
+    <details class="faq"><summary>Does it say MyRoofPortal anywhere my customer can see?</summary>
+      <div>No. The portal carries your logo, your colors and your company name. That&rsquo;s the whole point of white-label.</div></details>
+    <details class="faq"><summary>Do I have to replace my CRM?</summary>
+      <div>No. This is the customer-facing layer. Keep running your jobs wherever you run them &mdash; we import your list so homeowners get a portal either way.</div></details>
+    <details class="faq"><summary>How long does setup take?</summary>
+      <div>Usually about a day once we have your logo and colors. Migration of your existing customers is included.</div></details>
+    <details class="faq"><summary>Does my customer need an app?</summary>
+      <div>No. They open a link. It works in any phone browser.</div></details>
+    <details class="faq"><summary>What does &ldquo;territory exclusive&rdquo; actually mean?</summary>
+      <div>While your Territory plan is active we will not license the portal to another roofing contractor in your city.</div></details>
+    <details class="faq"><summary>What if it isn&rsquo;t for me?</summary>
+      <div>14 days, money back, no argument.</div></details>
+  </div>
+</section>
+
+<div class="acq">
+  <div class="wrap">
+    <span>Not a contractor? The domain and the entire platform are also available to acquire.</span>
+    <a href="{{ acquire_url }}">See acquisition terms &rarr;</a>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p>MyRoofPortal &mdash; a product of Collaborative Concept LLC &middot; 513 W Drew St, Lantana, FL 33462 &middot; (561) 475-8615</p>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var b = document.getElementById('navBtn'), n = document.getElementById('nav');
+    if (b && n) b.addEventListener('click', function () {
+      var open = n.classList.toggle('open');
+      b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  })();
+  /* First-party funnel beacon. The internal DB is the source of truth -- ad
+     blockers make third-party analytics a floor, not a measurement. */
+  (function () {
+    function hit(k, x) {
+      try {
+        var f = new FormData(); f.append("k", k); f.append("p", x || location.pathname);
+        if (navigator.sendBeacon) { navigator.sendBeacon("/portal-sales/ev", f); }
+        else { fetch("/portal-sales/ev", { method: "POST", body: f, keepalive: true }); }
+      } catch (e) { /* tracking must never break the page */ }
+    }
+    hit("roofer_view");
+    document.addEventListener("click", function (ev) {
+      var a = ev.target && ev.target.closest ? ev.target.closest("a,button") : null;
+      if (!a) return;
+      var l = (a.textContent || "").trim().slice(0, 40);
+      var h = a.getAttribute("href") || "";
+      if (h.indexOf("/demo/") >= 0) hit("cta_demo", l);
+      else if (/founding/i.test(l)) hit("cta_founding", l);
+      else if (/territory/i.test(l)) hit("cta_territory", l);
+      else if (h.indexOf("#get-started") >= 0) hit("cta_getstarted", l);
+      else if (h.indexOf("acquire") >= 0 || /acquisition/i.test(l)) hit("cta_acquire", l);
+    }, true);
+    var f = document.querySelector("form.form");
+    if (f) f.addEventListener("submit", function () { hit("lead_submit_click"); });
+  })();
+</script>
+</body>
+</html>

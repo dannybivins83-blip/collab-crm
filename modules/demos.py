@@ -591,6 +591,26 @@ def _on_demo_host():
     return host in DEMO_HOSTS
 
 
+@bp.route("/", endpoint="roofer_landing")
+def roofer_landing_view():
+    """The roofer-facing pitch. This is what myroofportal.com/ serves.
+
+    The cold-email campaign sells licences to roofing contractors, so the front
+    door has to speak to them: anyone who types the domain instead of clicking
+    the demo link used to land on the acquisition page and be told the product
+    was for sale. Buyers now get /acquire, linked from the footer band.
+    """
+    _log_event("page_view_server", "/")
+    return render_template(
+        "portal_roofer_landing.html",
+        demo_url="/demo/%s" % DEMO_SLUG,
+        lead_action=url_for("demo.landing_lead"),
+        acquire_url=url_for("demo.acquire"),
+        thanks=(request.args.get("thanks") == "1"),
+        err=(request.args.get("err") == "1"))
+
+
+@bp.route("/acquire", endpoint="acquire")
 @bp.route("/portal-sales", endpoint="landing")
 def landing_view():
     """Domain + software FOR-SALE page (replaced the license-sales landing on
@@ -755,8 +775,8 @@ def landing_lead():
     company = (f.get("company") or "").strip()[:160]
     email = (f.get("email") or "").strip()[:200]
     phone = (f.get("phone") or "").strip()[:40]
-    # The license page (the only one carrying this form) lives at /licensing now.
-    base = url_for("demo.landing_licensing")
+    # The lead form is on the roofer front page; /licensing still carries a copy.
+    base = "/" if _on_demo_host() else url_for("demo.landing_licensing")
     # Require a name plus at least one way to reach them.
     if not name or not (email or phone):
         return redirect(base + "?err=1#get-started")

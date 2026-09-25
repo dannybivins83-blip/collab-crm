@@ -89,6 +89,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # The beacon stores only what the request already carried; the inbox
           # endpoint (demo.sales_inbox) is deliberately NOT public.
           "demo.track_event", "demo.robots", "demo.sitemap",
+          "demo.roofer_landing", "demo.acquire",
           # Token-gated DB-restore + CSV imports: NOT session-auth'd. Their own
           # X-Restore-Token check is the gate (404 when unarmed/wrong). Must bypass
           # the login redirect so the gate returns 404, not a 302 to /login.
