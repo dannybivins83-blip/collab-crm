@@ -86,3 +86,7 @@ packet_builder_handoff/permit_packet_builder/audit_reports/
 # ...): county PDFs + live test fills, some carrying real job data. Large + not source.
 packet_builder_handoff/pending_forms*/
 .repair/
+
+# prepaid-credit ledger (a financial record, and it lives outside the repo by default)
+credits.json
+*.credits.json

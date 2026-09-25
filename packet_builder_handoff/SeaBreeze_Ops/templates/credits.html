@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Credits — Permit Packet Builder{% endblock %}
+{% block body %}
+
+<div class="card">
+  <h2 style="margin-top:0">Builder credits</h2>
+  <p class="note">One credit costs one US dollar. Payment is taken on Stripe's own
+  checkout page — no card details are entered here or stored by this app.</p>
+
+  {% if msg %}<div class="flash" style="background:#e7f4ea;border-left:4px solid #2e7d32">{{ msg }}</div>{% endif %}
+  {% if err %}<div class="flash" style="background:#fdecea;border-left:4px solid #c62828">{{ err }}</div>{% endif %}
+
+  <p style="font-size:44px;font-weight:700;margin:18px 0 2px;
+            color:{% if balance < 0 %}#c62828{% else %}#12324a{% endif %}">
+    {{ balance }}
+  </p>
+  <div class="sub" style="margin-bottom:22px">
+    credit{{ '' if balance == 1 else 's' }} available
+    {% if balance < 0 %} — this is what is currently owed{% endif %}
+  </div>
+
+  {% if not configured %}
+    <div class="flash" style="background:#fff4e5;border-left:4px solid #ef6c00">
+      <strong>Stripe is not configured.</strong> Set <code>STRIPE_SECRET_KEY</code> in the
+      environment and restart the app, then this button will open checkout.
+    </div>
+  {% else %}
+    {% if not live %}
+      <div class="flash" style="background:#fff4e5;border-left:4px solid #ef6c00">
+        <strong>Test mode.</strong> This is a <code>sk_test</code> key, so checkout takes
+        Stripe's test cards and <em>no real money moves</em>. Swap in your live key when
+        you want to actually pay.
+      </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('credits_buy') }}"
+          style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:18px 0 10px">
+      <label for="credits" style="font-weight:600">Buy</label>
+      <input id="credits" name="credits" type="number" min="1" max="{{ max_purchase }}"
+             step="1" value="25" required oninput="syncTotal()"
+             style="width:120px;font-size:22px;padding:10px 12px;border:1px solid #c7d4de;border-radius:6px">
+      <span style="color:#5a6b78">credits &times; $1.00 =</span>
+      <strong id="total" style="font-size:22px;color:#12324a">$25.00</strong>
+      <button class="btn" type="submit" style="padding:13px 26px;font-size:17px">Buy credits &rarr;</button>
+    </form>
+    <div class="note">
+      Quick picks:
+      {% for n in [10, 25, 50, 100, 250] %}
+        <a href="#" onclick="setAmt({{ n }});return false">${{ n }}</a>{% if not loop.last %} &middot; {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Recent activity</h3>
+  {% if entries %}
+    <table class="summary" style="width:100%">
+      <tr><th style="text-align:left">What</th><th style="text-align:right">Credits</th><th style="text-align:right">Balance</th></tr>
+      {% for e in entries %}
+      <tr>
+        <td>{{ e.note }}</td>
+        <td style="text-align:right;color:{% if e.credits < 0 %}#c62828{% else %}#2e7d32{% endif %}">
+          {{ '+' if e.credits > 0 else '' }}{{ e.credits }}
+        </td>
+        <td style="text-align:right">{{ e.balance_after }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p class="empty">Nothing yet. Buy credits above and it will show up here.</p>
+  {% endif %}
+</div>
+
+<script>
+function syncTotal(){
+  var n = parseInt(document.getElementById('credits').value || '0', 10);
+  if (!(n > 0)) n = 0;
+  document.getElementById('total').textContent = '$' + n.toFixed(2);
+}
+function setAmt(n){ document.getElementById('credits').value = n; syncTotal(); }
+syncTotal();
+</script>
+{% endblock %}

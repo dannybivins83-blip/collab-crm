@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """SeaBreeze Job Management - Flask app (Kanban + automated workflow).
 Includes the embedded Permit Packet Builder wizard (/builder)."""
-import os, re, time, socket, webbrowser, threading
+import json, os, re, time, socket, webbrowser, threading
 from datetime import datetime
 from flask import (Flask, render_template, request, redirect, url_for,
                    send_from_directory, jsonify, abort)
@@ -15,6 +15,10 @@ if _ENGINE not in _sys.path:
 import db
 import workflow
 import build
+import credits as credits_mod
+
+# What one packet costs, in credits. 0 turns metering off entirely.
+CREDITS_PER_PACKET = int(os.environ.get('PACKET_BUILDER_CREDITS_PER_PACKET', '1'))
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Save finished packets to Google Drive (syncs to the laptop). Try the tidy
@@ -736,12 +740,21 @@ def builder_build():
         build.build_packet(client, ahj, system, att, os.path.join(OUTPUT_DIR, outname), underlayment, product)
     except Exception as e:
         return jsonify({'error': 'Build failed: %s' % e}), 500
+    # Meter the build against prepaid credits. Deliberately AFTER a successful
+    # build and deliberately non-blocking: this records what usage costs, it does
+    # not stand between the operator and a packet that has to go out today. The
+    # balance is allowed to go negative and the Credits page shows what is owed.
+    try:
+        bal = credits_mod.debit(CREDITS_PER_PACKET, 'Permit packet: %s' % outname, outname)
+    except Exception:
+        bal = None
+
     # If launched from a job, record the packet on it.
     job_id = request.form.get('job_id', '')
     if job_id.isdigit():
         db.update_job(int(job_id), packet=outname)
         db.add_activity(int(job_id), 'automation', 'Permit packet built via Builder: %s' % outname)
-    return jsonify({'ok': True, 'file': outname})
+    return jsonify({'ok': True, 'file': outname, 'credits_left': bal})
 
 
 @app.route('/builder/measure', methods=['POST'])
@@ -770,6 +783,107 @@ def download(file):
     if not os.path.exists(os.path.join(OUTPUT_DIR, safe)):
         abort(404)
     return send_from_directory(OUTPUT_DIR, safe, as_attachment=True)
+
+
+# ---------------------------------------------------------------------------
+# PREPAID CREDITS  (Stripe Checkout, one credit = one US dollar)
+#
+# Checkout is hosted by Stripe, so no card number touches this app. Because the
+# app binds to 127.0.0.1 a webhook cannot reach it, so the balance is credited
+# when the browser returns - and the payment is confirmed by asking Stripe, not
+# by trusting the return URL. Crediting is keyed on the session id, so a reload
+# or a replayed link cannot buy the same credits twice.
+# ---------------------------------------------------------------------------
+
+
+def _base_url():
+    root = request.url_root.rstrip('/')
+    return root or ('http://127.0.0.1:%d' % PORT)
+
+
+@app.route('/credits')
+def credits_page():
+    return render_template(
+        'credits.html',
+        balance=credits_mod.balance(),
+        entries=credits_mod.history(20),
+        configured=credits_mod.configured(),
+        live=credits_mod.live_mode(),
+        max_purchase=credits_mod.MAX_PURCHASE,
+        msg=request.args.get('msg', ''),
+        err=request.args.get('err', ''),
+    )
+
+
+@app.route('/credits/buy', methods=['POST'])
+def credits_buy():
+    if not credits_mod.configured():
+        return redirect(url_for('credits_page',
+                                err='STRIPE_SECRET_KEY is not set, so checkout cannot open.'))
+    raw = (request.form.get('credits') or '').strip()
+    try:
+        n = int(float(raw))
+    except Exception:
+        return redirect(url_for('credits_page', err='Enter a whole number of credits.'))
+    try:
+        url = credits_mod.create_checkout(
+            n,
+            success_url=_base_url() + '/credits/return?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=_base_url() + '/credits?msg=Checkout+cancelled.+Nothing+was+charged.',
+        )
+    except Exception as e:
+        return redirect(url_for('credits_page', err=str(e)))
+    return redirect(url)
+
+
+@app.route('/credits/return')
+def credits_return():
+    sid = (request.args.get('session_id') or '').strip()
+    if not sid:
+        return redirect(url_for('credits_page', err='Stripe did not return a session id.'))
+    try:
+        paid, n, cents = credits_mod.confirm_session(sid)
+    except Exception as e:
+        return redirect(url_for('credits_page', err=str(e)))
+    if not paid:
+        return redirect(url_for('credits_page',
+                                err='Stripe has not marked that payment as paid. Nothing was added.'))
+    applied, bal = credits_mod.apply_payment(sid, n, 'Stripe Checkout $%.2f' % (cents / 100.0))
+    if applied:
+        return redirect(url_for('credits_page',
+                                msg='Added %d credit%s. Balance: %d.' % (n, '' if n == 1 else 's', bal)))
+    return redirect(url_for('credits_page',
+                            msg='That payment was already credited. Balance: %d.' % bal))
+
+
+@app.route('/credits/webhook', methods=['POST'])
+def credits_webhook():
+    """Only useful if this is ever hosted where Stripe can reach it. Unsigned
+    calls are refused; the session is re-confirmed with Stripe either way."""
+    import hashlib
+    import hmac
+    secret = (os.environ.get('STRIPE_WEBHOOK_SECRET') or '').strip()
+    if not secret:
+        abort(404)
+    sig = request.headers.get('Stripe-Signature', '')
+    payload = request.get_data()
+    parts = dict(p.split('=', 1) for p in sig.split(',') if '=' in p)
+    t, v1 = parts.get('t', ''), parts.get('v1', '')
+    expected = hmac.new(secret.encode(), (t + '.').encode() + payload,
+                        hashlib.sha256).hexdigest()
+    if not (v1 and hmac.compare_digest(expected, v1)):
+        abort(400)
+    try:
+        ev = json.loads(payload.decode('utf-8'))
+    except Exception:
+        abort(400)
+    if ev.get('type') == 'checkout.session.completed':
+        sid = (ev.get('data', {}).get('object', {}) or {}).get('id')
+        if sid:
+            paid, n, cents = credits_mod.confirm_session(sid)
+            if paid:
+                credits_mod.apply_payment(sid, n, 'Stripe webhook $%.2f' % (cents / 100.0))
+    return jsonify({'ok': True})
 
 
 def _free_port(preferred):
