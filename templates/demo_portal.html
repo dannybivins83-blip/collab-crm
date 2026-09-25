@@ -1009,5 +1009,40 @@ view:function(){if(items.length)demoToast(items.length+' add-on'+(items.length>1
   }, true);
 })();
 </script>
+{% if not live %}
+<div class="salecta" id="saleCta">
+  <div class="salecta-in">
+    <div class="salecta-tx">
+      <b>This is a demo &mdash; it could be <u>your</u> portal.</b>
+      <span>Your logo, your colors, every customer. Live in about a day.</span>
+    </div>
+    <div class="salecta-bt">
+      <a class="sc-btn" href="/portal-sales/licensing#get-started" onclick="scHit('cta_pricing')">See pricing &rarr;</a>
+      <a class="sc-btn ghost" href="/portal-sales/licensing#get-started" onclick="scHit('cta_demo_req')">Get mine</a>
+    </div>
+    <button type="button" class="sc-x" onclick="document.getElementById('saleCta').remove()" aria-label="Dismiss">&times;</button>
+  </div>
+</div>
+<style>
+  .salecta{position:fixed;left:0;right:0;bottom:0;z-index:70;background:#0f1d2e;color:#fff;
+    box-shadow:0 -6px 24px rgba(0,0,0,.28);padding:10px 14px}
+  .salecta-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .salecta-tx{flex:1 1 300px;line-height:1.45;font-size:14px}
+  .salecta-tx b{display:block;font-size:15px}
+  .salecta-tx span{opacity:.82;font-size:13px}
+  .salecta-bt{display:flex;gap:9px;flex-wrap:wrap}
+  .sc-btn{display:inline-block;background:#f4b740;color:#12243a;font-weight:700;font-size:14px;
+    padding:10px 18px;border-radius:9px;text-decoration:none;white-space:nowrap}
+  .sc-btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45)}
+  .sc-x{background:none;border:0;color:rgba(255,255,255,.6);font-size:22px;line-height:1;cursor:pointer;padding:0 2px}
+  body{padding-bottom:86px}
+  .cartfab{bottom:96px!important}
+  @media (max-width:640px){.salecta-tx span{display:none}body{padding-bottom:104px}}
+</style>
+<script>
+  function scHit(k){try{var b=new FormData();b.append("k",k);b.append("p",location.pathname);
+    if(navigator.sendBeacon){navigator.sendBeacon("/portal-sales/ev",b);}}catch(e){}}
+</script>
+{% endif %}
 </body>
 </html>

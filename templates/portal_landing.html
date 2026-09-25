@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#16223b" />
 <meta name="description" content="Your own branded customer portal for roofing — live progress tracking, payments, e-sign, and a referral engine, white-labeled under your company's brand." />
-<title>Roof Portal — Your Own Branded Customer Portal, Live in a Day</title>
+<title>MyRoofPortal — Your Own Branded Customer Portal, Live in a Day</title>
 <style>
   :root{
     --brand:#16223b; --accent:#4680BF; --green:#8CC63F;
@@ -148,23 +148,39 @@
 <section class="benefits" id="pricing">
   <div class="wrap">
     <h2>Simple pricing</h2>
-    <p class="tag">One plan. No contracts. Cancel anytime.</p>
+    <p class="tag">Annual plans. No long-term contract &mdash; 14-day money-back guarantee.</p>
     <div class="grid">
       <div class="card" style="text-align:center">
-        <h3 style="font-size:17px">Your Branded Portal</h3>
-        <p style="font-size:34px;font-weight:800;margin:10px 0 2px">$149<span style="font-size:15px;font-weight:400">/month</span></p>
-        <p style="margin:0 0 14px;font-size:14px">+ $499 one-time setup &amp; branding</p>
+        <h3 style="font-size:17px">Founding Member</h3>
+        <p style="font-size:34px;font-weight:800;margin:10px 0 2px">$1,997<span style="font-size:15px;font-weight:400">/year</span></p>
+        <p style="margin:0 0 14px;font-size:14px">Regularly $2,970/yr &mdash; this rate is locked for as long as you stay.</p>
         <p style="text-align:left;line-height:1.9;font-size:14px">
           &#10003; Your logo, colors &amp; company name<br>
           &#10003; Unlimited projects &amp; homeowners<br>
           &#10003; Progress tracker, payments &amp; e-sign view<br>
           &#10003; Referral rewards engine<br>
+          &#10003; White-label setup &amp; branding included<br>
+          &#10003; Data migration from your current system included<br>
           &#10003; Hosting, updates &amp; support included<br>
           &#10003; Live in about a day
         </p>
-        <a class="btn btn-primary" href="#get-started" style="margin-top:12px">Start my portal</a>
+        <a class="btn btn-primary" href="#get-started" style="margin-top:12px">Claim a founding spot</a>
+      </div>
+      <div class="card" style="text-align:center">
+        <h3 style="font-size:17px">Territory Exclusive</h3>
+        <p style="font-size:34px;font-weight:800;margin:10px 0 2px">$4,997<span style="font-size:15px;font-weight:400">/year</span></p>
+        <p style="margin:0 0 14px;font-size:14px">You are the only roofer in your city with it.</p>
+        <p style="text-align:left;line-height:1.9;font-size:14px">
+          &#10003; Everything in Founding Member<br>
+          &#10003; Exclusive to your market &mdash; we lock competitors out<br>
+          &#10003; Priority support &amp; feature requests<br>
+          &#10003; Co-branded launch assets for your sales team
+        </p>
+        <a class="btn btn-primary" href="#get-started" style="margin-top:12px">Lock my territory</a>
       </div>
     </div>
+    <p class="tag" style="margin-top:18px">Prefer to own it outright? The domain and the full
+      platform are also available &mdash; <a href="/portal-sales">see acquisition terms</a>.</p>
   </div>
 </section>
 
@@ -213,5 +229,27 @@
   <div class="fict">Demo data is fictitious.</div>
 </footer>
 
+<script>
+/* First-party funnel beacon -- roofer-facing pitch page. Fails silent. */
+(function () {
+  function hit(k, x) {
+    try {
+      var b = new FormData(); b.append("k", k); b.append("p", x || location.pathname);
+      if (navigator.sendBeacon) { navigator.sendBeacon("/portal-sales/ev", b); }
+    } catch (e) {}
+  }
+  hit("license_view");
+  document.addEventListener("click", function (ev) {
+    var a = ev.target && ev.target.closest ? ev.target.closest("a,button") : null;
+    if (!a) return;
+    var l = (a.textContent || "").trim().slice(0, 40);
+    if (/founding/i.test(l)) hit("cta_founding", l);
+    else if (/territory/i.test(l)) hit("cta_territory", l);
+    else if ((a.getAttribute("href") || "").indexOf("/demo/") >= 0) hit("cta_demo", l);
+  }, true);
+  var f = document.querySelector("form.leadform");
+  if (f) f.addEventListener("submit", function () { hit("license_lead_submit"); });
+})();
+</script>
 </body>
 </html>
