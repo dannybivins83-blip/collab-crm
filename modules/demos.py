@@ -528,6 +528,11 @@ def portal_view(slug):
     addon_cats = ADDON_CATS
     return render_template(
         "demo_portal.html", slug=slug, company=company, j=j, addon_cats=addon_cats,
+        # The "it could be your portal" bar sends roofers to the roofer front door
+        # (pricing + Get My Portal form) on the demo domain; elsewhere keep the
+        # old licensing page, which still carries a copy of the form.
+        sale_pricing_url=("/#pricing" if _on_demo_host() else url_for("demo.landing_licensing") + "#pricing"),
+        sale_get_url=("/#get-started" if _on_demo_host() else url_for("demo.landing_licensing") + "#get-started"),
         phases=portal.CUSTOMER_PHASES, checklist=_checklist(phase),
         value_steps=value_steps, value_done=value_done, value_total=len(value_steps),
         updates=_sample_updates(phase), referral=_referral_ctx(d, link),

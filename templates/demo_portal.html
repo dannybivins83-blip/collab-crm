@@ -1018,8 +1018,8 @@ view:function(){if(items.length)demoToast(items.length+' add-on'+(items.length>1
       <span>Your logo, your colors, every customer. Live in about a day.</span>
     </div>
     <div class="salecta-bt">
-      <a class="sc-btn" href="/portal-sales/licensing#get-started" onclick="scHit('cta_pricing')">See pricing &rarr;</a>
-      <a class="sc-btn ghost" href="/portal-sales/licensing#get-started" onclick="scHit('cta_demo_req')">Get mine</a>
+      <a class="sc-btn" href="{{ sale_pricing_url }}" onclick="scHit('cta_pricing')">See pricing &rarr;</a>
+      <a class="sc-btn ghost" href="{{ sale_get_url }}" onclick="scHit('cta_demo_req')">Get mine</a>
     </div>
     <button type="button" class="sc-x" onclick="document.getElementById('saleCta').remove()" aria-label="Dismiss">&times;</button>
   </div>
