@@ -217,10 +217,12 @@ footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
 .pain h3{margin:0 0 6px;font-size:1.05rem;color:var(--navy-900)}
 .pain p{margin:0;color:var(--slate-700);font-size:.95rem;line-height:1.6}
 .pain .q{display:block;font-style:italic;color:var(--slate-500);margin-bottom:10px;font-size:.92rem}
-.shots{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:8px}
+.shots{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:8px}
 .shot{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
 .shot{display:flex;flex-direction:column}
-.shot img{width:100%;aspect-ratio:16/9;object-fit:cover;object-position:top center;display:block;border-bottom:1px solid var(--line)}
+/* every shot is composed at 4:3 by tools/hero/compose_shots.py, so no CSS cropping:
+   aspect-ratio only reserves the box before the image arrives */
+.shot img{width:100%;height:auto;aspect-ratio:4/3;display:block;border-bottom:1px solid var(--line)}
 .shot .cap{margin-top:auto}
 .shot .cap{padding:14px 16px}
 .shot .cap b{display:block;color:var(--navy-900);font-size:.98rem;margin-bottom:3px}
@@ -338,23 +340,23 @@ footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
     </div>
     <div class="shots">
       <div class="shot">
-        <img src="{{ url_for('static', filename='portal_sale/portal-roadmap.png') }}" alt="Project roadmap showing each stage of the roof replacement with the current stage highlighted" loading="lazy">
+        <img src="{{ url_for('static', filename='portal_sale/shot-roadmap.jpg') }}" width="1600" height="1200" alt="The project roadmap on a phone: Approved, Permitting and Scheduling checked off, Installation marked You Are Here" loading="lazy">
         <div class="cap"><b>Live progress</b><span>Six stages, plain English, and a &ldquo;you are here&rdquo; marker.</span></div>
       </div>
       <div class="shot">
-        <img src="{{ url_for('static', filename='portal_sale/portal-checklist.png') }}" alt="Proof-of-work checklist showing completed and in-progress tasks alongside the balance due" loading="lazy">
+        <img src="{{ url_for('static', filename='portal_sale/shot-proof.jpg') }}" width="1600" height="1200" alt="The 23-step proof-of-work checklist in a browser window, 15 of 23 done, each completed task checked off" loading="lazy">
         <div class="cap"><b>23-step proof of work</b><span>Every task your team actually does, checked off in the open.</span></div>
       </div>
       <div class="shot">
-        <img src="{{ url_for('static', filename='portal_sale/portal-photos.jpg') }}" alt="Job photo gallery showing the roof at tear-off, dry-in and completion" loading="lazy">
+        <img src="{{ url_for('static', filename='portal_sale/shot-photos.jpg') }}" width="1600" height="1200" alt="Real-time job progress photos in a browser window, time-stamped through the install day, beside the homeowner's to-do list" loading="lazy">
         <div class="cap"><b>Job photos</b><span>Tear-off to final walk &mdash; a visual record that sells the next job.</span></div>
       </div>
       <div class="shot">
-        <img src="{{ url_for('static', filename='portal_sale/portal-documents.png') }}" alt="Project documents list — roofing agreement signed, notice of commencement and permit awaiting signature, warranty ready to view" loading="lazy">
+        <img src="{{ url_for('static', filename='portal_sale/shot-documents.jpg') }}" width="1600" height="1200" alt="Project documents in a browser window: roofing agreement signed, notice of commencement and permit awaiting signature, warranty ready to view" loading="lazy">
         <div class="cap"><b>Documents &amp; e-sign</b><span>Agreement, NOC, permit, warranty &mdash; signed from a phone.</span></div>
       </div>
       <div class="shot">
-        <img src="{{ url_for('static', filename='portal_sale/portal-referral.png') }}" alt="Referral rewards screen showing progress toward unlocking rewards" loading="lazy">
+        <img src="{{ url_for('static', filename='portal_sale/shot-referral.jpg') }}" width="1600" height="1200" alt="Referral rewards on a phone: a ready-to-send invite and the rewards unlocked so far" loading="lazy">
         <div class="cap"><b>Referral rewards</b><span>Finished roofs turn into neighbor referrals without ad spend.</span></div>
       </div>
       <div class="shot" style="display:grid;place-items:center;padding:28px;text-align:center">
