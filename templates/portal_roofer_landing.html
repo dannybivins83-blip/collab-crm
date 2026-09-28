@@ -12,7 +12,9 @@
 <meta property="og:title" content="Your own branded customer portal for roofers">
 <meta property="og:description" content="Homeowners watch their roof job stage by stage, sign docs, see photos and pay — all under your name. Live in about a day.">
 <meta property="og:url" content="https://myroofportal.com/">
-<meta property="og:image" content="https://myroofportal.com{{ url_for('static', filename='portal_sale/portal-screenshot.png') }}">
+<meta property="og:image" content="https://myroofportal.com{{ url_for('static', filename='portal_sale/hero-devices.jpg') }}">
+<meta property="og:image:width" content="2000">
+<meta property="og:image:height" content="1300">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -75,14 +77,14 @@ h1,h2,h3{line-height:1.12;letter-spacing:-.02em;margin:0}
 .hero .wrap{position:relative;z-index:2;display:grid;gap:48px;
   grid-template-columns:minmax(0,1fr);padding-top:64px;padding-bottom:72px}
 @media(min-width:1024px){.hero .wrap{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);
-  align-items:center;padding-top:80px;padding-bottom:88px}}
+  align-items:center;padding-top:56px;padding-bottom:64px}}
 .eyebrow{display:inline-block;border:1px solid var(--gold-500);color:var(--gold-500);
   font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
-  padding:8px 16px;border-radius:var(--r-sm);margin-bottom:22px}
-.hero h1{font-size:clamp(40px,6.4vw,72px);font-weight:800;margin-bottom:20px}
+  padding:8px 16px;border-radius:var(--r-sm);margin-bottom:18px}
+.hero h1{font-size:clamp(38px,4.6vw,60px);font-weight:800;margin-bottom:18px}
 .hero h1 .dot{color:var(--gold-500)}
-.hero .sub{font-size:clamp(17px,2vw,21px);color:rgb(255 255 255/.82);max-width:34ch;margin:0 0 30px}
-.ctas{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:32px}
+.hero .sub{font-size:clamp(17px,1.4vw,19px);color:rgb(255 255 255/.82);max-width:36ch;margin:0 0 26px}
+.ctas{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:26px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;
   min-height:52px;padding:14px 26px;border-radius:var(--r-sm);font-weight:700;font-size:17px;
   border:1px solid transparent;cursor:pointer;font-family:inherit}
@@ -94,7 +96,8 @@ h1,h2,h3{line-height:1.12;letter-spacing:-.02em;margin:0}
 .proof div{display:flex;align-items:center;gap:9px}
 .proof svg{flex:none;color:var(--gold-500)}
 
-/* hero visual — composed roof + device image from the approved mockup */
+/* hero visual — laptop + phone (real demo frames) composed over an aerial tile roof;
+   built by tools/hero/compose_hero.py — no demo banner, no price tag (that lives on /acquire) */
 .devices{position:relative}
 .devices img{width:100%;height:auto;border-radius:var(--r-md);
   box-shadow:var(--shadow-lg);display:block}
@@ -288,8 +291,9 @@ footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
     </div>
 
     <div class="devices">
-      <img src="{{ url_for('static', filename='portal_sale/portal-screenshot.png') }}"
-           alt="The branded homeowner portal on a phone, showing the live progress tracker for a roof replacement"
+      <img src="{{ url_for('static', filename='portal_sale/hero-devices.jpg') }}"
+           width="2000" height="1300"
+           alt="The branded homeowner portal on a laptop and a phone over a South Florida tile roof — the phone shows the live progress tracker and the Pay button"
            fetchpriority="high" decoding="async">
     </div>
   </div>
