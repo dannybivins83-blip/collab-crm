@@ -90,6 +90,8 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # endpoint (demo.sales_inbox) is deliberately NOT public.
           "demo.track_event", "demo.robots", "demo.sitemap",
           "demo.roofer_landing", "demo.acquire",
+          # Public blog on the sales host (markdown on disk, read-only GETs).
+          "blog.index", "blog.post",
           # Token-gated DB-restore + CSV imports: NOT session-auth'd. Their own
           # X-Restore-Token check is the gate (404 when unarmed/wrong). Must bypass
           # the login redirect so the gate returns 404, not a 302 to /login.

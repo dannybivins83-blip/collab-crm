@@ -1,0 +1,74 @@
+{% extends "portal_base.html" %}
+{# /blog — index of the markdown posts in content/blog. Same chrome as the front door. #}
+{% block head %}
+<title>Roofing Contractor Playbook — MyRoofPortal Blog</title>
+<meta name="description" content="Practical, field-tested guides for roofing contractors: payment schedules and draws, referral programs that produce jobs, job-photo checklists and homeowner communication.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="{{ canonical }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MyRoofPortal">
+<meta property="og:title" content="Roofing Contractor Playbook — MyRoofPortal Blog">
+<meta property="og:description" content="Field-tested guides for roofing contractors: get paid on time, win referrals, document every job.">
+<meta property="og:url" content="{{ canonical }}">
+<meta property="og:image" content="{{ site }}{{ url_for('static', filename='portal_sale/hero-devices.jpg') }}">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Blog","@id":"{{ canonical }}#blog",
+ "name":"MyRoofPortal Blog","url":"{{ canonical }}",
+ "description":"Practical guides for roofing contractors.",
+ "publisher":{"@type":"Organization","name":"MyRoofPortal","url":"{{ site }}/"},
+ "blogPost":[{% for p in posts %}{"@type":"BlogPosting","headline":{{ p.title|tojson }},"url":"{{ p.url }}","datePublished":"{{ p.date.isoformat() }}"}{% if not loop.last %},{% endif %}{% endfor %}]}
+</script>
+{% endblock %}
+
+{% block style %}
+.bhero{background:var(--navy-950);color:#fff;padding:56px 0 52px}
+.bhero h1{font-size:clamp(32px,4vw,48px);font-weight:800;margin-bottom:12px}
+.bhero p{color:rgb(255 255 255/.8);font-size:18px;max-width:52ch;margin:0}
+.posts{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))}
+.post-card{display:flex;flex-direction:column;gap:10px}
+.post-card .meta{font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teal-600)}
+.post-card h2{font-size:21px;font-weight:800;line-height:1.25}
+.post-card h2 a{color:var(--navy-950)}
+.post-card h2 a:hover{color:var(--sky-500)}
+.post-card p{color:var(--slate-700);font-size:15.5px;margin:0;flex:1}
+.post-card .more{font-weight:700;color:var(--sky-500)}
+.empty{text-align:center;color:var(--slate-500)}
+{% endblock %}
+
+{% block body %}
+<div class="bhero">
+  <div class="wrap">
+    <span class="eyebrow">Roofing Contractor Playbook</span>
+    <h1>Run the office side of roofing better<span style="color:var(--gold-500)">.</span></h1>
+    <p>Draw schedules, referral programs, job documentation and the calls homeowners make &mdash;
+      written by people who sell and run re-roofs, not by a content farm.</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    {% if posts %}
+    <div class="posts">
+      {% for p in posts %}
+      <article class="card post-card">
+        <div class="meta"><time datetime="{{ p.date.isoformat() }}">{{ p.date_h }}</time> &middot; {{ p.read_min }} min read</div>
+        <h2><a href="{{ p.path }}">{{ p.title }}</a></h2>
+        <p>{{ p.description }}</p>
+        <a class="more" href="{{ p.path }}">Read the guide &rarr;</a>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">First guides are on the way.</p>
+    {% endif %}
+  </div>
+</section>
+
+<div class="acq">
+  <div class="wrap">
+    <span>Want homeowners to stop calling for updates? See the branded portal they open instead.</span>
+    <a href="{{ demo_url }}">Open the live demo &rarr;</a>
+  </div>
+</div>
+{% endblock %}

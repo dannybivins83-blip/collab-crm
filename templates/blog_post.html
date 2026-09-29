@@ -1,0 +1,119 @@
+{% extends "portal_base.html" %}
+{# /blog/<slug> — one markdown post rendered in the front door's design system. #}
+{% block head %}
+<title>{{ post.title }} — MyRoofPortal</title>
+<meta name="description" content="{{ post.description }}">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="{{ canonical }}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MyRoofPortal">
+<meta property="og:title" content="{{ post.title }}">
+<meta property="og:description" content="{{ post.description }}">
+<meta property="og:url" content="{{ canonical }}">
+<meta property="og:image" content="{{ site }}{{ url_for('static', filename='portal_sale/hero-devices.jpg') }}">
+<meta property="article:published_time" content="{{ post.date.isoformat() }}">
+<meta property="article:modified_time" content="{{ post.updated.isoformat() }}">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Article",
+ "@id":"{{ canonical }}#article",
+ "mainEntityOfPage":{"@type":"WebPage","@id":"{{ canonical }}"},
+ "headline":{{ post.title|tojson }},
+ "description":{{ post.description|tojson }},
+ "image":["{{ site }}{{ url_for('static', filename='portal_sale/hero-devices.jpg') }}"],
+ "datePublished":"{{ post.date.isoformat() }}",
+ "dateModified":"{{ post.updated.isoformat() }}",
+ "author":{"@type":"Organization","name":{{ post.author|tojson }},"url":"{{ site }}/"},
+ "publisher":{"@type":"Organization","name":"MyRoofPortal","url":"{{ site }}/",
+   "logo":{"@type":"ImageObject","url":"{{ site }}{{ url_for('static', filename='portal_sale/brand/myroofportal-wordmark.svg') }}"}},
+ "isPartOf":{"@type":"Blog","@id":"{{ site }}/blog#blog"}}
+</script>
+{% endblock %}
+
+{% block style %}
+.phero{background:var(--navy-950);color:#fff;padding:52px 0 48px}
+.phero .crumb{font-size:13.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:16px}
+.phero .crumb a{color:var(--gold-500)}
+.phero h1{font-size:clamp(30px,3.8vw,46px);font-weight:800;max-width:24ch;margin-bottom:14px}
+.phero .meta{color:rgb(255 255 255/.75);font-size:15px}
+.article{max-width:760px;margin:0 auto;background:var(--white);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--shadow);padding:40px 44px}
+@media(max-width:767px){.article{padding:26px 20px}}
+.article h2{font-size:26px;font-weight:800;margin:40px 0 12px}
+.article h2:first-child{margin-top:0}
+.article h3{font-size:20px;font-weight:700;margin:28px 0 8px}
+.article p{margin:0 0 18px;color:var(--slate-700)}
+.article>p:first-child{font-size:19px}
+.article ul,.article ol{margin:0 0 20px;padding-left:24px;color:var(--slate-700)}
+.article li{margin-bottom:8px}
+.article li>ul,.article li>ol{margin:8px 0 0}
+.article strong{color:var(--navy-950)}
+.article blockquote{margin:0 0 20px;padding:14px 20px;border-left:4px solid var(--gold-500);
+  background:var(--gold-100);color:var(--navy-950);border-radius:0 var(--r-sm) var(--r-sm) 0}
+.article blockquote p{margin:0;color:inherit}
+.article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:15.5px}
+.article th,.article td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.article th{background:#eef2f4;font-size:12.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-500)}
+.article hr{border:0;border-top:1px solid var(--line);margin:32px 0}
+.article code{background:#eef2f4;padding:2px 6px;border-radius:4px;font-size:.92em}
+.article a{text-decoration:underline;text-underline-offset:3px}
+.article img{border-radius:var(--r-sm);border:1px solid var(--line)}
+@media(max-width:599px){
+  .article table,.article tbody,.article tr,.article td{display:block}
+  .article thead{display:none}
+  .article tr{border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:10px}
+  .article td{display:grid;grid-template-columns:6.5em minmax(0,1fr);gap:10px;border:0;padding:6px 0}
+  .article td::before{content:attr(data-th);font-size:11.5px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--slate-500);padding-top:3px}
+}
+.pcta{max-width:760px;margin:28px auto 0;background:var(--navy-950);color:#fff;border-radius:var(--r-md);
+  padding:30px 34px;display:grid;gap:18px;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+@media(max-width:719px){.pcta{grid-template-columns:1fr;padding:24px 20px}}
+.pcta h2{font-size:22px;font-weight:800;margin-bottom:6px}
+.pcta p{margin:0;color:rgb(255 255 255/.8);font-size:15.5px}
+.more-posts{max-width:760px;margin:44px auto 0}
+.more-posts h2{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-600);margin-bottom:14px}
+.more-posts ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.more-posts li{background:var(--white);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 18px}
+.more-posts a{font-weight:700;color:var(--navy-950)}
+.more-posts a:hover{color:var(--sky-500)}
+.more-posts span{display:block;color:var(--slate-500);font-size:14px;margin-top:3px}
+{% endblock %}
+
+{% block body %}
+<div class="phero">
+  <div class="wrap">
+    <div class="crumb"><a href="/blog">&larr; Roofing Contractor Playbook</a></div>
+    <h1>{{ post.title }}</h1>
+    <div class="meta"><time datetime="{{ post.date.isoformat() }}">{{ post.date_h }}</time>
+      &middot; {{ post.read_min }} min read &middot; {{ post.author }}</div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <article class="article">
+      {{ body }}
+    </article>
+
+    <div class="pcta">
+      <div>
+        <h2>Give every homeowner a portal with your name on it</h2>
+        <p>Live progress, job photos, documents to e-sign and a Pay button &mdash; under your brand, live in about a day.</p>
+      </div>
+      <a class="btn btn-sky" href="{{ demo_url }}">See the Live Demo</a>
+    </div>
+
+    {% if others %}
+    <div class="more-posts">
+      <h2>More from the playbook</h2>
+      <ul>
+        {% for o in others %}
+        <li><a href="{{ o.path }}">{{ o.title }}</a><span>{{ o.description }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

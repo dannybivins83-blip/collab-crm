@@ -751,13 +751,24 @@ def robots():
 @bp.route("/sitemap.xml", endpoint="sitemap")
 def sitemap():
     host = (request.host or "myroofportal.com").split(":")[0]
-    urls = ["https://%s/" % host,
-            "https://%s/demo/%s" % (host, DEMO_SLUG),
-            "https://%s/portal-sales/licensing" % host]
+    base = "https://%s" % host
+    # (loc, changefreq, lastmod). /portal-sales/licensing is noindex, so it is
+    # deliberately absent; /acquire is the indexed acquisition page.
+    urls = [(base + "/", "weekly", None),
+            (base + "/acquire", "weekly", None),
+            (base + "/demo/%s" % DEMO_SLUG, "weekly", None),
+            (base + "/blog", "weekly", None)]
+    try:
+        from modules.blog import all_posts
+        for p in all_posts():
+            urls.append((base + p["path"], "monthly", p["updated"].isoformat()))
+    except Exception:
+        pass
     parts = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for u in urls:
-        parts.append("  <url><loc>%s</loc><changefreq>weekly</changefreq></url>" % u)
+    for loc, freq, mod in urls:
+        parts.append("  <url><loc>%s</loc>%s<changefreq>%s</changefreq></url>"
+                     % (loc, "<lastmod>%s</lastmod>" % mod if mod else "", freq))
     parts.append("</urlset>")
     return Response("\n".join(parts), mimetype="application/xml")
 
