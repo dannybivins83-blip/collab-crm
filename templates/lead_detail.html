@@ -274,7 +274,7 @@ function lcGate(form,pct){
           <div class="field" style="flex:0 0 auto">
             <label>Bid as</label>
             <select id="tj-profile" name="bid_as_profile">
-              <option value="" {{ 'selected' if not l.bid_as_profile }}>{{ settings.name or 'Default' }}</option>
+              <option value="" {{ 'selected' if not l.bid_as_profile }}>{{ company.name or 'Default' }}</option>
               <option value="lagala" {{ 'selected' if l.bid_as_profile=='lagala' }}>La Gala (Tilt Patchers)</option>
             </select>
           </div>
