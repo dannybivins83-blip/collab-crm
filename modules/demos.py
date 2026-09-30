@@ -87,7 +87,11 @@ for _t in ("portal_offers", "portal_leads", "demo_access_requests"):
 # Bot-farmed offers are kept but flagged, so a real offer is never dropped and
 # the owner is not paged for crypto spam.
 for _t, _c, _d in (("portal_offers", "spam", "INTEGER DEFAULT 0"),
-                   ("portal_offers", "spam_reason", "TEXT")):
+                   ("portal_offers", "spam_reason", "TEXT"),
+                   ("portal_leads", "spam", "INTEGER DEFAULT 0"),
+                   ("portal_leads", "spam_reason", "TEXT"),
+                   ("demo_access_requests", "spam", "INTEGER DEFAULT 0"),
+                   ("demo_access_requests", "spam_reason", "TEXT")):
     try:
         db._ensure_column(_t, _c, _d)
     except Exception:
@@ -158,6 +162,67 @@ def _looks_random(v):
     if len(v) < 12 or " " in v:
         return False
     return sum(1 for ch in v[1:] if ch.isupper()) >= 4
+
+
+def _lead_spam_score(name, email, company="", message=""):
+    """(score, reasons) for the contractor-lead and demo-gate forms. >=2 means
+    bot-farmed. Deliberately NOT _spam_score: that one has an offer-has-no-number
+    rule that would flag every real lead (a lead has no offer field). Never drops
+    a row -- only skips the owner alert and marks the row."""
+    name = (name or "").strip(); email = (email or "").strip()
+    company = (company or "").strip(); message = (message or "").strip()
+    blob = " ".join((name, company, message)).lower()
+    reasons = []
+    if any(w in blob for w in _SPAM_WORDS):
+        reasons.append("spam-keyword")
+    if _URL_RE.search(name) or _URL_RE.search(company):
+        reasons.append("url-in-name-or-company")
+    if _URL_RE.search(message) and len(message) < 200:
+        reasons.append("link-only-message")
+    if len(name) > 60:
+        reasons.append("name-too-long")
+    if _looks_random(name) or _looks_random(company):
+        reasons.append("random-token")
+    if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        reasons.append("bad-email")
+    if _looks_random(email.split("@", 1)[0]):
+        reasons.append("random-email-local")
+    return len(reasons), reasons
+
+
+# Per-IP throttle for the public, unauthenticated POSTs on the sales site. In-memory
+# and per-gunicorn-worker (2 workers on Render), so a burst can reach ~2x the
+# nominal ceiling before it bites -- fine as the first line against form spam and
+# beacon floods; the DB row remains the durable record for anything that gets through.
+_THROTTLE: dict = {}          # (bucket, ip) -> [monotonic timestamps]
+_THROTTLE_MAX_KEYS = 5000
+
+
+def _client_ip():
+    xff = (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+    return xff or (request.remote_addr or "?")
+
+
+def _throttled(bucket, limit, window):
+    """True when this IP has already hit `bucket` `limit` times in `window` seconds.
+    Records the hit otherwise. Never raises."""
+    try:
+        now = time.monotonic()
+        key = (bucket, _client_ip())
+        hits = [t for t in _THROTTLE.get(key, ()) if now - t < window]
+        if len(hits) >= limit:
+            _THROTTLE[key] = hits
+            return True
+        hits.append(now)
+        _THROTTLE[key] = hits
+        if len(_THROTTLE) > _THROTTLE_MAX_KEYS:
+            # Drop the stalest fifth instead of growing without bound.
+            stale = sorted(_THROTTLE, key=lambda k: max(_THROTTLE[k] or [0]))
+            for k in stale[:_THROTTLE_MAX_KEYS // 5]:
+                _THROTTLE.pop(k, None)
+        return False
+    except Exception:
+        return False
 
 
 def _log_event(kind, path=""):
@@ -645,6 +710,9 @@ def landing_offer():
     base = "/" if _on_demo_host() else url_for("demo.landing")
     if not (name and email and offer):
         return redirect(base + "?err=1#offer")
+    if _throttled("offer", 5, 600):
+        _log_event("offer_throttled")
+        return redirect(base + "?err=1#offer")
     score, reasons = _spam_score(name, email, offer, message)
     is_spam = score >= 2
     sent = False
@@ -680,15 +748,26 @@ def demo_request():
     base = "/" if _on_demo_host() else url_for("demo.landing")
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         return redirect(base + "?demoerr=1#see-demo")
-    sent = _notify("MyRoofPortal demo opened: %s" % email,
-                   "\n".join(["%s just opened the live demo on %s."
-                              % (email, (request.host or "myroofportal.com")),
-                              "", "Full list: /portal-sales/inbox"]))
-    db.insert("demo_access_requests", {
-        "created": db.now(), "email": email, "slug": DEMO_SLUG,
-        "source_host": (request.host or "")[:120],
-        "notified": 1 if sent else 0})
-    _log_event("demo_gate")
+    if _throttled("demo", 5, 600):
+        _log_event("demo_gate_throttled")
+        return redirect(base + "?demoerr=1#see-demo")
+    score, reasons = _lead_spam_score("", email)
+    is_spam = score >= 2
+    sent = False
+    if not is_spam:
+        sent = _notify("MyRoofPortal demo opened: %s" % email,
+                       "\n".join(["%s just opened the live demo on %s."
+                                  % (email, (request.host or "myroofportal.com")),
+                                  "", "Full list: /portal-sales/inbox"]))
+    row = {"created": db.now(), "email": email, "slug": DEMO_SLUG,
+           "source_host": (request.host or "")[:120],
+           "notified": 1 if sent else 0}
+    try:
+        db.insert("demo_access_requests", dict(row, spam=1 if is_spam else 0,
+                                               spam_reason=(",".join(reasons))[:200]))
+    except Exception:
+        db.insert("demo_access_requests", row)
+    _log_event("demo_gate_spam" if is_spam else "demo_gate")
     return redirect(url_for("demo.portal", slug=DEMO_SLUG))
 
 
@@ -725,7 +804,7 @@ def track_event():
     """First-party funnel beacon. Public by design (anonymous visitors) and
     records nothing a visitor did not already send in the request."""
     kind = (request.form.get("k") or request.args.get("k") or "").strip()[:40]
-    if kind:
+    if kind and not _throttled("ev", 60, 60):
         _log_event(kind, request.form.get("p") or "")
     return ("", 204)
 
@@ -796,17 +875,28 @@ def landing_lead():
     # Require a name plus at least one way to reach them.
     if not name or not (email or phone):
         return redirect(base + "?err=1#get-started")
-    sent = _notify("MyRoofPortal lead: %s (%s)" % (name, company or "no company"),
-                   "\n".join(["New contractor lead on %s"
-                              % (request.host or "myroofportal.com"), "",
-                              "Name:    %s" % name, "Company: %s" % (company or "-"),
-                              "Email:   %s" % (email or "-"),
-                              "Phone:   %s" % (phone or "-"), "",
-                              "Full list: /portal-sales/inbox"]))
-    db.insert("portal_leads", {
-        "created": db.now(), "name": name, "company": company,
-        "email": email, "phone": phone,
-        "source_host": (request.host or "")[:120],
-        "notified": 1 if sent else 0})
-    _log_event("lead_submit")
+    if _throttled("lead", 5, 600):
+        _log_event("lead_throttled")
+        return redirect(base + "?err=1#get-started")
+    score, reasons = _lead_spam_score(name, email, company)
+    is_spam = score >= 2
+    sent = False
+    if not is_spam:
+        sent = _notify("MyRoofPortal lead: %s (%s)" % (name, company or "no company"),
+                       "\n".join(["New contractor lead on %s"
+                                  % (request.host or "myroofportal.com"), "",
+                                  "Name:    %s" % name, "Company: %s" % (company or "-"),
+                                  "Email:   %s" % (email or "-"),
+                                  "Phone:   %s" % (phone or "-"), "",
+                                  "Full list: /portal-sales/inbox"]))
+    row = {"created": db.now(), "name": name, "company": company,
+           "email": email, "phone": phone,
+           "source_host": (request.host or "")[:120],
+           "notified": 1 if sent else 0}
+    try:
+        db.insert("portal_leads", dict(row, spam=1 if is_spam else 0,
+                                       spam_reason=(",".join(reasons))[:200]))
+    except Exception:
+        db.insert("portal_leads", row)
+    _log_event("lead_spam" if is_spam else "lead_submit")
     return redirect(base + "?thanks=1#get-started")

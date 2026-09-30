@@ -115,9 +115,32 @@ def _build_mime(to, subject, body, attachments=None):
     return msg
 
 
+def _tenant_identity():
+    """(display_name, reply_to) for outbound mail, from the tenant's company
+    settings. The SMTP account is a platform-wide transport; the customer must
+    see THEIR roofer's name and reply to THEIR roofer's inbox, never the
+    platform mailbox. Fail-soft: any DB problem means ("", "")."""
+    try:
+        import db as _db
+        c = _db.get_company() or {}
+        name = (c.get("name") or "").strip()
+        reply = (c.get("email") or "").strip()
+        if reply and "@" not in reply:
+            reply = ""
+        return name, reply
+    except Exception:
+        return "", ""
+
+
 def _smtp_send(to, subject, body, attachments=None):
     """Send via SMTP (Gmail app password or any SMTP server). No OAuth required.
-    Set SMTP_FROM, SMTP_PASSWORD (and optionally SMTP_HOST, SMTP_PORT) on Render."""
+    Set SMTP_FROM, SMTP_PASSWORD (and optionally SMTP_HOST, SMTP_PORT) on Render.
+
+    Tenant identity: From carries the tenant's company name as the display
+    name (Gmail keeps the authenticated address, so the address itself is the
+    platform transport account) and Reply-To is the tenant's company email, so
+    a customer who hits Reply lands in the roofer's inbox. SMTP_FROM_NAME
+    overrides the display name for single-tenant deployments."""
     import smtplib, ssl as _ssl
     host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
     port = int(os.environ.get("SMTP_PORT", "587") or "587")
@@ -126,7 +149,11 @@ def _smtp_send(to, subject, body, attachments=None):
     if not frm or not pwd or not (to or "").strip():
         return False
     msg = _build_mime(to, subject, body, attachments)
-    msg["From"] = frm
+    tenant_name, reply_to = _tenant_identity()
+    display = (os.environ.get("SMTP_FROM_NAME", "").strip() or tenant_name)
+    msg["From"] = formataddr((display, frm)) if display else frm
+    if reply_to and reply_to.lower() != frm.lower():
+        msg["Reply-To"] = formataddr((display, reply_to)) if display else reply_to
     try:
         ctx = _ssl.create_default_context()
         with smtplib.SMTP(host, port, timeout=30) as s:
