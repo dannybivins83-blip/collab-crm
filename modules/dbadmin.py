@@ -214,6 +214,47 @@ def db_restore():
     )
 
 
+@bp.route("/mail-status", methods=["GET"])
+def mail_status():
+    """Token-gated mail self-check. Says which transports are armed, where alerts
+    are addressed, and why the last send failed.
+
+    This exists because the owner lead alert was dead from Aug to Nov 2026 and
+    nothing surfaced it: smtp_configured() was True (both env vars set), the
+    login failed, the exception was swallowed, and the only evidence was a
+    notified=0 column. Pass ?send=1 to attempt one real message and get the
+    verdict back, which is the honest end-to-end check.
+    """
+    _gate_or_404()
+    from modules import gmail as gm
+
+    out = {
+        "ok": True,
+        "resend_armed": gm.resend_configured(),
+        "smtp_armed": gm.smtp_configured(),
+        "oauth_client_configured": gm.configured(),
+        "notify_to": None,
+        "last_error": gm.last_mail_error() or None,
+    }
+    try:
+        from modules import demos as _d
+        out["notify_to"] = _d._notify_to()
+    except Exception:
+        pass
+
+    if request.args.get("send"):
+        to = (request.args.get("to") or out.get("notify_to") or "").strip()
+        sent = gm.send_alert(
+            to, "CRM mail-status check",
+            "Sent by /admin/mail-status. If you are reading this, owner alerts work.")
+        out["test_to"] = to
+        out["test_sent"] = bool(sent)
+        out["last_error"] = gm.last_mail_error() or None
+        if not sent:
+            out["ok"] = False
+    return jsonify(**out)
+
+
 @bp.route("/db-download", methods=["GET"])
 def db_download():
     """Token-gated mirror of db-restore: streams a consistent snapshot of the live

@@ -87,6 +87,89 @@ def smtp_configured():
                 and os.environ.get("SMTP_PASSWORD", "").strip())
 
 
+def resend_configured():
+    """True if the Resend HTTP transport is armed (RESEND_API_KEY + RESEND_FROM_EMAIL)."""
+    return bool(os.environ.get("RESEND_API_KEY", "").strip()
+                and os.environ.get("RESEND_FROM_EMAIL", "").strip())
+
+
+# Why a transport can't fail silently any more: from Aug to Nov 2026 every owner
+# lead alert was lost because _smtp_send swallowed a login failure and returned
+# False, and the only trace was a notified=0 column nobody read. The reason now
+# survives in memory and is readable from /admin/mail-status.
+_LAST_MAIL_ERROR = ""
+
+
+def last_mail_error():
+    return _LAST_MAIL_ERROR
+
+
+def _note_mail_error(transport, exc):
+    global _LAST_MAIL_ERROR
+    _LAST_MAIL_ERROR = "%s: %s: %s" % (transport, type(exc).__name__, str(exc)[:300])
+    try:
+        from flask import current_app
+        current_app.logger.warning("mail transport %s failed: %s",
+                                   transport, _LAST_MAIL_ERROR)
+    except Exception:
+        pass
+
+
+def _resend_send(to, subject, body):
+    """Send one plain-text message through Resend's HTTP API.
+
+    Preferred over SMTP for owner alerts because it does not depend on a Google
+    app password or an OAuth grant — both of which a password change silently
+    revokes, which is exactly how the alert path died. Returns True only on a
+    200 carrying a message id."""
+    import urllib.request, urllib.error
+    key = os.environ.get("RESEND_API_KEY", "").strip()
+    frm = os.environ.get("RESEND_FROM_EMAIL", "").strip()
+    if not key or not frm or not (to or "").strip():
+        return False
+    display = (os.environ.get("SMTP_FROM_NAME", "").strip()
+               or _tenant_identity()[0] or "MyRoofPortal")
+    payload = {"from": frm if "<" in frm else "%s <%s>" % (display, frm),
+               "to": [to.strip()], "subject": subject or "", "text": body or ""}
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": "Bearer %s" % key,
+                 "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return bool(json.loads(r.read().decode("utf-8")).get("id"))
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8")[:200]
+        except Exception:
+            pass
+        _note_mail_error("resend", Exception("HTTP %s %s" % (e.code, detail)))
+        return False
+    except Exception as e:
+        _note_mail_error("resend", e)
+        return False
+
+
+def send_alert(to, subject, body):
+    """Internal owner/staff alert. Tries every armed transport in order and
+    returns True if ANY of them accepted the message.
+
+    Resend first: it is the only transport here that does not break when the
+    Google account password changes. SMTP stays as the fallback so an existing
+    working app password keeps working."""
+    for name, armed, fn in (
+            ("resend", resend_configured, lambda: _resend_send(to, subject, body)),
+            ("smtp", smtp_configured, lambda: _smtp_send(to, subject, body))):
+        try:
+            if armed() and fn():
+                return True
+        except Exception as e:
+            _note_mail_error(name, e)
+    return False
+
+
 def _build_mime(to, subject, body, attachments=None):
     """Build a MIMEText (plain) or a MIMEMultipart when attachments are present.
     attachments: list of (filename, bytes_content, mimetype) tuples. Sets To/Subject;
@@ -162,7 +245,8 @@ def _smtp_send(to, subject, body, attachments=None):
             s.login(frm, pwd)
             s.sendmail(frm, [to.strip()], msg.as_bytes())
         return True
-    except Exception:
+    except Exception as e:
+        _note_mail_error("smtp", e)
         return False
 
 

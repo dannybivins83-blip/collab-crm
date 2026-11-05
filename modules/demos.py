@@ -110,12 +110,15 @@ def _notify_to():
 def _notify(subject, body):
     """Best-effort owner alert. True only if the mail actually went out. Never
     raises and never blocks the visitor: the DB row is the durable record, this
-    is the nudge on top of it."""
+    is the nudge on top of it.
+
+    Goes through gmail.send_alert, which tries Resend before SMTP. Until Nov 2026
+    this called _smtp_send directly, so when the Google app password was revoked
+    every lead alert was lost with no error anywhere -- notified=0 was the only
+    trace. send_alert records why a transport failed; /admin/mail-status reads it."""
     try:
         from modules import gmail as _gm
-        if not _gm.smtp_configured():
-            return False
-        return bool(_gm._smtp_send(_notify_to(), subject, body))
+        return bool(_gm.send_alert(_notify_to(), subject, body))
     except Exception:
         return False
 
