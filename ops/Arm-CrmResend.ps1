@@ -17,6 +17,32 @@ $ErrorActionPreference = 'Stop'
 $SERVICE = 'srv-d8kq47jbc2fs73crtnug'
 $VERIFY_TO = 'dannybivins83@gmail.com'
 
+# --- 0/5 ship the code the transport lives in ----------------------------
+# Render deploys collab-crm from agent/gc-consolidation, NOT main. The Resend
+# transport and /admin/mail-status are committed but unpushed, so push first --
+# arming env vars against a build that lacks the code would set keys that
+# nothing reads.
+Write-Host '--- 0/5 pushing agent/gc-consolidation (Render deploys from it) ---'
+Push-Location (Join-Path $PSScriptRoot '..')
+try {
+  $branch = (git rev-parse --abbrev-ref HEAD).Trim()
+  if ($branch -ne 'agent/gc-consolidation') {
+    Write-Host ("ERROR: on branch '{0}'. Render deploys agent/gc-consolidation." -f $branch) -f Red
+    exit 1
+  }
+  $ahead = (git log --oneline origin/agent/gc-consolidation..HEAD) | Measure-Object -Line
+  Write-Host ("  {0} commit(s) to push" -f $ahead.Lines)
+  if ($ahead.Lines -gt 0) {
+    git push origin agent/gc-consolidation
+    if ($LASTEXITCODE -ne 0) { Write-Host 'git push failed - stopping.' -f Red; exit 1 }
+    # Keep main on the same tip so the branches cannot drift apart again.
+    git push origin ('agent/gc-consolidation:main')
+    Write-Host '  pushed' -f Green
+  } else {
+    Write-Host '  nothing to push'
+  }
+} finally { Pop-Location }
+
 # --- Render API key -------------------------------------------------------
 $renderKey = $env:RENDER_API_KEY
 if ([string]::IsNullOrWhiteSpace($renderKey)) {
@@ -37,9 +63,9 @@ $from = Read-Host 'From address (must be on a domain VERIFIED in Resend)'
 $from = $from.Trim()
 if ($from -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') { Write-Host 'ERROR: that is not an e-mail address' -f Red; exit 1 }
 
-# --- 1/4 prove the key can actually send ---------------------------------
+# --- 1/5 prove the key can actually send ---------------------------------
 Write-Host ''
-Write-Host '--- 1/4 verifying by sending one real message BEFORE deploying ---'
+Write-Host '--- 1/5 verifying by sending one real message BEFORE deploying ---'
 $body = @{
   from    = "MyRoofPortal <$from>"
   to      = @($VERIFY_TO)
@@ -59,9 +85,9 @@ if (-not $r.id) { Write-Host 'RESEND SEND FAILED: no message id returned' -f Red
 Write-Host ("RESEND SEND: OK id {0}" -f $r.id) -f Green
 Write-Host ("Check {0} for it before continuing." -f $VERIFY_TO)
 
-# --- 2/4 set both env vars on Render -------------------------------------
+# --- 2/5 set both env vars on Render -------------------------------------
 Write-Host ''
-Write-Host '--- 2/4 setting RESEND_API_KEY + RESEND_FROM_EMAIL on Render ---'
+Write-Host '--- 2/5 setting RESEND_API_KEY + RESEND_FROM_EMAIL on Render ---'
 $hdr = @{ Authorization = "Bearer $renderKey" }
 foreach ($pair in @(@{k='RESEND_API_KEY';v=$resendKey}, @{k='RESEND_FROM_EMAIL';v=$from})) {
   $uri = "https://api.render.com/v1/services/$SERVICE/env-vars/$($pair.k)"
@@ -70,9 +96,9 @@ foreach ($pair in @(@{k='RESEND_API_KEY';v=$resendKey}, @{k='RESEND_FROM_EMAIL';
   Write-Host ("  set {0}" -f $pair.k)
 }
 
-# --- 3/4 wait for the env-var redeploy -----------------------------------
+# --- 3/5 wait for the env-var redeploy -----------------------------------
 Write-Host ''
-Write-Host '--- 3/4 waiting for Render to redeploy (setting env vars triggers one) ---'
+Write-Host '--- 3/5 waiting for Render to redeploy (setting env vars triggers one) ---'
 $deadline = (Get-Date).AddMinutes(8)
 do {
   Start-Sleep -Seconds 15
@@ -82,9 +108,9 @@ do {
 } while ($status -notin @('live','build_failed','update_failed','canceled') -and (Get-Date) -lt $deadline)
 if ($status -ne 'live') { Write-Host ("Deploy ended as '{0}' - stopping." -f $status) -f Red; exit 1 }
 
-# --- 4/4 prove it end to end from the server -----------------------------
+# --- 4/5 prove it end to end from the server -----------------------------
 Write-Host ''
-Write-Host '--- 4/4 asking the live server to send one alert through the new transport ---'
+Write-Host '--- 4/5 asking the live server to send one alert through the new transport ---'
 $tok = (Invoke-RestMethod -Uri "https://api.render.com/v1/services/$SERVICE/env-vars?limit=100" -Headers $hdr |
         Where-Object { $_.envVar.key -eq 'DB_RESTORE_TOKEN' }).envVar.value
 $st = Invoke-RestMethod -Uri 'https://crm.collaborativeconceptsfl.com/admin/mail-status?send=1' `
