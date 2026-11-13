@@ -242,6 +242,72 @@ def mail_status():
     except Exception:
         pass
 
+    if request.args.get("probe"):
+        # Layered probe. One swallowed "connection closed" cannot distinguish a
+        # revoked app password from a blocked outbound port, and we spent days
+        # assuming the former. Each layer is reported separately so the answer
+        # is evidence, not inference. The password is never echoed.
+        import socket, smtplib, ssl as _ssl
+        out["probe"] = pr = {}
+        frm = (os.environ.get("SMTP_FROM") or "").strip()
+        pwd = (os.environ.get("SMTP_PASSWORD") or "").strip()
+        host = (os.environ.get("SMTP_HOST") or "smtp.gmail.com").strip()
+        try:
+            pr["dns"] = socket.gethostbyname(host)
+        except Exception as e:
+            pr["dns"] = "FAIL %s" % e
+
+        for port, mode in ((587, "starttls"), (465, "ssl")):
+            k = "port_%d" % port
+            try:
+                sock = socket.create_connection((host, port), timeout=12)
+                sock.close()
+                pr[k] = "tcp open"
+            except Exception as e:
+                pr[k] = "tcp FAIL: %s: %s" % (type(e).__name__, str(e)[:90])
+                continue
+            try:
+                if mode == "ssl":
+                    srv = smtplib.SMTP_SSL(host, port, timeout=20,
+                                           context=_ssl.create_default_context())
+                else:
+                    srv = smtplib.SMTP(host, port, timeout=20)
+                    srv.ehlo()
+                    srv.starttls(context=_ssl.create_default_context())
+                srv.ehlo()
+                pr[k] += ", handshake ok"
+                if frm and pwd:
+                    try:
+                        srv.login(frm, pwd)
+                        pr[k] += ", LOGIN OK"
+                    except smtplib.SMTPAuthenticationError as e:
+                        # The decisive case: the server answered and refused us.
+                        pr[k] += ", AUTH REJECTED %s %s" % (e.smtp_code,
+                                                            str(e.smtp_error)[:120])
+                    except Exception as e:
+                        pr[k] += ", login %s: %s" % (type(e).__name__, str(e)[:90])
+                try:
+                    srv.quit()
+                except Exception:
+                    pass
+            except Exception as e:
+                pr[k] += ", handshake %s: %s" % (type(e).__name__, str(e)[:90])
+
+        # Can the box reach Resend's HTTPS API at all? If SMTP is blocked but
+        # this is reachable, the HTTP transport is the only road and it works.
+        try:
+            import urllib.request
+            req = urllib.request.Request("https://api.resend.com/domains",
+                                         headers={"Authorization": "Bearer probe"})
+            try:
+                urllib.request.urlopen(req, timeout=15)
+                pr["resend_https"] = "reachable"
+            except Exception as e:
+                code = getattr(e, "code", None)
+                pr["resend_https"] = ("reachable (HTTP %s)" % code) if code else                                      "FAIL %s: %s" % (type(e).__name__, str(e)[:90])
+        except Exception as e:
+            pr["resend_https"] = "FAIL %s" % str(e)[:90]
+
     if request.args.get("send"):
         to = (request.args.get("to") or out.get("notify_to") or "").strip()
         sent = gm.send_alert(
