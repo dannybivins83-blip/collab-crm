@@ -1,14 +1,27 @@
 {% extends "portal_base.html" %}
 {# /blog — index of the markdown posts in content/blog. Same chrome as the front door. #}
+{# The blog now serves both audiences -- homeowners arriving from search on the
+   quote-comparison posts, and roofers on the operations posts -- so the chrome
+   must not assume either. Neutral nav, and the header CTA points at the free
+   homeowner tool, which is the one a cold reader can use immediately. #}
+{% block nav %}
+<nav class="nav" id="nav" aria-label="Primary">
+  <a href="/">Compare quotes</a>
+  <a href="/blog">Articles</a>
+  <a href="/roofers">For roofers</a>
+</nav>
+{% endblock %}
+{% block headercta %}<a href="/" class="cta-gold">Compare my quotes</a>{% endblock %}
+
 {% block head %}
-<title>Roofing Contractor Playbook — MyRoofPortal Blog</title>
-<meta name="description" content="Practical, field-tested guides for roofing contractors: payment schedules and draws, referral programs that produce jobs, job-photo checklists and homeowner communication.">
+<title>Roofing Guides — For Homeowners and Contractors | MyRoofPortal</title>
+<meta name="description" content="Plain-English roofing guides: how to compare roofing quotes apples to apples, what a quote should include, what a warranty really covers — plus operations guides for contractors.">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="canonical" href="{{ canonical }}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MyRoofPortal">
-<meta property="og:title" content="Roofing Contractor Playbook — MyRoofPortal Blog">
-<meta property="og:description" content="Field-tested guides for roofing contractors: get paid on time, win referrals, document every job.">
+<meta property="og:title" content="Roofing Guides — For Homeowners and Contractors">
+<meta property="og:description" content="How to compare roofing quotes, what a quote should include, and what a warranty really covers.">
 <meta property="og:url" content="{{ canonical }}">
 <meta property="og:image" content="{{ site }}{{ url_for('static', filename='portal_sale/hero-devices.jpg') }}">
 <meta name="twitter:card" content="summary_large_image">
@@ -39,10 +52,11 @@
 {% block body %}
 <div class="bhero">
   <div class="wrap">
-    <span class="eyebrow">Roofing Contractor Playbook</span>
-    <h1>Run the office side of roofing better<span style="color:var(--gold-500)">.</span></h1>
-    <p>Draw schedules, referral programs, job documentation and the calls homeowners make &mdash;
-      written by people who sell and run re-roofs, not by a content farm.</p>
+    <span class="eyebrow">Roofing Guides</span>
+    <h1>Roofing, in plain English<span style="color:var(--gold-500)">.</span></h1>
+    <p>Comparing quotes, what belongs on a bid, what a warranty actually covers &mdash; and,
+      for contractors, how to run the office side. Written by people who sell and run
+      re-roofs, not by a content farm.</p>
   </div>
 </div>
 

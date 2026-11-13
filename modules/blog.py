@@ -160,9 +160,17 @@ def _load_post(path):
     title = meta.get("title") or slug.replace("-", " ").title()
     date = _parse_date(meta.get("date")) or _dt.date.fromtimestamp(os.path.getmtime(path))
     updated = _parse_date(meta.get("updated")) or date
+    # Who the post is written for. The blog started as a contractor playbook and
+    # now also carries homeowner guides, which need a different call to action --
+    # pitching roofer software under "why is my quote cheaper" is the wrong ask.
+    # Default is roofer, so the original posts keep their behaviour untouched.
+    audience = (meta.get("audience") or "roofer").strip().lower()
+    if audience not in ("roofer", "homeowner"):
+        audience = "roofer"
     return {
         "slug": slug,
         "title": title,
+        "audience": audience,
         "description": (meta.get("description") or "")[:300],
         "date": date,
         "date_h": date.strftime("%B %d, %Y").replace(" 0", " "),
@@ -235,7 +243,11 @@ def post(slug):
     if not p:
         abort(404)
     _log("page_view_server", p["path"])
-    others = [o for o in all_posts() if o["slug"] != slug][:3]
+    # Same audience first: a homeowner comparing quotes has no use for a post on
+    # contractor draw schedules. Falls back to filling the gap from the rest.
+    rest = [o for o in all_posts() if o["slug"] != slug]
+    same = [o for o in rest if o.get("audience") == p.get("audience")]
+    others = (same + [o for o in rest if o not in same])[:3]
     return render_template(
         "blog_post.html", post=p, body=Markup(_render_markdown(p["body_md"])),
         others=others, site=SITE, canonical=p["url"], beacon_kind="blog_view",

@@ -1,5 +1,18 @@
 {% extends "portal_base.html" %}
 {# /blog/<slug> — one markdown post rendered in the front door's design system. #}
+{# The blog now serves both audiences -- homeowners arriving from search on the
+   quote-comparison posts, and roofers on the operations posts -- so the chrome
+   must not assume either. Neutral nav, and the header CTA points at the free
+   homeowner tool, which is the one a cold reader can use immediately. #}
+{% block nav %}
+<nav class="nav" id="nav" aria-label="Primary">
+  <a href="/">Compare quotes</a>
+  <a href="/blog">Articles</a>
+  <a href="/roofers">For roofers</a>
+</nav>
+{% endblock %}
+{% block headercta %}<a href="/" class="cta-gold">Compare my quotes</a>{% endblock %}
+
 {% block head %}
 <title>{{ post.title }} — MyRoofPortal</title>
 <meta name="description" content="{{ post.description }}">
@@ -83,7 +96,7 @@
 {% block body %}
 <div class="phero">
   <div class="wrap">
-    <div class="crumb"><a href="/blog">&larr; Roofing Contractor Playbook</a></div>
+    <div class="crumb"><a href="/blog">&larr; Roofing Guides</a></div>
     <h1>{{ post.title }}</h1>
     <div class="meta"><time datetime="{{ post.date.isoformat() }}">{{ post.date_h }}</time>
       &middot; {{ post.read_min }} min read &middot; {{ post.author }}</div>
@@ -97,16 +110,25 @@
     </article>
 
     <div class="pcta">
+      {% if post.audience == 'homeowner' %}
+      <div>
+        <h2>Put your roof quotes side by side</h2>
+        <p>One spec sheet, all your bids. See where they disagree and get the questions
+          to ask each contractor &mdash; free, and no contractor is contacted.</p>
+      </div>
+      <a class="btn btn-sky" href="/">Compare my quotes</a>
+      {% else %}
       <div>
         <h2>Give every homeowner a portal with your name on it</h2>
         <p>Live progress, job photos, documents to e-sign and a Pay button &mdash; under your brand, live in about a day.</p>
       </div>
       <a class="btn btn-sky" href="{{ demo_url }}">See the Live Demo</a>
+      {% endif %}
     </div>
 
     {% if others %}
     <div class="more-posts">
-      <h2>More from the playbook</h2>
+      <h2>More guides</h2>
       <ul>
         {% for o in others %}
         <li><a href="{{ o.path }}">{{ o.title }}</a><span>{{ o.description }}</span></li>
