@@ -92,6 +92,12 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           "demo.roofer_landing", "demo.acquire",
           # Public blog on the sales host (markdown on disk, read-only GETs).
           "blog.index", "blog.post",
+          # Homeowner quote comparison. Entirely public: the homeowner has no
+          # CRM login and never gets one. /c/<token> is gated by the unguessable
+          # token in their own link, the same way the job portal works.
+          "compare.landing", "compare.start", "compare.project",
+          "compare.save_quote", "compare.del_quote", "compare.set_stage",
+          "compare.save_note",
           # Token-gated DB-restore + CSV imports: NOT session-auth'd. Their own
           # X-Restore-Token check is the gate (404 when unarmed/wrong). Must bypass
           # the login redirect so the gate returns 404, not a 302 to /login.

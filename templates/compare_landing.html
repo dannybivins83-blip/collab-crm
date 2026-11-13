@@ -1,0 +1,256 @@
+{% extends "portal_base.html" %}
+{# Homeowner-facing front door. Chrome + tokens come from portal_base; the nav
+   is overridden because the roofer sales nav is the wrong pitch for someone
+   holding three bids. No price claims and no contractor ranking anywhere on
+   this page — we do not see their roof and we are not advising on it. #}
+{% block head %}
+<title>Compare Roof Quotes Side by Side — MyRoofPortal</title>
+<meta name="description" content="Three roofing quotes, three different roofs. Put them side by side on one spec sheet, see exactly what each one leaves out, and get the questions to ask before you sign. Free.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://myroofportal.com/compare">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MyRoofPortal">
+<meta property="og:title" content="Compare roof quotes side by side">
+<meta property="og:description" content="The cheapest quote is usually the shortest one. Put your bids on one spec sheet and see what's missing before you sign.">
+<meta property="og:url" content="https://myroofportal.com/compare">
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "MyRoofPortal Quote Comparison",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Any",
+  "url": "https://myroofportal.com/compare",
+  "description": "A free spec sheet for homeowners comparing roofing quotes. Mark what each quote puts in writing, see where the bids disagree, and get the questions to ask each contractor.",
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+} | tojson }}
+</script>
+{% endblock %}
+
+{% block nav %}
+<nav class="nav" id="nav" aria-label="Primary">
+  <a href="#why">Why bids differ</a>
+  <a href="#sheet">The spec sheet</a>
+  <a href="#track">Track the job</a>
+  <a href="/">For roofers</a>
+</nav>
+{% endblock %}
+{% block headercta %}<a href="#start" class="cta-gold">Start free</a>{% endblock %}
+
+{% block style %}
+  .ho-hero{background:var(--navy-950);color:#fff;padding:76px 0 84px}
+  .ho-hero h1{font-size:clamp(34px,4.4vw,56px);line-height:1.06;margin:0 0 20px;letter-spacing:-.02em}
+  .ho-hero h1 .g{color:var(--gold-500)}
+  .ho-hero p.lede{font-size:clamp(17px,1.6vw,21px);line-height:1.55;color:rgb(255 255 255/.82);max-width:62ch;margin:0 0 30px}
+  .ho-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:52px;align-items:start}
+
+  /* The bid stack: three quotes, visibly different lengths. The whole argument
+     of the page in one object, so it must not look like a decorative chart. */
+  .bids{display:grid;gap:14px}
+  .bid{background:#fff;border-radius:var(--r-md);padding:16px 18px;color:var(--navy-950);
+       box-shadow:var(--shadow-lg)}
+  .bid .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+            border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:10px}
+  .bid .who{font-weight:800;font-size:15px}
+  .bid .amt{font-weight:800;font-size:19px;font-variant-numeric:tabular-nums}
+  .bid ul{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+  .bid li{font-size:13.5px;display:flex;gap:8px;align-items:flex-start;line-height:1.4}
+  .bid li .m{flex:none;width:15px;font-weight:800}
+  .ok{color:var(--success)} .miss{color:var(--danger)}
+  .bid li.missing{color:var(--slate-500)}
+  .bid .verdict{margin-top:11px;padding-top:9px;border-top:1px dashed var(--line);
+                font-size:12.5px;color:var(--slate-500)}
+
+  .sec{padding:76px 0}
+  .sec.alt{background:#fff}
+  .h2{font-size:clamp(26px,2.8vw,38px);margin:0 0 14px;letter-spacing:-.01em}
+  .sub{color:var(--slate-500);font-size:17.5px;line-height:1.6;max-width:68ch;margin:0 0 34px}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .card{background:var(--warm-50);border:1px solid var(--line);border-radius:var(--r-md);padding:24px}
+  .sec.alt .card{background:var(--warm-50)}
+  .card h3{margin:0 0 9px;font-size:17px}
+  .card p{margin:0;color:var(--slate-700);font-size:15px;line-height:1.6}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+       border-radius:50%;background:var(--navy-950);color:var(--gold-500);font-weight:800;
+       font-size:14px;margin-bottom:12px}
+
+  /* Spec sheet preview — grouped exactly as the real tool groups it. */
+  .groups{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+  .group{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:20px 22px}
+  .sec.alt .group{background:var(--warm-50)}
+  .group h3{margin:0 0 12px;font-size:15px;text-transform:uppercase;letter-spacing:.06em;
+            color:var(--teal-600)}
+  .group ul{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+  .group li{font-size:14.5px;line-height:1.45;display:flex;gap:9px;align-items:flex-start;
+            color:var(--slate-700)}
+  .group li b{color:var(--navy-950);font-weight:650}
+  .tick{flex:none;color:var(--gold-500);font-weight:800}
+
+  .steps{display:grid;gap:2px;background:var(--line);border-radius:var(--r-md);overflow:hidden;
+         border:1px solid var(--line)}
+  .step{background:#fff;padding:15px 20px;display:flex;gap:14px;align-items:center;font-size:15px}
+  .sec.alt .step{background:var(--warm-50)}
+  .step .dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--teal-500)}
+  .step b{font-weight:650}
+
+  /* Start box */
+  .start{background:var(--navy-950);color:#fff;border-radius:var(--r-lg);padding:40px;
+         box-shadow:var(--shadow-lg)}
+  .start h2{margin:0 0 10px;font-size:clamp(24px,2.4vw,32px)}
+  .start p{color:rgb(255 255 255/.78);margin:0 0 22px;font-size:16px;line-height:1.6}
+  .f{display:grid;gap:12px;max-width:440px}
+  .f input{width:100%;padding:14px 15px;border-radius:var(--r-sm);border:1px solid rgb(255 255 255/.22);
+           background:rgb(255 255 255/.07);color:#fff;font:inherit;font-size:16px}
+  .f input::placeholder{color:rgb(255 255 255/.5)}
+  .f button{min-height:54px;font-size:17px}
+  .fine{font-size:13px;color:rgb(255 255 255/.55);margin:14px 0 0;line-height:1.5}
+  .err{background:rgb(184 68 59/.18);border:1px solid var(--danger);color:#ffd9d5;
+       padding:11px 14px;border-radius:var(--r-sm);font-size:14.5px;margin:0 0 16px}
+
+  @media(max-width:980px){
+    .ho-grid{grid-template-columns:1fr;gap:38px}
+    .cards,.groups{grid-template-columns:1fr}
+    .start{padding:28px}
+  }
+{% endblock %}
+
+{% block body %}
+
+<section class="ho-hero">
+  <div class="wrap ho-grid">
+    <div>
+      <span class="eyebrow">Free · No contractor sees this</span>
+      <h1>Three roof quotes.<br>Three <span class="g">different roofs</span>.</h1>
+      <p class="lede">The prices aren't different because one contractor is greedy. They're
+        different because the quotes don't cover the same work — and the cheapest one is
+        usually the shortest one. Put all three on the same spec sheet and the gaps show up
+        on their own.</p>
+      <a href="#start" class="btn btn-sky">Put my quotes side by side</a>
+    </div>
+
+    <div class="bids" aria-label="Example of three quotes for the same roof">
+      <div class="bid">
+        <div class="top"><span class="who">Quote A</span><span class="amt">$11,400</span></div>
+        <ul>
+          <li><span class="m miss">&times;</span><span>Tear-off: <b>not stated</b></span></li>
+          <li><span class="m miss">&times;</span><span>Rotten decking: no allowance</span></li>
+          <li><span class="m miss">&times;</span><span>Flashing: re-used</span></li>
+          <li><span class="m miss">&times;</span><span>Shingle line: "architectural"</span></li>
+          <li><span class="m miss">&times;</span><span>Workmanship warranty: not mentioned</span></li>
+        </ul>
+        <p class="verdict">Cheapest. Also the only one that doesn't say what you're getting.</p>
+      </div>
+      <div class="bid">
+        <div class="top"><span class="who">Quote B</span><span class="amt">$16,900</span></div>
+        <ul>
+          <li><span class="m ok">&#10003;</span><span>Full tear-off to the deck</span></li>
+          <li><span class="m ok">&#10003;</span><span>3 sheets included, $95/sheet after</span></li>
+          <li><span class="m ok">&#10003;</span><span>All new step &amp; counter flashing</span></li>
+          <li><span class="m ok">&#10003;</span><span>Named shingle line, registered warranty</span></li>
+          <li><span class="m ok">&#10003;</span><span>10-year workmanship, transferable</span></li>
+        </ul>
+        <p class="verdict">$5,500 more. For about $5,500 more work.</p>
+      </div>
+      <div class="bid">
+        <div class="top"><span class="who">Quote C</span><span class="amt">$14,200</span></div>
+        <ul>
+          <li><span class="m ok">&#10003;</span><span>Full tear-off to the deck</span></li>
+          <li><span class="m miss">&times;</span><span>Decking: "priced as needed"</span></li>
+          <li><span class="m ok">&#10003;</span><span>New flashing</span></li>
+          <li><span class="m miss">&times;</span><span>Ventilation: not addressed</span></li>
+          <li><span class="m miss">&times;</span><span>Permit: homeowner pulls</span></li>
+        </ul>
+        <p class="verdict">Two open questions that could move the final number either way.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="why">
+  <div class="wrap">
+    <h2 class="h2">Why the numbers don't line up</h2>
+    <p class="sub">A roof quote is a one-page number sitting on top of about twenty decisions.
+      Contractors who make those decisions explicitly look expensive next to contractors
+      who leave them out — right up until the work starts.</p>
+    <div class="cards">
+      <div class="card">
+        <span class="num">1</span>
+        <h3>What's left off isn't visible</h3>
+        <p>Nothing on a short quote says "re-using your old flashing" or "no allowance for
+          rotten wood." It just isn't there, and there's no line to compare it against.</p>
+      </div>
+      <div class="card">
+        <span class="num">2</span>
+        <h3>The open items land on you later</h3>
+        <p>"Decking priced as needed" is not a price. Once the old roof is off and the crew
+          is on site, you're negotiating from the worst possible position.</p>
+      </div>
+      <div class="card">
+        <span class="num">3</span>
+        <h3>Warranties have conditions nobody reads</h3>
+        <p>The long manufacturer warranty usually needs a certified installer and a
+          registration after the job. Miss either and you have the basic one.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt" id="sheet">
+  <div class="wrap">
+    <h2 class="h2">The spec sheet — {{ spec_count }} lines</h2>
+    <p class="sub">For each quote you mark whether the contractor put the line in writing.
+      Anything that isn't a clear yes becomes a question, worded for you to ask on the phone.
+      You'll know which quote is actually cheapest once they all cover the same roof.</p>
+    <div class="groups">
+      {% for group, items in spec %}
+      <div class="group">
+        <h3>{{ group }}</h3>
+        <ul>
+          {% for i in items %}
+          <li><span class="tick">&#10003;</span><span><b>{{ i.label }}</b> — {{ i.why }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="track">
+  <div class="wrap">
+    <h2 class="h2">Then keep track of the job</h2>
+    <p class="sub">Picking a contractor is the middle of it, not the end. Your workspace
+      follows the job to the finish, and tells you what you should have in your hand at
+      each stage.</p>
+    <div class="steps">
+      {% for s in stages %}
+      <div class="step"><span class="dot"></span><span><b>{{ s.label }}</b> — {{ s.todo[0] }}</span></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="sec alt" id="start">
+  <div class="wrap">
+    <div class="start">
+      {% if request.args.get('err') %}
+      <p class="err">That doesn't look like an email address — try again and we'll send your link.</p>
+      {% endif %}
+      <h2>Start your comparison</h2>
+      <p>Your email is the key to your workspace, so you can come back to it from your
+        phone while a contractor is standing in your driveway.</p>
+      <form class="f" method="post" action="{{ url_for('compare.start') }}">
+        <input type="text" name="name" placeholder="Your name (optional)" autocomplete="name">
+        <input type="email" name="email" required placeholder="you@email.com" autocomplete="email">
+        <input type="text" name="address" placeholder="Property address (optional)" autocomplete="street-address">
+        <button class="btn cta-gold" type="submit">Open my free workspace</button>
+      </form>
+      <p class="fine">No contractor is contacted and nothing is shared. We don't sell your
+        details, we don't bid on your roof, and nobody calls you. If you already started,
+        enter the same email to get back in.</p>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

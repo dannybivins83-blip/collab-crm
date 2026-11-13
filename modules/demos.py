@@ -837,6 +837,7 @@ def sitemap():
     # (loc, changefreq, lastmod). /portal-sales/licensing is noindex, so it is
     # deliberately absent; /acquire is the indexed acquisition page.
     urls = [(base + "/", "weekly", None),
+            (base + "/compare", "weekly", None),
             (base + "/acquire", "weekly", None),
             (base + "/demo/%s" % DEMO_SLUG, "weekly", None),
             (base + "/blog", "weekly", None)]

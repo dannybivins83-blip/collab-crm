@@ -1,0 +1,382 @@
+{% extends "portal_base.html" %}
+{# The homeowner's private workspace, reached by the token in their link.
+   Order is deliberate: where the quotes DISAGREE first (that is the question
+   they arrived with), then the questions to ask per quote, then the quotes
+   themselves, then the tracker. Nothing here ranks a contractor or suggests a
+   price — every judgement stays with the homeowner. #}
+{% block head %}
+<title>Your roof quote comparison — MyRoofPortal</title>
+<meta name="robots" content="noindex,nofollow">
+{% endblock %}
+
+{% block nav %}
+<nav class="nav" id="nav" aria-label="Primary">
+  <a href="#compare">Compare</a>
+  <a href="#questions">Questions to ask</a>
+  <a href="#quotes">My quotes</a>
+  <a href="#track">Track the job</a>
+</nav>
+{% endblock %}
+{% block headercta %}<a href="#add" class="cta-gold">Add a quote</a>{% endblock %}
+
+{% block style %}
+  .pg{padding:34px 0 80px}
+  .ph{background:var(--navy-950);color:#fff;padding:30px 0 34px;margin-bottom:34px}
+  .ph h1{margin:0 0 6px;font-size:clamp(23px,2.5vw,32px);letter-spacing:-.01em}
+  .ph p{margin:0;color:rgb(255 255 255/.7);font-size:15px}
+  .blk{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);
+       padding:26px 28px;margin-bottom:24px}
+  .blk h2{margin:0 0 6px;font-size:21px;letter-spacing:-.01em}
+  .blk .sub{color:var(--slate-500);font-size:15px;line-height:1.6;margin:0 0 20px;max-width:74ch}
+  .empty{color:var(--slate-500);font-size:15.5px;line-height:1.6;background:var(--warm-50);
+         border:1px dashed var(--line);border-radius:var(--r-sm);padding:20px}
+
+  /* ---- comparison grid ---- */
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.cmp{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px}
+  table.cmp th,table.cmp td{border-bottom:1px solid var(--line);padding:10px 12px;text-align:left;
+                            vertical-align:top}
+  table.cmp thead th{position:sticky;top:0;background:#fff;font-size:13px;text-transform:uppercase;
+                     letter-spacing:.05em;color:var(--slate-500);border-bottom:2px solid var(--line)}
+  table.cmp tbody tr:hover{background:var(--warm-50)}
+  table.cmp td.k{font-weight:650;color:var(--navy-950);width:34%}
+  .gh{background:var(--warm-50);font-weight:800;font-size:12.5px;text-transform:uppercase;
+      letter-spacing:.07em;color:var(--teal-600)}
+  .mk{font-weight:800;font-size:16px}
+  .mk.y{color:var(--success)} .mk.n{color:var(--danger)} .mk.q{color:var(--slate-500)}
+  .det{display:block;color:var(--slate-500);font-size:13px;margin-top:2px;font-weight:400}
+  .pricerow td{font-weight:800;font-size:17px;font-variant-numeric:tabular-nums;
+               background:var(--warm-50)}
+
+  /* ---- disagreements ---- */
+  .dis{display:grid;gap:12px}
+  .dis .d{border-left:3px solid var(--gold-500);background:var(--gold-100);
+          border-radius:0 var(--r-sm) var(--r-sm) 0;padding:13px 16px}
+  .dis .d b{display:block;font-size:15px;margin-bottom:3px}
+  .dis .d span{font-size:14px;color:var(--slate-700);line-height:1.55}
+
+  /* ---- questions ---- */
+  .qblock{border:1px solid var(--line);border-radius:var(--r-md);margin-bottom:16px;overflow:hidden}
+  .qblock > header{background:var(--navy-950);color:#fff;padding:13px 18px;display:flex;
+                   justify-content:space-between;align-items:baseline;gap:14px;flex-wrap:wrap}
+  .qblock > header b{font-size:16px}
+  .qblock > header span{font-size:13.5px;color:rgb(255 255 255/.7)}
+  .qlist{list-style:none;margin:0;padding:0}
+  .qlist li{padding:14px 18px;border-bottom:1px solid var(--line)}
+  .qlist li:last-child{border-bottom:0}
+  .qlist .ask{font-size:15.5px;line-height:1.5;color:var(--navy-950);font-weight:600}
+  .qlist .why{font-size:13.5px;color:var(--slate-500);margin-top:4px;line-height:1.5}
+  .pill{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;
+        letter-spacing:.06em;padding:3px 8px;border-radius:999px;margin-right:8px;vertical-align:2px}
+  .pill.no{background:rgb(184 68 59/.13);color:var(--danger)}
+  .pill.q{background:var(--line);color:var(--slate-700)}
+  .allgood{background:rgb(23 132 91/.1);border:1px solid var(--success);color:#0c5c3f;
+           padding:14px 16px;border-radius:var(--r-sm);font-size:15px}
+
+  /* ---- quote cards + form ---- */
+  .qcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+  .qc{border:1px solid var(--line);border-radius:var(--r-md);padding:16px 18px;background:var(--warm-50)}
+  .qc b{font-size:16px;display:block}
+  .qc .amt{font-size:21px;font-weight:800;margin:6px 0 8px;font-variant-numeric:tabular-nums}
+  .qc .meta{font-size:13px;color:var(--slate-500);line-height:1.55}
+  .qc .acts{margin-top:12px;display:flex;gap:10px}
+  .lnk{background:none;border:0;padding:0;font:inherit;font-size:13.5px;font-weight:650;
+       color:var(--sky-500);cursor:pointer;text-decoration:underline}
+  .lnk.danger{color:var(--danger)}
+
+  form.qf{display:grid;gap:16px}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+  label.fl{display:block;font-size:13.5px;font-weight:650;margin-bottom:5px;color:var(--navy-950)}
+  input.ti,textarea.ti{width:100%;padding:11px 13px;border:1px solid var(--line);
+       border-radius:var(--r-sm);font:inherit;font-size:15.5px;background:#fff;color:var(--navy-950)}
+  textarea.ti{min-height:84px;resize:vertical}
+  fieldset.sg{border:1px solid var(--line);border-radius:var(--r-md);padding:16px 18px;margin:0}
+  fieldset.sg legend{font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+                     color:var(--teal-600);padding:0 7px}
+  .sitem{padding:12px 0;border-bottom:1px solid var(--line)}
+  .sitem:last-child{border-bottom:0}
+  .sitem .lab{font-size:15px;font-weight:650;margin-bottom:3px}
+  .sitem .why{font-size:13px;color:var(--slate-500);line-height:1.5;margin-bottom:9px}
+  .opts{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .opts input{position:absolute;opacity:0;pointer-events:none}
+  .opts label{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 15px;
+              font-size:13.5px;font-weight:650;cursor:pointer;min-height:36px;display:inline-flex;
+              align-items:center}
+  .opts input:checked + label{background:var(--navy-950);color:#fff;border-color:var(--navy-950)}
+  .opts input:focus-visible + label{outline:2px solid var(--sky-500);outline-offset:2px}
+  .opts input.y:checked + label{background:var(--success);border-color:var(--success)}
+  .opts input.n:checked + label{background:var(--danger);border-color:var(--danger)}
+  .opts .dt{flex:1 1 170px;min-width:150px}
+  .opts .dt input{position:static;opacity:1;pointer-events:auto;width:100%;padding:8px 11px;
+                  border:1px solid var(--line);border-radius:var(--r-sm);font:inherit;font-size:14px}
+
+  /* ---- tracker ---- */
+  .track{display:grid;gap:0;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+  .tr{display:flex;gap:14px;align-items:flex-start;padding:15px 18px;border-bottom:1px solid var(--line);
+      background:#fff}
+  .tr:last-child{border-bottom:0}
+  .tr.done{background:var(--warm-50);color:var(--slate-500)}
+  .tr.now{background:var(--gold-100)}
+  .tr .mark{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid var(--line);
+            display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;
+            background:#fff}
+  .tr.done .mark{background:var(--success);border-color:var(--success);color:#fff}
+  .tr.now .mark{border-color:var(--gold-500);background:var(--gold-500);color:var(--navy-950)}
+  .tr b{font-size:15.5px}
+  .tr ul{margin:8px 0 0;padding-left:19px;font-size:14px;color:var(--slate-700);line-height:1.6}
+  .tr button{margin-top:9px}
+
+  @media print{
+    .hdr,footer,.ph,form.qf,.blk#addblk,.acts,.lnk{display:none!important}
+    .blk{border:0;padding:0;margin-bottom:22px;break-inside:avoid}
+    body{background:#fff}
+  }
+  @media(max-width:700px){ .blk{padding:20px 17px} }
+{% endblock %}
+
+{% block body %}
+
+<div class="ph">
+  <div class="wrap">
+    <h1>{{ p.name or 'Your' }}{% if not p.name %}{% else %}&rsquo;s{% endif %} roof comparison</h1>
+    <p>{{ p.address or 'Bookmark this page — the link in your email is the way back in.' }}</p>
+  </div>
+</div>
+
+<div class="wrap pg">
+
+  {# ---------------- where the quotes disagree ---------------- #}
+  <section class="blk" id="compare">
+    <h2>Where your quotes disagree</h2>
+    <p class="sub">These are the lines some contractors included and others didn't. This is
+      the reason the prices aren't the same — not a judgement about who's better.</p>
+    {% if quotes|length < 2 %}
+      <div class="empty">Add at least two quotes and the differences will show up here.</div>
+    {% elif not disagree %}
+      <div class="allgood">Your quotes agree on every line you've filled in so far. Once
+        they cover the same work, the cheapest one really is the cheapest.</div>
+    {% else %}
+      <div class="dis">
+        {% for d in disagree %}
+        <div class="d"><b>{{ d.label }}</b><span>{{ d.why }}</span></div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if quotes %}
+    <div class="tw" style="margin-top:24px">
+      <table class="cmp">
+        <thead>
+          <tr><th>Line item</th>{% for q in quotes %}<th>{{ q.contractor }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          <tr class="pricerow"><td class="k">Price as quoted</td>
+            {% for q in quotes %}<td>{{ q.price or '—' }}</td>{% endfor %}</tr>
+          {% for group, items in spec %}
+            <tr><td class="gh" colspan="{{ quotes|length + 1 }}">{{ group }}</td></tr>
+            {% for i in items %}
+            <tr>
+              <td class="k">{{ i.label }}</td>
+              {% for q in quotes %}
+                {% set cell = q._spec.get(i.key) or {} %}
+                {% set v = cell.get('v') or '?' %}
+                <td>
+                  {% if v == 'yes' %}<span class="mk y" title="In writing">&#10003;</span>
+                  {% elif v == 'no' %}<span class="mk n" title="Not included">&times;</span>
+                  {% else %}<span class="mk q" title="Not addressed">?</span>{% endif %}
+                  {% if cell.get('d') %}<span class="det">{{ cell.get('d') }}</span>{% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  {# ---------------- questions to ask ---------------- #}
+  <section class="blk" id="questions">
+    <h2>Questions to ask</h2>
+    <p class="sub">Built from the gaps in each quote. Ask them, write the answer down, then
+      come back and update the sheet. Print this page to take it with you.</p>
+    {% if not quotes %}
+      <div class="empty">Add a quote and your questions appear here.</div>
+    {% else %}
+      {% for q in quotes %}
+      <div class="qblock">
+        <header>
+          <b>{{ q.contractor }}</b>
+          <span>{{ q._gaps|length }} open {{ 'question' if q._gaps|length == 1 else 'questions' }}</span>
+        </header>
+        {% if not q._gaps %}
+          <ul class="qlist"><li><div class="ask">Nothing open — every line is in writing.</div></li></ul>
+        {% else %}
+        <ul class="qlist">
+          {% for g in q._gaps %}
+          <li>
+            <div class="ask">
+              <span class="pill {{ 'no' if g.state == 'no' else 'q' }}">{{ 'Excluded' if g.state == 'no' else 'Not addressed' }}</span>
+              &ldquo;{{ g.ask }}&rdquo;
+            </div>
+            <div class="why">{{ g.why }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% endif %}
+  </section>
+
+  {# ---------------- the quotes ---------------- #}
+  <section class="blk" id="quotes">
+    <h2>Your quotes</h2>
+    <p class="sub">{{ quotes|length }} saved. Click one to edit what the contractor put in writing.</p>
+    {% if quotes %}
+    <div class="qcards">
+      {% for q in quotes %}
+      <div class="qc">
+        <b>{{ q.contractor }}</b>
+        <div class="amt">{{ q.price or '—' }}</div>
+        <div class="meta">
+          {% if q.phone %}{{ q.phone }}<br>{% endif %}
+          {% if q.license %}Lic. {{ q.license }}<br>{% endif %}
+          {{ q._gaps|length }} open {{ 'question' if q._gaps|length == 1 else 'questions' }}
+        </div>
+        <div class="acts">
+          <button type="button" class="lnk" data-edit="{{ q.id }}">Edit</button>
+          <form method="post" action="{{ url_for('compare.del_quote', token=p.token, qid=q.id) }}"
+                onsubmit="return confirm('Delete the quote from {{ q.contractor|e }}? This cannot be undone.')">
+            <button type="submit" class="lnk danger">Delete</button>
+          </form>
+        </div>
+        <script type="application/json" id="q{{ q.id }}">{{ q._spec | tojson }}</script>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <div class="empty">No quotes yet. Add your first one below — you only need the
+        contractor's name to start, and you can fill in the rest as you learn it.</div>
+    {% endif %}
+  </section>
+
+  {# ---------------- add / edit ---------------- #}
+  <section class="blk" id="addblk">
+    <h2 id="add">Add or edit a quote</h2>
+    <p class="sub">Mark each line the way the <em>written quote</em> reads — not what they
+      said on the phone. If it isn't on paper, it's &ldquo;not addressed.&rdquo;</p>
+    <form class="qf" method="post" action="{{ url_for('compare.save_quote', token=p.token) }}" id="qf">
+      <input type="hidden" name="qid" id="qid" value="">
+      <div class="row">
+        <div><label class="fl" for="contractor">Contractor *</label>
+          <input class="ti" id="contractor" name="contractor" required maxlength="160"></div>
+        <div><label class="fl" for="price">Price as quoted</label>
+          <input class="ti" id="price" name="price" placeholder="$14,200" maxlength="40"></div>
+        <div><label class="fl" for="phone">Phone</label>
+          <input class="ti" id="phone" name="phone" maxlength="40"></div>
+        <div><label class="fl" for="license">License #</label>
+          <input class="ti" id="license" name="license" maxlength="80"></div>
+      </div>
+
+      {% for group, items in spec %}
+      <fieldset class="sg">
+        <legend>{{ group }}</legend>
+        {% for i in items %}
+        <div class="sitem">
+          <div class="lab">{{ i.label }}</div>
+          <div class="why">{{ i.why }}</div>
+          <div class="opts">
+            <input type="radio" class="y" id="y_{{ i.key }}" name="v_{{ i.key }}" value="yes">
+            <label for="y_{{ i.key }}">In writing</label>
+            <input type="radio" class="n" id="n_{{ i.key }}" name="v_{{ i.key }}" value="no">
+            <label for="n_{{ i.key }}">Excluded</label>
+            <input type="radio" id="q_{{ i.key }}" name="v_{{ i.key }}" value="?" checked>
+            <label for="q_{{ i.key }}">Not addressed</label>
+            <span class="dt"><input type="text" name="d_{{ i.key }}" maxlength="300"
+                   placeholder="Detail, e.g. brand or amount" aria-label="Detail for {{ i.label }}"></span>
+          </div>
+        </div>
+        {% endfor %}
+      </fieldset>
+      {% endfor %}
+
+      <div><label class="fl" for="notes">Your notes on this contractor</label>
+        <textarea class="ti" id="notes" name="notes" maxlength="2000"
+                  placeholder="Showed up on time, answered everything, wants 50% up front…"></textarea></div>
+      <div><button class="btn cta-gold" type="submit">Save quote</button></div>
+    </form>
+  </section>
+
+  {# ---------------- tracker ---------------- #}
+  <section class="blk" id="track">
+    <h2>Track the job</h2>
+    <p class="sub">Where you are now, and what you should have in your hand before you move on.</p>
+    {% set cur = stage_keys.index(p.stage) if p.stage in stage_keys else 0 %}
+    <div class="track">
+      {% for s in stages %}
+      {% set idx = loop.index0 %}
+      <div class="tr {{ 'done' if idx < cur else ('now' if idx == cur else '') }}">
+        <span class="mark">{{ '&#10003;'|safe if idx < cur else loop.index }}</span>
+        <div>
+          <b>{{ s.label }}</b>
+          {% if idx == cur %}
+          <ul>{% for t in s.todo %}<li>{{ t }}</li>{% endfor %}</ul>
+          {% if not loop.last %}
+          <form method="post" action="{{ url_for('compare.set_stage', token=p.token) }}">
+            <input type="hidden" name="stage" value="{{ stages[idx + 1].key }}">
+            <button class="btn btn-sky" type="submit">Done — move to &ldquo;{{ stages[idx + 1].label }}&rdquo;</button>
+          </form>
+          {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ---------------- notes ---------------- #}
+  <section class="blk" id="notes">
+    <h2>Notes</h2>
+    <p class="sub">Anything you want to remember — who said what, and when.</p>
+    <form method="post" action="{{ url_for('compare.save_note', token=p.token) }}">
+      <textarea class="ti" name="notes" maxlength="8000" style="min-height:130px">{{ p.notes or '' }}</textarea>
+      <div style="margin-top:12px"><button class="btn btn-sky" type="submit">Save notes</button></div>
+    </form>
+  </section>
+
+</div>
+
+<script>
+// Edit loads the saved answers back into the one form, so there is a single
+// place where a quote is written and no second copy to drift.
+(function () {
+  var f = document.getElementById('qf');
+  if (!f) return;
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-edit]');
+    if (!b) return;
+    var card = b.closest('.qc'), id = b.getAttribute('data-edit');
+    var spec = {};
+    try { spec = JSON.parse(document.getElementById('q' + id).textContent) || {}; } catch (err) {}
+    document.getElementById('qid').value = id;
+    f.contractor.value = (card.querySelector('b') || {}).textContent || '';
+    var amt = card.querySelector('.amt');
+    f.price.value = amt && amt.textContent.trim() !== '—' ? amt.textContent.trim() : '';
+    // Reset every row first: editing quote B must not inherit quote A's marks.
+    f.querySelectorAll('input[type=radio][value="?"]').forEach(function (r) { r.checked = true; });
+    f.querySelectorAll('input[name^="d_"]').forEach(function (i) { i.value = ''; });
+    Object.keys(spec).forEach(function (k) {
+      var v = (spec[k] || {}).v || '?';
+      var r = f.querySelector('input[name="v_' + k + '"][value="' + v + '"]');
+      if (r) r.checked = true;
+      var d = f.querySelector('input[name="d_' + k + '"]');
+      if (d) d.value = (spec[k] || {}).d || '';
+    });
+    document.getElementById('add').scrollIntoView({ behavior: 'smooth' });
+  });
+})();
+</script>
+
+{% endblock %}

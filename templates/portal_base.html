@@ -40,6 +40,10 @@ h1,h2,h3{line-height:1.12;letter-spacing:-.02em;margin:0}
 .wrap{max-width:var(--content);margin:0 auto;padding:0 32px}
 @media(max-width:1023px){.wrap{padding:0 20px}}
 :focus-visible{outline:2px solid var(--sky-500);outline-offset:3px}
+/* The header is sticky and 77px tall, so an anchor jump used to land the target
+   underneath it — every in-page nav link on every page that extends this file.
+   scroll-margin-top is what the browser leaves above a scrolled-to element. */
+[id]{scroll-margin-top:92px}
 .tnum{font-variant-numeric:tabular-nums}
 
 /* ---------- header ---------- */
@@ -256,6 +260,9 @@ footer .flinks a:hover{color:#fff}
   <div class="wrap">
     <a href="/" class="brand">myroofportal<span>.com</span></a>
     <button class="navtoggle" aria-expanded="false" aria-controls="nav" id="navBtn">Menu</button>
+    {# Overridable so the homeowner pages don't wear the roofer sales nav.
+       Same chrome and tokens, different audience. #}
+    {% block nav %}
     <nav class="nav" id="nav" aria-label="Primary">
       <a href="/#why">Why</a>
       <a href="/#see">What They See</a>
@@ -264,7 +271,8 @@ footer .flinks a:hover{color:#fff}
       <a href="/#faq">FAQ</a>
       <a href="/blog">Blog</a>
     </nav>
-    <a href="/#get-started" class="cta-gold">Get My Portal</a>
+    {% endblock %}
+    {% block headercta %}<a href="/#get-started" class="cta-gold">Get My Portal</a>{% endblock %}
   </div>
 </header>
 
@@ -273,7 +281,7 @@ footer .flinks a:hover{color:#fff}
 <footer>
   <div class="wrap">
     <p>MyRoofPortal &mdash; a product of Collaborative Concept LLC &middot; 513 W Drew St, Lantana, FL 33462 &middot; (561) 475-8615</p>
-    <p class="flinks"><a href="/blog">Blog</a> &middot; <a href="{{ demo_url }}">Live demo</a> &middot; <a href="/#pricing">Pricing</a> &middot; <a href="{{ acquire_url }}">Acquire the platform</a></p>
+    <p class="flinks"><a href="/compare">Compare roof quotes</a> &middot; <a href="/blog">Blog</a> &middot; <a href="{{ demo_url }}">Live demo</a> &middot; <a href="/#pricing">Pricing</a> &middot; <a href="{{ acquire_url }}">Acquire the platform</a></p>
   </div>
 </footer>
 
