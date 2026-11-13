@@ -214,6 +214,59 @@ def db_restore():
     )
 
 
+@bp.route("/company-identity", methods=["GET", "POST"])
+def company_identity():
+    """Token-gated edit of the tenant's IDENTITY fields only.
+
+    Companion to /debrand: that one removes a departed brand by pattern, this
+    one sets a specific value, for the leftovers a pattern cannot catch -- a
+    mailbox URL with no brand name in it, or a person's name that has to be
+    replaced rather than blanked.
+
+    Whitelisted keys only. `name`, `legal_name`, `license` and `address` are
+    deliberately NOT editable here: they belong to the current tenant, they end
+    up on invoices and permits, and a maintenance token should not be able to
+    rewrite them. GET previews the current values.
+    """
+    _gate_or_404()
+    ALLOWED = ("qualifier", "gmail_url", "logo_path", "tagline", "website",
+               "email", "social_facebook", "social_instagram", "social_twitter",
+               "social_youtube", "social_google", "sitecam_url", "warranty")
+    comp = db.get_company() or {}
+    if request.method == "GET":
+        return jsonify(ok=True, editable={k: comp.get(k) for k in ALLOWED},
+                       note="POST field=value (form or query) to set; only these keys")
+
+    src = dict(request.form) or dict(request.args)
+    updates, rejected = {}, []
+    for k, v in src.items():
+        if k in ALLOWED:
+            updates[k] = (v if isinstance(v, str) else (v[0] if v else ""))[:500]
+        else:
+            rejected.append(k)
+    if not updates:
+        return jsonify(ok=False, error="no whitelisted fields given",
+                       rejected=rejected, allowed=list(ALLOWED)), 400
+    before = {k: comp.get(k) for k in updates}
+    db.save_company(updates)
+    # get_company() caches per request on flask.g, so reading it straight back
+    # returns the PRE-save row and the response would report the old value as
+    # the new one. Drop the cache first so "now" is what is actually stored.
+    try:
+        from flask import g as _g
+        _g.pop("_company_cache", None)
+    except Exception:
+        pass
+    after = db.get_company() or {}
+    try:
+        current_app.logger.warning("company-identity: set %s", ",".join(updates))
+    except Exception:
+        pass
+    return jsonify(ok=True, changed=[{"field": k, "was": before.get(k),
+                                      "now": after.get(k)} for k in updates],
+                   rejected=rejected)
+
+
 @bp.route("/debrand", methods=["GET", "POST"])
 def debrand():
     """Token-gated removal of a departed tenant's identity from this install.
