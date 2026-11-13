@@ -191,7 +191,25 @@ def home():
     _without = sorted([j for j in active_job_list if not j["_photo_ts"]],
                       key=lambda j: (j.get("name") or "").lower())
     active_job_list = _with + _without
+    # Portal leads captured by the public sales pages. These live outside the
+    # department pipelines and have no owner until someone acts on them, so
+    # without this they are only visible to whoever thinks to open
+    # /portal-sales/inbox. The owner alert e-mail has never once sent (every
+    # row is notified=0), which is exactly why they need a home on the page the
+    # owner actually opens. notified=0 is "nobody was told", not "not followed
+    # up" -- it is the honest signal available.
+    portal_new = 0
+    portal_recent = []
+    try:
+        rows = db.all_rows("portal_leads", "", (), "id DESC", 200)
+        fresh = [r for r in rows if not str(r.get("spam") or "0").strip() in ("1", "True")]
+        portal_new = len([r for r in fresh if str(r.get("notified") or "0") == "0"])
+        portal_recent = fresh[:5]
+    except Exception:
+        pass
+
     return render_template("dashboard.html", pipeline=pipeline, active_jobs=active_jobs,
+                           portal_new=portal_new, portal_recent=portal_recent,
                            overdue=overdue, overdue_lead_ct=overdue_lead_ct,
                            overdue_job_ct=overdue_job_ct,
                            feed=feed, win_rate=win_rate, won=won, lost=lost,

@@ -11,10 +11,24 @@
   <div class="card" style="border-left:4px solid var(--ok,#17845b);margin-bottom:16px">
     <b>Alerts are on.</b> New offers and leads email <b>{{ notify_to }}</b>.
   </div>
+{% elif mail_armed %}
+  {# The dangerous case: configured, so it LOOKS fine, but sending fails. This
+     is the state that hid for three months. Say what actually happened. #}
+  <div class="card" style="border-left:4px solid var(--danger,#b8443b);margin-bottom:16px">
+    <b>Alerts are configured but NOT being delivered.</b>
+    Mail is set up to go to <b>{{ notify_to }}</b>, but
+    {% if ever_sent %}the last attempt failed{% else %}no lead on this page has ever
+    been successfully emailed{% endif %}.
+    {% if mail_err %}<br><br>Last error: <code>{{ mail_err }}</code>{% endif %}
+    <br><br>Every row below is still captured — nothing is lost. Run
+    <code>ops/arm_resend.py</code> to switch the transport to Resend, or check
+    <code>/admin/mail-status?send=1</code> for a live test.
+  </div>
 {% else %}
   <div class="card" style="border-left:4px solid var(--danger,#b8443b);margin-bottom:16px">
-    <b>Alerts are OFF — nothing is being emailed.</b> Set <code>SMTP_FROM</code> and
-    <code>SMTP_PASSWORD</code> (Gmail app password) in the environment to email
+    <b>Alerts are OFF — nothing is being emailed.</b> Arm Resend
+    (<code>RESEND_API_KEY</code> + <code>RESEND_FROM_EMAIL</code>) or SMTP
+    (<code>SMTP_FROM</code> + <code>SMTP_PASSWORD</code>) to email
     <b>{{ notify_to }}</b>. Rows below are still captured regardless.
   </div>
 {% endif %}

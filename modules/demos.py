@@ -794,15 +794,24 @@ def sales_inbox():
     counts = {}
     for e in events:
         counts[e.get("kind") or "?"] = counts.get(e.get("kind") or "?", 0) + 1
+    # smtp_configured() only says the env vars are SET. It returned True for
+    # three months while every send failed, so this banner told the owner alerts
+    # were on while nothing was being delivered. Judge it on the evidence
+    # instead: a transport must be armed AND nothing can have failed since boot,
+    # and if no lead has ever been successfully notified, say so.
     from modules import gmail as _gm
     try:
-        mail_ok = _gm.smtp_configured()
+        armed = _gm.resend_configured() or _gm.smtp_configured()
+        mail_err = _gm.last_mail_error()
+        ever_sent = any(str(r.get("notified") or "0") == "1" for r in (offers + leads))
+        mail_ok = bool(armed and not mail_err and ever_sent)
     except Exception:
-        mail_ok = False
+        armed, mail_err, ever_sent, mail_ok = False, "", False, False
     return render_template("portal_sales_inbox.html",
                            offers=offers, leads=leads, access=access,
                            events=events[:100], counts=counts,
-                           mail_ok=mail_ok, notify_to=_notify_to())
+                           mail_ok=mail_ok, mail_armed=armed, mail_err=mail_err,
+                           ever_sent=ever_sent, notify_to=_notify_to())
 
 
 @bp.route("/portal-sales/ev", methods=["POST"], endpoint="track_event")

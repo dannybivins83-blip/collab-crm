@@ -12,6 +12,32 @@
   <a class="btn ghost" href="{{ url_for('sync.index') }}" title="Sync settings (API key, auto-sync)">{{ icon('gear') }}</a>
 </div>
 
+{# Portal leads from the public sales pages. They belong to no department and no
+   pipeline, so until now the only way to see one was to know /portal-sales/inbox
+   exists. The alert e-mail has never successfully sent, which makes this card
+   the thing standing between a real inbound lead and silence. #}
+{% if portal_new %}
+<div class="card" style="border-left:4px solid var(--accent,#d7a438);margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <b style="font-size:16px">{{ portal_new }} portal lead{{ '' if portal_new == 1 else 's' }}
+      nobody has been emailed about</b>
+    <span class="sub">Captured by the public site. The alert e-mail is not being delivered,
+      so these are only visible here.</span>
+    <div class="grow"></div>
+    <a class="btn accent" href="{{ url_for('demo.sales_inbox') }}">Open the sales inbox</a>
+  </div>
+  {% if portal_recent %}
+  <ul style="margin:12px 0 0;padding-left:18px;line-height:1.7">
+    {% for l in portal_recent %}
+    <li><b>{{ l.name or 'No name' }}</b>{% if l.company %} — {{ l.company }}{% endif %}
+      {% if l.email %} · {{ l.email }}{% endif %}{% if l.phone %} · {{ l.phone }}{% endif %}
+      <span class="sub">{{ (l.created or '')[:16] }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- Quick toolbar (the original board's actions, surfaced) -->
 <div class="toolbar" style="margin-bottom:16px;gap:6px;flex-wrap:wrap">
   <a class="btn" href="{{ url_for('leads.new') }}">{{ icon('plus') }}Add Lead</a>
