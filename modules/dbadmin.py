@@ -214,6 +214,90 @@ def db_restore():
     )
 
 
+@bp.route("/debrand", methods=["GET", "POST"])
+def debrand():
+    """Token-gated removal of a departed tenant's identity from this install.
+
+    The live CRM was rebranded to its current tenant in Sept 2026, but the
+    previous roofer's identity stayed behind in places the Settings page does
+    not surface: the logo FILE path, five social-media URLs, the staff mailbox
+    link, and -- the part that matters -- five of its people still holding
+    active logins, four of them admin.
+
+    GET previews. POST applies. Nothing is deleted: branding fields are blanked
+    and user accounts are DEACTIVATED (active=0), which is reversible from the
+    Settings page. Job history, documents and activity are never touched --
+    those are business records of work that genuinely happened.
+
+    `needle` defaults to the departed brand; pass ?needle=<text> to target
+    another one. Always reports the before value so the change is auditable.
+    """
+    _gate_or_404()
+    # Match the misspellings too. The live logo file is "seabreese-logo-...png"
+    # -- an "s" where the brand has a "z" -- so a single-spelling needle silently
+    # missed the single most visible artifact on the site.
+    raw = (request.args.get("needle") or "").strip().lower()
+    if raw and len(raw) < 4:
+        return jsonify(ok=False, error="needle too short"), 400
+    needles = [raw] if raw else ["seabreez", "seabrees", "sea breeze", "sea-breeze"]
+
+    def hit(value):
+        v = str(value or "").lower()
+        return any(n in v for n in needles)
+    apply_it = request.method == "POST"
+    changed = {"company_settings": [], "users": [], "gmail_accounts": []}
+
+    comp = db.get_company() or {}
+    # Only identity fields. Never name/license/address -- those belong to the
+    # CURRENT tenant and blanking them would break invoices and permits.
+    fields = ("logo_path", "gmail_url", "social_facebook", "social_instagram",
+              "social_twitter", "social_youtube", "social_google", "website",
+              "email", "tagline")
+    updates = {}
+    for f in fields:
+        v = str(comp.get(f) or "")
+        if v and hit(v):
+            updates[f] = ""
+            changed["company_settings"].append({"field": f, "was": v, "now": ""})
+    if apply_it and updates:
+        db.save_company(updates)
+
+    all_users = db.all_rows("users", "", (), "id ASC")
+    targets = [u for u in all_users if hit(u.get("email"))]
+    survivors = [u for u in all_users
+                 if u not in targets and str(u.get("active") or "0") == "1"
+                 and (u.get("role") or "") == "admin"]
+    # Deactivating every admin would lock the owner out of his own CRM, and the
+    # maintenance token is not a login. Refuse rather than strip the last way in.
+    if apply_it and targets and not survivors:
+        return jsonify(ok=False, applied=False,
+                       error="refusing to deactivate the last active admin",
+                       would_deactivate=[u["email"] for u in targets]), 409
+    for u in targets:
+        changed["users"].append({"id": u["id"], "email": u["email"],
+                                 "role": u.get("role"),
+                                 "was_active": u.get("active")})
+        if apply_it:
+            db.update("users", u["id"], active=0)
+    changed["admins_remaining"] = [u["email"] for u in survivors]
+
+    for g in db.all_rows("gmail_accounts", "", (), "id ASC"):
+        if hit(g.get("email")):
+            changed["gmail_accounts"].append({"id": g["id"], "email": g["email"]})
+            if apply_it:
+                db.delete("gmail_accounts", g["id"])   # a revoked OAuth grant, no history
+
+    try:
+        current_app.logger.warning("debrand(%s): applied=%s settings=%d users=%d grants=%d",
+                                   ",".join(needles), apply_it, len(changed["company_settings"]),
+                                   len(changed["users"]), len(changed["gmail_accounts"]))
+    except Exception:
+        pass
+    return jsonify(ok=True, applied=apply_it, needles=needles, changed=changed,
+                   note=("preview only - POST to apply" if not apply_it else
+                         "applied; users deactivated (not deleted), reversible in Settings"))
+
+
 @bp.route("/mail-status", methods=["GET"])
 def mail_status():
     """Token-gated mail self-check. Says which transports are armed, where alerts

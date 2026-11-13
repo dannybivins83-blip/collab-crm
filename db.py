@@ -1241,9 +1241,11 @@ def save_company(data):
 
 def _seed_if_empty():
     # White-label default: a fresh deploy boots NEUTRAL ("Your Company" + one admin),
-    # NOT branded as the demo reference tenant. Set CRM_SEED_DEMO=seabreeze (or 1)
-    # to seed the demo brand + sample data for demos/the reference instance.
-    # (The live reference instance is already seeded, so this guard never re-runs there.)
+    # NOT branded as any real tenant. Set CRM_SEED_DEMO=1 (or "demo") to seed the
+    # generic demo brand + sample data.
+    # (The live instance is already seeded, so this guard never re-runs there.)
+    # "seabreeze" is still accepted so an existing deploy that sets it keeps
+    # working, but nothing it seeds carries that name any more.
     _demo = os.environ.get("CRM_SEED_DEMO", "").strip().lower() in (
         "1", "true", "yes", "seabreeze", "demo")
     if not get_company():
@@ -1277,9 +1279,11 @@ def _seed_if_empty():
             })
     if not all_rows("users"):
         if _demo:
-            insert("users", {"name": "Danny Bivins", "email": "owner@seabreezeroofing.com",
+            insert("users", {"name": "Owner",
+                             "email": (os.environ.get("CRM_ADMIN_EMAIL", "").strip()
+                                       or "owner@example.com"),
                              "role": "admin", "active": 1})
-            insert("users", {"name": "Karla", "email": "office@seabreezeroofing.com",
+            insert("users", {"name": "Office", "email": "office@example.com",
                              "role": "office", "active": 1})
         else:
             # One generic admin so the deploy is usable; password is seeded from
