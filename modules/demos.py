@@ -599,8 +599,10 @@ def portal_view(slug):
         # The "it could be your portal" bar sends roofers to the roofer front door
         # (pricing + Get My Portal form) on the demo domain; elsewhere keep the
         # old licensing page, which still carries a copy of the form.
-        sale_pricing_url=("/#pricing" if _on_demo_host() else url_for("demo.landing_licensing") + "#pricing"),
-        sale_get_url=("/#get-started" if _on_demo_host() else url_for("demo.landing_licensing") + "#get-started"),
+        sale_pricing_url=(url_for("demo.roofer_landing") + "#pricing" if _on_demo_host()
+                          else url_for("demo.landing_licensing") + "#pricing"),
+        sale_get_url=(url_for("demo.roofer_landing") + "#get-started" if _on_demo_host()
+                      else url_for("demo.landing_licensing") + "#get-started"),
         phases=portal.CUSTOMER_PHASES, checklist=_checklist(phase),
         value_steps=value_steps, value_done=value_done, value_total=len(value_steps),
         updates=_sample_updates(phase), referral=_referral_ctx(d, link),
@@ -664,16 +666,17 @@ def _on_demo_host():
     return host in DEMO_HOSTS
 
 
-@bp.route("/", endpoint="roofer_landing")
+@bp.route("/roofers", endpoint="roofer_landing")
 def roofer_landing_view():
-    """The roofer-facing pitch. This is what myroofportal.com/ serves.
+    """The roofer-facing pitch, at /roofers.
 
-    The cold-email campaign sells licences to roofing contractors, so the front
-    door has to speak to them: anyone who types the domain instead of clicking
-    the demo link used to land on the acquisition page and be told the product
-    was for sale. Buyers now get /acquire, linked from the footer band.
+    It held "/" from Sept to Nov 2026. The homeowner quote-comparison tool took
+    the front door on 2026-11-13 (owner call): 150 cold e-mails to roofers
+    produced one genuine click and zero leads, while homeowners comparing bids
+    are the far larger intent. Roofers now arrive by link, not by typing the
+    domain, so they get a named path. Buyers still get /acquire.
     """
-    _log_event("page_view_server", "/")
+    _log_event("page_view_server", "/roofers")
     return render_template(
         "portal_roofer_landing.html",
         demo_url="/demo/%s" % DEMO_SLUG,
@@ -710,7 +713,7 @@ def landing_offer():
     email = (f.get("email") or "").strip()[:200]
     offer = (f.get("offer") or "").strip()[:60]
     message = (f.get("message") or "").strip()[:2000]
-    base = "/" if _on_demo_host() else url_for("demo.landing")
+    base = url_for("demo.acquire") if _on_demo_host() else url_for("demo.landing")
     if not (name and email and offer):
         return redirect(base + "?err=1#offer")
     if _throttled("offer", 5, 600):
@@ -748,7 +751,7 @@ def demo_request():
     """Email gate for the live demo: capture the visitor's email, then open the
     demo. Low-friction — email only, no approval step."""
     email = (request.form.get("email") or "").strip()[:200]
-    base = "/" if _on_demo_host() else url_for("demo.landing")
+    base = url_for("demo.acquire") if _on_demo_host() else url_for("demo.landing")
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         return redirect(base + "?demoerr=1#see-demo")
     if _throttled("demo", 5, 600):
@@ -837,7 +840,7 @@ def sitemap():
     # (loc, changefreq, lastmod). /portal-sales/licensing is noindex, so it is
     # deliberately absent; /acquire is the indexed acquisition page.
     urls = [(base + "/", "weekly", None),
-            (base + "/compare", "weekly", None),
+            (base + "/roofers", "weekly", None),
             (base + "/acquire", "weekly", None),
             (base + "/demo/%s" % DEMO_SLUG, "weekly", None),
             (base + "/blog", "weekly", None)]
@@ -875,7 +878,7 @@ def landing_lead():
     email = (f.get("email") or "").strip()[:200]
     phone = (f.get("phone") or "").strip()[:40]
     # The lead form is on the roofer front page; /licensing still carries a copy.
-    base = "/" if _on_demo_host() else url_for("demo.landing_licensing")
+    base = url_for("demo.roofer_landing") if _on_demo_host() else url_for("demo.landing_licensing")
     # Require a name plus at least one way to reach them.
     if not name or not (email or phone):
         return redirect(base + "?err=1#get-started")

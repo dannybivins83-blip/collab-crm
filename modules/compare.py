@@ -282,6 +282,19 @@ def _log(kind, path=""):
 # --------------------------------------------------------------------------
 @bp.route("/compare", endpoint="landing")
 def landing():
+    """The homeowner front door.
+
+    On a demo host (myroofportal.com) this IS "/" — app.py renders this view in
+    place for the bare domain. /compare then 301s to "/" so the same page is not
+    indexed at two URLs. On the CRM host "/" is the dashboard, so /compare stays
+    a real page there and must not redirect.
+    """
+    try:
+        from modules.demos import _on_demo_host
+        if _on_demo_host() and request.path.rstrip("/") == "/compare":
+            return redirect("/", code=301)
+    except Exception:
+        pass
     _log("compare_view")
     return render_template("compare_landing.html", spec=SPEC,
                            spec_count=len(SPEC_KEYS), stages=STAGES)

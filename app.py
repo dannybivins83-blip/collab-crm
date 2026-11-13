@@ -162,9 +162,10 @@ def _demo_host_root():
     host = (request.host or "").split(":")[0].lower()
     if host in _demos_mod.DEMO_HOSTS and request.path == "/":
         # Render in place (no redirect) → browser stays at the domain root.
-        # Roofers are the volume audience, so they get the front door; the
-        # acquisition page moved to /acquire.
-        return _demos_mod.roofer_landing_view()
+        # Homeowners comparing quotes are the front door as of 2026-11-13; the
+        # roofer pitch moved to /roofers and the acquisition page to /acquire.
+        from modules import compare as _cmp
+        return _cmp.landing()
 
 
 # Real per-user login (registers its own blueprint + before-request guard).
