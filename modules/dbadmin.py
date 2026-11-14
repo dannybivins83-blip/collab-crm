@@ -232,6 +232,16 @@ def company_identity():
     ALLOWED = ("qualifier", "gmail_url", "logo_path", "tagline", "website",
                "email", "social_facebook", "social_instagram", "social_twitter",
                "social_youtube", "social_google", "sitecam_url", "warranty")
+    # The fields that identify WHO the company is. They print on estimates and
+    # permit packets, so they are not editable by accident -- a rebrand has to
+    # say so explicitly with ?confirm=rebrand. The guard exists because this
+    # install carried a real contractor's name and live license numbers while
+    # actually being the generic product site, which is exactly the mix-up that
+    # puts someone else's license on a PDF.
+    REBRAND = ("name", "legal_name", "license", "address", "city", "state",
+               "zip", "phone", "brand_short")
+    if (request.args.get("confirm") or "").strip().lower() == "rebrand":
+        ALLOWED = ALLOWED + REBRAND
     comp = db.get_company() or {}
     if request.method == "GET":
         return jsonify(ok=True, editable={k: comp.get(k) for k in ALLOWED},
@@ -246,7 +256,8 @@ def company_identity():
             rejected.append(k)
     if not updates:
         return jsonify(ok=False, error="no whitelisted fields given",
-                       rejected=rejected, allowed=list(ALLOWED)), 400
+                       rejected=rejected, allowed=list(ALLOWED),
+                       hint="identity fields (name/license/address) need ?confirm=rebrand"), 400
     before = {k: comp.get(k) for k in updates}
     db.save_company(updates)
     # get_company() caches per request on flask.g, so reading it straight back
