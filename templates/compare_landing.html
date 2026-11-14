@@ -105,6 +105,15 @@
   .f input::placeholder{color:rgb(255 255 255/.5)}
   .f button{min-height:54px;font-size:17px}
   .fine{font-size:13px;color:rgb(255 255 255/.55);margin:14px 0 0;line-height:1.5}
+  /* Upload is the first thing in the box: the homeowner already has the PDFs,
+     and typing 22 lines by hand is why most comparisons never get finished. */
+  .drop{display:block;border:1.5px dashed rgb(255 255 255/.34);border-radius:var(--r-md);
+        padding:18px 16px;cursor:pointer;background:rgb(255 255 255/.05)}
+  .drop:hover,.drop:focus-within{border-color:var(--gold-500);background:rgb(255 255 255/.09)}
+  .drop .dt{display:block;font-weight:700;font-size:16px;color:#fff}
+  .drop .ds{display:block;font-size:13.5px;color:rgb(255 255 255/.66);margin-top:3px;line-height:1.45}
+  .drop input[type=file]{display:block;margin-top:11px;font-size:13.5px;color:rgb(255 255 255/.8);width:100%}
+  .drop .dn{display:block;font-size:12.5px;color:rgb(255 255 255/.5);margin-top:9px}
   .err{background:rgb(184 68 59/.18);border:1px solid var(--danger);color:#ffd9d5;
        padding:11px 14px;border-radius:var(--r-sm);font-size:14.5px;margin:0 0 16px}
 
@@ -240,17 +249,41 @@
       <h2>Start your comparison</h2>
       <p>Your email is the key to your workspace, so you can come back to it from your
         phone while a contractor is standing in your driveway.</p>
-      <form class="f" method="post" action="{{ url_for('compare.start') }}">
+      <form class="f" method="post" enctype="multipart/form-data"
+            action="{{ url_for('compare.landing_upload') }}">
+        <label class="drop" for="quotes">
+          <span class="dt">Upload your quotes</span>
+          <span class="ds">PDF, up to 6. We read them and fill the sheet in for you.</span>
+          <input id="quotes" name="quotes" type="file" accept="application/pdf,.pdf" multiple>
+          <span class="dn" id="dropNote">No files chosen &mdash; you can also skip this and type them in.</span>
+        </label>
         <input type="text" name="name" placeholder="Your name (optional)" autocomplete="name">
         <input type="email" name="email" required placeholder="you@email.com" autocomplete="email">
         <input type="text" name="address" placeholder="Property address (optional)" autocomplete="street-address">
-        <button class="btn cta-gold" type="submit">Open my free workspace</button>
+        <button class="btn cta-gold" type="submit">Read my quotes</button>
       </form>
-      <p class="fine">No contractor is contacted and nothing is shared. We don't sell your
+      <p class="fine">We read what each PDF puts in writing and fill in the sheet &mdash;
+        then you check it before anything is compared. Nothing is treated as fact until
+        you say so. No contractor is contacted and nothing is shared. We don't sell your
         details, we don't bid on your roof, and nobody calls you. If you already started,
         enter the same email to get back in.</p>
     </div>
   </div>
 </section>
+
+<script>
+// Name the files once chosen: a file input that still says "no files chosen"
+// after a pick is the commonest reason someone submits an empty form.
+(function () {
+  var i = document.getElementById('quotes'), n = document.getElementById('dropNote');
+  if (!i || !n) return;
+  i.addEventListener('change', function () {
+    var f = i.files;
+    n.textContent = !f || !f.length
+      ? 'No files chosen — you can also skip this and type them in.'
+      : (f.length === 1 ? f[0].name : f.length + ' files ready to read');
+  });
+})();
+</script>
 
 {% endblock %}

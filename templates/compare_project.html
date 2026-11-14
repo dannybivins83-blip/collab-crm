@@ -126,6 +126,26 @@
   .tr ul{margin:8px 0 0;padding-left:19px;font-size:14px;color:var(--slate-700);line-height:1.6}
   .tr button{margin-top:9px}
 
+  .drop2{display:block;border:1.5px dashed var(--line);border-radius:var(--r-md);
+         padding:16px;cursor:pointer;background:var(--warm-50)}
+  .drop2:hover,.drop2:focus-within{border-color:var(--sky-500)}
+  .drop2 b{display:block;font-size:15.5px}
+  .drop2 span{display:block;font-size:13px;color:var(--slate-500);margin-top:2px}
+  .drop2 input{display:block;margin-top:10px;font-size:13.5px;width:100%}
+  .uplog{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:7px}
+  .uplog li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:14px}
+  .us{flex:none;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+      padding:3px 8px;border-radius:999px;background:var(--line);color:var(--slate-700)}
+  .us.read{background:rgb(23 132 91/.14);color:#0c5c3f}
+  .us.unread,.us.failed{background:rgb(184 68 59/.13);color:var(--danger)}
+  .un{font-weight:600}
+  .ue{color:var(--slate-500);font-size:13px;flex-basis:100%}
+  /* An unchecked machine reading is never shown as a finding. */
+  .unchk{margin-top:10px;background:var(--gold-100);border-left:3px solid var(--gold-500);
+         border-radius:0 var(--r-sm) var(--r-sm) 0;padding:9px 12px;font-size:13px;
+         line-height:1.45;color:var(--slate-700)}
+  .unchk.big{margin:0 0 18px;font-size:14.5px;padding:13px 16px}
+  .lnk.ok{color:var(--success)}
   @media print{
     .hdr,footer,.ph,form.qf,.blk#addblk,.acts,.lnk{display:none!important}
     .blk{border:0;padding:0;margin-bottom:22px;break-inside:avoid}
@@ -150,6 +170,13 @@
     <h2>Where your quotes disagree</h2>
     <p class="sub">These are the lines some contractors included and others didn't. This is
       the reason the prices aren't the same — not a judgement about who's better.</p>
+    {% set pending = quotes | selectattr('source','equalto','upload') | rejectattr('reviewed') | list %}
+    {% if pending %}
+    <div class="unchk big">{{ pending|length }} quote{{ '' if pending|length == 1 else 's' }}
+      here {{ 'was' if pending|length == 1 else 'were' }} read from a PDF and
+      {{ 'has' if pending|length == 1 else 'have' }} not been checked yet. Open each one,
+      fix anything the reader got wrong, then mark it &ldquo;Looks right&rdquo;.</div>
+    {% endif %}
     {% if quotes|length < 2 %}
       <div class="empty">Add at least two quotes and the differences will show up here.</div>
     {% elif not disagree %}
@@ -230,6 +257,33 @@
     {% endif %}
   </section>
 
+  {# ---------------- upload ---------------- #}
+  <section class="blk" id="upload">
+    <h2>Add a quote by uploading it</h2>
+    <p class="sub">Upload the PDF the contractor gave you and we fill the sheet in from
+      what it says. You check it afterwards &mdash; nothing is compared until you do.</p>
+    <form method="post" enctype="multipart/form-data"
+          action="{{ url_for('compare.upload', token=p.token) }}">
+      <label class="drop2" for="up">
+        <b>Choose PDFs</b>
+        <span>Up to 6 at a time</span>
+        <input id="up" name="quotes" type="file" accept="application/pdf,.pdf" multiple>
+      </label>
+      <div style="margin-top:12px"><button class="btn cta-gold" type="submit">Read them</button></div>
+    </form>
+    {% if uploads %}
+    <ul class="uplog">
+      {% for u in uploads %}
+      <li>
+        <span class="us {{ u.status }}">{{ {'read':'read','unread':'not read','failed':'failed','pending':'pending'}.get(u.status, u.status) }}</span>
+        <span class="un">{{ u.filename }}</span>
+        {% if u.error %}<span class="ue">{{ u.error }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
   {# ---------------- the quotes ---------------- #}
   <section class="blk" id="quotes">
     <h2>Your quotes</h2>
@@ -245,7 +299,15 @@
           {% if q.license %}Lic. {{ q.license }}<br>{% endif %}
           {{ q._gaps|length }} open {{ 'question' if q._gaps|length == 1 else 'questions' }}
         </div>
+        {% if q.source == 'upload' and not q.reviewed %}
+        <div class="unchk">Read from your PDF &mdash; check it before you rely on it.</div>
+        {% endif %}
         <div class="acts">
+          {% if q.source == 'upload' and not q.reviewed %}
+          <form method="post" action="{{ url_for('compare.confirm_quote', token=p.token, qid=q.id) }}">
+            <button type="submit" class="lnk ok">Looks right</button>
+          </form>
+          {% endif %}
           <button type="button" class="lnk" data-edit="{{ q.id }}">Edit</button>
           <form method="post" action="{{ url_for('compare.del_quote', token=p.token, qid=q.id) }}"
                 onsubmit="return confirm('Delete the quote from {{ q.contractor|e }}? This cannot be undone.')">

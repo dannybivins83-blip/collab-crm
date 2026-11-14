@@ -19,6 +19,7 @@ and we do not see it. Every judgement stays with the homeowner; this only makes
 sure nothing is invisible when they make it.
 """
 import json
+import os
 import re
 import secrets
 
@@ -41,14 +42,31 @@ try:
         stage TEXT, notes TEXT, source_host TEXT, last_seen TEXT)""")
 except Exception:
     pass
+# What the homeowner uploaded, and what the reader made of it. Kept separate from
+# ho_quotes so a failed or disputed read never silently becomes "the quote".
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS ho_uploads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER, quote_id INTEGER, created TEXT,
+        filename TEXT, stored TEXT, bytes INTEGER,
+        status TEXT, error TEXT, extracted TEXT)""")
+except Exception:
+    pass
 try:
     db.execute("""CREATE TABLE IF NOT EXISTS ho_quotes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER, created TEXT,
         contractor TEXT, phone TEXT, email TEXT, license TEXT,
-        price TEXT, spec TEXT, notes TEXT)""")
+        price TEXT, spec TEXT, notes TEXT,
+        source TEXT, reviewed INTEGER DEFAULT 0)""")
 except Exception:
     pass
+for _t, _c, _d in (("ho_quotes", "source", "TEXT"),
+                   ("ho_quotes", "reviewed", "INTEGER DEFAULT 0")):
+    try:
+        db._ensure_column(_t, _c, _d)
+    except Exception:
+        pass
 db._COLCACHE.clear()
 
 
@@ -255,6 +273,202 @@ def disagreements(quotes):
     return out
 
 
+# ---------------------------------------------------------------------------
+# Reading an uploaded proposal
+#
+# Typing 22 lines by hand is the reason most people never finish a comparison.
+# So the homeowner uploads the PDF the contractor actually gave them and the
+# reader fills the sheet in.
+#
+# Two rules this must never break:
+#   1. The reader answers from the SAME `SPEC` list the form and the grid use,
+#      so there is one definition of what a quote must cover and the three can
+#      never drift apart.
+#   2. A machine reading of somebody's contract is a DRAFT, never a finding.
+#      Every extracted quote is stored `reviewed = 0` and shown as unchecked
+#      until a person confirms it. We are not going to tell a homeowner their
+#      contractor excluded something because a model inferred it.
+# A page that cannot be read at all is kept, with the error, and the homeowner
+# fills that quote in by hand -- the upload is a shortcut, not a dependency.
+# ---------------------------------------------------------------------------
+MAX_UPLOAD_BYTES = 12 * 1024 * 1024
+UPLOAD_SUBDIR = "ho_quotes"
+# Proven in this codebase by modules/takeoff.py, which runs the same
+# document-plus-tool-schema call in production. Override with COMPARE_MODEL.
+READER_MODEL = os.environ.get("COMPARE_MODEL", "").strip() or "claude-sonnet-4-6"
+
+
+def _upload_dir():
+    import config
+    d = os.path.join(config.UPLOAD_DIR, UPLOAD_SUBDIR)
+    try:
+        os.makedirs(d, exist_ok=True)
+    except Exception:
+        pass
+    return d
+
+
+def _reader_tool():
+    """The tool schema, generated from SPEC so a new line item is readable the
+    day it is added and no second list has to be kept in step."""
+    props = {
+        "contractor": {"type": "string", "description": "Company name on the proposal. Empty if not stated."},
+        "price": {"type": "string", "description": "Total price exactly as written, e.g. '$14,200'. Empty if no total is given."},
+        "phone": {"type": "string"},
+        "email": {"type": "string"},
+        "license": {"type": "string", "description": "Contractor license number if printed anywhere on the document."},
+        "roof_type": {"type": "string", "enum": ["tile", "shingle", "metal", "flat", "mixed", "unclear"]},
+        "unreadable": {"type": "boolean", "description": "true if the document is not a roofing proposal, or is too unclear to read."},
+    }
+    for key in SPEC_KEYS:
+        item = SPEC_INDEX[key]
+        props["v_" + key] = {
+            "type": "string", "enum": ["yes", "no", "?"],
+            "description": (
+                "'%s'. yes = the document COMMITS to this in writing. "
+                "no = the document explicitly excludes it or makes it the owner's "
+                "responsibility. ? = the document is silent on it. "
+                "Silence is '?', never 'no'." % item["label"]),
+        }
+        props["d_" + key] = {
+            "type": "string",
+            "description": "Short quote or figure from the document supporting the answer above, e.g. '3 sheets incl, $95/sheet after'. Empty if silent.",
+        }
+    return {
+        "name": "read_roofing_proposal",
+        "description": "Record what a roofing proposal does and does not put in writing.",
+        "input_schema": {"type": "object", "properties": props,
+                         "required": ["contractor", "unreadable"]},
+    }
+
+
+_READER_PROMPT = (
+    "You are reading a roofing proposal a homeowner received, to fill in a "
+    "comparison sheet.\n\n"
+    "Answer ONLY from what the document says. Do not infer what a contractor "
+    "probably intends, and do not use what is typical for the trade. If the "
+    "document does not address a line, the answer is '?'. Reserve 'no' for an "
+    "explicit exclusion -- wording like 'not included', 'by owner', 'additional "
+    "cost', or an allowance stated as 'priced as needed' with no unit price.\n\n"
+    "For every 'yes' and every 'no', put the supporting words from the document "
+    "in the matching detail field, short and verbatim where you can. A 'yes' with "
+    "nothing to quote is a '?'.\n\n"
+    "If the file is not a roofing proposal, set unreadable = true and stop."
+)
+
+
+def read_proposal(pdf_bytes, filename=""):
+    """(fields, error). Never raises: a failed read must leave the homeowner a
+    quote they can still fill in by hand."""
+    import base64
+    try:
+        import anthropic
+        import config as _config
+    except Exception as e:
+        return None, "reader unavailable: %s" % e
+    key = (getattr(_config, "ANTHROPIC_API_KEY", "") or "").strip()
+    if not key:
+        return None, "reader not configured"
+    try:
+        client = anthropic.Anthropic(api_key=key)
+        resp = client.messages.create(
+            model=READER_MODEL,
+            max_tokens=3000,
+            temperature=0,   # reading a document, not composing one
+            tools=[_reader_tool()],
+            tool_choice={"type": "tool", "name": "read_roofing_proposal"},
+            messages=[{"role": "user", "content": [
+                {"type": "document", "source": {
+                    "type": "base64", "media_type": "application/pdf",
+                    "data": base64.b64encode(pdf_bytes).decode("ascii")}},
+                {"type": "text", "text": _READER_PROMPT},
+            ]}],
+        )
+    except Exception as e:
+        return None, "%s: %s" % (type(e).__name__, str(e)[:200])
+    for block in getattr(resp, "content", []) or []:
+        if getattr(block, "type", "") == "tool_use":
+            return dict(getattr(block, "input", {}) or {}), ""
+    return None, "the reader returned no answer"
+
+
+def _fields_to_quote(fields):
+    """Turn the reader's answers into a ho_quotes row. Unknown keys are dropped
+    rather than trusted, so a hallucinated line item cannot enter the sheet."""
+    spec = {}
+    for key in SPEC_KEYS:
+        v = str((fields.get("v_" + key) or "?")).strip().lower()
+        if v not in ("yes", "no", "?"):
+            v = "?"
+        d = str(fields.get("d_" + key) or "").strip()[:300]
+        if v != "?" or d:
+            spec[key] = {"v": v, "d": d}
+    return {
+        "contractor": str(fields.get("contractor") or "").strip()[:160] or "Unnamed contractor",
+        "price": str(fields.get("price") or "").strip()[:40],
+        "phone": str(fields.get("phone") or "").strip()[:40],
+        "email": str(fields.get("email") or "").strip()[:200],
+        "license": str(fields.get("license") or "").strip()[:80],
+        "spec": json.dumps(spec),
+        "notes": "",
+        "source": "upload",
+        "reviewed": 0,
+    }
+
+
+def ingest_upload(project, fileobj):
+    """Store one uploaded proposal, read it, and create its quote. Returns the
+    ho_uploads row id. The FILE is saved before the read is attempted, so a
+    reader outage never costs the homeowner the document."""
+    name = os.path.basename(getattr(fileobj, "filename", "") or "proposal.pdf")[:180]
+    data = fileobj.read(MAX_UPLOAD_BYTES + 1)
+    up = {"project_id": project["id"], "quote_id": None, "created": db.now(),
+          "filename": name, "stored": "", "bytes": len(data),
+          "status": "pending", "error": "", "extracted": ""}
+    if len(data) > MAX_UPLOAD_BYTES:
+        up["status"] = "failed"
+        up["error"] = "That file is over 12 MB. Most proposals are well under 1 MB."
+        return db.insert("ho_uploads", up)
+    if not data[:5] == b"%PDF-":
+        up["status"] = "failed"
+        up["error"] = "That does not look like a PDF. Upload the proposal file the contractor sent."
+        return db.insert("ho_uploads", up)
+
+    stored = "%s/%s-%s.pdf" % (UPLOAD_SUBDIR, project["token"][:8], secrets.token_hex(6))
+    try:
+        import config
+        # _upload_dir() is what creates the subfolder. Without this call the
+        # write fails with ENOENT and the homeowner's document is lost while the
+        # read still appears to run -- the exact failure this ordering exists to
+        # prevent.
+        _upload_dir()
+        with open(os.path.join(config.UPLOAD_DIR, stored), "wb") as fh:
+            fh.write(data)
+        up["stored"] = stored
+    except Exception as e:
+        up["error"] = "could not store the file: %s" % str(e)[:120]
+
+    fields, err = read_proposal(data, name)
+    if err or not fields:
+        up["status"] = "unread"
+        up["error"] = (up["error"] + " " + (err or "")).strip()[:300]
+        return db.insert("ho_uploads", up)
+    if fields.get("unreadable"):
+        up["status"] = "unread"
+        up["error"] = "This does not read as a roofing proposal."
+        up["extracted"] = json.dumps(fields)[:8000]
+        return db.insert("ho_uploads", up)
+
+    row = _fields_to_quote(fields)
+    row["project_id"] = project["id"]
+    row["created"] = db.now()
+    qid = db.insert("ho_quotes", row)
+    up["quote_id"] = qid
+    up["status"] = "read"
+    up["extracted"] = json.dumps(fields)[:8000]
+    return db.insert("ho_uploads", up)
+
+
 def _project_by_token(token):
     rows = db.all_rows("ho_projects", "token=?", (token,), "id DESC", 1)
     if not rows:
@@ -323,6 +537,78 @@ def start():
     return redirect(url_for("compare.project", token=token))
 
 
+@bp.route("/compare/upload", methods=["POST"], endpoint="landing_upload")
+def landing_upload():
+    """Upload straight from the front page: the homeowner has the PDFs open and
+    no reason yet to care what an account is. The e-mail still creates the
+    workspace -- it is how they get back in -- but the files come first."""
+    email = (request.form.get("email") or "").strip()[:200]
+    if not _EMAIL_RE.match(email):
+        return redirect(url_for("compare.landing") + "?err=1#start")
+    prior = db.all_rows("ho_projects", "email=?", (email,), "id DESC", 1)
+    if prior:
+        p = prior[0]
+        db.update("ho_projects", p["id"], last_seen=db.now())
+    else:
+        token = _tok()
+        db.insert("ho_projects", {
+            "created": db.now(), "token": token, "email": email,
+            "name": (request.form.get("name") or "").strip()[:120],
+            "address": (request.form.get("address") or "").strip()[:200],
+            "city": "", "state": "", "zip": "", "stage": "comparing", "notes": "",
+            "source_host": (request.host or "")[:120], "last_seen": db.now()})
+        p = db.all_rows("ho_projects", "token=?", (token,), "id DESC", 1)[0]
+    n = _ingest_files(p, request.files.getlist("quotes"))
+    _log("compare_upload_start" if n else "compare_start")
+    return redirect(url_for("compare.project", token=p["token"]) +
+                    ("#quotes" if n else "#add"))
+
+
+@bp.route("/c/<token>/upload", methods=["POST"], endpoint="upload")
+def upload(token):
+    p = _project_by_token(token)
+    n = _ingest_files(p, request.files.getlist("quotes"))
+    _log("compare_upload", "/c/<token>/upload")
+    return redirect(url_for("compare.project", token=token) +
+                    ("#quotes" if n else "#upload"))
+
+
+def _ingest_files(project, files):
+    """Read each file independently. One bad PDF in a batch of three must not
+    cost the homeowner the other two."""
+    done = 0
+    for f in (files or [])[:6]:
+        if not getattr(f, "filename", ""):
+            continue
+        try:
+            ingest_upload(project, f)
+            done += 1
+        except Exception as e:
+            try:
+                db.insert("ho_uploads", {
+                    "project_id": project["id"], "quote_id": None,
+                    "created": db.now(),
+                    "filename": os.path.basename(getattr(f, "filename", "") or "")[:180],
+                    "stored": "", "bytes": 0, "status": "failed",
+                    "error": ("%s: %s" % (type(e).__name__, e))[:300], "extracted": ""})
+            except Exception:
+                pass
+    return done
+
+
+@bp.route("/c/<token>/quote/<int:qid>/confirm", methods=["POST"], endpoint="confirm_quote")
+def confirm_quote(token, qid):
+    """The homeowner says the machine read this one correctly. Until this is
+    pressed the quote is shown as unchecked everywhere it appears."""
+    p = _project_by_token(token)
+    q = db.get("ho_quotes", qid)
+    if not q or q.get("project_id") != p["id"]:
+        abort(404)
+    db.update("ho_quotes", qid, reviewed=1)
+    _log("compare_quote_confirmed", "/c/<token>/quote/confirm")
+    return redirect(url_for("compare.project", token=token) + "#quotes")
+
+
 @bp.route("/c/<token>", endpoint="project")
 def project(token):
     p = _project_by_token(token)
@@ -335,8 +621,9 @@ def project(token):
     view = []
     for q in quotes:
         view.append(dict(q, _spec=_spec_of(q), _gaps=gaps_for(q)))
+    uploads = db.all_rows("ho_uploads", "project_id=?", (p["id"],), "id DESC", 20)
     return render_template(
-        "compare_project.html", p=p, quotes=view, spec=SPEC,
+        "compare_project.html", p=p, quotes=view, spec=SPEC, uploads=uploads,
         spec_keys=SPEC_KEYS, stages=STAGES,
         stage=STAGE_INDEX.get(p.get("stage") or "comparing", STAGES[0]),
         stage_keys=STAGE_KEYS,
@@ -366,6 +653,9 @@ def save_quote(token):
     }
     if not row["contractor"]:
         return redirect(url_for("compare.project", token=token) + "?err=name")
+    # Anything a person typed or corrected by hand counts as reviewed -- that is
+    # exactly the confirmation the badge on an uploaded quote is waiting for.
+    row["reviewed"] = 1
     if qid.isdigit():
         existing = db.get("ho_quotes", int(qid))
         if not existing or existing.get("project_id") != p["id"]:
@@ -373,6 +663,7 @@ def save_quote(token):
         db.update("ho_quotes", int(qid), **row)
     else:
         row["project_id"] = p["id"]
+        row["source"] = "manual"
         row["created"] = db.now()
         db.insert("ho_quotes", row)
     _log("compare_quote_saved", "/c/<token>/quote")

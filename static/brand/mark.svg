@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="t d">
+  <title id="t">MyRoofPortal mark</title>
+  <desc id="d">A roofline over a lit opening: the homeowner's view into their roof job.</desc>
+  <rect width="64" height="64" rx="14" fill="#071c2b"/>
+  <path d="M11 32.5 32 14l21 18.5" fill="none" stroke="#ffffff" stroke-width="5.5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22 50V38.5a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3V50z" fill="#178fe5"/>
+  <path d="M32 35.5V50" stroke="#071c2b" stroke-width="2.4"/>
+  <path d="M22 43.5h20" stroke="#071c2b" stroke-width="2.4"/>
+</svg>

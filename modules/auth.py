@@ -97,6 +97,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # token in their own link, the same way the job portal works.
           "compare.landing", "compare.start", "compare.project",
           "compare.save_quote", "compare.del_quote", "compare.set_stage",
+          "compare.landing_upload", "compare.upload", "compare.confirm_quote",
           "compare.save_note",
           # Token-gated DB-restore + CSV imports: NOT session-auth'd. Their own
           # X-Restore-Token check is the gate (404 when unarmed/wrong). Must bypass
