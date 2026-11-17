@@ -342,6 +342,45 @@ def _reader_tool():
     }
 
 
+def _blocks(data, spoken=""):
+    """The content blocks for one read: a PDF, one or more photos, or just what
+    the homeowner said. Photos go in as images, which is what a page snapped in
+    a driveway actually is."""
+    import base64
+    out = []
+    has_doc = False
+    kind, mime = sniff(data or b"")
+    if kind == "pdf":
+        out.append({"type": "document", "source": {
+            "type": "base64", "media_type": mime,
+            "data": base64.b64encode(data).decode("ascii")}})
+        has_doc = True
+    elif kind == "image":
+        out.append({"type": "image", "source": {
+            "type": "base64", "media_type": mime,
+            "data": base64.b64encode(data).decode("ascii")}})
+        has_doc = True
+    if spoken:
+        out.append({"type": "text", "text":
+                    "The homeowner described this quote out loud:\n\n" + spoken})
+    # Decide on whether a DOCUMENT is present, not on whether the block list is
+    # non-empty: the spoken text is itself a block, so the old check handed
+    # spoken-only reads the document prompt -- the one that treats what it sees
+    # as written commitments. That is the exact way recall becomes a false
+    # "in writing".
+    out.append({"type": "text",
+                "text": _READER_PROMPT if has_doc else _SPOKEN_ONLY_PROMPT})
+    return out
+
+
+_SPOKEN_ONLY_PROMPT = (
+    "There is no document here -- only what the homeowner remembers being told. "
+    "Record ONLY what they actually said. Spoken recall is not a written "
+    "commitment, so a line they mention is '?' unless they say plainly that it "
+    "is written into the quote. Put their own words in the detail field. Never "
+    "fill in what a normal quote would contain."
+)
+
 _READER_PROMPT = (
     "You are reading a roofing proposal a homeowner received, to fill in a "
     "comparison sheet.\n\n"
@@ -353,13 +392,37 @@ _READER_PROMPT = (
     "For every 'yes' and every 'no', put the supporting words from the document "
     "in the matching detail field, short and verbatim where you can. A 'yes' with "
     "nothing to quote is a '?'.\n\n"
-    "If the file is not a roofing proposal, set unreadable = true and stop."
+    "If the file is not a roofing proposal, set unreadable = true and stop.\n\n"
+    "If this is a PHOTOGRAPH, read only what is legible. A page that is cut off, "
+    "blurred or angled away may be hiding the very line you are judging, so when "
+    "you cannot read a region, that line is '?'. Do not guess at cropped text."
 )
 
 
-def read_proposal(pdf_bytes, filename=""):
+IMAGE_TYPES = {b"\xff\xd8\xff": "image/jpeg",
+               b"\x89PNG": "image/png",
+               b"GIF8": "image/gif",
+               b"RIFF": "image/webp"}
+
+
+def sniff(data):
+    """(kind, media_type). A phone photo of a proposal is the common case -- most
+    people are handed paper, not a PDF -- so the reader takes pictures as well."""
+    if data[:5] == b"%PDF-":
+        return "pdf", "application/pdf"
+    for magic, mime in IMAGE_TYPES.items():
+        if data[:len(magic)] == magic:
+            return "image", mime
+    return "", ""
+
+
+def read_proposal(data, filename="", spoken=""):
     """(fields, error). Never raises: a failed read must leave the homeowner a
-    quote they can still fill in by hand."""
+    quote they can still fill in by hand.
+
+    `data` is a PDF or a photo. `spoken` is the homeowner describing the quote
+    out loud, used alone when there is no document at all.
+    """
     import base64
     try:
         import anthropic
@@ -370,19 +433,16 @@ def read_proposal(pdf_bytes, filename=""):
     if not key:
         return None, "reader not configured"
     try:
+        from modules.ai import anthropic_create
         client = anthropic.Anthropic(api_key=key)
-        resp = client.messages.create(
+        resp = anthropic_create(
+            client,
             model=READER_MODEL,
             max_tokens=3000,
             temperature=0,   # reading a document, not composing one
             tools=[_reader_tool()],
             tool_choice={"type": "tool", "name": "read_roofing_proposal"},
-            messages=[{"role": "user", "content": [
-                {"type": "document", "source": {
-                    "type": "base64", "media_type": "application/pdf",
-                    "data": base64.b64encode(pdf_bytes).decode("ascii")}},
-                {"type": "text", "text": _READER_PROMPT},
-            ]}],
+            messages=[{"role": "user", "content": _blocks(data, spoken)}],
         )
     except Exception as e:
         return None, "%s: %s" % (type(e).__name__, str(e)[:200])
@@ -416,6 +476,34 @@ def _fields_to_quote(fields):
     }
 
 
+def ingest_spoken(project, spoken):
+    """A quote described out loud and nothing else. Recorded as its own upload so
+    it sits in the same log, and marked so the sheet shows where it came from."""
+    spoken = (spoken or "").strip()[:6000]
+    up = {"project_id": project["id"], "quote_id": None, "created": db.now(),
+          "filename": "Described out loud", "stored": "", "bytes": len(spoken),
+          "status": "pending", "error": "", "extracted": ""}
+    if len(spoken) < 25:
+        up["status"] = "failed"
+        up["error"] = "Too short to read anything from. Say the contractor's name, the price, and what they said is included."
+        return db.insert("ho_uploads", up)
+    fields, err = read_proposal(b"", "", spoken=spoken)
+    if err or not fields:
+        up["status"] = "unread"
+        up["error"] = (err or "")[:300]
+        return db.insert("ho_uploads", up)
+    row = _fields_to_quote(fields)
+    row["project_id"] = project["id"]
+    row["created"] = db.now()
+    row["source"] = "spoken"
+    row["notes"] = "Described out loud: " + spoken[:1500]
+    qid = db.insert("ho_quotes", row)
+    up["quote_id"] = qid
+    up["status"] = "read"
+    up["extracted"] = json.dumps(fields)[:8000]
+    return db.insert("ho_uploads", up)
+
+
 def ingest_upload(project, fileobj):
     """Store one uploaded proposal, read it, and create its quote. Returns the
     ho_uploads row id. The FILE is saved before the read is attempted, so a
@@ -429,12 +517,17 @@ def ingest_upload(project, fileobj):
         up["status"] = "failed"
         up["error"] = "That file is over 12 MB. Most proposals are well under 1 MB."
         return db.insert("ho_uploads", up)
-    if not data[:5] == b"%PDF-":
+    kind, mime = sniff(data)
+    if not kind:
         up["status"] = "failed"
-        up["error"] = "That does not look like a PDF. Upload the proposal file the contractor sent."
+        up["error"] = ("That file is neither a PDF nor a photo. Upload the proposal "
+                       "the contractor sent, or take a picture of it.")
         return db.insert("ho_uploads", up)
 
-    stored = "%s/%s-%s.pdf" % (UPLOAD_SUBDIR, project["token"][:8], secrets.token_hex(6))
+    ext = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png",
+           "image/gif": "gif", "image/webp": "webp"}.get(mime, "bin")
+    stored = "%s/%s-%s.%s" % (UPLOAD_SUBDIR, project["token"][:8],
+                              secrets.token_hex(6), ext)
     try:
         import config
         # _upload_dir() is what creates the subfolder. Without this call the
@@ -594,6 +687,26 @@ def _ingest_files(project, files):
             except Exception:
                 pass
     return done
+
+
+@bp.route("/c/<token>/describe", methods=["POST"], endpoint="describe")
+def describe(token):
+    """No PDF, no photo -- the homeowner just says what they were told. Common
+    when the quote was verbal, or the paper copy is at the office."""
+    p = _project_by_token(token)
+    try:
+        ingest_spoken(p, request.form.get("spoken") or "")
+    except Exception as e:
+        try:
+            db.insert("ho_uploads", {
+                "project_id": p["id"], "quote_id": None, "created": db.now(),
+                "filename": "Described out loud", "stored": "", "bytes": 0,
+                "status": "failed", "error": ("%s: %s" % (type(e).__name__, e))[:300],
+                "extracted": ""})
+        except Exception:
+            pass
+    _log("compare_spoken", "/c/<token>/describe")
+    return redirect(url_for("compare.project", token=token) + "#quotes")
 
 
 @bp.route("/c/<token>/quote/<int:qid>/confirm", methods=["POST"], endpoint="confirm_quote")

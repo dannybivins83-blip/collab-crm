@@ -253,9 +253,9 @@
             action="{{ url_for('compare.landing_upload') }}">
         <label class="drop" for="quotes">
           <span class="dt">Upload your quotes</span>
-          <span class="ds">PDF, up to 6. We read them and fill the sheet in for you.</span>
-          <input id="quotes" name="quotes" type="file" accept="application/pdf,.pdf" multiple>
-          <span class="dn" id="dropNote">No files chosen &mdash; you can also skip this and type them in.</span>
+          <span class="ds">PDFs or photos of the paperwork &mdash; up to 6. We read them and fill the sheet in for you.</span>
+          <input id="quotes" name="quotes" type="file" accept="application/pdf,.pdf,image/*" multiple>
+          <span class="dn" id="dropNote">No files chosen &mdash; on a phone this opens your camera too.</span>
         </label>
         <input type="text" name="name" placeholder="Your name (optional)" autocomplete="name">
         <input type="email" name="email" required placeholder="you@email.com" autocomplete="email">
@@ -280,7 +280,7 @@
   i.addEventListener('change', function () {
     var f = i.files;
     n.textContent = !f || !f.length
-      ? 'No files chosen — you can also skip this and type them in.'
+      ? 'No files chosen — on a phone this opens your camera too.'
       : (f.length === 1 ? f[0].name : f.length + ' files ready to read');
   });
 })();

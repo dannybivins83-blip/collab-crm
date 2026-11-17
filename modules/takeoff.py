@@ -783,8 +783,10 @@ def _run_takeoff_worker(token, file_path, file_name, lead_id, profile, app, doc_
 
         _progress("Sending to Claude Vision for measurement extraction…")
 
+        from modules.ai import anthropic_create
         client = anthropic.Anthropic(api_key=_config.ANTHROPIC_API_KEY or None)
-        resp = client.messages.create(
+        resp = anthropic_create(
+            client,
             model="claude-sonnet-4-6",
             max_tokens=2000,
             temperature=0,   # measurement extraction: deterministic + grounded, not creative
