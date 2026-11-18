@@ -126,6 +126,16 @@
   .tr ul{margin:8px 0 0;padding-left:19px;font-size:14px;color:var(--slate-700);line-height:1.6}
   .tr button{margin-top:9px}
 
+  /* Roof type drives which questions exist, so it sits above the comparison
+     rather than in a settings page nobody opens. */
+  .roofpick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 18px;
+            padding-bottom:16px;border-bottom:1px solid var(--line)}
+  .roofpick .rl{font-size:14px;font-weight:700;margin-right:4px}
+  .rb{border:1px solid var(--line);background:#fff;color:var(--navy-950);border-radius:999px;
+      padding:7px 15px;font:inherit;font-size:13.5px;font-weight:650;cursor:pointer;min-height:36px}
+  .rb:hover{border-color:var(--sky-500)}
+  .rb.on{background:var(--navy-950);color:#fff;border-color:var(--navy-950)}
+  .roofpick .rn{flex-basis:100%;font-size:12.5px;color:var(--slate-500);margin-top:2px}
   .drop2{display:block;border:1.5px dashed var(--line);border-radius:var(--r-md);
          padding:16px;cursor:pointer;background:var(--warm-50)}
   .drop2:hover,.drop2:focus-within{border-color:var(--sky-500)}
@@ -179,6 +189,17 @@
 
   {# ---------------- where the quotes disagree ---------------- #}
   <section class="blk" id="compare">
+    <form method="post" action="{{ url_for('compare.set_roof', token=p.token) }}" class="roofpick">
+      <span class="rl">What kind of roof is this?</span>
+      {% for key, label in roof_types %}
+      <button type="submit" name="roof_type" value="{{ key }}"
+              class="rb{% if roof_type == key %} on{% endif %}">{{ label }}</button>
+      {% endfor %}
+      {% if not roof_type %}
+      <span class="rn">Pick one and the sheet drops the questions that don't apply to you.</span>
+      {% endif %}
+    </form>
+
     <h2>Where your quotes disagree</h2>
     <p class="sub">These are the lines some contractors included and others didn't. This is
       the reason the prices aren't the same — not a judgement about who's better.</p>
@@ -211,9 +232,9 @@
         <tbody>
           <tr class="pricerow"><td class="k">Price as quoted</td>
             {% for q in quotes %}<td>{{ q.price or '—' }}</td>{% endfor %}</tr>
-          {% for group, items in spec %}
-            <tr><td class="gh" colspan="{{ quotes|length + 1 }}">{{ group }}</td></tr>
-            {% for i in items %}
+          {% for g in spec %}
+            <tr><td class="gh" colspan="{{ quotes|length + 1 }}">{{ g.name }}</td></tr>
+            {% for i in g['items'] %}
             <tr>
               <td class="k">{{ i.label }}</td>
               {% for q in quotes %}
@@ -391,10 +412,10 @@
           <input class="ti" id="license" name="license" maxlength="80"></div>
       </div>
 
-      {% for group, items in spec %}
+      {% for g in spec %}
       <fieldset class="sg">
-        <legend>{{ group }}</legend>
-        {% for i in items %}
+        <legend>{{ g.name }}</legend>
+        {% for i in g['items'] %}
         <div class="sitem">
           <div class="lab">{{ i.label }}</div>
           <div class="why">{{ i.why }}</div>

@@ -79,6 +79,7 @@
   .groups{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
   .group{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:20px 22px}
   .sec.alt .group{background:var(--warm-50)}
+  .group h3 em{font-style:normal;color:var(--slate-500);font-weight:600;text-transform:none;letter-spacing:0}
   .group h3{margin:0 0 12px;font-size:15px;text-transform:uppercase;letter-spacing:.06em;
             color:var(--teal-600)}
   .group ul{list-style:none;margin:0;padding:0;display:grid;gap:9px}
@@ -207,16 +208,18 @@
 
 <section class="sec alt" id="sheet">
   <div class="wrap">
-    <h2 class="h2">The spec sheet — {{ spec_count }} lines</h2>
-    <p class="sub">For each quote you mark whether the contractor put the line in writing.
+    <h2 class="h2">The spec sheet</h2>
+    <p class="sub">The sheet follows your roof: a tile job gets asked about adhesive foam
+      patterns and underlayment laps, a shingle job about starter strip and ridge cap.
+      For each quote you mark whether the contractor put the line in writing.
       Anything that isn't a clear yes becomes a question, worded for you to ask on the phone.
       You'll know which quote is actually cheapest once they all cover the same roof.</p>
     <div class="groups">
-      {% for group, items in spec %}
+      {% for g in spec %}
       <div class="group">
-        <h3>{{ group }}</h3>
+        <h3>{{ g.name }}{% if 'all' not in g.types %} <em>&middot; {{ g.types|join(', ') }} roofs</em>{% endif %}</h3>
         <ul>
-          {% for i in items %}
+          {% for i in g['items'] %}
           <li><span class="tick">&#10003;</span><span><b>{{ i.label }}</b> — {{ i.why }}</span></li>
           {% endfor %}
         </ul>

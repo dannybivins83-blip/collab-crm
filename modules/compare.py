@@ -39,7 +39,8 @@ try:
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         created TEXT, token TEXT, email TEXT, name TEXT,
         address TEXT, city TEXT, state TEXT, zip TEXT,
-        stage TEXT, notes TEXT, source_host TEXT, last_seen TEXT)""")
+        stage TEXT, notes TEXT, source_host TEXT, last_seen TEXT,
+        roof_type TEXT)""")
 except Exception:
     pass
 # What the homeowner uploaded, and what the reader made of it. Kept separate from
@@ -61,7 +62,8 @@ try:
         source TEXT, reviewed INTEGER DEFAULT 0)""")
 except Exception:
     pass
-for _t, _c, _d in (("ho_quotes", "source", "TEXT"),
+for _t, _c, _d in (("ho_projects", "roof_type", "TEXT"),
+                   ("ho_quotes", "source", "TEXT"),
                    ("ho_quotes", "reviewed", "INTEGER DEFAULT 0")):
     try:
         db._ensure_column(_t, _c, _d)
@@ -79,7 +81,7 @@ db._COLCACHE.clear()
 # checklist nobody understands gets skipped.
 # --------------------------------------------------------------------------
 SPEC = [
-    ("Tear-off and what's underneath", [
+    dict(name="Tear-off and what's underneath", types=("all",), items=[
         dict(key="tearoff",
              label="Full tear-off to the deck",
              why="Going over the old shingles is cheaper now and hides rot you'll pay for later.",
@@ -93,7 +95,7 @@ SPEC = [
              why="Many areas require the existing deck re-nailed before the new roof goes on. If it's not in the bid it becomes a change order.",
              ask="Does your price include re-nailing the deck to code, and is that line on the permit?"),
     ]),
-    ("The layers that keep water out", [
+    dict(name="The layers that keep water out", types=("all",), items=[
         dict(key="underlay",
              label="Underlayment — synthetic, not felt",
              why="Felt and synthetic are not the same product or the same price. This is a common place for a cheap bid to save money quietly.",
@@ -114,12 +116,16 @@ SPEC = [
              label="New pipe boots and vent collars",
              why="Cracked rubber boots outlive nothing. Old ones on a new roof will leak before the warranty is up.",
              ask="Are all the pipe boots and vent flashings being replaced with new?"),
+        dict(key="vent",
+             label="Ventilation — intake AND exhaust",
+             why="Exhaust without intake does nothing and will cook the roof. It is also the most common cause of a denied manufacturer warranty claim.",
+             ask="What ventilation am I getting, and is there enough intake at the soffits to feed it?"),
         dict(key="drip_edge",
              label="New drip edge",
              why="Code in most places, and the edge detail is where a roof starts failing.",
              ask="Is new drip edge included on eaves and rakes, and what gauge?"),
     ]),
-    ("The roof itself", [
+    dict(name="The roof itself", types=("shingle",), items=[
         dict(key="shingle",
              label="Shingle — brand AND exact product line",
              why='"Architectural shingle" is not a product. Two lines from the same brand can differ by thousands over the roof.',
@@ -132,12 +138,61 @@ SPEC = [
              label="Manufacturer ridge cap",
              why="Same story as starter — cut-up field shingles at the ridge is a warranty problem.",
              ask="Is the ridge cap the manufacturer's cap product, or cut field shingles?"),
-        dict(key="vent",
-             label="Ventilation — intake AND exhaust",
-             why="Exhaust without intake does nothing and will cook the roof. It is also the most common cause of a denied manufacturer warranty claim.",
-             ask="What ventilation am I getting, and is there enough intake at the soffits to feed it?"),
     ]),
-    ("Paperwork, warranty and who's liable", [
+    # Tile, South Florida. Drawn from the trade's own failure modes: these are
+    # the places a low bid quietly saves money on a tile roof, and every one of
+    # them is invisible from the ground once the tile is loaded.
+    dict(name="Tile: attachment and the layers under it", types=("tile",), items=[
+        dict(key="tile_product",
+             label="The tile itself — maker and profile, named",
+             why="Profile and maker decide the approved attachment method. \"Concrete tile\" is not a product.",
+             ask="Which tile, which maker and which profile? Flat, S-profile or barrel?"),
+        dict(key="tile_attach",
+             label="How the tile is attached — foam, screws or nails, stated",
+             why="Adhesive-set and mechanically fastened are different systems with different approvals and different prices.",
+             ask="Are the tiles set in adhesive foam, screwed, or nailed? Which, exactly?"),
+        dict(key="foam_pattern",
+             label="Foam adhesive — brand, and the paddy size and placement",
+             why="Small or infrequent paddies are the classic hidden saving on a tile roof. It is also what fails in a hurricane and what voids the wind warranty.",
+             ask="Which adhesive, and what size and placement is the paddy under each tile? Does that match the product approval?"),
+        dict(key="noa",
+             label="Product approval / NOA numbers for the whole assembly",
+             why="In a High-Velocity Hurricane Zone the assembly is approved as a SYSTEM. Mixing products outside that approval can fail an inspection and a claim.",
+             ask="What are the NOA or product-approval numbers for this assembly, and does every product in it fall under them?"),
+        dict(key="underlay_layers",
+             label="One underlayment layer or two — and which products",
+             why="A two-ply system and a single self-adhered sheet are not the same roof or the same price.",
+             ask="Is it one layer or two, and what is each one? Anchor sheet plus cap, or a single self-adhered membrane?"),
+        dict(key="direct_to_deck",
+             label="Direct-to-deck — and how moisture gets out if it is",
+             why="A continuous self-adhered membrane straight on the deck limits outward drying. Trapped moisture can reach the plywood and trusses, and manufacturer guidance on this changed — the current data sheets ask for the roof and attic to be evaluated per project.",
+             ask="Is this direct-to-deck? If so, how does the assembly handle moisture, and is there enough intake ventilation for it?"),
+        dict(key="roll_overlap",
+             label="Underlayment lap widths, to the product's instructions",
+             why="Short side and end laps stretch the rolls and save material. Water then migrates between the seams.",
+             ask="What are the side and end laps, and does that match the product's printed instructions?"),
+        dict(key="deck_prep",
+             label="Deck cleaning, priming and the roller pass",
+             why="Peel-and-stick rolled over dusty or unprimed wood, or never rolled with a weighted roller, does not bond. It blisters and lifts later.",
+             ask="How is the deck prepared, is it primed, and do you make the weighted-roller pass the instructions call for?"),
+        dict(key="mfr_certified",
+             label="Certified by the manufacturer for THIS system",
+             why="The better warranties require a certified installer for that exact assembly, not just a brand-name product.",
+             ask="Are you certified by the manufacturer to install this system, and under what program?"),
+        dict(key="exposure",
+             label="How long the underlayment stays exposed",
+             why="Underlayment left open to the sun for weeks before tile is loaded ages before the roof is even finished.",
+             ask="How long will the underlayment be exposed before the tile is loaded?"),
+        dict(key="substitutions",
+             label="Written approval before any product is swapped",
+             why="A substitute is not automatically equivalent. It can fall outside the approval and change the warranty you were quoted.",
+             ask="If a product is unavailable, do I get the substitute in writing, with its approval, before it goes on?"),
+        dict(key="progress_photos",
+             label="Photos while the deck and underlayment are open",
+             why="Once the tile is loaded, nothing underneath can be seen again without taking the roof apart.",
+             ask="Will I get photos of the bare deck, the underlayment and the laps before the tile goes on?"),
+    ]),
+    dict(name="Paperwork, warranty and who's liable", types=("all",), items=[
         dict(key="permit",
              label="Permit pulled by the contractor, in their name",
              why="If you pull it yourself, you are the contractor as far as the county is concerned, and you own every defect.",
@@ -159,7 +214,7 @@ SPEC = [
              why="The manufacturer covers the shingle. Only the contractor covers the installation, and installation is what leaks.",
              ask="How many years is your workmanship warranty, is it in writing, and does it transfer if I sell the house?"),
     ]),
-    ("Money and the day itself", [
+    dict(name="Money and the day itself", types=("all",), items=[
         dict(key="payment",
              label="Payment schedule — deposit and draws",
              why="A large deposit before any material is delivered is the warning sign in this trade.",
@@ -179,8 +234,33 @@ SPEC = [
     ]),
 ]
 
-SPEC_INDEX = {i["key"]: i for _g, items in SPEC for i in items}
-SPEC_KEYS = [i["key"] for _g, items in SPEC for i in items]
+SPEC_INDEX = {i["key"]: i for g in SPEC for i in g["items"]}
+SPEC_KEYS = [i["key"] for g in SPEC for i in g["items"]]
+
+# Roof types the sheet knows. "unsure" keeps every group visible rather than
+# hiding a question from someone who does not yet know what they have.
+ROOF_TYPES = [("tile", "Tile"), ("shingle", "Shingle"), ("metal", "Metal"),
+              ("flat", "Flat / low-slope"), ("unsure", "Not sure yet")]
+ROOF_TYPE_KEYS = [k for k, _ in ROOF_TYPES]
+
+
+def spec_for(roof_type):
+    """The groups that apply to this roof. Common groups always; a type-specific
+    group only for its own type. An unknown or missing type shows everything,
+    because hiding a question is worse than asking one that does not apply."""
+    rt = (roof_type or "").strip().lower()
+    if rt not in ROOF_TYPE_KEYS or rt == "unsure":
+        return list(SPEC)
+    out = []
+    for g in SPEC:
+        types = g.get("types") or ("all",)
+        if "all" in types or rt in types:
+            out.append(g)
+    return out
+
+
+def keys_for(roof_type):
+    return [i["key"] for g in spec_for(roof_type) for i in g["items"]]
 
 # Where a homeowner actually is, start to finish. The checklist per stage is the
 # point: "what should I have in my hand right now."
@@ -245,13 +325,13 @@ def _val(spec, key):
     return (v.get("v") or "?") if isinstance(v, dict) else "?"
 
 
-def gaps_for(q):
+def gaps_for(q, roof_type=None):
     """Every spec line this quote does NOT put in writing, as questions to ask.
     'no' and 'not addressed' both land here: the homeowner needs to raise both,
     they just mean different things once they do."""
     spec = _spec_of(q)
     out = []
-    for key in SPEC_KEYS:
+    for key in (keys_for(roof_type) if roof_type else SPEC_KEYS):
         v = _val(spec, key)
         if v != "yes":
             item = SPEC_INDEX[key]
@@ -259,12 +339,12 @@ def gaps_for(q):
     return out
 
 
-def disagreements(quotes):
+def disagreements(quotes, roof_type=None):
     """Spec lines the quotes do not agree on — the actual reason the prices
     differ. Shown above the per-quote gaps because it is the whole question the
     homeowner came here with."""
     out = []
-    for key in SPEC_KEYS:
+    for key in (keys_for(roof_type) if roof_type else SPEC_KEYS):
         vals = {}
         for q in quotes:
             vals[_val(_spec_of(q), key)] = True
@@ -308,7 +388,7 @@ def _upload_dir():
     return d
 
 
-def _reader_tool():
+def _reader_tool(keys=None):
     """The tool schema, generated from SPEC so a new line item is readable the
     day it is added and no second list has to be kept in step."""
     props = {
@@ -320,7 +400,7 @@ def _reader_tool():
         "roof_type": {"type": "string", "enum": ["tile", "shingle", "metal", "flat", "mixed", "unclear"]},
         "unreadable": {"type": "boolean", "description": "true if the document is not a roofing proposal, or is too unclear to read."},
     }
-    for key in SPEC_KEYS:
+    for key in (keys or SPEC_KEYS):
         item = SPEC_INDEX[key]
         props["v_" + key] = {
             "type": "string", "enum": ["yes", "no", "?"],
@@ -731,16 +811,18 @@ def project(token):
     except Exception:
         pass
     _log("compare_project", "/c/<token>")
+    rt = (p.get("roof_type") or "").strip().lower()
     view = []
     for q in quotes:
-        view.append(dict(q, _spec=_spec_of(q), _gaps=gaps_for(q)))
+        view.append(dict(q, _spec=_spec_of(q), _gaps=gaps_for(q, rt)))
     uploads = db.all_rows("ho_uploads", "project_id=?", (p["id"],), "id DESC", 20)
     return render_template(
-        "compare_project.html", p=p, quotes=view, spec=SPEC, uploads=uploads,
+        "compare_project.html", p=p, quotes=view, spec=spec_for(rt), uploads=uploads,
+        roof_types=ROOF_TYPES, roof_type=rt,
         spec_keys=SPEC_KEYS, stages=STAGES,
         stage=STAGE_INDEX.get(p.get("stage") or "comparing", STAGES[0]),
         stage_keys=STAGE_KEYS,
-        disagree=disagreements(quotes))
+        disagree=disagreements(quotes, rt))
 
 
 @bp.route("/c/<token>/quote", methods=["POST"], endpoint="save_quote")
@@ -791,6 +873,19 @@ def del_quote(token, qid):
         abort(404)
     db.delete("ho_quotes", qid)
     return redirect(url_for("compare.project", token=token) + "#quotes")
+
+
+@bp.route("/c/<token>/roof", methods=["POST"], endpoint="set_roof")
+def set_roof(token):
+    """Which roof this is. It decides which questions the sheet asks, so it is a
+    real answer and not a label: a tile owner has no use for starter strips and
+    a shingle owner has none for foam paddies."""
+    p = _project_by_token(token)
+    rt = (request.form.get("roof_type") or "").strip().lower()
+    if rt in ROOF_TYPE_KEYS:
+        db.update("ho_projects", p["id"], roof_type=rt)
+        _log("compare_roof_" + rt, "/c/<token>/roof")
+    return redirect(url_for("compare.project", token=token) + "#compare")
 
 
 @bp.route("/c/<token>/stage", methods=["POST"], endpoint="set_stage")
