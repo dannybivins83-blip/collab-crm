@@ -424,7 +424,7 @@
   <div class="wrap askgrid">
     <div>
       <p class="eyebrow-rule">Roof questions</p>
-      <h2 class="h2">What to ask <em>before the roof goes on.</em></h2>
+      <h2 class="h2">What to ask <em data-roofq-label>before the roof goes on.</em></h2>
       <p class="sub">Use the written answers to compare what each roofer has allowed
         for. The sheet follows your roof &mdash; {{ spec_count }} line items in all, and a
         tile job is not asked the same things as a shingle job.</p>
@@ -436,17 +436,27 @@
           why they are easier to ask about than to inspect afterwards.</figcaption>
       </figure>
     </div>
-    <div class="qs">
+    {# One set per system, all rendered, one shown. Clicking a roof card above
+       swaps them, so the promise the cards make is the promise the page keeps
+       -- and with no JavaScript the general set stays, which is still true. #}
+    <div class="qs" data-roofq="">
       {% for i in questions %}
       <a class="q" href="#start">
-        <span>
-          <h3>{{ i.label }}</h3>
-          <p>{{ i.ask }}</p>
-        </span>
+        <span><h3>{{ i.label }}</h3><p>{{ i.ask }}</p></span>
         <span class="arrow" aria-hidden="true">&rarr;</span>
       </a>
       {% endfor %}
     </div>
+    {% for rt, items in questions_by_roof.items() %}
+    <div class="qs" data-roofq="{{ rt }}" hidden>
+      {% for i in items %}
+      <a class="q" href="#start">
+        <span><h3>{{ i.label }}</h3><p>{{ i.ask }}</p></span>
+        <span class="arrow" aria-hidden="true">&rarr;</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endfor %}
   </div>
 </section>
 
@@ -637,10 +647,30 @@
   // The roof cards are the same choice as the picker in the form, so clicking
   // one arrives at the form with that answer already given rather than asking
   // the same question again further down the page.
+  // Picking a roof card selects it in the form AND swaps the questions above
+  // to that system, which is what the cards say will happen.
+  var LABELS = {tile: 'before the tile goes on.', shingle: 'before the shingles go on.',
+                metal: 'before the panels go on.', flat: 'before the membrane goes on.'};
+  function showRoofQuestions(rt) {
+    var any = false;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-roofq]'), function (d) {
+      var mine = d.getAttribute('data-roofq') === rt;
+      if (mine) { any = true; }
+      d.hidden = !mine;
+    });
+    if (!any) {   // no set for this system; keep the general one visible
+      var g = document.querySelector('[data-roofq=""]');
+      if (g) { g.hidden = false; }
+    }
+    var lab = document.querySelector('[data-roofq-label]');
+    if (lab && LABELS[rt]) { lab.textContent = LABELS[rt]; }
+  }
   Array.prototype.forEach.call(document.querySelectorAll('[data-roof]'), function (a) {
     a.addEventListener('click', function () {
-      var r = document.getElementById('rt-' + a.getAttribute('data-roof'));
+      var rt = a.getAttribute('data-roof');
+      var r = document.getElementById('rt-' + rt);
       if (r) { r.checked = true; }
+      showRoofQuestions(rt);
     });
   });
 })();

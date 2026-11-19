@@ -784,20 +784,45 @@ def landing():
     # The page shows a handful of real questions rather than the whole sheet:
     # 104 line items printed on a front page is a wall, not an argument. These
     # are the ones that decide money on nearly every quote.
-    # Underlayment, attachment, wood repairs and the warranty -- the four the
-    # mockup picks out, and the four that move the most money on a real quote.
-    want = ["vet_15", "vet_22", "vet_26", "vet_31"]
+    # The roof cards promise questions for the system you pick, and the page
+    # was showing the same four whatever you clicked -- and one of them was
+    # tile attachment, so a metal owner was told metal questions and shown
+    # tile. Build a set per system: the lines that apply ONLY to that roof
+    # first, because those are what make it system-specific, then the shared
+    # ones that move money on every job.
     pool = [i for g in SPEC for i in g["items"] if i.get("featured") and i.get("ask")]
+    general = ["vet_15", "vet_26", "vet_31", "vet_07"]
     by_key = {i["key"]: i for i in pool}
-    questions = [by_key[k] for k in want if k in by_key]
-    for i in pool:                       # top up if a key above was renamed
-        if len(questions) >= 4:
-            break
-        if i not in questions:
-            questions.append(i)
+
+    def _four(rt):
+        out, seen = [], set()
+        if rt:
+            # Most specific first: a line tagged for this roof alone says more
+            # about it than one shared with two others. Without this a membrane
+            # line led the tile, shingle AND metal sets, which is the opposite
+            # of system-specific.
+            cands = [i for i in pool
+                     if rt in (i.get("types") or ()) and len(i.get("types") or ()) < 4]
+            cands.sort(key=lambda i: (len(i.get("types") or ()), i["label"]))
+            for i in cands:
+                if i["key"] not in seen:
+                    out.append(i); seen.add(i["key"])
+        for k in general:                        # then the shared money lines
+            i = by_key.get(k)
+            if i and i["key"] not in seen and (not rt or rt in (i.get("types") or ())):
+                out.append(i); seen.add(i["key"])
+        for i in pool:                           # then anything else that fits
+            if len(out) >= 4:
+                break
+            if i["key"] not in seen and (not rt or rt in (i.get("types") or ())):
+                out.append(i); seen.add(i["key"])
+        return out[:4]
+
+    questions = _four("")
+    questions_by_roof = {rt: _four(rt) for rt in ROOF_TYPE_KEYS if rt != "unsure"}
     return render_template("compare_landing.html", spec=SPEC,
                            spec_count=len(SPEC_KEYS), stages=STAGES,
-                           questions=questions[:4],
+                           questions=questions, questions_by_roof=questions_by_roof,
                            demo_url="/demo/%s" % _demo_slug(),
                            acquire_url="/acquire")
 
