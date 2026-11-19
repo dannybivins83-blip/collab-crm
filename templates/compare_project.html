@@ -52,6 +52,20 @@
            background:var(--gold-100);border:1px solid #e9d59b;border-radius:11px;
            font-size:14.5px;line-height:1.5;color:#6b4e08}
   .reading b{color:#4d3905}
+  .removed{margin:0 0 18px;padding:13px 17px;background:#e9f4f0;border:1px solid #bfdbd0;
+           border-radius:10px;font-size:14.5px;color:var(--teal-600);font-weight:650}
+  .dupes{display:flex;align-items:center;justify-content:space-between;gap:20px;
+         flex-wrap:wrap;margin:0 0 18px;padding:15px 19px;background:#f9eeeb;
+         border:1px solid #e0b8b0;border-radius:11px;font-size:14.5px;line-height:1.5;
+         color:#7a362d}
+  .dupes b{color:#5e271f}
+  .dupes .btn{background:#8b3c32;color:#fff;min-height:42px;padding:10px 18px;
+              font-size:14px;font-weight:700;border-radius:8px}
+  .dupes .btn:hover{background:#733027}
+  .sr-del{display:none}
+  .colx{margin-left:7px;background:transparent;border:0;color:rgb(255 255 255/.5);
+        font-size:16px;line-height:1;cursor:pointer;padding:0 3px;border-radius:4px}
+  .colx:hover{color:#fff;background:rgb(255 255 255/.16)}
   .reading .spin{flex:none;width:18px;height:18px;border-radius:50%;
                  border:2.5px solid #e4cf93;border-top-color:#9a7512;
                  animation:spin .8s linear infinite}
@@ -330,6 +344,24 @@
     <button type="button" role="tab" data-panel="questions" aria-selected="false"><i aria-hidden="true">?</i>Questions</button>
   </div>
 
+  {% if request.args.get('removed') %}
+  <div class="removed" role="status">Removed {{ request.args.get('removed') }}
+    duplicate quote{{ '' if request.args.get('removed') == '1' else 's' }}.</div>
+  {% endif %}
+
+  {% if dupes %}
+  {# The same bid entered twice, almost always because a slow upload looked
+     like a dead one and the button got pressed again. Say so where the
+     duplicate columns are, and make clearing them one click. #}
+  <form class="dupes" method="post"
+        action="{{ url_for('compare.dedupe', token=p.token) }}"
+        onsubmit="return confirm('Remove {{ dupes }} duplicate quote{{ '' if dupes == 1 else 's' }}? The first copy of each is kept.')">
+    <span><b>{{ dupes }} duplicate quote{{ '' if dupes == 1 else 's' }}.</b>
+      The same contractor and the same total appears more than once.</span>
+    <button type="submit" class="btn">Remove {{ 'it' if dupes == 1 else 'them' }}</button>
+  </form>
+  {% endif %}
+
   {% if reading %}
   {# The read finishes after this page is served, so the page says what is
      happening and reloads itself once rather than leaving a homeowner looking
@@ -394,11 +426,23 @@
       <span class="rowlab"><span class="lb">Proposal overview</span>Quoted total</span>
       {% for q in quotes %}
       <span>
-        <span class="lb"><span class="badge">{{ loop.index0 | string | replace('0','A') | replace('1','B') | replace('2','C') | replace('3','D') | replace('4','E') }}</span>{{ q.contractor }}</span>
+        <span class="lb"><span class="badge">{{ loop.index0 | string | replace('0','A') | replace('1','B') | replace('2','C') | replace('3','D') | replace('4','E') }}</span>{{ q.contractor }}
+          {# Delete belongs where the duplicate is visible. It used to live only
+             on the quote cards, which now sit behind another tab. #}
+          <button type="submit" class="colx" form="delq{{ q.id }}"
+                  title="Remove this quote" aria-label="Remove {{ q.contractor }}">&times;</button>
+        </span>
         <span class="amt">{{ q.price or '&mdash;' | safe }}</span>
       </span>
       {% endfor %}
     </div>
+    {# Kept outside the strip: a form cannot be nested inside another, and the
+       buttons above reference these by id. #}
+    {% for q in quotes %}
+    <form id="delq{{ q.id }}" method="post" class="sr-del"
+          action="{{ url_for('compare.del_quote', token=p.token, qid=q.id) }}"
+          onsubmit="return confirm('Remove the quote from {{ q.contractor|e }}? This cannot be undone.')"></form>
+    {% endfor %}
     <div class="tw" style="margin-top:0">
       <table class="cmp">
         <thead>

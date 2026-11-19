@@ -544,6 +544,26 @@ def read_queued(project_id, jobs):
                 pass
 
 
+def duplicate_groups(quotes):
+    """Quotes that are the same bid entered twice.
+
+    Same contractor and same quoted price is the signal. It happens because a
+    slow upload looked like a dead one and the homeowner pressed the button
+    again -- so the duplicates are byte-identical reads of one PDF, not two
+    genuinely similar offers. Anything with a different price is left alone:
+    two real bids from one company at two prices is a revision, and deciding
+    which of those to drop is the homeowner's call, not ours.
+    """
+    seen = {}
+    for q in quotes:
+        key = ((q.get("contractor") or "").strip().lower(),
+               (q.get("price") or "").strip().lower())
+        if not key[0] and not key[1]:
+            continue
+        seen.setdefault(key, []).append(q)
+    return [g for g in seen.values() if len(g) > 1]
+
+
 def _project_by_token(token):
     rows = db.all_rows("ho_projects", "token=?", (token,), "id DESC", 1)
     if not rows:
@@ -781,6 +801,7 @@ def project(token):
     reading = [u for u in uploads if (u.get("status") or "") == "queued"]
     return render_template(
         "compare_project.html", p=p, quotes=view, reading=len(reading),
+        dupes=sum(len(g) - 1 for g in duplicate_groups(quotes)),
         spec=spec_view(rt, show_all), uploads=uploads,
         roof_types=ROOF_TYPES, roof_type=rt,
         show_all=show_all, counts=counts_for(rt),
@@ -838,6 +859,27 @@ def del_quote(token, qid):
         abort(404)
     db.delete("ho_quotes", qid)
     return redirect(url_for("compare.project", token=token) + "#quotes")
+
+
+@bp.route("/c/<token>/dedupe", methods=["POST"], endpoint="dedupe")
+def dedupe(token):
+    """Drop the extra copies, keeping the first of each group.
+
+    The oldest row is kept because it is the one the homeowner has had longest
+    and may already have corrected by hand.
+    """
+    p = _project_by_token(token)
+    removed = 0
+    for group in duplicate_groups(_quotes_for(p["id"])):
+        for q in sorted(group, key=lambda r: r["id"])[1:]:
+            try:
+                db.delete("ho_quotes", q["id"])
+                removed += 1
+            except Exception:
+                pass
+    _log("compare_dedupe")
+    return redirect(url_for("compare.project", token=token) +
+                    ("?removed=%d#compare" % removed if removed else "#compare"))
 
 
 @bp.route("/c/<token>/roof", methods=["POST"], endpoint="set_roof")
