@@ -43,23 +43,35 @@
   .ho-hero p.lede{font-size:clamp(17px,1.6vw,21px);line-height:1.55;color:rgb(255 255 255/.82);max-width:62ch;margin:0 0 30px}
   .ho-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:52px;align-items:start}
 
-  /* The bid stack: three quotes, visibly different lengths. The whole argument
-     of the page in one object, so it must not look like a decorative chart. */
-  .bids{display:grid;gap:14px}
-  .bid{background:#fff;border-radius:var(--r-md);padding:16px 18px;color:var(--navy-950);
-       box-shadow:var(--shadow-lg)}
-  .bid .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
-            border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:10px}
-  .bid .who{font-weight:800;font-size:15px}
-  .bid .amt{font-weight:800;font-size:19px;font-variant-numeric:tabular-nums}
-  .bid ul{list-style:none;margin:0;padding:0;display:grid;gap:5px}
-  .bid li{font-size:13.5px;display:flex;gap:8px;align-items:flex-start;line-height:1.4}
-  .bid li .m{flex:none;width:15px;font-weight:800}
-  .ok{color:var(--success)} .miss{color:var(--danger)}
-  .bid li.missing{color:var(--slate-500)}
-  .bid .verdict{margin-top:11px;padding-top:9px;border-top:1px dashed var(--line);
-                font-size:12.5px;color:var(--slate-500)}
-
+  /* The sample comparison. It is the product's own output, so it has to read
+     as a grid at a glance and still work on a phone, where it scrolls inside
+     its own box rather than widening the page. */
+  .sample{margin:0;background:#fff;border-radius:var(--r-md);padding:18px;
+          box-shadow:var(--shadow-lg);color:var(--navy-950)}
+  .scap{font-size:13.5px;line-height:1.5;margin:0 0 14px;color:var(--slate-700)}
+  .scap b{color:var(--navy-950)}
+  .scap span{display:block;color:var(--slate-500);font-size:12.5px;margin-top:2px}
+  .stw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.st{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
+  table.st th,table.st td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);
+                          vertical-align:top}
+  table.st thead th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;
+                    color:var(--slate-500);border-bottom:2px solid var(--line);white-space:nowrap}
+  table.st tbody th{font-weight:650;color:var(--navy-950);white-space:nowrap}
+  table.st tr.price td{font-weight:800;font-size:17px;font-variant-numeric:tabular-nums;
+                       background:var(--warm-50)}
+  table.st tr.askrow th,table.st tr.askrow td{border-bottom:0;font-size:12.5px;
+                       color:var(--slate-700);background:var(--gold-100)}
+  /* Four states, not one red cross: "excluded" and "not stated" are different
+     problems and lead to different questions. */
+  .s{font-style:normal;display:inline-block;font-size:12.5px;font-weight:650;
+     padding:3px 9px;border-radius:999px;line-height:1.35}
+  .s.y{background:rgb(23 132 91/.13);color:#0c5c3f}
+  .s.n{background:rgb(184 68 59/.12);color:var(--danger)}
+  .s.a{background:rgb(215 164 56/.2);color:#7a5b10}
+  .s.q{background:var(--line);color:var(--slate-700)}
+  .skey{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 0}
+  .sfoot{margin:12px 0 0;font-size:13px;color:var(--slate-500);line-height:1.55}
   .sec{padding:76px 0}
   .sec.alt{background:#fff}
   .h2{font-size:clamp(26px,2.8vw,38px);margin:0 0 14px;letter-spacing:-.01em}
@@ -117,7 +129,11 @@
   .err{background:rgb(184 68 59/.18);border:1px solid var(--danger);color:#ffd9d5;
        padding:11px 14px;border-radius:var(--r-sm);font-size:14.5px;margin:0 0 16px}
 
-  @media(max-width:980px){
+  /* The sample needs 520px to stay a grid. Between the old 980px stack point
+     and about 1024px the column was squeezed under that and the comparison
+     scrolled sideways -- which is exactly the reading work this table exists
+     to remove. Stack sooner and give it the full width. */
+  @media(max-width:1100px){
     .ho-grid{grid-template-columns:1fr;gap:38px}
     .cards,.groups{grid-template-columns:1fr}
     .start{padding:28px}
@@ -135,45 +151,78 @@
         different because the quotes don't cover the same work — and the cheapest one is
         usually the shortest one. Put all three on the same spec sheet and the gaps show up
         on their own.</p>
-      <a href="#start" class="btn btn-sky">Put my quotes side by side</a>
+      <div class="ctas">
+        <a href="#start" class="btn btn-sky">Compare my quotes</a>
+        <a href="#sheet" class="btn btn-outline-gold">See what gets compared</a>
+      </div>
     </div>
 
-    <div class="bids" aria-label="Example of three quotes for the same roof">
-      <div class="bid">
-        <div class="top"><span class="who">Quote A</span><span class="amt">$11,400</span></div>
-        <ul>
-          <li><span class="m miss">&times;</span><span>Tear-off: <b>not stated</b></span></li>
-          <li><span class="m miss">&times;</span><span>Rotten decking: no allowance</span></li>
-          <li><span class="m miss">&times;</span><span>Flashing: re-used</span></li>
-          <li><span class="m miss">&times;</span><span>Shingle line: "architectural"</span></li>
-          <li><span class="m miss">&times;</span><span>Workmanship warranty: not mentioned</span></li>
-        </ul>
-        <p class="verdict">Cheapest. Also the only one that doesn't say what you're getting.</p>
+    {# The product is a side-by-side, so the hero IS one. Three stacked cards
+       made a reader hold one quote in their head while finding the matching
+       line in the next -- the exact work the tool exists to remove. Labels are
+       the four states the sheet actually records, because a single red x was
+       doing duty for "excluded", "not stated" and "no price given", which are
+       different problems with different answers. #}
+    <figure class="sample" aria-labelledby="sampleCap">
+      <figcaption id="sampleCap" class="scap">
+        <b>A worked example.</b> Three real-shaped quotes for one roof.
+        <span>Sample figures, not a price guide.</span>
+      </figcaption>
+      <div class="stw">
+        <table class="st">
+          <thead>
+            <tr>
+              <th scope="col">Same roof, three quotes</th>
+              <th scope="col">Quote A</th>
+              <th scope="col">Quote B</th>
+              <th scope="col">Quote C</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="price">
+              <th scope="row">Price as quoted</th>
+              <td>$11,400</td><td>$16,900</td><td>$14,200</td>
+            </tr>
+            <tr>
+              <th scope="row">Tear-off</th>
+              <td><i class="s q">Not stated</i></td>
+              <td><i class="s y">Full, to the deck</i></td>
+              <td><i class="s y">Full, to the deck</i></td>
+            </tr>
+            <tr>
+              <th scope="row">Rotten decking</th>
+              <td><i class="s n">No allowance</i></td>
+              <td><i class="s y">3 sheets, then $95 each</i></td>
+              <td><i class="s a">&ldquo;Priced as needed&rdquo;</i></td>
+            </tr>
+            <tr>
+              <th scope="row">Flashing</th>
+              <td><i class="s n">Re-used</i></td>
+              <td><i class="s y">All new</i></td>
+              <td><i class="s y">All new</i></td>
+            </tr>
+            <tr>
+              <th scope="row">Workmanship warranty</th>
+              <td><i class="s q">Not stated</i></td>
+              <td><i class="s y">10 years, transferable</i></td>
+              <td><i class="s y">2 years</i></td>
+            </tr>
+            <tr class="askrow">
+              <th scope="row">What to ask</th>
+              <td>What does each replacement sheet cost?</td>
+              <td>Does the $95 include labor and disposal?</td>
+              <td>Can the per-sheet price go in writing before I sign?</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="bid">
-        <div class="top"><span class="who">Quote B</span><span class="amt">$16,900</span></div>
-        <ul>
-          <li><span class="m ok">&#10003;</span><span>Full tear-off to the deck</span></li>
-          <li><span class="m ok">&#10003;</span><span>3 sheets included, $95/sheet after</span></li>
-          <li><span class="m ok">&#10003;</span><span>All new step &amp; counter flashing</span></li>
-          <li><span class="m ok">&#10003;</span><span>Named shingle line, registered warranty</span></li>
-          <li><span class="m ok">&#10003;</span><span>10-year workmanship, transferable</span></li>
-        </ul>
-        <p class="verdict">$5,500 more &mdash; and it says what the money buys.</p>
-      </div>
-      <div class="bid">
-        <div class="top"><span class="who">Quote C</span><span class="amt">$14,200</span></div>
-        <ul>
-          <li><span class="m ok">&#10003;</span><span>Full tear-off to the deck</span></li>
-          <li><span class="m miss">&times;</span><span>Decking: "priced as needed"</span></li>
-          <li><span class="m ok">&#10003;</span><span>New flashing</span></li>
-          <li><span class="m miss">&times;</span><span>Ventilation: not addressed</span></li>
-          <li><span class="m miss">&times;</span><span>Permit: homeowner pulls</span></li>
-        </ul>
-        <p class="verdict">Two open questions that could move the final number either way.</p>
-      </div>
-    </div>
-  </div>
+      <p class="skey">
+        <i class="s y">In writing</i><i class="s n">Excluded</i>
+        <i class="s a">Allowance</i><i class="s q">Not stated</i>
+      </p>
+      <p class="sfoot">The cheapest quote is the one that says least. Which is cheapest
+        once all three cover the same work is the question &mdash; and it is answerable.</p>
+    </figure>
 </section>
 
 <section class="sec" id="why">
