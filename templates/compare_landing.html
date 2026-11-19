@@ -121,7 +121,10 @@
   /* The hero visual: one real roof, with a single line of the comparison
      floating off its corner. The whole sheet belongs further down the page --
      up here it is a promise, not a table. */
-  .hero-visual{position:relative;padding-bottom:58px}
+  /* A bare <figure> carries 40px of default side margin, which quietly took
+     80px off the photo's column and squeezed the overlay until "Allowance not
+     stated" wrapped onto a second line. */
+  .hero-visual{position:relative;margin:0;padding-bottom:58px}
   .hero-photo{width:100%;aspect-ratio:8/5;min-height:240px;object-fit:cover;
               object-position:50% 48%;border-radius:14px;display:block}
   .overlay{position:absolute;left:7%;right:7%;bottom:0;background:#fff;
