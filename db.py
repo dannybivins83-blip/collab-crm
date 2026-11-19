@@ -946,7 +946,7 @@ TABLE_ALLOWLIST = {
     # Homeowner-side quote comparison (modules/compare.py). These belong to a
     # homeowner with no contractor and no job yet, so they are deliberately not
     # hung off leads/jobs — most will never become either.
-    "ho_projects", "ho_quotes", "ho_uploads",
+    "ho_projects", "ho_quotes", "ho_uploads", "ho_docs",
 }
 
 _SAFE_COL_RE = _re.compile(r'^[a-zA-Z_][a-zA-Z0-9_.]*$')

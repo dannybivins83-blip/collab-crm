@@ -52,6 +52,57 @@
            background:var(--gold-100);border:1px solid #e9d59b;border-radius:11px;
            font-size:14.5px;line-height:1.5;color:#6b4e08}
   .reading b{color:#4d3905}
+  /* ---- job paperwork --------------------------------------------------- */
+  .pickq{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0}
+  .pickq label{font-size:14px;font-weight:650;color:var(--navy-950)}
+  .pickq select{padding:9px 12px;border:1px solid var(--line);border-radius:8px;
+                background:#fff;font:inherit;font-size:14.5px;max-width:24em}
+  .docs{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:6px}
+  .docs li{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;
+           border:1px solid var(--line);border-radius:8px;font-size:14px}
+  .doc-n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+         color:var(--navy-950);font-weight:600}
+  .doc-s{flex:none;font-style:normal;font-size:11px;font-weight:700;letter-spacing:.05em;
+         text-transform:uppercase;padding:3px 8px;border-radius:5px;
+         background:#f1f4f5;color:#536571}
+  .doc-s.ok{background:#e9f4f0;color:var(--teal-600)}
+  .doc-s.wait{background:var(--gold-100);color:#795400}
+  .doc-s.bad{background:#f9eeeb;color:#8b3c32}
+  .doc-e{flex:1 1 100%;font-size:12.5px;color:#8b3c32}
+  .doc-x{flex:none}
+  .doc-x button{border:0;background:transparent;color:var(--slate-500);font-size:17px;
+                line-height:1;cursor:pointer;padding:0 4px}
+  .doc-x button:hover{color:#8b3c32}
+  .docadd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0 0}
+  .doc-zone{display:inline-flex;align-items:center;padding:9px 14px;border-radius:8px;
+            border:1.5px dashed #b9c6cd;background:#fff;cursor:pointer;font-size:13.5px;
+            font-weight:650;color:var(--slate-700)}
+  .doc-zone:hover,.doc-zone:focus-within{border-color:var(--gold-500);color:var(--navy-950)}
+  .doc-zone input[type=file]{position:absolute;width:1px;height:1px;opacity:0;
+       overflow:hidden;clip:rect(0,0,0,0)}
+
+  /* ---- signed against proposed ----------------------------------------- */
+  .pricediff{margin:0 0 20px;padding:15px 18px;background:#f9eeeb;border:1px solid #e0b8b0;
+             border-radius:11px;font-size:14.5px;line-height:1.55;color:#7a362d}
+  .pricediff b{color:#5e271f}
+  .pricediff > span{display:block;margin-top:3px}
+  .dh{margin:22px 0 4px;font-size:16px;letter-spacing:-.015em;display:flex;
+      align-items:center;gap:9px}
+  .dh i{font-style:normal;font-size:11.5px;font-weight:750;padding:2px 8px;border-radius:99px;
+        background:var(--line);color:var(--slate-700)}
+  .dh-dropped i{background:#f9eeeb;color:#8b3c32}
+  .dh-added i{background:#e9f4f0;color:var(--teal-600)}
+  .dn{margin:0 0 12px;font-size:14px;color:var(--slate-500)}
+  .dlist{display:grid;gap:9px}
+  .drow{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fff}
+  .drow > b{display:block;font-size:15px;color:var(--navy-950);margin-bottom:9px}
+  .dcols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .dcols span{font-size:14px;line-height:1.5;color:var(--slate-700);min-width:0}
+  .dcols i{display:block;font-style:normal;font-size:10.5px;font-weight:750;
+           letter-spacing:.08em;text-transform:uppercase;color:var(--slate-500);
+           margin-bottom:3px}
+  @media(max-width:640px){.dcols{grid-template-columns:1fr;gap:9px}}
+
   /* ---- company and license verification -------------------------------- */
   .vrows{display:grid;gap:12px;margin:0 0 22px}
   .vrow{border:1px solid var(--line);border-radius:11px;padding:16px 18px;background:#fff}
@@ -1016,12 +1067,122 @@
             <button class="stepback" type="submit">&larr; Back to &ldquo;{{ stages[idx - 1].label }}&rdquo;</button>
           </form>
           {% endif %}
+
+          {# Which quote was accepted. Nothing can check a signed contract
+             against what was proposed until this is known, and it stays the
+             homeowner's choice -- the sheet never picks for them. #}
+          {% if s.key == 'chosen' and quotes %}
+          <form class="pickq" method="post"
+                action="{{ url_for('compare.choose_quote', token=p.token) }}">
+            <label for="pickq">Which quote did you accept?</label>
+            <select id="pickq" name="qid">
+              <option value="">Not decided yet</option>
+              {% for q in quotes %}
+              <option value="{{ q.id }}"{% if chosen_id == q.id %} selected{% endif %}>{{ q.contractor }}{% if q.price %} &middot; {{ q.price }}{% endif %}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="lnk ok">Save</button>
+          </form>
           {% endif %}
+          {% endif %}
+
+          {# Paperwork, filed where it belongs. Every stage takes documents --
+             not only the current one -- because things arrive late and a
+             homeowner should never have to move the job backwards to file the
+             permit that turned up yesterday. #}
+          {% set filed = docs_by_stage.get(s.key) or [] %}
+          {% if filed %}
+          <ul class="docs">
+            {% for d in filed %}
+            <li>
+              <span class="doc-n">{{ d.filename }}</span>
+              {% if d.status == 'queued' %}<i class="doc-s wait">reading</i>
+              {% elif d.status == 'read' %}<i class="doc-s ok">read</i>
+              {% elif d.status == 'failed' %}<i class="doc-s bad">not saved</i>
+              {% else %}<i class="doc-s">filed</i>{% endif %}
+              {% if d.error %}<span class="doc-e">{{ d.error }}</span>{% endif %}
+              <form method="post" class="doc-x"
+                    action="{{ url_for('compare.del_doc', token=p.token, did=d.id) }}"
+                    onsubmit="return confirm('Remove {{ d.filename|e }}?')">
+                <button type="submit" aria-label="Remove {{ d.filename|e }}">&times;</button>
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          <form class="docadd" method="post" enctype="multipart/form-data"
+                action="{{ url_for('compare.upload_doc', token=p.token) }}" data-reads>
+            <input type="hidden" name="stage" value="{{ s.key }}">
+            <label class="doc-zone" for="doc-{{ s.key }}">
+              <span>{{ '&#43; Add the signed contract'|safe if s.key == 'signed'
+                       else '&#43; Add paperwork for this stage'|safe }}</span>
+              <input id="doc-{{ s.key }}" name="docs" type="file"
+                     accept="application/pdf,.pdf,image/*" multiple>
+            </label>
+            <button type="submit" class="lnk ok">Upload</button>
+            <p class="busy" role="status" aria-live="polite">
+              <span class="spin" aria-hidden="true"></span>
+              <span><b>Reading it.</b> This takes <span data-est>about half a minute</span>
+                &mdash; keep this page open.</span>
+            </p>
+          </form>
         </div>
       </div>
       {% endfor %}
     </div>
   </section>
+
+  {# ---------------- signed against proposed ---------------- #}
+  {% if signed_diff %}
+  <section class="blk" id="signed">
+    <h2>The signed contract against the quote you accepted</h2>
+    <p class="sub">Two readings of two documents &mdash; {{ signed_diff.quote.contractor }}&rsquo;s
+      quote, and <b>{{ signed_diff.doc.filename }}</b>. This is not a finding that anyone
+      changed anything, and software misreads things. It is the list of lines worth opening
+      both documents to check.</p>
+
+    {% if signed_diff.price_differs %}
+    <div class="pricediff">
+      <b>The totals do not match.</b>
+      <span>Quoted <b>{{ signed_diff.price_quoted }}</b>, signed
+        <b>{{ signed_diff.price_signed }}</b>. If that is a change you agreed, there should
+        be a change order saying so.</span>
+    </div>
+    {% endif %}
+
+    {% if not signed_diff.total %}
+    <div class="allgood">Every line reads the same in both documents.</div>
+    {% else %}
+    {% for group, title, note in [
+        ('dropped', 'In the quote, not in the contract',
+         'These were in writing when you chose them. Ask why they are not in the contract.'),
+        ('added', 'In the contract, not in the quote',
+         'New commitments. Usually good, but check you are not paying for them twice.'),
+        ('changed', 'Worded differently', 'Same subject, different words. Read both.')] %}
+      {% set rows = signed_diff[group] %}
+      {% if rows %}
+      <h3 class="dh dh-{{ group }}">{{ title }} <i>{{ rows|length }}</i></h3>
+      <p class="dn">{{ note }}</p>
+      <div class="dlist">
+        {% for r in rows %}
+        <div class="drow">
+          <b>{{ r.label }}</b>
+          <div class="dcols">
+            <span><i>Quoted</i>
+              {% if r.was_detail %}&ldquo;{{ r.was_detail }}&rdquo;
+              {% else %}{{ 'In writing' if r.was == 'yes' else ('Excluded' if r.was == 'no' else 'Not stated') }}{% endif %}</span>
+            <span><i>Signed</i>
+              {% if r.now_detail %}&ldquo;{{ r.now_detail }}&rdquo;
+              {% else %}{{ 'In writing' if r.now == 'yes' else ('Excluded' if r.now == 'no' else 'Not stated') }}{% endif %}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endfor %}
+    {% endif %}
+  </section>
+  {% endif %}
 
   {# ---------------- notes ---------------- #}
   <section class="blk" id="notes">

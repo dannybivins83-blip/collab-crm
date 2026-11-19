@@ -63,7 +63,20 @@ try:
         source TEXT, reviewed INTEGER DEFAULT 0)""")
 except Exception:
     pass
+# Paperwork collected as the job runs, filed against the stage it belongs to.
+# Separate from ho_uploads: those are quotes being read into the sheet, these
+# are the contract, the permit, the delivery ticket and the warranty -- the
+# things a homeowner needs in ten years and cannot get back afterwards.
+try:
+    db.execute("""CREATE TABLE IF NOT EXISTS ho_docs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER, stage TEXT, created TEXT,
+        filename TEXT, stored TEXT, bytes INTEGER,
+        status TEXT, error TEXT, extracted TEXT, note TEXT)""")
+except Exception:
+    pass
 for _t, _c, _d in (("ho_projects", "roof_type", "TEXT"),
+                   ("ho_projects", "chosen_quote_id", "INTEGER"),
                    ("ho_quotes", "source", "TEXT"),
                    ("ho_quotes", "reviewed", "INTEGER DEFAULT 0")):
     try:
@@ -822,11 +835,139 @@ def duplicate_groups(quotes):
     return [g for g in seen.values() if len(g) > 1]
 
 
+DOC_SUBDIR = "ho_docs"
+
+
+def store_doc(project, stage, fileobj):
+    """Save one job document. Returns (id, data). Reading is somebody else's job."""
+    name = os.path.basename(getattr(fileobj, "filename", "") or "document.pdf")[:180]
+    data = fileobj.read(MAX_UPLOAD_BYTES + 1)
+    row = {"project_id": project["id"], "stage": stage, "created": db.now(),
+           "filename": name, "stored": "", "bytes": len(data),
+           "status": "filed", "error": "", "extracted": "", "note": ""}
+    if len(data) > MAX_UPLOAD_BYTES:
+        row["status"] = "failed"
+        row["error"] = "That file is over 12 MB."
+        return db.insert("ho_docs", row), None
+    kind, mime = sniff(data)
+    if not kind:
+        row["status"] = "failed"
+        row["error"] = "That is neither a PDF nor a photo."
+        return db.insert("ho_docs", row), None
+    ext = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png",
+           "image/gif": "gif", "image/webp": "webp"}.get(mime, "bin")
+    stored = "%s/%s-%s.%s" % (DOC_SUBDIR, project["token"][:8],
+                              secrets.token_hex(6), ext)
+    try:
+        import config
+        d = os.path.join(config.UPLOAD_DIR, DOC_SUBDIR)
+        if not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        with open(os.path.join(config.UPLOAD_DIR, stored), "wb") as fh:
+            fh.write(data)
+        row["stored"] = stored
+    except Exception as e:
+        row["error"] = "could not store the file: %s" % str(e)[:120]
+    if stage == "signed":
+        row["status"] = "queued"
+    return db.insert("ho_docs", row), data
+
+
+def read_signed(project_id, quote_id, jobs, roof_type=""):
+    """Read a signed contract and record how it differs from what was quoted."""
+    with _READ_LOCK:
+        for doc_id, data, name in jobs:
+            patch = {}
+            try:
+                fields, err = read_proposal(data, name, roof_type=roof_type)
+                if err or not fields:
+                    patch = {"status": "filed", "error": (err or "")[:300]}
+                else:
+                    patch = {"status": "read", "extracted": json.dumps(fields)[:8000]}
+            except Exception as e:
+                patch = {"status": "filed",
+                         "error": ("%s: %s" % (type(e).__name__, e))[:300]}
+            try:
+                db.update("ho_docs", doc_id, **patch)
+            except Exception:
+                pass
+
+
+def signed_vs_proposed(project, quotes):
+    """What the signed contract says that the accepted quote did not, and vice versa.
+
+    This compares two readings of two documents. It is not legal advice and it
+    is not a finding that anybody changed anything: a reader can misread, and
+    the page says so. It is a list of lines worth looking at again with both
+    documents open.
+    """
+    qid = project.get("chosen_quote_id")
+    if not qid:
+        return None
+    quote = None
+    for q in quotes:
+        if q["id"] == qid:
+            quote = q
+            break
+    if not quote:
+        return None
+    docs = db.all_rows("ho_docs", "project_id=? AND stage=? AND status=?",
+                       (project["id"], "signed", "read"), "id DESC", 1)
+    if not docs:
+        return None
+    try:
+        fields = json.loads(docs[0].get("extracted") or "{}")
+    except Exception:
+        return None
+
+    qspec = _spec_of(quote)
+    rt = (project.get("roof_type") or "").strip().lower()
+    changed, added, dropped = [], [], []
+    for key in (keys_for(rt) if rt else SPEC_KEYS):
+        item = SPEC_INDEX[key]
+        was = _val(qspec, key)
+        now = str((fields.get("v_" + key) or "?")).strip().lower()
+        if now not in ("yes", "no", "?"):
+            now = "?"
+        wd = ((qspec.get(key) or {}).get("d") or "").strip() if isinstance(qspec.get(key), dict) else ""
+        nd = (fields.get("d_" + key) or "").strip()
+        row = dict(item, was=was, now=now, was_detail=wd, now_detail=nd)
+        if was == now:
+            # Same state, different wording, is still worth a second look.
+            if wd and nd and wd.lower() != nd.lower():
+                changed.append(row)
+            continue
+        if was == "yes" and now != "yes":
+            dropped.append(row)
+        elif now == "yes" and was != "yes":
+            added.append(row)
+        else:
+            changed.append(row)
+    price_q = (quote.get("price") or "").strip()
+    price_s = (fields.get("price") or "").strip()
+    return {
+        "quote": quote, "doc": docs[0],
+        "price_quoted": price_q, "price_signed": price_s,
+        "price_differs": bool(price_q and price_s
+                              and re.sub(r"[^0-9.]", "", price_q) != re.sub(r"[^0-9.]", "", price_s)),
+        "dropped": dropped, "added": added, "changed": changed,
+        "total": len(dropped) + len(added) + len(changed),
+    }
+
+
 def _project_by_token(token):
     rows = db.all_rows("ho_projects", "token=?", (token,), "id DESC", 1)
     if not rows:
         abort(404)
     return rows[0]
+
+
+def docs_by_stage(pid):
+    """Everything filed, grouped by the stage it belongs to."""
+    out = {}
+    for d in db.all_rows("ho_docs", "project_id=?", (pid,), "id DESC", 200):
+        out.setdefault(d.get("stage") or "comparing", []).append(d)
+    return out
 
 
 def _quotes_for(pid):
@@ -1099,6 +1240,9 @@ def project(token):
         dupes=sum(len(g) - 1 for g in duplicate_groups(quotes)),
         scores=scoreboard(quotes, rt), detail=disagreement_detail(quotes, rt),
         licenses=license_audit(quotes),
+        docs_by_stage=docs_by_stage(p["id"]),
+        chosen_id=p.get("chosen_quote_id"),
+        signed_diff=signed_vs_proposed(p, quotes),
         spec=spec_view(rt, show_all), uploads=uploads,
         roof_types=ROOF_TYPES, roof_type=rt,
         show_all=show_all, counts=counts_for(rt),
@@ -1189,6 +1333,65 @@ def set_email(token):
     db.update("ho_projects", p["id"], email=email, last_seen=db.now())
     _log("compare_email_added", "/c/<token>/email")
     return redirect(url_for("compare.project", token=token) + "?saved=1")
+
+
+@bp.route("/c/<token>/choose", methods=["POST"], endpoint="choose_quote")
+def choose_quote(token):
+    """Record which quote was accepted.
+
+    Nothing else can compare a signed contract against what was proposed until
+    this is known, and it is the homeowner's decision rather than ours -- the
+    sheet never picks for them.
+    """
+    p = _project_by_token(token)
+    qid = (request.form.get("qid") or "").strip()
+    chosen = None
+    if qid.isdigit():
+        q = db.get("ho_quotes", int(qid))
+        if q and q.get("project_id") == p["id"]:
+            chosen = int(qid)
+    db.update("ho_projects", p["id"], chosen_quote_id=chosen, last_seen=db.now())
+    _log("compare_quote_chosen", "/c/<token>/choose")
+    return redirect(url_for("compare.project", token=token) + "#track")
+
+
+@bp.route("/c/<token>/doc", methods=["POST"], endpoint="upload_doc")
+def upload_doc(token):
+    """File a document against a stage of the job."""
+    p = _project_by_token(token)
+    stage = (request.form.get("stage") or "").strip()
+    if stage not in STAGE_INDEX:
+        stage = (p.get("stage") or "comparing")
+    jobs = []
+    for f in request.files.getlist("docs")[:6]:
+        if not getattr(f, "filename", ""):
+            continue
+        try:
+            doc_id, data = store_doc(p, stage, f)
+            # Only the signed contract is worth reading: it is the one document
+            # that can be checked against something we already hold.
+            if data and stage == "signed" and p.get("chosen_quote_id"):
+                jobs.append((doc_id, data,
+                             os.path.basename(getattr(f, "filename", ""))[:180]))
+        except Exception:
+            pass
+    if jobs:
+        t = threading.Thread(target=read_signed, name="roofsigned", daemon=True,
+                             args=(p["id"], int(p["chosen_quote_id"]), jobs,
+                                   (p.get("roof_type") or "").strip().lower()))
+        t.start()
+    _log("compare_doc_" + stage, "/c/<token>/doc")
+    return redirect(url_for("compare.project", token=token) + "#track")
+
+
+@bp.route("/c/<token>/doc/<int:did>/delete", methods=["POST"], endpoint="del_doc")
+def del_doc(token, did):
+    p = _project_by_token(token)
+    d = db.get("ho_docs", did)
+    if not d or d.get("project_id") != p["id"]:
+        abort(404)
+    db.delete("ho_docs", did)
+    return redirect(url_for("compare.project", token=token) + "#track")
 
 
 @bp.route("/c/<token>/roof", methods=["POST"], endpoint="set_roof")
