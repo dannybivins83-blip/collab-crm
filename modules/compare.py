@@ -242,7 +242,7 @@ OTHER_WEIGHT = 1
 WORST_CASE = {
     "The company and the paperwork":
         "If this is not settled before work starts, you are relying on an "
-        "assurance you cannot produce later -- and the time you need it is "
+        "assurance you cannot produce later — and the time you need it is "
         "after something has gone wrong.",
     "Tear-off, deck and substrate":
         "Rotten wood is found once the old roof is off. With no allowance and "
@@ -266,6 +266,25 @@ WORST_CASE = {
 }
 _WORST_DEFAULT = ("Left open, this gets decided after you have signed, when "
                   "you have the least room to negotiate.")
+
+# Underlayment is filed under "how the roof is fastened and assembled", so an
+# underlayment line was being warned about in terms of fastening. The group
+# sentence is a fallback, not a straitjacket: a few lines earn their own.
+WORST_BY_KEY = {
+    "vet_15": ("How many layers go on, and which products, is decided on the day "
+               "unless it is written down \u2014 and you cannot check it once the "
+               "tile or shingles are on top of it."),
+    "vet_26": ("Rotten wood is found once the old roof is off. With no allowance "
+               "and no agreed rate per sheet, the price is set while your roof is "
+               "open."),
+    "vet_31": ("What the warranty actually covers, and for how long, is the thing "
+               "you will be reading for the first time at claim time."),
+    "vet_07": ("Permits, engineering and disposal are real costs. If the quote "
+               "does not say they are included, treat them as a bill you have not "
+               "seen yet and ask."),
+    "vet_02": ("A certificate you never collected is one you cannot produce when "
+               "something goes wrong, which is the only time you will want it."),
+}
 
 
 def _group_of(key):
@@ -299,7 +318,8 @@ def score_quote(q, roof_type=None):
             open_lines.append(dict(
                 item, state=v, weight=w,
                 said=(cell.get("d") or "").strip(),
-                worst=WORST_CASE.get(_group_of(key), _WORST_DEFAULT),
+                worst=WORST_BY_KEY.get(
+                      key, WORST_CASE.get(_group_of(key), _WORST_DEFAULT)),
                 group=_group_of(key)))
     # Worst first: the featured lines, then the rest, each alphabetical so the
     # order is stable between loads rather than shuffling under the reader.
@@ -337,7 +357,9 @@ def disagreement_detail(quotes, roof_type=None):
                          "state": _val(spec, item["key"]),
                          "said": (cell.get("d") or "").strip()})
         out.append(dict(item, says=says,
-                        worst=WORST_CASE.get(_group_of(item["key"]), _WORST_DEFAULT)))
+                        worst=WORST_BY_KEY.get(
+                            item["key"],
+                            WORST_CASE.get(_group_of(item["key"]), _WORST_DEFAULT))))
     return out
 
 
