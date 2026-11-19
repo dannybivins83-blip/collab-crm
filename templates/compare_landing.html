@@ -133,17 +133,25 @@
   .ov-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
           padding-bottom:12px;border-bottom:1px solid var(--line)}
   .ov-top b{font-size:16px;letter-spacing:-.015em;color:var(--navy-950)}
+  /* The same four states the sheet uses further down, so one colour means one
+     thing across the whole product rather than per section. */
+  .vs{font-style:normal;display:inline-flex;align-items:center;gap:5px;font-weight:650;
+      border-radius:5px;line-height:1.35}
+  .vs::before{content:"";width:4px;height:4px;border-radius:50%;background:currentColor;flex:none}
+  .vs-yes{background:#e9f4f0;color:var(--teal-600)}
+  .vs-no{background:#f9eeeb;color:#8b3c32}
+  .vs-allow{background:#fff4da;color:#795400}
+  .vs-none{background:#f1f4f5;color:#536571}
   .tag{display:inline-block;background:#eef3ef;color:#4a6b5c;border-radius:5px;
        font-size:10px;line-height:1.4;font-weight:700;padding:5px 9px;white-space:nowrap}
-  /* These rules named div while the markup is spans, so the column rules -- the
-     padding and the dividing lines the mockup draws between proposals -- never
-     applied at all, and the values ran into each other. */
-  .ov-cols{display:grid;grid-template-columns:repeat(3,1fr);margin-top:13px}
-  .ov-cols > span{padding:0 13px;border-left:1px solid var(--line);min-width:0}
-  .ov-cols > span:first-child{padding-left:0;border-left:0}
-  .ov-cols > span > span{display:block;font-size:12.5px;color:var(--slate-500);
-                         margin-bottom:5px}
-  .ov-cols b{display:block;font-size:14px;color:var(--navy-950);letter-spacing:-.015em}
+  /* Four columns: the line, then one per proposal. A grid rather than a table
+     so the card can stay this small without the cells fighting each other. */
+  .ov-grid{display:grid;grid-template-columns:minmax(0,1.25fr) repeat(3,minmax(0,1fr));
+           gap:9px 10px;margin-top:13px;align-items:center}
+  .ov-h{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+        color:var(--slate-500)}
+  .ov-k{font-size:12.5px;font-weight:700;color:var(--navy-950);line-height:1.3}
+  .ov-grid .vs{font-size:11px;padding:3px 8px;white-space:nowrap}
 
   /* ---- roof system selector -------------------------------------------- */
   .systems{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
@@ -290,8 +298,9 @@
     .panel .pad,.band{padding:24px}
     .hero-visual{padding-bottom:0}
     .overlay{position:static;margin-top:14px;left:auto;right:auto;box-shadow:var(--shadow)}
-    .ov-cols{grid-template-columns:1fr;gap:12px}
-    .ov-cols div{padding:0;border-left:0}
+    .ov-grid{gap:7px 8px}
+    .ov-k{font-size:11.5px}
+    .ov-grid .vs{font-size:10px;padding:3px 6px}
     .q{flex-direction:column;align-items:flex-start;gap:9px}
     .q .arrow{display:none}
   }
@@ -302,13 +311,6 @@
     .hdr .cta-gold .lbl-long{display:none}
     .hdr .cta-gold .lbl-short{display:inline}
   }
-
-  /* The copy spec's contractor entry: a door for roofers that does not turn the
-     homeowner page into a sales page. */
-  .contractor-line{margin:26px 0 0;font-size:13.5px;line-height:1.6;color:var(--slate-500);
-       max-width:34em;padding-top:20px;border-top:1px solid rgb(8 33 46/.1)}
-  .contractor-line a{color:var(--navy-950);font-weight:700;white-space:nowrap}
-  .contractor-line a:hover{color:var(--teal-600)}
 
   /* The remaining handoff photographs, as the strip its own documentation
      suggests. Descriptive only -- none of these is our work. */
@@ -373,23 +375,38 @@
         <a href="#start" class="btn cta-gold">Compare my roofing quotes <span aria-hidden="true">&rarr;</span></a>
         <a href="#sample" class="linkbtn">See a sample <span aria-hidden="true">&#8599;</span></a>
       </div>
-      {# The copy spec puts the contractor entry under the hero so roofers have a
-         door of their own without the homeowner page becoming a sales page. #}
-      <p class="contractor-line">Run a roofing company? See the homeowner portal you
-        can offer your customers. <a href="/roofers">Explore the contractor portal
-        <span aria-hidden="true">&rarr;</span></a></p>
     </div>
 
     {# One real roof, with a single line of the comparison floating off its
        corner. The whole sheet lives further down; up here it is a promise. #}
     <figure class="hero-visual" id="sample">
       {{ photo('hero', 'hero-photo', lazy=False) }}
+      {# Three lines rather than one, and the three that decide a roof: who is
+         actually licensed and insured, what goes under the tile, and whether
+         anyone registers the warranty you are being sold. Kept to three words
+         a cell so it still reads at a glance from across the hero. #}
       <figcaption class="overlay">
-        <span class="ov-top"><b>Decking allowance</b><span class="tag">Illustrative sample</span></span>
-        <span class="ov-cols">
-          <span><span>Proposal A</span><b>Allowance not stated</b></span>
-          <span><span>Proposal B</span><b>3 sheets included</b></span>
-          <span><span>Proposal C</span><b>Priced as needed</b></span>
+        <span class="ov-top"><b>The lines that decide it</b><span class="tag">Illustrative sample</span></span>
+        <span class="ov-grid">
+          <span class="ov-h"></span>
+          <span class="ov-h">Proposal A</span>
+          <span class="ov-h">Proposal B</span>
+          <span class="ov-h">Proposal C</span>
+
+          <span class="ov-k">License &amp; insurance</span>
+          <span><i class="vs vs-allow">License only</i></span>
+          <span><i class="vs vs-yes">Both attached</i></span>
+          <span><i class="vs vs-none">Not stated</i></span>
+
+          <span class="ov-k">Underlayment system</span>
+          <span><i class="vs vs-allow">One layer</i></span>
+          <span><i class="vs vs-yes">Two, named</i></span>
+          <span><i class="vs vs-none">Not stated</i></span>
+
+          <span class="ov-k">Registers the warranty</span>
+          <span><i class="vs vs-none">Not stated</i></span>
+          <span><i class="vs vs-yes">Yes, in 30 days</i></span>
+          <span><i class="vs vs-no">You do</i></span>
         </span>
       </figcaption>
     </figure>

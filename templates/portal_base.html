@@ -201,6 +201,10 @@ section{padding:88px 0}
 .thanks p{color:var(--slate-700);margin:0}
 
 footer{background:var(--navy-900);color:rgb(255 255 255/.6);padding:34px 0;font-size:14.5px}
+footer .froofer{color:rgb(255 255 255/.72);font-size:15px;margin:0 0 14px;
+      padding-bottom:14px;border-bottom:1px solid rgb(255 255 255/.14)}
+footer .froofer a{color:#fff;font-weight:650;text-decoration:none}
+footer .froofer a:hover{color:var(--gold-500)}
 footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
 
 @media(max-width:899px){
@@ -294,6 +298,12 @@ footer .flinks a:hover{color:#fff}
 
 <footer>
   <div class="wrap">
+    {# The contractor entry lives here rather than under the homeowner hero:
+       every page carries the footer, so a roofer finds it wherever they land,
+       and the comparison page stays the homeowner's. #}
+    <p class="froofer">Run a roofing company?
+      <a href="/roofers">See the homeowner portal you can offer your customers
+      <span aria-hidden="true">&rarr;</span></a></p>
     <p>MyRoofPortal &mdash; a product of Collaborative Concept LLC &middot; 513 W Drew St, Lantana, FL 33462 &middot; (561) 475-8615</p>
     <p class="flinks"><a href="/compare">Compare roof quotes</a> &middot; <a href="/roofers">For roofers</a> &middot; <a href="/blog">Blog</a> &middot; <a href="{{ demo_url }}">Live demo</a> &middot; <a href="/roofers#pricing">Pricing</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/terms">Terms</a> &middot; <a href="{{ acquire_url }}">Acquire the platform</a></p>
   </div>
