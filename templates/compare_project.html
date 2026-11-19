@@ -162,6 +162,17 @@
 
   .removed{margin:0 0 18px;padding:13px 17px;background:#e9f4f0;border:1px solid #bfdbd0;
            border-radius:10px;font-size:14.5px;color:var(--teal-600);font-weight:650}
+  .needemail{display:flex;align-items:center;justify-content:space-between;gap:24px;
+             flex-wrap:wrap;margin:0 0 18px;padding:17px 20px;background:var(--gold-100);
+             border:1px solid #e9d59b;border-radius:11px}
+  .needemail b{display:block;font-size:15.5px;color:#4d3905}
+  .needemail > div > span{display:block;font-size:14px;line-height:1.55;color:#6b4e08;
+                          margin-top:3px;max-width:52em}
+  .needemail .ne-err{color:#8b3c32;font-weight:650;margin-top:6px}
+  .ne-row{display:flex;gap:9px;flex:0 1 auto}
+  .ne-row input{min-width:14em;padding:11px 14px;border-radius:8px;border:1px solid #e0cfa0;
+                background:#fff;font:inherit;font-size:15px;color:var(--navy-950)}
+  .ne-row .btn{min-height:44px;padding:11px 20px;font-size:15px}
   .dupes{display:flex;align-items:center;justify-content:space-between;gap:20px;
          flex-wrap:wrap;margin:0 0 18px;padding:15px 19px;background:#f9eeeb;
          border:1px solid #e0b8b0;border-radius:11px;font-size:14.5px;line-height:1.5;
@@ -463,6 +474,33 @@
     <button type="button" role="tab" data-panel="quotes" aria-selected="false"><i aria-hidden="true">&#9783;</i>Contractor &amp; evidence</button>
     <button type="button" role="tab" data-panel="questions" aria-selected="false"><i aria-hidden="true">?</i>Questions</button>
   </div>
+
+  {% if request.args.get('saved') %}
+  <div class="removed" role="status">Saved. Open this page from that address any time to
+    pick up where you left off.</div>
+  {% endif %}
+
+  {# Uploading from the hero asks for files and nothing else, so a workspace can
+     arrive with no email on it. The link in the address bar is then the ONLY
+     way back, which is worth saying out loud rather than discovering. #}
+  {% if not p.email %}
+  <form class="needemail" method="post"
+        action="{{ url_for('compare.set_email', token=p.token) }}">
+    <div>
+      <b>Save your way back in.</b>
+      <span>Right now this page exists only at the address in your browser. Add an email
+        and you can reopen it from your phone while a contractor is in your driveway.</span>
+      {% if request.args.get('emailerr') %}
+      <span class="ne-err">That doesn&rsquo;t look like an email address &mdash; try again.</span>
+      {% endif %}
+    </div>
+    <div class="ne-row">
+      <input type="email" name="email" required placeholder="you@example.com"
+             autocomplete="email" aria-label="Your email address">
+      <button type="submit" class="btn cta-gold">Save</button>
+    </div>
+  </form>
+  {% endif %}
 
   {% if request.args.get('removed') %}
   <div class="removed" role="status">Removed {{ request.args.get('removed') }}

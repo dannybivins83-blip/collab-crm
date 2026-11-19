@@ -116,7 +116,22 @@
                  color:var(--teal-600);letter-spacing:-.025em}
   .ho-hero .lede{font-size:17.5px;line-height:1.6;color:var(--slate-500);max-width:28em;
                  margin:24px 0 0}
-  .ctas{display:flex;align-items:center;flex-wrap:wrap;gap:14px 26px;margin-top:30px}
+  .ctas{display:flex;align-items:center;flex-wrap:wrap;gap:14px 26px;margin-top:18px}
+  .herodrop{margin-top:30px;max-width:30em}
+  .hd-zone{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;
+           border:1.5px dashed #b9c6cd;border-radius:12px;background:rgb(255 255 255/.6);
+           transition:border-color .15s,background .15s}
+  .hd-zone:hover,.hd-zone:focus-within{border-color:var(--gold-500);background:#fffaf0}
+  .hd-i{flex:none;display:inline-flex;align-items:center;justify-content:center;
+        width:38px;height:38px;border-radius:10px;background:#eaf3ef;color:var(--teal-600);
+        font-size:19px}
+  .hd-t{display:block;min-width:0}
+  .hd-t b{display:block;font-size:15.5px;color:var(--navy-950);letter-spacing:-.01em}
+  .hd-t span{display:block;font-size:13px;color:var(--slate-500);margin-top:2px}
+  .hd-zone input[type=file]{position:absolute;width:1px;height:1px;opacity:0;
+       overflow:hidden;clip:rect(0,0,0,0)}
+  .hd-note{margin:12px 0 0;font-size:12.5px;color:var(--slate-500)}
+  .hd-note a{color:var(--teal-600);text-decoration:underline}
 
   /* The hero visual: one real roof, with a single line of the comparison
      floating off its corner. The whole sheet belongs further down the page --
@@ -378,10 +393,34 @@
       <h1>Know what&rsquo;s in your roof quote <em>before you sign.</em></h1>
       <p class="lede">See which materials and repairs each roofer includes. Get the
         questions to ask before you choose.</p>
-      <div class="ctas">
-        <a href="#start" class="btn cta-gold">Compare my roofing quotes <span aria-hidden="true">&rarr;</span></a>
-        <a href="#sample" class="linkbtn">See a sample <span aria-hidden="true">&#8599;</span></a>
-      </div>
+      {# The files are what the homeowner already has in their hand, so the
+         hero asks for those and nothing else. No email here: the workspace
+         asks for one the moment it opens, which keeps the way back without
+         putting a form between someone and the thing they came to do. #}
+      <form class="herodrop" method="post" enctype="multipart/form-data" data-reads
+            action="{{ url_for('compare.landing_upload') }}">
+        <label class="hd-zone" for="heroq">
+          <span class="hd-i" aria-hidden="true">&#8679;</span>
+          <span class="hd-t">
+            <b>Drop your quotes here</b>
+            <span id="heroNote">Up to 3 PDFs or photos &mdash; or tap to choose</span>
+          </span>
+          <input id="heroq" name="quotes" type="file"
+                 accept="application/pdf,.pdf,image/*" multiple>
+        </label>
+        <div class="ctas">
+          <button type="submit" class="btn cta-gold">Compare my quotes
+            <span aria-hidden="true">&rarr;</span></button>
+          <a href="#sample" class="linkbtn">See a sample <span aria-hidden="true">&#8599;</span></a>
+        </div>
+        <p class="busy" role="status" aria-live="polite">
+          <span class="spin" aria-hidden="true"></span>
+          <span><b>Reading your paperwork.</b> This takes <span data-est>about half a
+            minute</span> &mdash; keep this page open and it will move on by itself.</span>
+        </p>
+        <p class="hd-note">No account, no card. <a href="/privacy">How we handle your
+          documents</a>.</p>
+      </form>
     </div>
 
     {# One real roof, with a single line of the comparison floating off its
@@ -659,6 +698,32 @@
 // Name the files once chosen: a file input that still says "no files chosen"
 // after a pick is the commonest reason someone submits an empty form.
 (function () {
+  // The hero zone has no visible input, so it has to say what was chosen.
+  var hi = document.getElementById('heroq'), hn = document.getElementById('heroNote');
+  // Pressing Compare with nothing chosen would post an empty form and leave a
+  // homeowner in an empty workspace wondering what happened. Say what is
+  // missing and open the picker instead.
+  var hf = hi && hi.form;
+  if (hf) {
+    hf.addEventListener('submit', function (e) {
+      if (!hi.files || !hi.files.length) {
+        e.preventDefault();
+        if (hn) {
+          hn.textContent = 'Choose at least one quote first';
+          hn.style.color = '#8b3c32';
+        }
+        hi.click();
+      }
+    });
+  }
+  if (hi && hn) {
+    hi.addEventListener('change', function () {
+      var f = hi.files;
+      hn.textContent = !f || !f.length
+        ? 'Up to 3 PDFs or photos \u2014 or tap to choose'
+        : (f.length === 1 ? f[0].name : f.length + ' files ready to compare');
+    });
+  }
   var i = document.getElementById('quotes'), n = document.getElementById('dropNote');
   if (i && n) {
     i.addEventListener('change', function () {

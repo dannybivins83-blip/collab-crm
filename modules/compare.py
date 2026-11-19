@@ -961,11 +961,17 @@ def landing_upload():
     """Upload straight from the front page: the homeowner has the PDFs open and
     no reason yet to care what an account is. The e-mail still creates the
     workspace -- it is how they get back in -- but the files come first."""
+    # The hero uploader asks for files and nothing else: a homeowner holding
+    # three PDFs should not have to think about an account first. A blank email
+    # is allowed through and the workspace asks for one straight away, so the
+    # only thing at risk is the way back in -- and that is said plainly there.
+    # A MALFORMED address is still refused, because silently dropping what
+    # someone typed would lose their way back without telling them.
     email = (request.form.get("email") or "").strip()[:200]
-    if not _EMAIL_RE.match(email):
+    if email and not _EMAIL_RE.match(email):
         return redirect(url_for("compare.landing") + "?err=1#start")
     rt = _posted_roof_type()
-    prior = db.all_rows("ho_projects", "email=?", (email,), "id DESC", 1)
+    prior = db.all_rows("ho_projects", "email=?", (email,), "id DESC", 1) if email else []
     if prior:
         p = prior[0]
         # Returning with an answer fills a blank, but never overwrites a system
@@ -1171,6 +1177,18 @@ def dedupe(token):
     _log("compare_dedupe")
     return redirect(url_for("compare.project", token=token) +
                     ("?removed=%d#compare" % removed if removed else "#compare"))
+
+
+@bp.route("/c/<token>/email", methods=["POST"], endpoint="set_email")
+def set_email(token):
+    """Attach an email to a workspace that was started without one."""
+    p = _project_by_token(token)
+    email = (request.form.get("email") or "").strip()[:200]
+    if not _EMAIL_RE.match(email):
+        return redirect(url_for("compare.project", token=token) + "?emailerr=1")
+    db.update("ho_projects", p["id"], email=email, last_seen=db.now())
+    _log("compare_email_added", "/c/<token>/email")
+    return redirect(url_for("compare.project", token=token) + "?saved=1")
 
 
 @bp.route("/c/<token>/roof", methods=["POST"], endpoint="set_roof")
