@@ -710,6 +710,75 @@ def read_queued(project_id, jobs, roof_type=""):
                 pass
 
 
+
+# ---------------------------------------------------------------------------
+# Verifying the company and the license
+#
+# Checked against both registries before this was written, because a broken
+# "verify here" link on a page telling people to verify is worse than no link:
+#
+#   Sunbiz DOES deep-link. search.sunbiz.org/Inquiry/CorporationSearch/
+#   SearchResults?inquiryType=EntityName&searchTerm=... returns the real result
+#   list in a browser, so the company name becomes one click. (It answers 403
+#   to a plain script, which is bot protection, not a broken URL -- confirmed by
+#   loading it in a real browser and reading the rows back.)
+#
+#   DBPR DOES NOT. myfloridalicense.com/wl11.asp now redirects to
+#   /portalsearches/VerifyLicensee, whose search is a POST carrying an
+#   anti-forgery token. No GET form of it returns a record -- three variants
+#   tested, all either 302 to the empty form or ignore the number. So the
+#   license number cannot be deep-linked by anyone, us included. The honest
+#   build is the verify page plus the number ready to paste.
+SUNBIZ_SEARCH = ("https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResults"
+                 "?inquiryType=EntityName&searchNameOrder=&searchTerm=%s")
+DBPR_VERIFY = "https://www.myfloridalicense.com/portalsearches/VerifyLicensee"
+
+
+def license_audit(quotes):
+    """One row per quote: where to look it up, and what is missing.
+
+    This checks the PAPERWORK, not the contractor. A missing license number on
+    a proposal means the proposal does not state one -- it establishes nothing
+    about whether the company holds a license, and the wording says so.
+    """
+    import urllib.parse
+    seen_lic = {}
+    for q in quotes:
+        lic = re.sub(r"[^A-Za-z0-9]", "", (q.get("license") or "")).upper()
+        if lic:
+            seen_lic.setdefault(lic, []).append(q.get("contractor") or "Unnamed contractor")
+
+    rows = []
+    for q in quotes:
+        name = (q.get("contractor") or "").strip()
+        lic_raw = (q.get("license") or "").strip()
+        lic = re.sub(r"[^A-Za-z0-9]", "", lic_raw).upper()
+        flags = []
+        if not name:
+            flags.append("This proposal does not name the company anywhere we could read.")
+        if not lic_raw:
+            flags.append("No license number appears on this proposal. That is a question "
+                         "to ask, not a finding \u2014 plenty of licensed contractors "
+                         "leave it off the quote.")
+        if lic and len(seen_lic.get(lic, [])) > 1:
+            others = [n for n in seen_lic[lic] if n != name]
+            # "KLR Roofing Corp.." -- a company name that already ends in a
+            # full stop should not collect a second one.
+            joined = " and ".join(n.rstrip(".") for n in others) or "another quote"
+            flags.append("The same license number appears on %s. Worth asking who is "
+                         "actually contracting." % joined)
+        rows.append({
+            "contractor": name or "Unnamed contractor",
+            "license": lic_raw,
+            "phone": (q.get("phone") or "").strip(),
+            "email": (q.get("email") or "").strip(),
+            "sunbiz": (SUNBIZ_SEARCH % urllib.parse.quote(name)) if name else "",
+            "dbpr": DBPR_VERIFY,
+            "flags": flags,
+        })
+    return rows
+
+
 def duplicate_groups(quotes):
     """Quotes that are the same bid entered twice.
 
@@ -996,6 +1065,7 @@ def project(token):
         "compare_project.html", p=p, quotes=view, reading=len(reading),
         dupes=sum(len(g) - 1 for g in duplicate_groups(quotes)),
         scores=scoreboard(quotes, rt), detail=disagreement_detail(quotes, rt),
+        licenses=license_audit(quotes),
         spec=spec_view(rt, show_all), uploads=uploads,
         roof_types=ROOF_TYPES, roof_type=rt,
         show_all=show_all, counts=counts_for(rt),

@@ -52,6 +52,36 @@
            background:var(--gold-100);border:1px solid #e9d59b;border-radius:11px;
            font-size:14.5px;line-height:1.5;color:#6b4e08}
   .reading b{color:#4d3905}
+  /* ---- company and license verification -------------------------------- */
+  .vrows{display:grid;gap:12px;margin:0 0 22px}
+  .vrow{border:1px solid var(--line);border-radius:11px;padding:16px 18px;background:#fff}
+  .vname{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .vname b{font-size:16px;color:var(--navy-950);letter-spacing:-.01em}
+  .vmeta{font-size:13px;color:var(--slate-500)}
+  .vacts{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .vbtn{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:9px 15px;
+        border:1px solid var(--line);border-radius:8px;background:var(--warm-50);
+        font-size:13.5px;font-weight:650;color:var(--navy-950)}
+  .vbtn:hover{border-color:var(--teal-600);color:var(--teal-600);background:#eaf3ef}
+  .licbox{display:inline-flex;align-items:center;gap:0;border:1px solid var(--line);
+          border-radius:8px;overflow:hidden;background:#fff}
+  .licbox code{padding:0 12px;font-size:14px;font-weight:700;letter-spacing:.04em;
+               color:var(--navy-950);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .copylic{min-height:38px;padding:9px 13px;border:0;border-left:1px solid var(--line);
+           background:var(--warm-50);font-size:13px;font-weight:650;color:var(--slate-700);
+           cursor:pointer}
+  .copylic:hover{background:#eaf3ef;color:var(--teal-600)}
+  .copylic.done{background:#e9f4f0;color:var(--teal-600)}
+  .vflag{margin:12px 0 0;padding:11px 14px;background:var(--gold-100);border-radius:8px;
+         font-size:14px;line-height:1.55;color:#6b4e08}
+  .vwhat{border:1px solid var(--line);border-radius:11px;padding:18px 20px;
+         background:var(--warm-50)}
+  .vwhat h4{margin:0 0 10px;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+            color:var(--teal-600);font-weight:750}
+  .vwhat ul{margin:0;padding-left:20px;display:grid;gap:8px}
+  .vwhat li{font-size:14.5px;line-height:1.6;color:var(--slate-700)}
+  .vwhat b{color:var(--navy-950)}
+
   /* ---- the disagreement accordion, under the chart --------------------- */
   .acc-wrap{margin-top:34px;padding-top:30px;border-top:1px solid var(--line)}
   .acc-wrap h2{margin:0 0 6px}
@@ -772,6 +802,63 @@
     {% endif %}
   </section>
 
+
+  {# ---------------- company and license ---------------- #}
+  {% if licenses %}
+  <section class="blk" id="verify">
+    <h2>Check the company and the license</h2>
+    <p class="sub">Both registries are free and public. Florida&rsquo;s company register
+      takes a direct link, so the company name below is one click. The license verifier
+      does not &mdash; its search is a form that will not accept a link from outside, so
+      the number is here ready to copy and the button opens the right page to paste it
+      into. Nothing on this panel is a finding about any company; it is where to go and
+      look.</p>
+    <div class="vrows">
+      {% for L in licenses %}
+      <div class="vrow">
+        <div class="vname">
+          <b>{{ L.contractor }}</b>
+          {% if L.phone or L.email %}
+          <span class="vmeta">{{ L.phone }}{% if L.phone and L.email %} &middot; {% endif %}{{ L.email }}</span>
+          {% endif %}
+        </div>
+        <div class="vacts">
+          {% if L.sunbiz %}
+          <a class="vbtn" href="{{ L.sunbiz }}" target="_blank" rel="noopener noreferrer">
+            Look up the company <span aria-hidden="true">&#8599;</span></a>
+          {% endif %}
+          {% if L.license %}
+          <span class="licbox">
+            <code data-lic>{{ L.license }}</code>
+            <button type="button" class="copylic" data-copy="{{ L.license }}">Copy</button>
+          </span>
+          {% endif %}
+          <a class="vbtn" href="{{ L.dbpr }}" target="_blank" rel="noopener noreferrer">
+            {{ 'Verify the license' if L.license else 'Search the license register' }}
+            <span aria-hidden="true">&#8599;</span></a>
+        </div>
+        {% for f in L.flags %}
+        <p class="vflag">{{ f }}</p>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="vwhat">
+      <h4>What to check once you are there</h4>
+      <ul>
+        <li><b>On the company register:</b> the entity is Active, the name matches the one
+          on the proposal exactly, and the address is one you recognize.</li>
+        <li><b>On the license verifier:</b> the status is Active rather than expired or
+          null, the license category covers roofing, and the name on the license matches
+          the company that is quoting you &mdash; not a different business the salesperson
+          works through.</li>
+        <li><b>If the numbers do not match the name</b>, that is the question to ask before
+          anything else.</li>
+      </ul>
+    </div>
+  </section>
+  {% endif %}
+
   {# ---------------- the quotes ---------------- #}
   <section class="blk" id="quotes">
     <h2>Your quotes</h2>
@@ -982,6 +1069,34 @@
       if (d) d.value = (spec[k] || {}).d || '';
     });
     document.getElementById('add').scrollIntoView({ behavior: 'smooth' });
+  });
+})();
+</script>
+
+<script>
+// The license verifier will not take a link from outside, so the number goes
+// to the clipboard instead and the button says it worked.
+(function () {
+  Array.prototype.forEach.call(document.querySelectorAll('.copylic'), function (b) {
+    b.addEventListener('click', function () {
+      var v = b.getAttribute('data-copy') || '';
+      var done = function () {
+        var was = b.textContent;
+        b.textContent = 'Copied';
+        b.classList.add('done');
+        setTimeout(function () { b.textContent = was; b.classList.remove('done'); }, 1800);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(v).then(done, function () {});
+      } else {
+        // Older browsers: select the number so a manual copy is one keystroke.
+        var c = b.parentNode.querySelector('[data-lic]');
+        if (c && window.getSelection) {
+          var r = document.createRange(); r.selectNodeContents(c);
+          var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        }
+      }
+    });
   });
 })();
 </script>
