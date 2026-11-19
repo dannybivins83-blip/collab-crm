@@ -48,6 +48,13 @@
   .hdr .navtoggle{color:var(--navy-950);border-color:var(--line)}
 
   .pg{padding:30px 0 80px}
+  .reading{display:flex;align-items:center;gap:13px;margin:0 0 22px;padding:16px 19px;
+           background:var(--gold-100);border:1px solid #e9d59b;border-radius:11px;
+           font-size:14.5px;line-height:1.5;color:#6b4e08}
+  .reading b{color:#4d3905}
+  .reading .spin{flex:none;width:18px;height:18px;border-radius:50%;
+                 border:2.5px solid #e4cf93;border-top-color:#9a7512;
+                 animation:spin .8s linear infinite}
   /* The page head is the mockup's: title and one line of purpose on the left,
      the roof this comparison is about on the right. */
   .ph{padding:34px 0 26px}
@@ -323,6 +330,18 @@
     <button type="button" role="tab" data-panel="questions" aria-selected="false"><i aria-hidden="true">?</i>Questions</button>
   </div>
 
+  {% if reading %}
+  {# The read finishes after this page is served, so the page says what is
+     happening and reloads itself once rather than leaving a homeowner looking
+     at an empty workspace moments after uploading. #}
+  <div class="reading" data-reading-banner role="status" aria-live="polite">
+    <span class="spin" aria-hidden="true"></span>
+    <span><b>Reading {{ reading }} proposal{{ '' if reading == 1 else 's' }}.</b>
+      This takes about half a minute each. You can stay here &mdash; the page
+      updates itself when they are done.</span>
+  </div>
+  {% endif %}
+
   {# ---------------- where the quotes disagree ---------------- #}
   <section class="blk" id="compare">
     <form method="post" action="{{ url_for('compare.set_roof', token=p.token) }}" class="roofpick">
@@ -509,7 +528,7 @@
     <ul class="uplog">
       {% for u in uploads %}
       <li>
-        <span class="us {{ u.status }}">{{ {'read':'read','unread':'not read','failed':'failed','pending':'pending'}.get(u.status, u.status) }}</span>
+        <span class="us {{ u.status }}">{{ {'read':'read','unread':'not read','failed':'failed','pending':'pending','queued':'reading now'}.get(u.status, u.status) }}</span>
         <span class="un">{{ u.filename }}</span>
         {% if u.error %}<span class="ue">{{ u.error }}</span>{% endif %}
       </li>
@@ -725,6 +744,28 @@
 </script>
 
 <script>
+// Poll while a read is outstanding. A reload is the honest mechanism here:
+// the quote rows, the disagreements and the question list are all rendered
+// server-side from the same data, so re-rendering the page IS the update.
+(function () {
+  var left = {{ reading|default(0) }};
+  if (!left) { return; }
+  var tries = 0;
+  var timer = setInterval(function () {
+    // ~25s a file, so give up at four minutes rather than poll forever.
+    if (++tries > 24) { clearInterval(timer); return; }
+    fetch(location.pathname, { headers: { 'X-Poll': '1' } })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        // Split so this script does not match its own needle -- checking for
+        // the literal found it in the polling code itself and the page never
+        // reloaded, however long the read took.
+        if (html.indexOf('data-reading' + '-banner') === -1) { location.reload(); }
+      })
+      .catch(function () { /* a failed poll is not worth surfacing */ });
+  }, 10000);
+})();
+
 // Tabs are added by script and the bar starts hidden, so a visitor without
 // JavaScript keeps every panel on the page rather than losing two thirds of it.
 (function () {

@@ -22,6 +22,7 @@ import json
 import os
 import re
 import secrets
+import threading
 
 from flask import (Blueprint, render_template, request, redirect, url_for,
                    abort, jsonify)
@@ -456,10 +457,18 @@ def ingest_spoken(project, spoken):
     return db.insert("ho_uploads", up)
 
 
-def ingest_upload(project, fileobj):
-    """Store one uploaded proposal, read it, and create its quote. Returns the
-    ho_uploads row id. The FILE is saved before the read is attempted, so a
-    reader outage never costs the homeowner the document."""
+def store_upload(project, fileobj):
+    """Validate and save one uploaded proposal. Returns (upload_id, data).
+
+    Reading it is NOT done here. Each read costs about 25 seconds against the
+    model, and doing that inside the request meant two proposals took 50s and
+    sometimes returned 502, while six -- the number the form invites -- would
+    pass the worker timeout every time. Store the bytes, answer the browser,
+    and let read_queued() do the slow part on its own thread.
+
+    data is returned so the reader does not have to go back to disk; it is
+    None when there is nothing worth reading.
+    """
     name = os.path.basename(getattr(fileobj, "filename", "") or "proposal.pdf")[:180]
     data = fileobj.read(MAX_UPLOAD_BYTES + 1)
     up = {"project_id": project["id"], "quote_id": None, "created": db.now(),
@@ -468,13 +477,13 @@ def ingest_upload(project, fileobj):
     if len(data) > MAX_UPLOAD_BYTES:
         up["status"] = "failed"
         up["error"] = "That file is over 12 MB. Most proposals are well under 1 MB."
-        return db.insert("ho_uploads", up)
+        return db.insert("ho_uploads", up), None
     kind, mime = sniff(data)
     if not kind:
         up["status"] = "failed"
         up["error"] = ("That file is neither a PDF nor a photo. Upload the proposal "
                        "the contractor sent, or take a picture of it.")
-        return db.insert("ho_uploads", up)
+        return db.insert("ho_uploads", up), None
 
     ext = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png",
            "image/gif": "gif", "image/webp": "webp"}.get(mime, "bin")
@@ -493,25 +502,46 @@ def ingest_upload(project, fileobj):
     except Exception as e:
         up["error"] = "could not store the file: %s" % str(e)[:120]
 
-    fields, err = read_proposal(data, name)
-    if err or not fields:
-        up["status"] = "unread"
-        up["error"] = (up["error"] + " " + (err or "")).strip()[:300]
-        return db.insert("ho_uploads", up)
-    if fields.get("unreadable"):
-        up["status"] = "unread"
-        up["error"] = "This does not read as a roofing proposal."
-        up["extracted"] = json.dumps(fields)[:8000]
-        return db.insert("ho_uploads", up)
+    up["status"] = "queued"
+    return db.insert("ho_uploads", up), data
 
-    row = _fields_to_quote(fields)
-    row["project_id"] = project["id"]
-    row["created"] = db.now()
-    qid = db.insert("ho_quotes", row)
-    up["quote_id"] = qid
-    up["status"] = "read"
-    up["extracted"] = json.dumps(fields)[:8000]
-    return db.insert("ho_uploads", up)
+
+# A read takes ~25s. Doing them one at a time keeps a homeowner with six
+# proposals from opening six concurrent model calls from one worker.
+_READ_LOCK = threading.Lock()
+
+
+def read_queued(project_id, jobs):
+    """Read stored proposals and turn each into a quote. Runs off-request.
+
+    db.connect() opens its own connection per call and the only Flask-bound
+    thing in db is get_company()'s per-request cache, which already tolerates
+    being outside a request, so this needs no app context.
+    """
+    with _READ_LOCK:
+        for upload_id, data, name in jobs:
+            patch = {}
+            try:
+                fields, err = read_proposal(data, name)
+                if err or not fields:
+                    patch = {"status": "unread", "error": (err or "")[:300]}
+                elif fields.get("unreadable"):
+                    patch = {"status": "unread",
+                             "error": "This does not read as a roofing proposal.",
+                             "extracted": json.dumps(fields)[:8000]}
+                else:
+                    row = _fields_to_quote(fields)
+                    row["project_id"] = project_id
+                    row["created"] = db.now()
+                    patch = {"status": "read", "quote_id": db.insert("ho_quotes", row),
+                             "extracted": json.dumps(fields)[:8000]}
+            except Exception as e:
+                patch = {"status": "unread",
+                         "error": ("%s: %s" % (type(e).__name__, e))[:300]}
+            try:
+                db.update("ho_uploads", upload_id, **patch)
+            except Exception:
+                pass
 
 
 def _project_by_token(token):
@@ -664,15 +694,21 @@ def upload(token):
 
 
 def _ingest_files(project, files):
-    """Read each file independently. One bad PDF in a batch of three must not
-    cost the homeowner the other two."""
-    done = 0
+    """Store each file independently, then read them all on one thread.
+
+    One bad PDF in a batch of three must not cost the homeowner the other two,
+    and the browser must not wait on any of it.
+    """
+    done, jobs = 0, []
     for f in (files or [])[:6]:
         if not getattr(f, "filename", ""):
             continue
         try:
-            ingest_upload(project, f)
+            upload_id, data = store_upload(project, f)
             done += 1
+            if data:
+                jobs.append((upload_id, data,
+                             os.path.basename(getattr(f, "filename", "") or "")[:180]))
         except Exception as e:
             try:
                 db.insert("ho_uploads", {
@@ -683,6 +719,10 @@ def _ingest_files(project, files):
                     "error": ("%s: %s" % (type(e).__name__, e))[:300], "extracted": ""})
             except Exception:
                 pass
+    if jobs:
+        t = threading.Thread(target=read_queued, args=(project["id"], jobs),
+                             name="roofread", daemon=True)
+        t.start()
     return done
 
 
@@ -735,8 +775,12 @@ def project(token):
         view.append(dict(q, _spec=_spec_of(q),
                          _gaps=gaps_for(q, rt, not show_all)))
     uploads = db.all_rows("ho_uploads", "project_id=?", (p["id"],), "id DESC", 20)
+    # A queued upload is being read right now on a background thread. The page
+    # has to say so and come back for the result, or a homeowner lands on an
+    # empty workspace seconds after uploading and concludes it failed.
+    reading = [u for u in uploads if (u.get("status") or "") == "queued"]
     return render_template(
-        "compare_project.html", p=p, quotes=view,
+        "compare_project.html", p=p, quotes=view, reading=len(reading),
         spec=spec_view(rt, show_all), uploads=uploads,
         roof_types=ROOF_TYPES, roof_type=rt,
         show_all=show_all, counts=counts_for(rt),
