@@ -97,14 +97,25 @@
   .tabs button i{font-style:normal;font-size:14px;opacity:.8}
 
   /* The quoted totals, as the mockup's dark overview strip. */
-  .totals{display:grid;background:var(--navy-950);color:#fff;border-radius:12px 12px 0 0;
-          padding:18px 22px;gap:14px;align-items:end;margin:0}
-  .totals .lb{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.11em;
-       text-transform:uppercase;color:rgb(255 255 255/.6);margin-bottom:6px}
-  .totals .rowlab{font-size:15px;font-weight:700}
-  .totals .amt{font-size:25px;font-weight:800;letter-spacing:-.025em;
-               font-variant-numeric:tabular-nums}
-  .totals .badge{display:inline-flex;align-items:center;justify-content:center;width:19px;
+  /* The totals are the table's header row now, so every column is the same
+     column the values below sit in -- the alignment is the table's, not
+     something kept in step by hand. */
+  tr.totals th{background:var(--navy-950)!important;color:#fff!important;vertical-align:bottom;
+               padding:16px 12px 15px!important;border-bottom:0!important;
+               text-transform:none!important;letter-spacing:normal!important;
+               font-size:15px!important;font-weight:700}
+  /* Under table-layout:fixed the FIRST row sets every column width, and that
+     row is now this one -- so the line-item column has to claim its share
+     here, not on the body cells where it used to live. */
+  tr.totals th:first-child{border-top-left-radius:12px;width:34%}
+  tr.totals th:last-child{border-top-right-radius:12px}
+  tr.totals .lb{display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.11em;
+       text-transform:uppercase;color:rgb(255 255 255/.62);margin-bottom:7px;font-weight:700}
+  tr.totals .who{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  tr.totals .amt{display:block;font-size:24px;font-weight:800;letter-spacing:-.025em;
+                 font-variant-numeric:tabular-nums;white-space:nowrap;color:#fff}
+  tr.totals .who{color:rgb(255 255 255/.72)}
+  tr.totals .badge{display:inline-flex;align-items:center;justify-content:center;width:19px;
        height:19px;border-radius:50%;background:rgb(255 255 255/.16);color:#fff;
        font-size:10px;font-weight:800;flex:none}
 
@@ -112,8 +123,8 @@
     /* The column count is written inline because it follows the number of
        quotes, so overriding it needs the weight. On a phone the totals read
        down the page instead of being squeezed across it. */
-    .totals{grid-template-columns:1fr!important;gap:16px;border-radius:12px}
-    .totals .amt{font-size:22px}
+    tr.totals .amt{font-size:20px}
+    tr.totals th{padding:13px 10px 12px!important}
     .ph .wrap{gap:18px}
     .roofchip{min-width:0;width:100%}
     .tabs button{padding:12px 14px;font-size:13.5px}
@@ -133,7 +144,8 @@
 
   /* ---- comparison grid ---- */
   .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table.cmp{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px}
+  table.cmp{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px;
+            table-layout:fixed}
   table.cmp th,table.cmp td{border-bottom:1px solid var(--line);padding:10px 12px;text-align:left;
                             vertical-align:top}
   table.cmp thead th{position:sticky;top:0;background:#fff;font-size:13px;text-transform:uppercase;
@@ -422,20 +434,6 @@
     {% if quotes %}
     {# The quoted totals, read first and kept out of the scrolling table so the
        numbers being compared never scroll away from the lines explaining them. #}
-    <div class="totals" style="margin-top:24px;grid-template-columns:1.2fr repeat({{ quotes|length }},1fr)">
-      <span class="rowlab"><span class="lb">Proposal overview</span>Quoted total</span>
-      {% for q in quotes %}
-      <span>
-        <span class="lb"><span class="badge">{{ loop.index0 | string | replace('0','A') | replace('1','B') | replace('2','C') | replace('3','D') | replace('4','E') }}</span>{{ q.contractor }}
-          {# Delete belongs where the duplicate is visible. It used to live only
-             on the quote cards, which now sit behind another tab. #}
-          <button type="submit" class="colx" form="delq{{ q.id }}"
-                  title="Remove this quote" aria-label="Remove {{ q.contractor }}">&times;</button>
-        </span>
-        <span class="amt">{{ q.price or '&mdash;' | safe }}</span>
-      </span>
-      {% endfor %}
-    </div>
     {# Kept outside the strip: a form cannot be nested inside another, and the
        buttons above reference these by id. #}
     {% for q in quotes %}
@@ -446,7 +444,23 @@
     <div class="tw" style="margin-top:0">
       <table class="cmp">
         <thead>
-          <tr><th>Line item</th>{% for q in quotes %}<th>{{ q.contractor }}</th>{% endfor %}</tr>
+          <tr class="totals">
+            <th scope="col"><span class="lb">Proposal overview</span>Quoted total</th>
+            {% for q in quotes %}
+            <th scope="col">
+              <span class="lb">
+                <span class="badge">{{ loop.index0 | string | replace('0','A') | replace('1','B') | replace('2','C') | replace('3','D') | replace('4','E') }}</span>
+                <span class="who">{{ q.contractor }}</span>
+                {# Remove belongs where the duplicate column is visible; it used
+                   to live only on the quote cards, behind another tab. #}
+                <button type="submit" class="colx" form="delq{{ q.id }}"
+                        title="Remove this quote"
+                        aria-label="Remove {{ q.contractor }}">&times;</button>
+              </span>
+              <span class="amt">{{ q.price or '&mdash;' | safe }}</span>
+            </th>
+            {% endfor %}
+          </tr>
         </thead>
         <tbody>
           {% for g in spec %}
