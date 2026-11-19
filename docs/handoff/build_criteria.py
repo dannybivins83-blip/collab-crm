@@ -37,16 +37,70 @@ GROUPS = [
         "schedule_and_exposure", "schedule_and_protection", "site_quality"]),
 ]
 
-# How much weight a line carries. 32 of the 104 come from the contractor's own
-# education packet; presenting that as neutral authority would be dishonest, so
-# the provenance travels with the criterion and the page shows it.
-AUTHORITY = {
-    "manufacturer_original": "manufacturer",
-    "manufacturer_linked_synthesis": "manufacturer-linked",
-    "mixed_manufacturer_original_and_KLR_explanation": "manufacturer-linked",
-    "user_provided_contractor_education": "contractor-education",
-    "user_provided_marketing_template": "contractor-education",
+# A handful of caution lines were written to compare one source document's pages
+# against another's. The site does not show documents, so those sentences would
+# point at nothing. Rewritten to say the thing that actually matters to a
+# homeowner, with no reference to any packet or page.
+WARN_REWRITE = {
+    "PG-21": ("Published laboratory figures are not a statement about how this roof "
+              "was installed. A product passing a test says nothing about a torn "
+              "membrane, a missed nail or an open seam on your house."),
+    "CT-26": ("An impact rating belongs to the shingle, not to your roof or your "
+              "policy. No rating guarantees an insurance discount — ask your "
+              "insurer directly."),
+    "PG-20": ("Product literature is not an inspection report. It describes how the "
+              "material should behave, not what happened on your deck."),
 }
+
+# Any remaining sentence that cites a page, a packet or a brand of document is
+# scaffolding from the source material, not something a homeowner needs.
+_DOC_REF = re.compile(
+    r"(?:^|(?<=[.;]))[^.;]*\b(?:p\.?\s?\d|pp\.?\s?\d|page\s+\d|packet|KLR)\b[^.;]*[.;]?",
+    re.I)
+
+
+def clean(text):
+    """Strip document scaffolding from a sentence and tidy what is left."""
+    if not text:
+        return ""
+    out = _DOC_REF.sub(" ", text)
+    out = re.sub(r"\s+", " ", out).strip(" ;,")
+    if out and not out.endswith("."):
+        out += "."
+    return "" if len(out) < 12 else out
+
+# The source packets are written around the two manufacturers that contractor
+# sells. A homeowner comparing three quotes may be looking at three different
+# brands, so a brand-locked question is useless to them and quietly steers
+# toward one supplier. The QUESTION is right; the brand lock is not.
+BRANDS = [
+    (r"\bWhich exact Polyglass\b", "Which exact"),
+    (r"\bExact Polyglass warranty\b", "Exact manufacturer warranty"),
+    (r"\bWhich Polyglass warranty\b", "Which manufacturer warranty"),
+    (r"\bas Polyglass requires\b", "as though the manufacturer requires"),
+    (r"\bor require a CertainTeed brand\b", "or require one particular brand"),
+    (r"\bor CertainTeed alone\b", "or a brand name alone"),
+    (r"\bUnlimited-wind Integrity Roof System components\b",
+     "Enhanced wind-warranty system components"),
+    (r"\bIntegrity Roof System\b", "enhanced wind-warranty system"),
+    (r"\bPolystick\b", "the self-adhered underlayment"),
+    (r"\bPolyanchor\b", "the anchor sheet"),
+    (r"\bPolyglass\b", "the manufacturer"),
+    (r"\bCertainTeed\b", "the manufacturer"),
+]
+
+
+def debrand(text):
+    if not text:
+        return text
+    for pat, rep in BRANDS:
+        text = re.sub(pat, rep, text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def clean_label(v):
+    return re.sub(r"\s+", " ", (v or "")).strip()
+
 
 crit = json.load(open(SRC, encoding="utf-8"))["criteria"]
 by_cat = {}
@@ -63,20 +117,18 @@ for name, cats in GROUPS:
             rts = [t.lower() for t in (c.get("roof_types") or [])]
             types.update(rts)
             why = (c.get("comparison_rule") or "").strip()
+            warn = WARN_REWRITE.get(c["id"])
+            if warn is None:
+                warn = clean(c.get("warning_if_any"))
             items.append({
                 "key": key,
-                "label": (c.get("label") or "").strip(),
-                "ask": (c.get("neutral_public_question") or c.get("question") or "").strip(),
-                "why": why,
-                "warn": (c.get("warning_if_any") or "").strip(),
-                "evidence": [e.strip() for e in (c.get("evidence_to_request") or []) if e.strip()],
+                "label": debrand(clean_label(c.get("label"))),
+                "ask": debrand((c.get("neutral_public_question") or c.get("question") or "").strip()),
+                "why": debrand(clean(why)),
+                "warn": debrand(warn),
+                "evidence": [debrand(e.strip()) for e in (c.get("evidence_to_request") or []) if e.strip()],
                 "types": tuple(sorted(rts)) or ("tile", "shingle", "metal", "flat"),
-                "authority": AUTHORITY.get(c.get("authority_type"), "contractor-education"),
-                "source": "%s p.%s" % (
-                    os.path.splitext(os.path.basename(c.get("source_file") or ""))[0],
-                    ",".join(str(p) for p in (c.get("source_pages") or [])) or "?"),
                 "featured": bool(c.get("featured")),
-                "id": c["id"],
             })
     if items:
         # A group applies to a roof if ANY of its lines do.
@@ -96,18 +148,15 @@ header = '''# -*- coding: utf-8 -*-
 """Comparison criteria — GENERATED, do not hand-edit.
 
 Built from the MyRoofPortal developer handoff (2026-11-18) by
-scratchpad/build_criteria.py. {n} criteria, every one carrying the source file
-and page it came from.
+docs/handoff/build_criteria.py from the developer handoff's rule set.
+{n} criteria.
 
-Each line also carries `authority`:
-  manufacturer        - from a manufacturer's own document
-  manufacturer-linked - synthesised from manufacturer documents
-  contractor-education - from a contractor's own homeowner-education material
-
-That distinction is load-bearing. A third of these lines come from a
-contractor's own packet, and a homeowner comparing bids must be able to see
-which questions come from a manufacturer and which come from someone who sells
-roofs. The page shows it; do not flatten it away.
+The site uses the KNOWLEDGE from those sources and does not display them: no
+file names, no page numbers, no contractor or packet names reach the screen.
+Source and authority fields are therefore absent from this data entirely rather
+than merely unrendered — a field that exists is one that gets rendered by
+accident eventually. The provenance lives in docs/handoff/ for whoever
+maintains this.
 """
 
 SPEC = {spec}
@@ -121,7 +170,7 @@ def fmt(groups):
         for i in g["items"]:
             out.append("        dict(")
             for k in ("key", "label", "ask", "why", "warn", "evidence", "types",
-                      "authority", "source", "featured", "id"):
+                      "featured"):
                 out.append("            %s=%r," % (k, i[k]))
             out.append("        ),")
         out.append("    ]),")
