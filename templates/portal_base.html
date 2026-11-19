@@ -264,7 +264,9 @@ footer .flinks a:hover{color:#fff}
 
 <header class="hdr">
   <div class="wrap">
-    <a href="/" class="brand">myroofportal<span>.com</span></a>
+    {# The homeowner pages wear the product lockup from the brand kit; the
+       roofer pages keep the domain wordmark that the ads point at. #}
+    {% block brand %}<a href="/" class="brand">myroofportal<span>.com</span></a>{% endblock %}
     <button class="navtoggle" aria-expanded="false" aria-controls="nav" id="navBtn">Menu</button>
     {# Overridable so the homeowner pages don't wear the roofer sales nav.
        Same chrome and tokens, different audience. #}

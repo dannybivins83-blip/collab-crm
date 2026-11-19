@@ -565,8 +565,23 @@ def landing():
     _log("compare_view")
     # portal_base's footer links these; without them the anchors render
     # href="" and silently go nowhere.
+    # The page shows a handful of real questions rather than the whole sheet:
+    # 104 line items printed on a front page is a wall, not an argument. These
+    # are the ones that decide money on nearly every quote.
+    # Underlayment, attachment, wood repairs and the warranty -- the four the
+    # mockup picks out, and the four that move the most money on a real quote.
+    want = ["vet_15", "vet_22", "vet_26", "vet_31"]
+    pool = [i for g in SPEC for i in g["items"] if i.get("featured") and i.get("ask")]
+    by_key = {i["key"]: i for i in pool}
+    questions = [by_key[k] for k in want if k in by_key]
+    for i in pool:                       # top up if a key above was renamed
+        if len(questions) >= 4:
+            break
+        if i not in questions:
+            questions.append(i)
     return render_template("compare_landing.html", spec=SPEC,
                            spec_count=len(SPEC_KEYS), stages=STAGES,
+                           questions=questions[:4],
                            demo_url="/demo/%s" % _demo_slug(),
                            acquire_url="/acquire")
 

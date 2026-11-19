@@ -34,11 +34,19 @@
 </script>
 {% endblock %}
 
+{% block brand %}
+<a href="/" class="brand brand-lockup">
+  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 13 12 6l8 7"/><path d="M4 18l8-7 8 7"/>
+  </svg>MyRoofPortal</a>
+{% endblock %}
+
 {% block nav %}
 <nav class="nav" id="nav" aria-label="Primary">
-  <a href="#systems">Roof systems</a>
-  <a href="#sheet">What gets compared</a>
   <a href="#how">How it works</a>
+  <a href="#systems">Roof systems</a>
+  <a href="#sample">Sample comparison</a>
 </nav>
 {% endblock %}
 {# "Compare my quotes" plus the wordmark plus the Menu button is wider than a
@@ -46,366 +54,318 @@
    the whole page scrolled sideways. The short label keeps the action. #}
 {% block headercta %}<a href="#start" class="cta-gold"><span class="lbl-long">Compare my quotes</span><span class="lbl-short">Start free</span></a>{% endblock %}
 
+
 {% block style %}
-  /* The design handoff's palette, applied at :root so the shared header and
-     footer re-skin with the page rather than fighting it. Each page renders
-     its own <style>, so this is scoped to this page despite the selector. */
+  /* Design handoff tokens, set at :root so the shared header and footer re-skin
+     with the page. Each page renders its own <style>, so this is page-scoped. */
   :root{
     --navy-950:#08212e; --navy-900:#143746; --navy-800:#1d4858;
     --gold-500:#d9a52e; --gold-100:#fff2cf;
     --teal-600:#0d6867; --teal-500:#0d6867;
-    --warm-50:#f7f8fa;
+    --warm-50:#f6f7f2;
     --slate-700:#263e4a; --slate-500:#526672; --line:#dbe3e7;
-    --tint:#eceee9;
+    --tint:#e9ece4;
     --serif:Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif;
   }
+  .lbl-short{display:none}
 
   /* The shared header is navy for the roofer pages. On the warm homeowner
      surface that bar reads as another site's chrome, so this page wears the
-     light header from the design handoff -- same markup, restyled. */
-  .hdr{background:rgb(247 248 250/.97);backdrop-filter:blur(12px);
+     light header from the handoff -- same markup, restyled. */
+  .hdr{background:rgb(246 247 242/.97);backdrop-filter:blur(12px);
        border-bottom:1px solid rgb(8 33 46/.09);box-shadow:none}
-  .hdr .brand{color:var(--navy-950);display:inline-flex;align-items:center;gap:0}
-  .hdr .brand span{color:var(--teal-600)}
-  /* The wordmark alone had no mark beside it. This is the chevron from the
-     brand kit, inlined so the header needs no extra request. */
-  .hdr .brand::before{content:"";flex:none;width:34px;height:34px;border-radius:9px;
-       margin-right:11px;
-       background:var(--navy-950) no-repeat center/19px 19px;
-       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d9a52e' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 13 12 6l8 7'/%3E%3Cpath d='M4 18l8-7 8 7'/%3E%3C/svg%3E")}
-  .hdr .nav a{color:var(--slate-700)}
+  .hdr .wrap{height:80px}
+  .brand-lockup{display:inline-flex;align-items:center;gap:11px;color:var(--navy-950);
+       font-size:23px;font-weight:800;letter-spacing:-.03em}
+  .brand-lockup svg{flex:none;width:38px;height:38px;padding:9px;border-radius:11px;
+       background:var(--navy-950);color:#fff;box-sizing:border-box}
+  .hdr .nav a{color:var(--slate-700);font-weight:600}
   .hdr .nav a:hover{color:var(--teal-600)}
   .hdr .navtoggle{color:var(--navy-950);border-color:var(--line)}
 
-  .lbl-short{display:none}
-
   /* ---- shared furniture ------------------------------------------------ */
-  .eyebrow-rule{display:flex;align-items:center;gap:12px;margin:0 0 22px;
-       font-size:11px;font-weight:750;letter-spacing:.14em;text-transform:uppercase;
-       color:var(--slate-500)}
-  .eyebrow-rule::before{content:"";width:28px;height:2px;background:var(--gold-500);flex:none}
-  .eyebrow-rule.teal{color:var(--teal-600)}
-  .sec{padding:84px 0}
+  .eyebrow-rule{display:flex;align-items:center;gap:13px;margin:0 0 22px;
+       font-size:11.5px;font-weight:750;letter-spacing:.14em;text-transform:uppercase;
+       color:var(--teal-600)}
+  .eyebrow-rule::before{content:"";width:32px;height:2px;background:var(--gold-500);flex:none}
+  .sec{padding:76px 0}
   .sec.white{background:#fff}
   .sec.tint{background:var(--tint)}
-  .h2{font-size:clamp(28px,3.2vw,44px);line-height:1.08;letter-spacing:-.035em;margin:0 0 16px}
+  .h2{font-size:clamp(27px,2.7vw,38px);line-height:1.1;letter-spacing:-.035em;margin:0}
   .h2 em{display:block;font-family:var(--serif);font-style:italic;font-weight:400;
          color:var(--teal-600);letter-spacing:-.02em}
-  .sub{color:var(--slate-500);font-size:17px;line-height:1.65;max-width:62ch;margin:0 0 38px}
-  .split{display:grid;grid-template-columns:1.05fr 1fr;align-items:end;gap:72px;margin-bottom:38px}
-  .split .sub{margin:0 0 3px auto;font-size:16px}
-
-  /* ---- hero ------------------------------------------------------------ */
-  .ho-hero{background:radial-gradient(ellipse at 0 58%,#f0f2ef,transparent 58%),var(--warm-50);
-           padding:72px 0 80px}
-  .ho-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1fr);
-           gap:64px;align-items:center}
-  .ho-hero h1{font-size:clamp(40px,4.7vw,64px);line-height:1.05;letter-spacing:-.045em;
-              margin:0;max-width:11em}
-  .ho-hero h1 em{display:block;font-family:var(--serif);font-style:italic;font-weight:400;
-                 color:var(--teal-600);letter-spacing:-.025em}
-  .ho-hero .lede{font-size:18px;line-height:1.65;color:var(--slate-500);max-width:33em;
-                 margin:26px 0 0}
-  .ctas{display:flex;align-items:center;flex-wrap:wrap;gap:16px 26px;margin-top:32px}
+  /* Heading left, one line of context right, both sitting on the same baseline
+     -- the handoff's split heading. */
+  .split{display:flex;align-items:flex-end;justify-content:space-between;gap:56px;
+         margin-bottom:34px;flex-wrap:wrap}
+  .split .ctx{color:var(--slate-500);font-size:15.5px;line-height:1.6;max-width:30em;
+              margin:0 0 4px;text-align:right}
+  .sub{color:var(--slate-500);font-size:16.5px;line-height:1.65;max-width:52ch;margin:16px 0 0}
   .linkbtn{display:inline-flex;align-items:center;gap:10px;min-height:44px;font-size:14px;
            font-weight:700;color:var(--navy-950)}
   .linkbtn:hover{color:var(--teal-600)}
-  .hero-note{display:flex;gap:10px;align-items:flex-start;margin:26px 0 0;max-width:36em;
-             font-size:12.5px;line-height:1.6;color:var(--slate-500)}
-  .hero-note .ck{flex:none;display:inline-flex;align-items:center;justify-content:center;
-       width:18px;height:18px;border:1px solid #9aadaa;border-radius:50%;
-       font-size:10px;color:var(--teal-600);margin-top:1px}
 
-  /* The hero visual is the product's own output rather than a stock roof: a
-     comparison tool whose front page shows a comparison is making the only
-     claim it can actually keep. */
-  .sample{margin:0;background:#fff;border-radius:14px;overflow:hidden;
-          box-shadow:0 22px 55px rgb(8 33 46/.16);border:1px solid rgb(8 33 46/.08)}
-  .sample-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
-              padding:16px 20px 14px;border-bottom:1px solid var(--line)}
-  .sample-top b{font-size:14px;color:var(--navy-950)}
-  .tag{display:inline-block;background:var(--gold-100);color:#745000;border:1px solid #e9d59b;
-       border-radius:5px;font-size:9.5px;line-height:1.4;font-weight:700;text-transform:uppercase;
-       letter-spacing:.07em;padding:4px 7px;white-space:nowrap}
-  .totals{display:grid;grid-template-columns:1.25fr repeat(3,1fr);background:var(--navy-950);
-          color:#fff;padding:16px 20px;gap:10px;align-items:end}
-  .totals .lb{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
-              color:rgb(255 255 255/.6);display:block;margin-bottom:5px}
-  .totals .rowlab{font-size:14px;font-weight:700}
-  .totals .amt{font-size:21px;font-weight:800;letter-spacing:-.02em;
-               font-variant-numeric:tabular-nums}
-  .stw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table.st{border-collapse:collapse;width:100%;min-width:540px;font-size:13px}
-  table.st th,table.st td{text-align:left;padding:11px 20px;vertical-align:middle;
-                          border-bottom:1px solid var(--line)}
-  /* The nowrap value cells claim their width first, which squeezed the label
-     column until "Decking allowance" broke across two lines. A floor on the
-     label column stops that; the box scrolls on a phone instead. */
-  table.st tbody th{font-weight:700;color:var(--navy-950);min-width:172px}
-  table.st td{white-space:nowrap}
-  table.st tbody th small{display:block;font-weight:400;font-size:11.5px;color:var(--slate-500);
-                          margin-top:2px;letter-spacing:0}
-  table.st tr:last-child th,table.st tr:last-child td{border-bottom:0}
-  .val{font-weight:700;color:var(--navy-950);font-size:14px;white-space:nowrap}
-  /* Four states, not one red cross: "excluded" and "not stated" are different
-     problems and lead to different questions. */
-  .s{font-style:normal;display:inline-flex;align-items:center;gap:6px;font-size:11.5px;
-     font-weight:650;padding:4px 10px;border-radius:6px;line-height:1.35;white-space:nowrap}
-  .s::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
-  .s.y{background:#e9f4f0;color:var(--teal-600)}
-  .s.n{background:#f9eeeb;color:#8b3c32}
-  .s.a{background:#fff4da;color:#795400}
-  .s.q{background:#f1f4f5;color:#536571}
-  .sfoot{margin:0;padding:13px 20px;background:var(--warm-50);border-top:1px solid var(--line);
-         font-size:11.5px;line-height:1.55;color:var(--slate-500)}
+  /* ---- hero ------------------------------------------------------------ */
+  .ho-hero{background:radial-gradient(ellipse at 0 60%,#f0f2ec,transparent 58%),var(--warm-50);
+           padding:60px 0 72px;overflow:hidden}
+  .ho-grid{display:grid;grid-template-columns:minmax(0,.93fr) minmax(0,1fr);
+           gap:72px;align-items:center}
+  .ho-hero h1{font-size:clamp(38px,4.6vw,62px);line-height:1.06;letter-spacing:-.045em;
+              margin:0;max-width:10.5em}
+  .ho-hero h1 em{display:block;font-family:var(--serif);font-style:italic;font-weight:400;
+                 color:var(--teal-600);letter-spacing:-.025em}
+  .ho-hero .lede{font-size:17.5px;line-height:1.6;color:var(--slate-500);max-width:28em;
+                 margin:24px 0 0}
+  .ctas{display:flex;align-items:center;flex-wrap:wrap;gap:14px 26px;margin-top:30px}
+
+  /* The hero visual: one real roof, with a single line of the comparison
+     floating off its corner. The whole sheet belongs further down the page --
+     up here it is a promise, not a table. */
+  .hero-visual{position:relative;padding-bottom:58px}
+  .hero-photo{width:100%;aspect-ratio:8/5;min-height:240px;object-fit:cover;
+              object-position:50% 48%;border-radius:14px;display:block}
+  .overlay{position:absolute;left:7%;right:7%;bottom:0;background:#fff;
+           border-radius:12px;padding:19px 22px 17px;
+           box-shadow:0 22px 55px rgb(8 33 46/.18);border:1px solid rgb(8 33 46/.07)}
+  .ov-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
+          padding-bottom:12px;border-bottom:1px solid var(--line)}
+  .ov-top b{font-size:16px;letter-spacing:-.015em;color:var(--navy-950)}
+  .tag{display:inline-block;background:#eef3ef;color:#4a6b5c;border-radius:5px;
+       font-size:10px;line-height:1.4;font-weight:700;padding:5px 9px;white-space:nowrap}
+  .ov-cols{display:grid;grid-template-columns:repeat(3,1fr);margin-top:13px}
+  .ov-cols div{padding:0 16px;border-left:1px solid var(--line)}
+  .ov-cols div:first-child{padding-left:0;border-left:0}
+  .ov-cols span{display:block;font-size:12.5px;color:var(--slate-500);margin-bottom:5px}
+  .ov-cols b{font-size:14.5px;color:var(--navy-950);letter-spacing:-.01em}
 
   /* ---- roof system selector -------------------------------------------- */
-  .systems{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+  .systems{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
   .sys{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);
-       border-radius:12px;overflow:hidden;transition:transform .18s,box-shadow .18s,border-color .18s}
+       border-radius:12px;overflow:hidden;
+       transition:transform .18s,box-shadow .18s,border-color .18s}
   .sys:hover,.sys:focus-visible{transform:translateY(-2px);border-color:#c3ced4;
        box-shadow:0 14px 34px rgb(8 33 46/.10)}
-  .sys .plate{display:block;width:100%;height:auto;aspect-ratio:2/1}
-  .sys .body{padding:18px 20px 20px}
+  .sys img{width:100%;height:136px;object-fit:cover;display:block}
+  .sys .body{padding:17px 19px 19px}
   .sys .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .sys h3{font-size:19px;letter-spacing:-.02em;margin:0;color:var(--navy-950)}
+  .sys h3{font-size:19.5px;letter-spacing:-.025em;margin:0;color:var(--navy-950)}
   .sys .arrow{flex:none;color:var(--slate-500);font-size:17px;line-height:1}
   .sys:hover .arrow{color:var(--teal-600)}
   .sys p{margin:6px 0 0;font-size:13.5px;line-height:1.5;color:var(--slate-500)}
 
-  /* ---- reasons + spec groups ------------------------------------------- */
-  .rcards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-  .rcard{background:var(--warm-50);border:1px solid var(--line);border-radius:12px;padding:26px}
-  .sec.white .rcard{background:var(--warm-50)}
-  .rcard h3{margin:0 0 9px;font-size:17.5px;letter-spacing:-.015em}
+  /* ---- what to ask: copy left, question cards right -------------------- */
+  .askgrid{display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);
+           gap:62px;align-items:start}
+  .qs{display:grid;gap:15px}
+  .q{display:flex;align-items:center;justify-content:space-between;gap:24px;background:#fff;
+     border:1px solid rgb(8 33 46/.06);border-radius:12px;padding:21px 26px;
+     box-shadow:0 2px 10px rgb(8 33 46/.03);transition:box-shadow .18s,transform .18s}
+  .q:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgb(8 33 46/.09)}
+  .q h3{font-size:17.5px;margin:0 0 5px;letter-spacing:-.02em;color:var(--navy-950)}
+  .q p{margin:0;font-size:14.5px;line-height:1.5;color:var(--slate-500)}
+  .q .arrow{flex:none;color:var(--slate-500);font-size:18px}
+  .q:hover .arrow{color:var(--teal-600)}
+  .askphoto{margin:26px 0 0}
+  /* The underlayment photo has a manufacturer's name printed across the roll.
+     The questions on this page were deliberately de-branded, because a
+     homeowner may be holding three quotes naming three different brands, so
+     the crop favours the edge detail over the logo. */
+  .askphoto img{width:100%;height:168px;object-fit:cover;object-position:72% 55%;
+                display:block;border-radius:12px}
+  .askphoto figcaption{font-size:12px;color:var(--slate-500);padding:10px 2px 0;line-height:1.5}
+
+  /* ---- reasons --------------------------------------------------------- */
+  .rcards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .rcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:25px}
+  .rcard h3{margin:0 0 9px;font-size:17.5px;letter-spacing:-.02em}
   .rcard p{margin:0;color:var(--slate-700);font-size:14.5px;line-height:1.6}
   .num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
        border-radius:50%;background:var(--navy-950);color:var(--gold-500);font-weight:800;
        font-size:14px;margin-bottom:14px}
 
-  /* Groups hold wildly different numbers of questions, and stretching each one
-     to its row-mate left a card that was mostly empty box. */
-  .groups{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;align-items:start}
-  .group{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 24px}
-  .sec.white .group{background:var(--warm-50)}
-  .group h3{margin:0 0 13px;font-size:12px;text-transform:uppercase;letter-spacing:.1em;
-            color:var(--teal-600);font-weight:750}
-  .group h3 em{font-style:normal;color:var(--slate-500);font-weight:600;
-               text-transform:none;letter-spacing:0}
-  .group ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
-  .group li{font-size:14.5px;line-height:1.5;display:flex;gap:10px;align-items:flex-start;
-            color:var(--slate-700)}
-  .group li b{color:var(--navy-950);font-weight:650}
-  .tick{flex:none;color:var(--gold-500);font-weight:800}
-
-  /* ---- numbered steps + stages ----------------------------------------- */
-  .hsteps{display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
-  .hstep{padding-top:22px;border-top:1px solid var(--line)}
-  .hstep .n{display:block;color:var(--teal-600);font-size:13px;font-weight:750;margin-bottom:26px}
+  /* ---- how it works + stages ------------------------------------------- */
+  .hsteps{display:grid;grid-template-columns:repeat(3,1fr);gap:38px}
+  .hstep{padding-top:21px;border-top:1px solid var(--line)}
+  .hstep .n{display:block;color:var(--teal-600);font-size:13px;font-weight:750;margin-bottom:24px}
   .hstep h3{font-size:19px;margin:0 0 8px;letter-spacing:-.02em}
   .hstep p{margin:0;color:var(--slate-500);font-size:14.5px;line-height:1.6}
-
   .stages{display:grid;gap:2px;background:var(--line);border-radius:12px;overflow:hidden;
           border:1px solid var(--line)}
   .stage{background:#fff;padding:15px 20px;display:flex;gap:14px;align-items:center;font-size:15px}
-  .sec.white .stage{background:var(--warm-50)}
   .stage .dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--teal-600)}
   .stage b{font-weight:650}
 
   /* ---- start form ------------------------------------------------------- */
-  .startwrap{display:grid;grid-template-columns:1.08fr .92fr;gap:34px;align-items:start}
-  .start{background:#fff;border:1px solid var(--line);border-radius:14px;padding:32px;
-         box-shadow:0 18px 48px rgb(8 33 46/.07)}
-  .start h2{margin:0 0 8px;font-size:clamp(23px,2.3vw,30px);letter-spacing:-.03em}
-  .start > p{color:var(--slate-500);margin:0 0 24px;font-size:15px;line-height:1.6}
-  .fl{display:block;font-size:13px;font-weight:700;color:var(--navy-950);margin:0 0 9px}
+  .startwrap{display:grid;grid-template-columns:1.04fr .96fr;gap:30px;align-items:start}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:14px;
+         box-shadow:0 16px 44px rgb(8 33 46/.06);overflow:hidden}
+  .panel .pad{padding:30px}
+  .panel h2{margin:0 0 22px;font-size:25px;letter-spacing:-.03em}
+  .fl{display:block;font-size:13px;font-weight:700;color:var(--navy-950);margin:0 0 10px}
+  .flrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .flrow .hint{font-size:12.5px;color:var(--slate-500);font-weight:400}
   /* The roof picker sits ahead of the files because the sheet it fills in is
-     different per system -- asking after the upload would mean re-reading. */
+     different per system; asking after the upload would mean re-reading. */
   .rt{display:flex;flex-wrap:wrap;gap:9px;margin:0}
   .rt input{position:absolute;opacity:0;pointer-events:none}
-  .rt label{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:10px 16px;
-            border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;
-            font-size:14px;font-weight:650;color:var(--navy-950);
+  .rt label{display:inline-flex;align-items:center;gap:7px;min-height:46px;padding:11px 18px;
+            border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer;
+            font-size:14.5px;font-weight:650;color:var(--navy-950);
             transition:border-color .15s,background .15s}
   .rt label:hover{border-color:#aebcc3}
-  .rt input:checked + label{border-color:var(--teal-600);background:#e9f4f0;color:var(--teal-600)}
+  .rt input:checked + label{border-color:var(--teal-600);background:#eaf3ef;color:var(--teal-600)}
+  .rt input:checked + label::before{content:"\2713";font-weight:800}
   .rt input:focus-visible + label{outline:2px solid var(--sky-500);outline-offset:2px}
-  .drop{display:block;border:1.5px dashed #b9c6cd;border-radius:12px;padding:20px;cursor:pointer;
-        background:var(--warm-50)}
+  .drop{display:block;border:1.5px dashed #b9c6cd;border-radius:12px;padding:22px;
+        cursor:pointer;background:#fafbfa}
   .drop:hover,.drop:focus-within{border-color:var(--gold-500);background:#fffaf0}
-  .drop .dt{display:block;font-weight:750;font-size:16px;color:var(--navy-950)}
+  .drop .dt{display:block;font-weight:750;font-size:17px;color:var(--navy-950)}
   .drop .ds{display:block;font-size:13.5px;color:var(--slate-500);margin-top:4px;line-height:1.5}
   .drop input[type=file]{display:block;margin-top:13px;font-size:13.5px;width:100%;
         color:var(--slate-700)}
   .drop .dn{display:block;font-size:12.5px;color:var(--slate-500);margin-top:9px}
-  .f{display:grid;gap:16px}
-  .f input[type=text],.f input[type=email]{width:100%;padding:14px 15px;border-radius:8px;
+  .f{display:grid;gap:20px}
+  .f input[type=text],.f input[type=email]{width:100%;padding:15px;border-radius:9px;
            border:1px solid var(--line);background:#fff;color:var(--navy-950);font:inherit;
            font-size:16px}
   .f input::placeholder{color:#8d9aa2}
-  .f button{min-height:54px;font-size:17px}
-  .fine{font-size:12.5px;color:var(--slate-500);margin:18px 0 0;line-height:1.6}
+  .f button{min-height:56px;font-size:17px;width:100%}
+  .fine{font-size:12.5px;color:var(--slate-500);margin:16px 0 0;line-height:1.6}
   .err{background:#f9eeeb;border:1px solid #d8a79f;color:#8b3c32;padding:12px 15px;
-       border-radius:8px;font-size:14.5px;margin:0 0 20px}
-  .aside{background:var(--navy-950);color:#fff;border-radius:14px;padding:30px}
-  .aside h3{margin:0 0 16px;font-size:19px;color:#fff;letter-spacing:-.02em}
-  .aside ul{list-style:none;margin:0;padding:0;display:grid;gap:14px}
-  .aside li{display:flex;gap:12px;font-size:14.5px;line-height:1.55;color:rgb(255 255 255/.82)}
-  .aside li b{color:#fff;font-weight:650}
-  .aside .ck{flex:none;color:var(--gold-500);font-weight:800}
+       border-radius:9px;font-size:14.5px;margin:0 0 20px}
+  /* The right panel is the promise made concrete: one real roof, then the two
+     numbers and the question a homeowner leaves with. */
+  .seephoto{position:relative}
+  .seephoto img{width:100%;height:235px;object-fit:cover;display:block}
+  .credit{position:absolute;right:12px;bottom:12px;background:rgb(8 33 46/.82);color:#fff;
+          font-size:10.5px;font-weight:600;padding:5px 9px;border-radius:5px}
+  .panel h3{font-size:24px;margin:0 0 7px;letter-spacing:-.03em}
+  .panel .psub{color:var(--slate-500);font-size:14.5px;margin:0 0 20px;line-height:1.55}
+  .mini{border:1px solid var(--line);border-radius:11px;padding:19px 21px}
+  .mini .mtop{display:flex;align-items:center;gap:10px;padding-bottom:13px;
+              border-bottom:1px solid var(--line);font-size:14px;font-weight:650;
+              color:var(--navy-950)}
+  .mini .mtop i{flex:none;font-style:normal;color:var(--teal-600);font-size:15px}
+  .mini h4{margin:15px 0 14px;font-size:19px;letter-spacing:-.025em;color:var(--navy-950)}
+  .mstats{display:grid;grid-template-columns:1fr 1fr}
+  .mstats div{padding-left:18px;border-left:1px solid var(--line)}
+  .mstats div:first-child{padding-left:0;border-left:0}
+  .mstats span{display:block;font-size:12.5px;color:var(--slate-500);margin-bottom:4px}
+  .mstats b{font-size:20px;letter-spacing:-.02em;color:var(--navy-950)}
+  .ask-out{margin:20px 0 0}
+  .ask-out span{display:block;font-size:13px;font-weight:750;color:#7a5b10;margin-bottom:6px}
+  .ask-out p{margin:0;font-size:15px;line-height:1.55;color:var(--slate-700)}
 
   /* ---- closing band ------------------------------------------------------ */
-  .band{background:var(--navy-950);color:#fff;border-radius:14px;padding:44px 48px;
-        display:flex;align-items:center;justify-content:space-between;gap:34px;flex-wrap:wrap}
+  .band{background:var(--navy-950);color:#fff;border-radius:14px;padding:42px 46px;
+        display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap}
   .band h2{margin:0 0 8px;font-size:clamp(25px,2.7vw,36px);color:#fff;letter-spacing:-.035em}
   .band p{margin:0;color:rgb(255 255 255/.76);font-size:16px}
+  .photocredit{text-align:right;font-size:12px;color:var(--slate-500);margin:24px 0 0}
 
-  @media(max-width:1100px){
-    .ho-grid,.split,.startwrap{grid-template-columns:1fr;gap:38px}
-    .split{align-items:start}
-    .split .sub{margin:0}
+  @media(max-width:1023px){
+    .ho-grid,.askgrid,.startwrap{grid-template-columns:1fr;gap:40px}
     .systems{grid-template-columns:repeat(2,1fr)}
-    .rcards,.groups,.hsteps{grid-template-columns:1fr}
-    .hsteps{gap:28px}
+    .rcards,.hsteps{grid-template-columns:1fr;gap:26px}
+    .split .ctx{text-align:left;margin:0}
+    /* The overlay hangs off the photo on desktop; in one column there is no
+       gutter to hang into, so it tucks back inside. */
+    .overlay{left:7%;right:7%}
+  }
+  @media(max-width:640px){
+    .sec{padding:54px 0}
+    .systems{grid-template-columns:1fr}
+    .panel .pad,.band{padding:24px}
+    .hero-visual{padding-bottom:0}
+    .overlay{position:static;margin-top:14px;left:auto;right:auto;box-shadow:var(--shadow)}
+    .ov-cols{grid-template-columns:1fr;gap:12px}
+    .ov-cols div{padding:0;border-left:0}
+    .q{flex-direction:column;align-items:flex-start;gap:9px}
+    .q .arrow{display:none}
   }
   @media(max-width:479px){
-    /* Three fixed items in one header row do not fit a 375px phone, and the
-       mark is the one that carries no information the wordmark lacks. */
-    .hdr .wrap{gap:12px}
-    .hdr .brand::before{display:none}
-    .hdr .brand{font-size:18px}
+    .hdr .wrap{gap:12px;height:72px}
+    .brand-lockup{font-size:18px;gap:8px}
+    .brand-lockup svg{width:32px;height:32px;padding:7px}
     .hdr .cta-gold .lbl-long{display:none}
     .hdr .cta-gold .lbl-short{display:inline}
   }
-  @media(max-width:640px){
-    .sec{padding:60px 0}
-    .systems{grid-template-columns:1fr}
-    .start,.aside,.band{padding:24px}
-    .totals{grid-template-columns:1fr;gap:14px}
-    .totals .amt{font-size:19px}
-  }
+
+  /* The copy spec's contractor entry: a door for roofers that does not turn the
+     homeowner page into a sales page. */
+  .contractor-line{margin:26px 0 0;font-size:13.5px;line-height:1.6;color:var(--slate-500);
+       max-width:34em;padding-top:20px;border-top:1px solid rgb(8 33 46/.1)}
+  .contractor-line a{color:var(--navy-950);font-weight:700;white-space:nowrap}
+  .contractor-line a:hover{color:var(--teal-600)}
+
+  /* The remaining handoff photographs, as the strip its own documentation
+     suggests. Descriptive only -- none of these is our work. */
+  .gallery{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:22px}
+  .gallery img{width:100%;height:108px;object-fit:cover;border-radius:9px;display:block}
+  @media(max-width:1023px){.gallery{grid-template-columns:repeat(3,1fr)}
+    .gallery img:nth-child(n+4){height:92px}}
+  @media(max-width:640px){.gallery{grid-template-columns:repeat(2,1fr);gap:9px}
+    .gallery img{height:92px}.gallery img:last-child{display:none}}
 {% endblock %}
 
 {% block body %}
 
-{#- Roof plates. Drawn, not photographed: we are not a roofer and have no job
-    photographs of our own, and the handoff's images carried another company's
-    credit line with no licence recorded. Each plate shows the one detail that
-    tells its system apart at a glance. -#}
-{% macro plate(kind) -%}
-<svg class="plate" viewBox="0 0 320 160" role="img" aria-label="{{ kind|capitalize }} roof"
-     preserveAspectRatio="xMidYMid slice" focusable="false">
-  <defs>
-    <linearGradient id="sky-{{ kind }}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#e8eef2"/><stop offset="1" stop-color="#f4f7f8"/>
-    </linearGradient>
-    {% if kind == 'tile' %}
-    <pattern id="p-{{ kind }}" width="26" height="18" patternUnits="userSpaceOnUse">
-      <rect width="26" height="18" fill="#c4714f"/>
-      <path d="M0 18a13 13 0 0 1 26 0z" fill="#d88863"/>
-      <path d="M0 18a13 13 0 0 1 26 0M-26 18a13 13 0 0 1 26 0M26 18a13 13 0 0 1 26 0"
-            fill="none" stroke="#9c5339" stroke-width="1.4"/>
-    </pattern>
-    {% elif kind == 'shingle' %}
-    <pattern id="p-{{ kind }}" width="36" height="30" patternUnits="userSpaceOnUse">
-      <rect width="36" height="30" fill="#55646d"/>
-      <rect y="1" width="36" height="13" fill="#6b7b85"/>
-      <rect y="16" width="36" height="13" fill="#63737d"/>
-      <path d="M0 15h36M0 30h36" stroke="#44515a" stroke-width="1.5"/>
-      <path d="M9 1v13M27 1v13" stroke="#4d5c65" stroke-width="1.6"/>
-      <path d="M0 16v13M18 16v13" stroke="#4d5c65" stroke-width="1.6"/>
-    </pattern>
-    {% elif kind == 'metal' %}
-    <pattern id="p-{{ kind }}" width="24" height="20" patternUnits="userSpaceOnUse">
-      <rect width="24" height="20" fill="#49575f"/>
-      <rect x="9" width="5" height="20" fill="#7d8c95"/>
-      <rect x="11" width="1.4" height="20" fill="#2f3b43"/>
-    </pattern>
-    {% else %}
-    <pattern id="p-{{ kind }}" width="44" height="44" patternUnits="userSpaceOnUse">
-      <rect width="44" height="44" fill="#d9ded9"/>
-      <path d="M0 .8h44M0 22.8h44" stroke="#c3c9c4" stroke-width="1.8"/>
-    </pattern>
-    {% endif %}
-  </defs>
-  <rect width="320" height="160" fill="url(#sky-{{ kind }})"/>
-  {% if kind == 'flat' %}
-    {# Low-slope reads as a plane you look across, with the parapet and the drain
-       that make edge metal and drainage the questions that matter on it. #}
-    <rect x="0" y="54" width="320" height="84" fill="url(#p-flat)"/>
-    <rect x="0" y="45" width="320" height="10" fill="#b9c0bb"/>
-    <rect x="0" y="41" width="320" height="5" fill="#9aa39e"/>
-    <circle cx="236" cy="104" r="12" fill="#9aa39e"/>
-    <circle cx="236" cy="104" r="5.5" fill="#6f7a76"/>
-    <rect x="0" y="138" width="320" height="22" fill="#e7eae7"/>
-  {% else %}
-    {# Pitched systems read as two planes meeting at a ridge, so the courses and
-       the fastening are both visible. #}
-    <path d="M160 40 320 116v26H0v-26z" fill="url(#p-{{ kind }})"/>
-    <path d="M160 40 320 116v9L160 52 0 125v-9z" fill="#ffffff" opacity=".18"/>
-    <path d="M160 40 320 116M160 40 0 116" stroke="#2c3940" stroke-width="2.8" fill="none"/>
-    <rect x="0" y="142" width="320" height="7" fill="#c9d1d4"/>
-    <rect x="0" y="149" width="320" height="11" fill="#eceeec"/>
-  {% endif %}
-</svg>
+{#- Photographs come from the design handoff. Its manifest records no licence
+    or copyright holder, only a credit string, so the credit the mockups print
+    is reproduced here rather than dropped. Captions stay descriptive: the
+    handoff warns that several source filenames name the article a photo
+    appeared in, not the condition visible in it. -#}
+{% set PHOTO = {
+  'hero':     ('south-florida-hero.webp',        'Tile roof on a two-story South Florida home'),
+  'tile':     ('south-florida-plan-baseline.webp','Barrel tile roof on a home beside a lake'),
+  'shingle':  ('shingle-roof-wear-signs.webp',   'Completed architectural shingle roof'),
+  'metal':    ('south-florida-plan-storm.webp',  'Standing-seam metal roof beside a pool and palms'),
+  'flat':     ('ponding-water-flat-roof.webp',   'White low-slope membrane roof and its edge metal'),
+  'under':    ('tile-roof-underlayment.webp',    'Underlayment and edge details during a tile reroof'),
+  'fasten':   ('metal-roof-fasteners-seams-sealant.webp','Metal roof seams, hip cap and pipe flashing'),
+  'g1':       ('south-florida-story-inspect.webp','Completed tile roof on a South Florida home'),
+  'g2':       ('south-florida-story-repair.webp','Flat-profile tile roof'),
+  'g3':       ('south-florida-card-flashing.webp','Roof flashing and edge detail'),
+  'g4':       ('south-florida-card-repair.webp', 'Completed roof and landscaping'),
+  'g5':       ('south-florida-card-debris.webp', 'Tile roof seen from the yard'),
+} %}
+{% macro photo(key, cls='', lazy=True) -%}
+  {%- set p = PHOTO[key] -%}
+  <img src="{{ url_for('static', filename='img/roof/' + p[0]) }}" alt="{{ p[1] }}"
+       {% if cls %}class="{{ cls }}"{% endif %}
+       {% if lazy %}loading="lazy" decoding="async"{% endif %}>
 {%- endmacro %}
 
 <section class="ho-hero">
   <div class="wrap ho-grid">
     <div>
       <p class="eyebrow-rule">South Florida roofing</p>
-      <h1>Know what's in your roof quote <em>before you sign.</em></h1>
+      <h1>Know what&rsquo;s in your roof quote <em>before you sign.</em></h1>
       <p class="lede">See which materials and repairs each roofer includes. Get the
         questions to ask before you choose.</p>
       <div class="ctas">
-        <a href="#start" class="btn cta-gold">Compare my quotes &rarr;</a>
-        <a href="#sheet" class="linkbtn">See what gets compared <span aria-hidden="true">&#8599;</span></a>
+        <a href="#start" class="btn cta-gold">Compare my roofing quotes <span aria-hidden="true">&rarr;</span></a>
+        <a href="#sample" class="linkbtn">See a sample <span aria-hidden="true">&#8599;</span></a>
       </div>
-      <p class="hero-note"><span class="ck" aria-hidden="true">&#10003;</span>
-        <span>Free. No contractor is contacted, nothing is shared, and nobody calls you.</span></p>
+      {# The copy spec puts the contractor entry under the hero so roofers have a
+         door of their own without the homeowner page becoming a sales page. #}
+      <p class="contractor-line">Run a roofing company? See the homeowner portal you
+        can offer your customers. <a href="/roofers">Explore the contractor portal
+        <span aria-hidden="true">&rarr;</span></a></p>
     </div>
 
-    {# The product is a side-by-side, so the hero is one. The labels are the four
-       states the sheet actually records, because a single red cross was doing
-       duty for "excluded", "not stated" and "no price given", which are
-       different problems with different answers. #}
-    <figure class="sample" aria-labelledby="sampleCap">
-      <figcaption class="sample-top">
-        <b id="sampleCap">Decking allowance, three quotes for one roof</b>
-        <span class="tag">Illustrative sample</span>
+    {# One real roof, with a single line of the comparison floating off its
+       corner. The whole sheet lives further down; up here it is a promise. #}
+    <figure class="hero-visual" id="sample">
+      {{ photo('hero', 'hero-photo', lazy=False) }}
+      <figcaption class="overlay">
+        <span class="ov-top"><b>Decking allowance</b><span class="tag">Illustrative sample</span></span>
+        <span class="ov-cols">
+          <span><span>Proposal A</span><b>Allowance not stated</b></span>
+          <span><span>Proposal B</span><b>3 sheets included</b></span>
+          <span><span>Proposal C</span><b>Priced as needed</b></span>
+        </span>
       </figcaption>
-      <div class="totals">
-        <span class="rowlab"><span class="lb">Proposal overview</span>Quoted total</span>
-        <span><span class="lb">Quote A</span><span class="amt">$11,400</span></span>
-        <span><span class="lb">Quote B</span><span class="amt">$16,900</span></span>
-        <span><span class="lb">Quote C</span><span class="amt">$14,200</span></span>
-      </div>
-      <div class="stw">
-        <table class="st">
-          <tbody>
-            <tr>
-              <th scope="row">Decking allowance<small>Sheets included in the quote</small></th>
-              <td><i class="s q">Not stated</i></td>
-              <td><span class="val">3 sheets</span></td>
-              <td><i class="s a">Priced as needed</i></td>
-            </tr>
-            <tr>
-              <th scope="row">Additional decking rate<small>Price for each extra sheet</small></th>
-              <td><i class="s q">Not stated</i></td>
-              <td><span class="val">$95 per sheet</span></td>
-              <td><i class="s q">Not stated</i></td>
-            </tr>
-            <tr>
-              <th scope="row">Workmanship warranty<small>Written coverage term</small></th>
-              <td><i class="s q">Not stated</i></td>
-              <td><span class="val">10 years</span></td>
-              <td><span class="val">2 years</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="sfoot">&ldquo;Not stated&rdquo; means the written proposal leaves the item
-        open. Ask for it in writing before you compare final costs.</p>
     </figure>
   </div>
 </section>
@@ -414,66 +374,76 @@
   <div class="wrap">
     <div class="split">
       <h2 class="h2">What kind of roof are you comparing?</h2>
-      <p class="sub">Choose a system to see its questions. The sheet follows your roof &mdash;
-        a tile job and a shingle job are not asked the same things.</p>
+      <p class="ctx">Choose a system to see its questions.</p>
     </div>
     <div class="systems">
-      <a class="sys" href="#start" data-roof="tile">
-        {{ plate('tile') }}
+      {% for key, label, blurb in [
+          ('tile','Tile','Underlayment and tile attachment'),
+          ('shingle','Shingle','Starter strips and warranty options'),
+          ('metal','Metal','Panel profile and fastener details'),
+          ('flat','Flat / low-slope','Membranes, drainage and flashing')] %}
+      <a class="sys" href="#start" data-roof="{{ 'flat' if key == 'flat' else key }}">
+        {{ photo(key) }}
         <span class="body">
-          <span class="row"><h3>Tile</h3><span class="arrow" aria-hidden="true">&rarr;</span></span>
-          <p>Underlayment and tile attachment</p>
+          <span class="row"><h3>{{ label }}</h3><span class="arrow" aria-hidden="true">&rarr;</span></span>
+          <p>{{ blurb }}</p>
         </span>
       </a>
-      <a class="sys" href="#start" data-roof="shingle">
-        {{ plate('shingle') }}
-        <span class="body">
-          <span class="row"><h3>Shingle</h3><span class="arrow" aria-hidden="true">&rarr;</span></span>
-          <p>Starter strips and warranty options</p>
-        </span>
-      </a>
-      <a class="sys" href="#start" data-roof="metal">
-        {{ plate('metal') }}
-        <span class="body">
-          <span class="row"><h3>Metal</h3><span class="arrow" aria-hidden="true">&rarr;</span></span>
-          <p>Panel profile and fastener details</p>
-        </span>
-      </a>
-      <a class="sys" href="#start" data-roof="flat">
-        {{ plate('flat') }}
-        <span class="body">
-          <span class="row"><h3>Flat / low-slope</h3><span class="arrow" aria-hidden="true">&rarr;</span></span>
-          <p>Membranes, drainage and flashing</p>
-        </span>
-      </a>
+      {% endfor %}
     </div>
   </div>
 </section>
 
-<section class="sec tint" id="why">
+<section class="sec tint" id="sheet">
+  <div class="wrap askgrid">
+    <div>
+      <p class="eyebrow-rule">Roof questions</p>
+      <h2 class="h2">What to ask <em>before the roof goes on.</em></h2>
+      <p class="sub">Use the written answers to compare what each roofer has allowed
+        for. The sheet follows your roof &mdash; {{ spec_count }} line items in all, and a
+        tile job is not asked the same things as a shingle job.</p>
+      <p style="margin:22px 0 0"><a href="#start" class="linkbtn">Start my comparison
+        <span aria-hidden="true">&rarr;</span></a></p>
+      <figure class="askphoto">
+        {{ photo('under') }}
+        <figcaption>Underlayment and edge details go on before the tile does, which is
+          why they are easier to ask about than to inspect afterwards.</figcaption>
+      </figure>
+    </div>
+    <div class="qs">
+      {% for i in questions %}
+      <a class="q" href="#start">
+        <span>
+          <h3>{{ i.label }}</h3>
+          <p>{{ i.ask }}</p>
+        </span>
+        <span class="arrow" aria-hidden="true">&rarr;</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="why">
   <div class="wrap">
     <div class="split">
-      <div>
-        <p class="eyebrow-rule teal">Why the numbers differ</p>
-        <h2 class="h2">The cheapest quote <em>is the shortest one.</em></h2>
-      </div>
-      <p class="sub">A roof quote is a one-page number sitting on top of about twenty
-        decisions. Contractors who make those decisions explicitly look expensive next to
-        contractors who leave them out &mdash; right up until the work starts.</p>
+      <h2 class="h2">The cheapest quote <em>is the shortest one.</em></h2>
+      <p class="ctx">A roof quote is a one-page number sitting on top of about twenty
+        decisions.</p>
     </div>
     <div class="rcards">
       <div class="rcard">
         <span class="num">1</span>
-        <h3>What's left off isn't visible</h3>
+        <h3>What&rsquo;s left off isn&rsquo;t visible</h3>
         <p>Nothing on a short quote says &ldquo;re-using your old flashing&rdquo; or
-          &ldquo;no allowance for rotten wood.&rdquo; It just isn't there, and there's no
-          line to compare it against.</p>
+          &ldquo;no allowance for rotten wood.&rdquo; It just isn&rsquo;t there, and
+          there&rsquo;s no line to compare it against.</p>
       </div>
       <div class="rcard">
         <span class="num">2</span>
         <h3>The open items land on you later</h3>
         <p>&ldquo;Decking priced as needed&rdquo; is not a price. Once the old roof is off
-          and the crew is on site, you're negotiating from the worst possible position.</p>
+          and the crew is on site, you&rsquo;re negotiating from the worst possible position.</p>
       </div>
       <div class="rcard">
         <span class="num">3</span>
@@ -485,48 +455,21 @@
   </div>
 </section>
 
-<section class="sec" id="sheet">
-  <div class="wrap">
-    <div class="split">
-      <div>
-        <p class="eyebrow-rule teal">The spec sheet &middot; {{ spec_count }} line items</p>
-        <h2 class="h2">What to ask <em>before the roof goes on.</em></h2>
-      </div>
-      <p class="sub">For each quote you mark whether the contractor put the line in
-        writing. Anything that isn't a clear yes becomes a question, worded for you to ask
-        on the phone. You'll know which quote is actually cheapest once they all cover the
-        same roof.</p>
-    </div>
-    <div class="groups">
-      {% for g in spec %}
-      <div class="group">
-        <h3>{{ g.name }}{% if 'all' not in g.types %} <em>&middot; {{ g.types|join(', ') }} roofs</em>{% endif %}</h3>
-        <ul>
-          {% for i in g['items'] if i.featured %}
-          <li><span class="tick">&#10003;</span><span><b>{{ i.label }}</b>{% if i.ask %} &mdash; {{ i.ask }}{% endif %}</span></li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-</section>
-
 <section class="sec white" id="how">
   <div class="wrap">
-    <h2 class="h2" style="margin-bottom:38px">How the comparison works</h2>
+    <h2 class="h2" style="margin-bottom:36px">How the comparison works</h2>
     <div class="hsteps">
       <div class="hstep">
         <span class="n">01</span>
         <h3>Add a proposal</h3>
         <p>Start with a PDF or a photo. Add another proposal whenever you have one &mdash;
-          or read it out loud and we'll write it down.</p>
+          or read it out loud and we&rsquo;ll write it down.</p>
       </div>
       <div class="hstep">
         <span class="n">02</span>
         <h3>Review the details</h3>
-        <p>Check the products, allowances and prices against the contractor's own wording.
-          Nothing is treated as fact until you confirm it.</p>
+        <p>Check the products, allowances and prices against the contractor&rsquo;s own
+          wording. Nothing is treated as fact until you confirm it.</p>
       </div>
       <div class="hstep">
         <span class="n">03</span>
@@ -542,75 +485,93 @@
   <div class="wrap">
     <div class="split">
       <h2 class="h2">Then keep track of the job</h2>
-      <p class="sub">Picking a contractor is the middle of it, not the end. Your workspace
-        follows the job to the finish, and tells you what you should have in your hand at
-        each stage.</p>
+      <p class="ctx">Picking a contractor is the middle of it, not the end.</p>
     </div>
     <div class="stages">
       {% for s in stages %}
       <div class="stage"><span class="dot"></span><span><b>{{ s.label }}</b> &mdash; {{ s.todo[0] }}</span></div>
       {% endfor %}
     </div>
+    {# The remaining handoff photographs, used as the project strip its own
+       documentation suggests rather than left unplaced. #}
+    <div class="gallery" aria-label="South Florida roofs">
+      {% for k in ['g1','g2','g3','g4','g5'] %}{{ photo(k) }}{% endfor %}
+    </div>
   </div>
 </section>
 
 <section class="sec white" id="start">
   <div class="wrap startwrap">
-    <div class="start">
-      {% if request.args.get('err') %}
-      <p class="err">That doesn't look like an email address &mdash; try again and we'll send your link.</p>
-      {% endif %}
-      <h2>Start your comparison</h2>
-      <p>Start with one written proposal. Add others to compare the details side by side.</p>
-      <form class="f" method="post" enctype="multipart/form-data"
-            action="{{ url_for('compare.landing_upload') }}">
-        <div>
-          <span class="fl" id="rtLabel">Roof type</span>
-          <div class="rt" role="radiogroup" aria-labelledby="rtLabel">
-            {% for key, label in [('tile','Tile'),('shingle','Shingle'),('metal','Metal'),
-                                  ('flat','Flat / low-slope'),('','Not sure')] %}
-            <input type="radio" name="roof_type" id="rt-{{ key or 'any' }}" value="{{ key }}"
-                   {% if not key %}checked{% endif %}>
-            <label for="rt-{{ key or 'any' }}">{{ label }}</label>
-            {% endfor %}
+    <div class="panel">
+      <div class="pad">
+        {% if request.args.get('err') %}
+        <p class="err">That doesn&rsquo;t look like an email address &mdash; try again and
+          we&rsquo;ll send your link.</p>
+        {% endif %}
+        <h2>Your proposal</h2>
+        <form class="f" method="post" enctype="multipart/form-data"
+              action="{{ url_for('compare.landing_upload') }}">
+          <div>
+            <span class="fl" id="rtLabel">Roof type</span>
+            <div class="rt" role="radiogroup" aria-labelledby="rtLabel">
+              {% for key, label in [('tile','Tile'),('shingle','Shingle'),('metal','Metal'),
+                                    ('flat','Flat / low-slope'),('','Not sure')] %}
+              <input type="radio" name="roof_type" id="rt-{{ key or 'any' }}" value="{{ key }}"
+                     {% if not key %}checked{% endif %}>
+              <label for="rt-{{ key or 'any' }}">{{ label }}</label>
+              {% endfor %}
+            </div>
           </div>
-        </div>
-        <label class="drop" for="quotes">
-          <span class="dt">Drop your proposals here</span>
-          <span class="ds">PDFs or photos of the paperwork &mdash; up to 6. We read them and
-            fill the sheet in for you.</span>
-          <input id="quotes" name="quotes" type="file" accept="application/pdf,.pdf,image/*" multiple>
-          <span class="dn" id="dropNote">No files chosen &mdash; on a phone this opens your camera too.</span>
-        </label>
-        <input type="text" name="name" placeholder="Your name (optional)" autocomplete="name">
-        <input type="email" name="email" required placeholder="you@email.com" autocomplete="email">
-        <input type="text" name="address" placeholder="Property address (optional)" autocomplete="street-address">
-        <button class="btn cta-gold" type="submit">Start my comparison &rarr;</button>
-      </form>
-      <p class="fine">Your email is the key to your workspace, so you can come back to it
-        from your phone while a contractor is standing in your driveway. We read what each
-        PDF puts in writing and fill in the sheet &mdash; then you check it before anything
-        is compared. Nothing is treated as fact until you say so. We don't sell your
-        details, we don't bid on your roof, and nobody calls you.</p>
+          <div>
+            <span class="fl flrow"><span>Proposal files</span><span class="hint">PDFs or photos</span></span>
+            <label class="drop" for="quotes">
+              <span class="dt">Drop your proposals here</span>
+              <span class="ds">Or choose files from your device &mdash; up to 6. We read them
+                and fill the sheet in for you.</span>
+              <input id="quotes" name="quotes" type="file" accept="application/pdf,.pdf,image/*" multiple>
+              <span class="dn" id="dropNote">No files chosen &mdash; on a phone this opens your camera too.</span>
+            </label>
+          </div>
+          <div>
+            <span class="fl"><label for="hoEmail">Email address</label></span>
+            <input id="hoEmail" type="email" name="email" required placeholder="you@example.com"
+                   autocomplete="email">
+            <span class="dn" style="display:block;margin-top:8px;font-size:12.5px;color:var(--slate-500)">Use this email to return to your comparison.</span>
+          </div>
+          <input type="text" name="name" placeholder="Your name (optional)" autocomplete="name">
+          <input type="text" name="address" placeholder="Property address (optional)"
+                 autocomplete="street-address">
+          <button class="btn cta-gold" type="submit">Start my comparison <span aria-hidden="true">&rarr;</span></button>
+        </form>
+        <p class="fine">Your email is the key to your workspace, so you can come back to it
+          from your phone while a contractor is standing in your driveway. Nothing is
+          treated as fact until you confirm it. We don&rsquo;t sell your details, we
+          don&rsquo;t bid on your roof, and nobody calls you.</p>
+      </div>
     </div>
 
-    <aside class="aside">
-      <h3>What you'll see</h3>
-      <ul>
-        <li><span class="ck" aria-hidden="true">&#10003;</span>
-          <span><b>A line-by-line view</b> of what each proposal includes, in the
-            contractor's own wording.</span></li>
-        <li><span class="ck" aria-hidden="true">&#10003;</span>
-          <span><b>Four states per line</b> &mdash; in writing, excluded, an allowance, or
-            not stated at all. They are different problems.</span></li>
-        <li><span class="ck" aria-hidden="true">&#10003;</span>
-          <span><b>A question list per quote</b>, worded so the answer has to be specific
-            enough to compare.</span></li>
-        <li><span class="ck" aria-hidden="true">&#10003;</span>
-          <span><b>Every gap flagged</b> where one quote covers something the others
-            leave open.</span></li>
-      </ul>
-    </aside>
+    <div class="panel">
+      <div class="seephoto">
+        {{ photo('fasten') }}
+        <span class="credit">Photo: Roof Sentry Care Club</span>
+      </div>
+      <div class="pad">
+        <h3>What you&rsquo;ll see</h3>
+        <p class="psub">A line-by-line view of what each proposal includes.</p>
+        <div class="mini">
+          <span class="mtop"><i aria-hidden="true">&#9636;</i>Sample proposal B</span>
+          <h4>Decking replacement</h4>
+          <div class="mstats">
+            <div><span>Included in the quote</span><b>3 sheets</b></div>
+            <div><span>Each additional sheet</span><b>$95</b></div>
+          </div>
+        </div>
+        <div class="ask-out">
+          <span>A question to take to your roofer</span>
+          <p>How will I know if more than three sheets need replacing?</p>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -619,10 +580,11 @@
     <div class="band">
       <div>
         <h2>Have a roof quote in hand?</h2>
-        <p>Start with one proposal. Add more when you're ready.</p>
+        <p>Start with one proposal. Add more when you&rsquo;re ready.</p>
       </div>
-      <a href="#start" class="btn cta-gold">Compare my quotes &rarr;</a>
+      <a href="#start" class="btn cta-gold">Compare my quotes <span aria-hidden="true">&rarr;</span></a>
     </div>
+    <p class="photocredit">Photos by Roof Sentry Care Club</p>
   </div>
 </section>
 
@@ -635,14 +597,14 @@
     i.addEventListener('change', function () {
       var f = i.files;
       n.textContent = !f || !f.length
-        ? 'No files chosen \u2014 on a phone this opens your camera too.'
+        ? 'No files chosen — on a phone this opens your camera too.'
         : (f.length === 1 ? f[0].name : f.length + ' files ready to read');
     });
   }
   // The roof cards are the same choice as the picker in the form, so clicking
-  // one should arrive at the form with that answer already given rather than
-  // asking the same question again further down the page.
-  Array.prototype.forEach.call(document.querySelectorAll('.sys[data-roof]'), function (a) {
+  // one arrives at the form with that answer already given rather than asking
+  // the same question again further down the page.
+  Array.prototype.forEach.call(document.querySelectorAll('[data-roof]'), function (a) {
     a.addEventListener('click', function () {
       var r = document.getElementById('rt-' + a.getAttribute('data-roof'));
       if (r) { r.checked = true; }
