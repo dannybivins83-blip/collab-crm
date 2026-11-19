@@ -80,159 +80,11 @@ db._COLCACHE.clear()
 # ours. `why` says what it costs them to leave it unanswered, because a
 # checklist nobody understands gets skipped.
 # --------------------------------------------------------------------------
-SPEC = [
-    dict(name="Tear-off and what's underneath", types=("all",), items=[
-        dict(key="tearoff",
-             label="Full tear-off to the deck",
-             why="Going over the old shingles is cheaper now and hides rot you'll pay for later.",
-             ask="Are you tearing the old roof off down to the wood, or laying over it? How many layers are on there now?"),
-        dict(key="decking",
-             label="Rotten decking — allowance in writing",
-             why="Nobody knows what's under there until it's open. Without a written per-sheet price this becomes a blank check on the day.",
-             ask="How many sheets of plywood are included, and what do you charge per sheet after that?"),
-        dict(key="deck_fasten",
-             label="Re-nailing the deck to current code",
-             why="Many areas require the existing deck re-nailed before the new roof goes on. If it's not in the bid it becomes a change order.",
-             ask="Does your price include re-nailing the deck to code, and is that line on the permit?"),
-    ]),
-    dict(name="The layers that keep water out", types=("all",), items=[
-        dict(key="underlay",
-             label="Underlayment — synthetic, not felt",
-             why="Felt and synthetic are not the same product or the same price. This is a common place for a cheap bid to save money quietly.",
-             ask="What underlayment are you using — brand and product name? Synthetic or felt?"),
-        dict(key="ice_water",
-             label="Ice-and-water shield at valleys, eaves and penetrations",
-             why="This is the membrane that saves you in wind-driven rain. It's also easy to leave off a bid without anyone noticing.",
-             ask="Where exactly are you putting ice-and-water shield — valleys, eaves, around every pipe and skylight?"),
-        dict(key="valleys",
-             label="How the valleys are done",
-             why="Open metal and closed-cut valleys are different work at different prices and different lifespans.",
-             ask="Are the valleys open metal or closed cut? If metal, what gauge and finish?"),
-        dict(key="flashing",
-             label="NEW flashing — not re-used",
-             why="Re-using old step and counter flashing on a new roof is the single most common source of a leak at a wall or chimney.",
-             ask="Is all the step, counter and chimney flashing brand new, or are you re-using what's there?"),
-        dict(key="boots",
-             label="New pipe boots and vent collars",
-             why="Cracked rubber boots outlive nothing. Old ones on a new roof will leak before the warranty is up.",
-             ask="Are all the pipe boots and vent flashings being replaced with new?"),
-        dict(key="vent",
-             label="Ventilation — intake AND exhaust",
-             why="Exhaust without intake does nothing and will cook the roof. It is also the most common cause of a denied manufacturer warranty claim.",
-             ask="What ventilation am I getting, and is there enough intake at the soffits to feed it?"),
-        dict(key="drip_edge",
-             label="New drip edge",
-             why="Code in most places, and the edge detail is where a roof starts failing.",
-             ask="Is new drip edge included on eaves and rakes, and what gauge?"),
-    ]),
-    dict(name="The roof itself", types=("shingle",), items=[
-        dict(key="shingle",
-             label="Shingle — brand AND exact product line",
-             why='"Architectural shingle" is not a product. Two lines from the same brand can differ by thousands over the roof.',
-             ask="Which brand and which exact shingle line? Not the category — the product name."),
-        dict(key="starter",
-             label="Manufacturer starter strip",
-             why="Cutting up field shingles for starter is faster and cheaper, and it can void the wind warranty.",
-             ask="Are you using the manufacturer's starter strip, or cut shingles, along the eaves and rakes?"),
-        dict(key="ridge_cap",
-             label="Manufacturer ridge cap",
-             why="Same story as starter — cut-up field shingles at the ridge is a warranty problem.",
-             ask="Is the ridge cap the manufacturer's cap product, or cut field shingles?"),
-    ]),
-    # Tile, South Florida. Drawn from the trade's own failure modes: these are
-    # the places a low bid quietly saves money on a tile roof, and every one of
-    # them is invisible from the ground once the tile is loaded.
-    dict(name="Tile: attachment and the layers under it", types=("tile",), items=[
-        dict(key="tile_product",
-             label="The tile itself — maker and profile, named",
-             why="Profile and maker decide the approved attachment method. \"Concrete tile\" is not a product.",
-             ask="Which tile, which maker and which profile? Flat, S-profile or barrel?"),
-        dict(key="tile_attach",
-             label="How the tile is attached — foam, screws or nails, stated",
-             why="Adhesive-set and mechanically fastened are different systems with different approvals and different prices.",
-             ask="Are the tiles set in adhesive foam, screwed, or nailed? Which, exactly?"),
-        dict(key="foam_pattern",
-             label="Foam adhesive — brand, and the paddy size and placement",
-             why="Small or infrequent paddies are the classic hidden saving on a tile roof. It is also what fails in a hurricane and what voids the wind warranty.",
-             ask="Which adhesive, and what size and placement is the paddy under each tile? Does that match the product approval?"),
-        dict(key="noa",
-             label="Product approval / NOA numbers for the whole assembly",
-             why="In a High-Velocity Hurricane Zone the assembly is approved as a SYSTEM. Mixing products outside that approval can fail an inspection and a claim.",
-             ask="What are the NOA or product-approval numbers for this assembly, and does every product in it fall under them?"),
-        dict(key="underlay_layers",
-             label="One underlayment layer or two — and which products",
-             why="A two-ply system and a single self-adhered sheet are not the same roof or the same price.",
-             ask="Is it one layer or two, and what is each one? Anchor sheet plus cap, or a single self-adhered membrane?"),
-        dict(key="direct_to_deck",
-             label="Direct-to-deck — and how moisture gets out if it is",
-             why="A continuous self-adhered membrane straight on the deck limits outward drying. Trapped moisture can reach the plywood and trusses, and manufacturer guidance on this changed — the current data sheets ask for the roof and attic to be evaluated per project.",
-             ask="Is this direct-to-deck? If so, how does the assembly handle moisture, and is there enough intake ventilation for it?"),
-        dict(key="roll_overlap",
-             label="Underlayment lap widths, to the product's instructions",
-             why="Short side and end laps stretch the rolls and save material. Water then migrates between the seams.",
-             ask="What are the side and end laps, and does that match the product's printed instructions?"),
-        dict(key="deck_prep",
-             label="Deck cleaning, priming and the roller pass",
-             why="Peel-and-stick rolled over dusty or unprimed wood, or never rolled with a weighted roller, does not bond. It blisters and lifts later.",
-             ask="How is the deck prepared, is it primed, and do you make the weighted-roller pass the instructions call for?"),
-        dict(key="mfr_certified",
-             label="Certified by the manufacturer for THIS system",
-             why="The better warranties require a certified installer for that exact assembly, not just a brand-name product.",
-             ask="Are you certified by the manufacturer to install this system, and under what program?"),
-        dict(key="exposure",
-             label="How long the underlayment stays exposed",
-             why="Underlayment left open to the sun for weeks before tile is loaded ages before the roof is even finished.",
-             ask="How long will the underlayment be exposed before the tile is loaded?"),
-        dict(key="substitutions",
-             label="Written approval before any product is swapped",
-             why="A substitute is not automatically equivalent. It can fall outside the approval and change the warranty you were quoted.",
-             ask="If a product is unavailable, do I get the substitute in writing, with its approval, before it goes on?"),
-        dict(key="progress_photos",
-             label="Photos while the deck and underlayment are open",
-             why="Once the tile is loaded, nothing underneath can be seen again without taking the roof apart.",
-             ask="Will I get photos of the bare deck, the underlayment and the laps before the tile goes on?"),
-    ]),
-    dict(name="Paperwork, warranty and who's liable", types=("all",), items=[
-        dict(key="permit",
-             label="Permit pulled by the contractor, in their name",
-             why="If you pull it yourself, you are the contractor as far as the county is concerned, and you own every defect.",
-             ask="Are you pulling the permit in your company's name, and is the fee in this price?"),
-        dict(key="license",
-             label="License number on the quote",
-             why="You can check it in two minutes. A quote without one is not a quote from a licensed contractor.",
-             ask="What's your license number? I'd like to look it up."),
-        dict(key="insurance",
-             label="Liability AND workers' comp certificates",
-             why="If someone is hurt on your roof and there's no comp, the claim can land on your homeowner's policy.",
-             ask="Can you have your insurer send me certificates for general liability and workers' comp, with my address listed?"),
-        dict(key="mfr_warranty",
-             label="Manufacturer warranty — which one, and registered",
-             why="The headline number on the brochure usually requires a certified installer and registration after the job. Otherwise you have the basic one.",
-             ask="Which manufacturer warranty do I actually get, who registers it, and what do I need to do to keep it valid?"),
-        dict(key="labor_warranty",
-             label="Workmanship warranty — years, in writing, transferable",
-             why="The manufacturer covers the shingle. Only the contractor covers the installation, and installation is what leaks.",
-             ask="How many years is your workmanship warranty, is it in writing, and does it transfer if I sell the house?"),
-    ]),
-    dict(name="Money and the day itself", types=("all",), items=[
-        dict(key="payment",
-             label="Payment schedule — deposit and draws",
-             why="A large deposit before any material is delivered is the warning sign in this trade.",
-             ask="What's the deposit, when are the other payments due, and what's the final payment tied to?"),
-        dict(key="change_order",
-             label="Change orders priced and signed BEFORE the work",
-             why="This is the clause that stops a surprise invoice after the roof is already off.",
-             ask="If you find something unexpected, do I get a written price before you do the work?"),
-        dict(key="schedule",
-             label="Start window and how many days",
-             why="Your roof being open across a storm is a real cost. So is a crew that starts and disappears.",
-             ask="When would you start, how many days, and what happens if weather stops you mid-job?"),
-        dict(key="protect",
-             label="Property protection, clean-up and magnet sweep",
-             why="Nails in the driveway and a crushed AC unit are the two most common complaints after a re-roof.",
-             ask="How do you protect the landscaping, the pool cage and the AC, and do you magnet-sweep when you're done?"),
-    ]),
-]
+# The criteria live in a generated module, built from the developer handoff's
+# comparison_rules.json. 104 lines, each carrying the document and page it came
+# from and how much authority that source has. Regenerate with
+# scratchpad/build_criteria.py; never hand-edit compare_criteria.py.
+from modules.compare_criteria import SPEC   # noqa: E402
 
 SPEC_INDEX = {i["key"]: i for g in SPEC for i in g["items"]}
 SPEC_KEYS = [i["key"] for g in SPEC for i in g["items"]]
@@ -259,8 +111,27 @@ def spec_for(roof_type):
     return out
 
 
-def keys_for(roof_type):
-    return [i["key"] for g in spec_for(roof_type) for i in g["items"]]
+def keys_for(roof_type, featured_only=False):
+    return [i["key"] for g in spec_for(roof_type) for i in g["items"]
+            if not featured_only or i.get("featured")]
+
+
+def spec_view(roof_type, show_all=False):
+    """Groups for the page. 104 lines is the right size for a rule set and far
+    too many to hand-fill, so the default is the FEATURED subset for this roof
+    and "show everything" opens the rest. A group with nothing featured in it
+    disappears rather than rendering empty."""
+    out = []
+    for g in spec_for(roof_type):
+        items = g["items"] if show_all else [i for i in g["items"] if i.get("featured")]
+        if items:
+            out.append(dict(g, items=items))
+    return out
+
+
+def counts_for(roof_type):
+    full = keys_for(roof_type)
+    return {"featured": len(keys_for(roof_type, True)), "all": len(full)}
 
 # Where a homeowner actually is, start to finish. The checklist per stage is the
 # point: "what should I have in my hand right now."
@@ -325,13 +196,13 @@ def _val(spec, key):
     return (v.get("v") or "?") if isinstance(v, dict) else "?"
 
 
-def gaps_for(q, roof_type=None):
+def gaps_for(q, roof_type=None, featured_only=False):
     """Every spec line this quote does NOT put in writing, as questions to ask.
     'no' and 'not addressed' both land here: the homeowner needs to raise both,
     they just mean different things once they do."""
     spec = _spec_of(q)
     out = []
-    for key in (keys_for(roof_type) if roof_type else SPEC_KEYS):
+    for key in (keys_for(roof_type, featured_only) if roof_type else SPEC_KEYS):
         v = _val(spec, key)
         if v != "yes":
             item = SPEC_INDEX[key]
@@ -812,13 +683,17 @@ def project(token):
         pass
     _log("compare_project", "/c/<token>")
     rt = (p.get("roof_type") or "").strip().lower()
+    show_all = request.args.get("all") == "1"
     view = []
     for q in quotes:
-        view.append(dict(q, _spec=_spec_of(q), _gaps=gaps_for(q, rt)))
+        view.append(dict(q, _spec=_spec_of(q),
+                         _gaps=gaps_for(q, rt, not show_all)))
     uploads = db.all_rows("ho_uploads", "project_id=?", (p["id"],), "id DESC", 20)
     return render_template(
-        "compare_project.html", p=p, quotes=view, spec=spec_for(rt), uploads=uploads,
+        "compare_project.html", p=p, quotes=view,
+        spec=spec_view(rt, show_all), uploads=uploads,
         roof_types=ROOF_TYPES, roof_type=rt,
+        show_all=show_all, counts=counts_for(rt),
         spec_keys=SPEC_KEYS, stages=STAGES,
         stage=STAGE_INDEX.get(p.get("stage") or "comparing", STAGES[0]),
         stage_keys=STAGE_KEYS,

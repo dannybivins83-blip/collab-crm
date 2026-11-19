@@ -128,6 +128,20 @@
 
   /* Roof type drives which questions exist, so it sits above the comparison
      rather than in a settings page nobody opens. */
+  /* Provenance is shown, never flattened: a third of these lines come from a
+     contractor's own education packet and must not read as neutral authority. */
+  .auth{display:inline-block;font-size:10.5px;font-weight:800;text-transform:uppercase;
+        letter-spacing:.05em;padding:3px 8px;border-radius:999px;vertical-align:2px}
+  .auth.manufacturer{background:rgb(20 133 138/.15);color:var(--teal-600)}
+  .auth\-manufacturer-linked,.auth.manufacturer-linked{background:rgb(23 143 229/.13);color:var(--sky-500)}
+  .auth.contractor-education{background:var(--line);color:var(--slate-700)}
+  .auth.sm{font-size:9.5px;padding:2px 6px;margin-left:6px}
+  .prov{margin-top:7px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .prov .src{font-size:11.5px;color:var(--slate-500);font-variant-numeric:tabular-nums}
+  .eviq{font-size:13px;color:var(--slate-700);margin-top:5px;line-height:1.5}
+  .qlist .warn{font-size:13px;color:var(--danger);margin-top:5px;line-height:1.5}
+  .shown{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:0 0 16px;
+         font-size:14px;color:var(--slate-700)}
   .roofpick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 18px;
             padding-bottom:16px;border-bottom:1px solid var(--line)}
   .roofpick .rl{font-size:14px;font-weight:700;margin-right:4px}
@@ -199,6 +213,15 @@
       <span class="rn">Pick one and the sheet drops the questions that don't apply to you.</span>
       {% endif %}
     </form>
+
+    <div class="shown">
+      <span>Showing <b>{{ counts.featured }}</b> key lines{% if show_all %} of {{ counts.all }}{% endif %}.</span>
+      {% if show_all %}
+      <a href="{{ url_for('compare.project', token=p.token) }}#compare">Show the key lines only</a>
+      {% else %}
+      <a href="{{ url_for('compare.project', token=p.token, all=1) }}#compare">Show all {{ counts.all }}</a>
+      {% endif %}
+    </div>
 
     <h2>Where your quotes disagree</h2>
     <p class="sub">These are the lines some contractors included and others didn't. This is
@@ -280,7 +303,18 @@
               <span class="pill {{ 'no' if g.state == 'no' else 'q' }}">{{ 'Excluded' if g.state == 'no' else 'Not addressed' }}</span>
               &ldquo;{{ g.ask }}&rdquo;
             </div>
-            <div class="why">{{ g.why }}</div>
+            {% if g.why %}<div class="why">{{ g.why }}</div>{% endif %}
+            {% if g.evidence %}
+            <div class="eviq"><b>Ask to see:</b> {{ g.evidence | join('; ') }}</div>
+            {% endif %}
+            {% if g.warn %}<div class="warn">{{ g.warn }}</div>{% endif %}
+            <div class="prov">
+              <span class="auth {{ g.authority }}">{{
+                {'manufacturer':'Manufacturer document',
+                 'manufacturer-linked':'Based on manufacturer documents',
+                 'contractor-education':'From a contractor education packet'}.get(g.authority, g.authority) }}</span>
+              <span class="src">{{ g.source }}</span>
+            </div>
           </li>
           {% endfor %}
         </ul>
@@ -417,8 +451,14 @@
         <legend>{{ g.name }}</legend>
         {% for i in g['items'] %}
         <div class="sitem">
-          <div class="lab">{{ i.label }}</div>
-          <div class="why">{{ i.why }}</div>
+          <div class="lab">{{ i.label }}
+            <span class="auth sm {{ i.authority }}" title="{{ i.source }}">{{
+              {'manufacturer':'mfr',
+               'manufacturer-linked':'mfr-linked',
+               'contractor-education':'contractor'}.get(i.authority, i.authority) }}</span>
+          </div>
+          {% if i.why %}<div class="why">{{ i.why }}</div>{% endif %}
+          {% if i.evidence %}<div class="eviq">Ask to see: {{ i.evidence | join('; ') }}</div>{% endif %}
           <div class="opts">
             <input type="radio" class="y" id="y_{{ i.key }}" name="v_{{ i.key }}" value="yes">
             <label for="y_{{ i.key }}">In writing</label>
