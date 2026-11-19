@@ -412,6 +412,29 @@ def _upload_dir():
     return d
 
 
+def short_ask(q, limit=88):
+    """A one-line version of a question, for the cards on the front page.
+
+    The full questions average 102 characters and run to 156, which on a card
+    is three ragged lines and the reason that section read as clutter. They are
+    almost all several questions joined by "and", so the first one on its own is
+    a complete, honest question rather than a truncation -- and nothing is lost,
+    because the workspace shows every question in full.
+    """
+    q = (q or "").strip()
+    if len(q) <= limit:
+        return q
+    m = re.match(r"^(.{15,%d}?\?)" % limit, q)      # already a short question
+    if m:
+        return m.group(1)
+    head = q[:limit]                                 # else cut at a clause and close it
+    cut = max(head.rfind(", and "), head.rfind(", or "), head.rfind("; "),
+              head.rfind(", "))
+    if cut > 24:
+        return head[:cut].rstrip(" ,;") + "?"
+    return head.rsplit(" ", 1)[0].rstrip(" ,;") + "?"
+
+
 def _reader_tool(keys=None):
     """The tool schema, generated from SPEC so a new line item is readable the
     day it is added and no second list has to be kept in step."""
@@ -887,8 +910,12 @@ def landing():
                 out.append(i); seen.add(i["key"])
         return out[:4]
 
-    questions = _four("")
-    questions_by_roof = {rt: _four(rt) for rt in ROOF_TYPE_KEYS if rt != "unsure"}
+    def _carded(items):
+        return [dict(i, short=short_ask(i["ask"])) for i in items]
+
+    questions = _carded(_four(""))
+    questions_by_roof = {rt: _carded(_four(rt))
+                         for rt in ROOF_TYPE_KEYS if rt != "unsure"}
     return render_template("compare_landing.html", spec=SPEC,
                            spec_count=len(SPEC_KEYS), stages=STAGES,
                            questions=questions, questions_by_roof=questions_by_roof,
