@@ -15,7 +15,7 @@ after they pick someone.
 
 Deliberately NOT here: any claim about what a roof should cost, any ranking of
 contractors, any "recommended" bid. We are not licensed to advise on their job
-and we do not see it. Every judgement stays with the homeowner; this only makes
+and we do not see it. Every judgment stays with the homeowner; this only makes
 sure nothing is invisible when they make it.
 """
 import json
@@ -209,6 +209,135 @@ def gaps_for(q, roof_type=None, featured_only=False):
         if v != "yes":
             item = SPEC_INDEX[key]
             out.append(dict(item, state=v))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Scoring
+#
+# What is scored here is THE PROPOSAL, never the contractor. The source
+# material is explicit about that -- "no automatic quality, reliability or
+# compliance score from employee versus subcontractor status", "do not penalize
+# a qualified business because the salesperson is not the license holder" --
+# and a page that turned a reading of a PDF into a rating of a company would be
+# making a claim it cannot support about a business it has never seen.
+#
+# So the number means one thing: how much of this job is settled in writing.
+#
+# The consequence worth understanding is that an EXPLICIT EXCLUSION scores the
+# same as an inclusion. "Gutters are not included" is a settled fact you can
+# price and plan around. "Not stated" is the one that costs money later, because
+# it gets decided after the old roof is off and you are negotiating from the
+# worst position available. Silence is the risk, not exclusion.
+SCORE_WEIGHTS = {"yes": 1.0, "no": 1.0, "?": 0.0}
+
+# The featured lines are the ones that move money on nearly every job, so they
+# carry more of the score than the long tail of technical detail.
+FEATURED_WEIGHT = 3
+OTHER_WEIGHT = 1
+
+# What an unanswered line actually exposes you to, by the part of the job it
+# belongs to. These are consequences, not cost estimates: we have never seen the
+# roof and inventing a dollar figure would be a fabrication dressed as a number.
+WORST_CASE = {
+    "The company and the paperwork":
+        "If this is not settled before work starts, you are relying on an "
+        "assurance you cannot produce later -- and the time you need it is "
+        "after something has gone wrong.",
+    "Tear-off, deck and substrate":
+        "Rotten wood is found once the old roof is off. With no allowance and "
+        "no unit price agreed, the number is set while your roof is open and "
+        "the crew is already on site.",
+    "The layers that keep water out":
+        "The layer that fails is the one nobody specified. You will not see "
+        "this again until the tile or shingles come back off.",
+    "How the roof is fastened and assembled":
+        "Fastening decides whether the roof holds in a storm and whether the "
+        "manufacturer honors its warranty. It is invisible once covered.",
+    "Metal systems":
+        "Panel, finish and clip are what the warranty is written against. "
+        "A substitution found later is a different roof from the one quoted.",
+    "Warranty":
+        "You find out what the warranty really covers at claim time, which is "
+        "the worst possible moment to read it for the first time.",
+    "Money, schedule and the day itself":
+        "An open money line is priced after you have committed, when changing "
+        "contractor costs you more than paying the difference.",
+}
+_WORST_DEFAULT = ("Left open, this gets decided after you have signed, when "
+                  "you have the least room to negotiate.")
+
+
+def _group_of(key):
+    for g in SPEC:
+        for i in g["items"]:
+            if i["key"] == key:
+                return g["name"]
+    return ""
+
+
+def score_quote(q, roof_type=None):
+    """How much of this proposal is settled, and what is not.
+
+    Returns points/possible/pct plus the counts behind them, so the page can
+    show the working rather than asking anyone to trust a number.
+    """
+    spec = _spec_of(q)
+    keys = keys_for(roof_type) if roof_type else SPEC_KEYS
+    points = possible = 0.0
+    counts = {"yes": 0, "no": 0, "?": 0}
+    open_lines = []
+    for key in keys:
+        item = SPEC_INDEX[key]
+        w = FEATURED_WEIGHT if item.get("featured") else OTHER_WEIGHT
+        v = _val(spec, key)
+        counts[v if v in counts else "?"] += 1
+        possible += w
+        points += w * SCORE_WEIGHTS.get(v, 0.0)
+        if v == "?":
+            cell = (spec.get(key) or {}) if isinstance(spec.get(key), dict) else {}
+            open_lines.append(dict(
+                item, state=v, weight=w,
+                said=(cell.get("d") or "").strip(),
+                worst=WORST_CASE.get(_group_of(key), _WORST_DEFAULT),
+                group=_group_of(key)))
+    # Worst first: the featured lines, then the rest, each alphabetical so the
+    # order is stable between loads rather than shuffling under the reader.
+    open_lines.sort(key=lambda r: (-r["weight"], r["label"]))
+    return {
+        "quote": q, "points": round(points, 1), "possible": round(possible, 1),
+        "pct": int(round(100.0 * points / possible)) if possible else 0,
+        "settled": counts["yes"] + counts["no"], "in_writing": counts["yes"],
+        "excluded": counts["no"], "open": counts["?"], "lines": len(keys),
+        "open_lines": open_lines,
+    }
+
+
+def scoreboard(quotes, roof_type=None):
+    """Every quote scored, best-settled first."""
+    rows = [score_quote(q, roof_type) for q in quotes]
+    rows.sort(key=lambda r: -r["pct"])
+    return rows
+
+
+def disagreement_detail(quotes, roof_type=None):
+    """The lines the quotes do not agree on, with what each one actually says.
+
+    The plain list answered 'what' and left 'who' and 'why' to the reader. This
+    carries the criterion's own question and caution alongside every quote's
+    answer, so one line can be understood without hunting across the sheet.
+    """
+    out = []
+    for item in disagreements(quotes, roof_type):
+        says = []
+        for q in quotes:
+            spec = _spec_of(q)
+            cell = (spec.get(item["key"]) or {}) if isinstance(spec.get(item["key"]), dict) else {}
+            says.append({"contractor": q.get("contractor") or "Unnamed contractor",
+                         "state": _val(spec, item["key"]),
+                         "said": (cell.get("d") or "").strip()})
+        out.append(dict(item, says=says,
+                        worst=WORST_CASE.get(_group_of(item["key"]), _WORST_DEFAULT)))
     return out
 
 
@@ -819,6 +948,7 @@ def project(token):
     return render_template(
         "compare_project.html", p=p, quotes=view, reading=len(reading),
         dupes=sum(len(g) - 1 for g in duplicate_groups(quotes)),
+        scores=scoreboard(quotes, rt), detail=disagreement_detail(quotes, rt),
         spec=spec_view(rt, show_all), uploads=uploads,
         roof_types=ROOF_TYPES, roof_type=rt,
         show_all=show_all, counts=counts_for(rt),

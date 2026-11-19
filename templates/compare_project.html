@@ -3,7 +3,7 @@
    Order is deliberate: where the quotes DISAGREE first (that is the question
    they arrived with), then the questions to ask per quote, then the quotes
    themselves, then the tracker. Nothing here ranks a contractor or suggests a
-   price — every judgement stays with the homeowner. #}
+   price — every judgment stays with the homeowner. #}
 {% block head %}
 <title>Your roof quote comparison — MyRoofPortal</title>
 <meta name="robots" content="noindex,nofollow">
@@ -52,6 +52,84 @@
            background:var(--gold-100);border:1px solid #e9d59b;border-radius:11px;
            font-size:14.5px;line-height:1.5;color:#6b4e08}
   .reading b{color:#4d3905}
+  /* ---- the disagreement accordion, under the chart --------------------- */
+  .acc-wrap{margin-top:34px;padding-top:30px;border-top:1px solid var(--line)}
+  .acc-wrap h2{margin:0 0 6px}
+  .acc{border:1px solid var(--line);border-radius:11px;margin:0 0 9px;background:#fff;
+       overflow:hidden}
+  .acc[open]{border-color:#c3ced4;box-shadow:0 10px 26px rgb(8 33 46/.07)}
+  .acc summary{display:flex;align-items:center;gap:16px;padding:15px 18px;cursor:pointer;
+       list-style:none;font-size:15.5px}
+  .acc summary::-webkit-details-marker{display:none}
+  .acc summary:hover{background:var(--warm-50)}
+  .acc-t{flex:1 1 auto;font-weight:700;color:var(--navy-950);letter-spacing:-.01em}
+  .acc-s{display:flex;gap:6px;flex-wrap:wrap;flex:none}
+  .acc-x{flex:none;width:24px;height:24px;border-radius:6px;background:var(--warm-50);
+         color:var(--slate-500);font-size:16px;font-weight:700;line-height:24px;
+         text-align:center}
+  .acc[open] .acc-x{transform:rotate(45deg)}
+  .acc-b{padding:4px 18px 20px;border-top:1px solid var(--line)}
+  .acc-b h4{margin:16px 0 7px;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+            color:var(--teal-600);font-weight:750}
+  .acc-b p{margin:0;font-size:15px;line-height:1.6;color:var(--slate-700)}
+  .acc-b .askq{font-weight:650;color:var(--navy-950)}
+  .acc-b .careful{margin-top:14px;padding:11px 14px;background:#f9eeeb;border-radius:8px;
+                  font-size:14px;color:#7a362d}
+  .whosaid{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+  .whosaid li{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:15px}
+  .whosaid b{color:var(--navy-950);min-width:9em}
+  .quoted{color:var(--slate-500);font-size:14.5px;flex:1 1 14em}
+
+  /* ---- the scorecard --------------------------------------------------- */
+  #score .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+                gap:16px;margin:0 0 30px}
+  #score .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:19px 21px}
+  #score .card.best{border-color:var(--teal-600);box-shadow:0 0 0 1px var(--teal-600) inset}
+  #score .card-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+                 margin-bottom:14px}
+  #score .card-h b{font-size:15px;color:var(--navy-950);letter-spacing:-.01em}
+  #score .card-h .amt{font-size:14px;font-weight:700;color:var(--slate-500);
+                      font-variant-numeric:tabular-nums;white-space:nowrap}
+  #score .pct{display:flex;align-items:baseline;gap:9px;margin-bottom:9px}
+  #score .pct b{font-size:38px;font-weight:800;letter-spacing:-.04em;color:var(--navy-950);
+                line-height:1}
+  #score .pct i{font-style:normal;font-size:19px}
+  #score .pct span{font-size:13px;color:var(--slate-500)}
+  #score .bar{height:7px;border-radius:99px;background:var(--line);overflow:hidden;
+              margin-bottom:15px}
+  #score .bar span{display:block;height:100%;background:var(--teal-600);border-radius:99px}
+  #score .breakdown{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+  #score .breakdown li{display:flex;align-items:center;justify-content:space-between;gap:10px;
+                       font-size:13.5px}
+  #score .breakdown b{font-variant-numeric:tabular-nums;color:var(--navy-950)}
+  #score .work{margin:13px 0 0;font-size:12px;color:var(--slate-500)}
+  .worst-h{margin:0 0 14px;font-size:19px;letter-spacing:-.02em}
+  .openline{padding:15px 0;border-bottom:1px solid var(--line)}
+  .openline:last-child{border-bottom:0}
+  .ol-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .ol-h b{font-size:15.5px;color:var(--navy-950)}
+  .tagw{font-style:normal;font-size:10.5px;font-weight:750;letter-spacing:.06em;
+        text-transform:uppercase;background:var(--gold-100);color:#7a5b10;
+        padding:3px 8px;border-radius:5px}
+  .ol-why{margin:0 0 6px;font-size:14.5px;color:var(--slate-700);line-height:1.55}
+  .ol-worst{margin:0 0 7px;font-size:14.5px;color:#7a362d;line-height:1.55}
+  .ol-worst b{color:#5e271f}
+  .ol-ask{margin:0;font-size:14.5px;font-weight:650;color:var(--navy-950);line-height:1.55}
+  .more{margin:14px 0 0;font-size:13.5px;color:var(--slate-500)}
+
+  /* The tracker only ever moved forward, so one mis-click stranded a job a
+     stage ahead of where it really was with no way back. */
+  .stepback{background:transparent;border:0;color:var(--slate-500);font-size:13.5px;
+            font-weight:650;cursor:pointer;padding:8px 2px;text-decoration:underline}
+  .stepback:hover{color:var(--navy-950)}
+
+  @media(max-width:640px){
+    .acc summary{flex-wrap:wrap;gap:9px}
+    .acc-t{flex:1 1 100%}
+    .whosaid b{min-width:0}
+    #score .pct b{font-size:32px}
+  }
+
   .removed{margin:0 0 18px;padding:13px 17px;background:#e9f4f0;border:1px solid #bfdbd0;
            border-radius:10px;font-size:14.5px;color:var(--teal-600);font-weight:650}
   .dupes{display:flex;align-items:center;justify-content:space-between;gap:20px;
@@ -408,9 +486,6 @@
       {% endif %}
     </div>
 
-    <h2>Where your quotes disagree</h2>
-    <p class="sub">These are the lines some contractors included and others didn't. This is
-      the reason the prices aren't the same — not a judgement about who's better.</p>
     {% set pending = quotes | rejectattr('reviewed') | rejectattr('source','equalto','manual') | list %}
     {% if pending %}
     <div class="unchk big">{{ pending|length }} quote{{ '' if pending|length == 1 else 's' }}
@@ -420,15 +495,6 @@
     {% endif %}
     {% if quotes|length < 2 %}
       <div class="empty">Add at least two quotes and the differences will show up here.</div>
-    {% elif not disagree %}
-      <div class="allgood">Your quotes agree on every line you've filled in so far. Once
-        they cover the same work, the cheapest one really is the cheapest.</div>
-    {% else %}
-      <div class="dis">
-        {% for d in disagree %}
-        <div class="d"><b>{{ d.label }}</b><span>{{ d.why }}</span></div>
-        {% endfor %}
-      </div>
     {% endif %}
 
     {% if quotes %}
@@ -485,7 +551,118 @@
       </table>
     </div>
     {% endif %}
+
+    {# Below the chart, because the chart is the thing a homeowner came to see
+       and this explains it. Each row opens to who said what, why the line
+       matters and what it costs to leave open -- the questions that used to
+       mean reading across four columns and guessing. #}
+    {% if detail %}
+    <section class="acc-wrap">
+      <h2>Where your quotes disagree</h2>
+      <p class="sub">{{ detail|length }} line{{ '' if detail|length == 1 else 's' }} some
+        contractors put in writing and others left open. This is the reason the prices
+        aren&rsquo;t the same &mdash; not a judgment about who is better. Open any line to
+        see what each one actually said.</p>
+      {% for d in detail %}
+      <details class="acc"{% if loop.first %} open{% endif %}>
+        <summary>
+          <span class="acc-t">{{ d.label }}</span>
+          <span class="acc-s">
+            {% for s in d.says %}
+            <i class="mk {{ 'y' if s.state == 'yes' else ('n' if s.state == 'no' else 'q') }}"
+               title="{{ s.contractor }}">{{ s.contractor[:18] }}</i>
+            {% endfor %}
+          </span>
+          <span class="acc-x" aria-hidden="true">+</span>
+        </summary>
+        <div class="acc-b">
+          <h4>What each quote says</h4>
+          <ul class="whosaid">
+            {% for s in d.says %}
+            <li>
+              <b>{{ s.contractor }}</b>
+              <i class="mk {{ 'y' if s.state == 'yes' else ('n' if s.state == 'no' else 'q') }}">{{
+                 'In writing' if s.state == 'yes' else ('Excluded' if s.state == 'no' else 'Not stated') }}</i>
+              {% if s.said %}<span class="quoted">&ldquo;{{ s.said }}&rdquo;</span>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% if d.why %}<h4>Why it matters</h4><p>{{ d.why }}</p>{% endif %}
+          <h4>If it stays open</h4><p>{{ d.worst }}</p>
+          {% if d.ask %}<h4>What to ask</h4><p class="askq">&ldquo;{{ d.ask }}&rdquo;</p>{% endif %}
+          {% if d.evidence %}
+          <h4>Ask to see</h4><p>{{ d.evidence | join('; ') }}</p>
+          {% endif %}
+          {% if d.warn %}<p class="careful">{{ d.warn }}</p>{% endif %}
+        </div>
+      </details>
+      {% endfor %}
+    </section>
+    {% elif quotes|length >= 2 %}
+    <div class="allgood" style="margin-top:24px">Your quotes agree on every line you have
+      filled in so far. Once they cover the same work, the cheapest one really is the
+      cheapest.</div>
+    {% endif %}
   </section>
+
+  {# ---------------- the scorecard ---------------- #}
+  {% if scores %}
+  <section class="blk" id="score">
+    <h2>How much of each quote is settled</h2>
+    <p class="sub">This scores the <em>proposal</em>, never the contractor &mdash; we have
+      never seen their work. A line counts as settled whether it is included or explicitly
+      excluded, because both are facts you can plan around. Only silence is scored at
+      nothing: an unanswered line gets decided after the old roof is off, when you have the
+      least room to argue. Lines that move money on most jobs count for three.</p>
+    <div class="cards">
+      {% for r in scores %}
+      <div class="card{{ ' best' if loop.first and scores|length > 1 }}">
+        <div class="card-h">
+          <b>{{ r.quote.contractor or 'Unnamed contractor' }}</b>
+          <span class="amt">{{ r.quote.price or '&mdash;' | safe }}</span>
+        </div>
+        <div class="pct"><b>{{ r.pct }}<i>%</i></b><span>settled in writing</span></div>
+        <div class="bar"><span style="width:{{ r.pct }}%"></span></div>
+        <ul class="breakdown">
+          <li><i class="mk y">In writing</i><b>{{ r.in_writing }}</b></li>
+          <li><i class="mk n">Excluded</i><b>{{ r.excluded }}</b></li>
+          <li><i class="mk q">Not stated</i><b>{{ r.open }}</b></li>
+        </ul>
+        <p class="work">{{ r.points }} of {{ r.possible }} points across {{ r.lines }} lines.</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <h3 class="worst-h">What each quote leaves open, worst first</h3>
+    {% for r in scores %}
+    <details class="acc q-open"{% if loop.first %} open{% endif %}>
+      <summary>
+        <span class="acc-t">{{ r.quote.contractor or 'Unnamed contractor' }}</span>
+        <span class="acc-s"><i class="mk q">{{ r.open }} open</i></span>
+        <span class="acc-x" aria-hidden="true">+</span>
+      </summary>
+      <div class="acc-b">
+        {% if not r.open_lines %}
+        <p>Nothing open. Every line on this sheet is settled one way or the other.</p>
+        {% else %}
+        {% for o in r.open_lines[:12] %}
+        <div class="openline">
+          <div class="ol-h"><b>{{ o.label }}</b>{% if o.weight > 1 %}<i class="tagw">Moves money</i>{% endif %}</div>
+          {% if o.why %}<p class="ol-why">{{ o.why }}</p>{% endif %}
+          <p class="ol-worst"><b>Worst case:</b> {{ o.worst }}</p>
+          <p class="ol-ask">&ldquo;{{ o.ask }}&rdquo;</p>
+        </div>
+        {% endfor %}
+        {% if r.open_lines|length > 12 %}
+        <p class="more">&hellip; and {{ r.open_lines|length - 12 }} more open on this quote.
+          They are all in the sheet above, marked &ldquo;Not stated&rdquo;.</p>
+        {% endif %}
+        {% endif %}
+      </div>
+    </details>
+    {% endfor %}
+  </section>
+  {% endif %}
 
   {# ---------------- questions to ask ---------------- #}
   <section class="blk" id="questions">
@@ -704,6 +881,14 @@
           <form method="post" action="{{ url_for('compare.set_stage', token=p.token) }}">
             <input type="hidden" name="stage" value="{{ stages[idx + 1].key }}">
             <button class="btn btn-sky" type="submit">Done — move to &ldquo;{{ stages[idx + 1].label }}&rdquo;</button>
+          </form>
+          {% endif %}
+          {# The tracker only ever moved forward, so one mis-click stranded a
+             job a stage ahead of where it really was with no way back. #}
+          {% if idx > 0 %}
+          <form method="post" action="{{ url_for('compare.set_stage', token=p.token) }}">
+            <input type="hidden" name="stage" value="{{ stages[idx - 1].key }}">
+            <button class="stepback" type="submit">&larr; Back to &ldquo;{{ stages[idx - 1].label }}&rdquo;</button>
           </form>
           {% endif %}
           {% endif %}

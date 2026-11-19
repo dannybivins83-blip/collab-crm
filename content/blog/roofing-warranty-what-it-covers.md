@@ -66,7 +66,9 @@ Do not let the final payment go before you have:
 1. **The registered manufacturer warranty certificate** — the actual document, emailed to you, with your address and the correct product on it. Not a promise to register it.
 2. **The written workmanship warranty** — years stated, signed, on letterhead.
 3. **The closed permit** — the county's record that the work passed final inspection.
-4. **The final invoice marked paid in full** — your protection against a lien from a supplier or subcontractor the contractor did not pay.
+4. **A final release of lien** — from the contractor, and from every supplier or subcontractor who sent you a Notice to Owner. Ask for the contractor's final payment affidavit with it.
+
+An invoice marked paid in full is a receipt, not a shield. Under Florida's construction lien law a supplier or subcontractor who served a Notice to Owner can lien your home even though you paid the contractor in full — the releases are what stop that, which is why the statute entitles you to the contractor's final payment affidavit before you hand over the last payment. Florida publishes the release forms in Chapter 713.20. [Our piece on draws](/blog/roofing-payment-schedule-draws) covers trading a release for every check, not just the last one.
 
 Those four documents are what you will want in ten years, and they are much harder to collect after the final check has cleared than before.
 

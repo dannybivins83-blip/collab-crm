@@ -89,7 +89,7 @@ def caution_only(text):
     """Keep the sentences that warn a person; drop the ones that direct the tool."""
     if not text:
         return ""
-    keep = [x.strip() for x in re.split(r"(?<=[.])\s+", text)
+    keep = [x.strip() for x in re.split(r"(?<=[.;])\s+", text)
             if x.strip() and not _ENGINE_WARN.match(x.strip())]
     out = " ".join(keep).strip()
     return out if len(out) > 25 else ""
@@ -99,7 +99,7 @@ def homeowner_voice(text):
     """Drop sentences written at the tool; keep sentences written at a person."""
     if not text:
         return ""
-    keep = [s.strip() for s in re.split(r"(?<=[.])\s+", text)
+    keep = [s.strip() for s in re.split(r"(?<=[.;])\s+", text)
             if s.strip() and not _ENGINE_VOICE.match(s.strip())]
     out = " ".join(keep).strip()
     return out if len(out) > 25 else ""
