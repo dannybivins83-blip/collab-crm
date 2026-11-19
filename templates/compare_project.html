@@ -265,6 +265,20 @@
     body{background:#fff}
   }
   @media(max-width:700px){ .blk{padding:20px 17px} }
+
+  /* Reading one proposal takes about 25 seconds on the live host, and the page
+     gave no sign it was working: the button stayed idle, nothing moved, and the
+     only honest conclusion a homeowner could draw was that it was broken. */
+  .btn[data-busy]{opacity:.75;cursor:progress;pointer-events:none}
+  .busy{display:none;align-items:center;gap:11px;margin:14px 0 0;padding:13px 15px;
+        background:var(--gold-100);border:1px solid #e9d59b;border-radius:9px;
+        font-size:13.5px;line-height:1.5;color:#6b4e08}
+  .busy.on{display:flex}
+  .busy b{color:#4d3905;font-weight:700}
+  .spin{flex:none;width:17px;height:17px;border-radius:50%;border:2.5px solid #e4cf93;
+        border-top-color:#9a7512;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
 {% endblock %}
 
 {% block body %}
@@ -442,7 +456,7 @@
       {# Three ways in, because people arrive with three different things: the
          emailed PDF, a sheet of paper in the kitchen, or only what they were
          told in the driveway. #}
-      <form method="post" enctype="multipart/form-data"
+      <form method="post" enctype="multipart/form-data" data-reads
             action="{{ url_for('compare.upload', token=p.token) }}">
         <label class="drop2" for="up">
           <b>Upload a file</b>
@@ -450,10 +464,15 @@
           <input id="up" name="quotes" type="file"
                  accept="application/pdf,.pdf,image/*" multiple>
         </label>
-        <div style="margin-top:10px"><button class="btn cta-gold" type="submit">Read them</button></div>
+        <div style="margin-top:10px"><button class="btn cta-gold" type="submit">Read them</button>
+          <p class="busy" role="status" aria-live="polite">
+          <span class="spin" aria-hidden="true"></span>
+          <span><b>Reading your paperwork.</b> This takes <span data-est>about half a
+            minute</span> &mdash; keep this page open and it will move on by itself.</span>
+        </p></div>
       </form>
 
-      <form method="post" enctype="multipart/form-data"
+      <form method="post" enctype="multipart/form-data" data-reads
             action="{{ url_for('compare.upload', token=p.token) }}">
         <label class="drop2" for="cam">
           <b>Take a picture</b>
@@ -464,7 +483,12 @@
           <input id="cam" name="quotes" type="file" accept="image/*"
                  capture="environment" multiple>
         </label>
-        <div style="margin-top:10px"><button class="btn cta-gold" type="submit">Read the photo</button></div>
+        <div style="margin-top:10px"><button class="btn cta-gold" type="submit">Read the photo</button>
+          <p class="busy" role="status" aria-live="polite">
+          <span class="spin" aria-hidden="true"></span>
+          <span><b>Reading your paperwork.</b> This takes <span data-est>about half a
+            minute</span> &mdash; keep this page open and it will move on by itself.</span>
+        </p></div>
       </form>
     </div>
 
@@ -730,6 +754,36 @@
     var id = a.getAttribute('href').slice(1);
     if (panels[id]) { show(id); }
   });
+})();
+
+// A proposal takes roughly 25 seconds a file to read, and the form posts
+// normally, so the browser just sits on the old page with no indication that
+// anything is happening. Say so, stop a second click restarting the whole job,
+// and scale the estimate to the number of files actually chosen.
+(function () {
+  function wire(form) {
+    var btn = form.querySelector('button[type=submit]');
+    var note = form.querySelector('.busy');
+    if (!btn || !note) { return; }
+    var sent = false;
+    form.addEventListener('submit', function (e) {
+      if (sent) { e.preventDefault(); return; }
+      var input = form.querySelector('input[type=file]');
+      var n = input && input.files ? input.files.length : 0;
+      // Nothing to read means an instant redirect; the notice would only flash.
+      if (!n && input) { return; }
+      var secs = Math.max(20, n * 25);
+      note.querySelector('[data-est]').textContent =
+        n === 1 ? 'about half a minute'
+                : 'up to ' + Math.ceil(secs / 60) + ' minute' + (secs > 60 ? 's' : '');
+      note.classList.add('on');
+      sent = true;
+      btn.setAttribute('data-busy', '1');
+      btn.setAttribute('aria-disabled', 'true');
+      btn.textContent = n === 1 ? 'Reading your proposal\u2026' : 'Reading your proposals\u2026';
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('form[data-reads]'), wire);
 })();
 </script>
 
