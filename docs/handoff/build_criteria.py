@@ -64,9 +64,35 @@ _DOC_REF = re.compile(
 # comparison field"). That is machine direction, not homeowner guidance, and on
 # the page it reads like leaked internals. A line keeps its `why` only if it
 # explains something to the reader.
-_ENGINE_VOICE = re.compile(
-    r"^(record|compare|split|flag|treat|preserve|capture|list|map|store|tag|"
-    r"normali[sz]e|score|rank)\b", re.I)
+# This started as six verbs and missed most of the field. "Mark absent documents
+# Not provided, mismatches Needs clarification..." sailed through and rendered
+# as if it were advice to a homeowner, on the front page and in the list of
+# disagreements. The two filters share one vocabulary now so a sentence aimed at
+# the engine cannot reach a person through either field.
+_ENGINE_VERBS = (
+    r"record|compare|split|flag|treat|preserve|capture|list|map|store|tag|"
+    r"normali[sz]e|score|rank|mark|show|apply|use|keep|assign|select|prefer|"
+    r"distinguish|separate|convert|rewrite|substitute|infer|confuse|penali[sz]e|"
+    r"do not|don't|never|avoid|require|report|return|output|set|add|omit|include")
+_ENGINE_VOICE = re.compile(r"^(" + _ENGINE_VERBS + r")\b", re.I)
+
+
+# The warning field carries the same problem as comparison_rule: a good half of
+# it is direction aimed at the comparison engine ("Preserve the short user
+# wording", "Do not penalize a qualified business..."). Rendered in red beside
+# a homeowner's question it reads as a warning about their roof, which it is
+# not. These openers are instructions, not cautions.
+_ENGINE_WARN = re.compile(r"^(" + _ENGINE_VERBS + r")\b", re.I)
+
+
+def caution_only(text):
+    """Keep the sentences that warn a person; drop the ones that direct the tool."""
+    if not text:
+        return ""
+    keep = [x.strip() for x in re.split(r"(?<=[.])\s+", text)
+            if x.strip() and not _ENGINE_WARN.match(x.strip())]
+    out = " ".join(keep).strip()
+    return out if len(out) > 25 else ""
 
 
 def homeowner_voice(text):
@@ -145,7 +171,7 @@ for name, cats in GROUPS:
                 "label": debrand(clean_label(c.get("label"))),
                 "ask": debrand((c.get("neutral_public_question") or c.get("question") or "").strip()),
                 "why": homeowner_voice(debrand(clean(why))),
-                "warn": debrand(warn),
+                "warn": caution_only(debrand(warn)),
                 "evidence": [debrand(e.strip()) for e in (c.get("evidence_to_request") or []) if e.strip()],
                 "types": tuple(sorted(rts)) or ("tile", "shingle", "metal", "flat"),
                 "featured": bool(c.get("featured")),

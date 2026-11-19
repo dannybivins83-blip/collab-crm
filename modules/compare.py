@@ -369,12 +369,13 @@ def sniff(data):
     return "", ""
 
 
-def read_proposal(data, filename="", spoken=""):
+def read_proposal(data, filename="", spoken="", roof_type=""):
     """(fields, error). Never raises: a failed read must leave the homeowner a
     quote they can still fill in by hand.
 
     `data` is a PDF or a photo. `spoken` is the homeowner describing the quote
-    out loud, used alone when there is no document at all.
+    out loud, used alone when there is no document at all. `roof_type` narrows
+    the questions to the ones that apply to this roof.
     """
     import base64
     try:
@@ -391,14 +392,28 @@ def read_proposal(data, filename="", spoken=""):
         resp = anthropic_create(
             client,
             model=READER_MODEL,
-            max_tokens=3000,
+            # 104 criteria means 208 schema properties, and a proposal that
+            # actually says something about most of them runs to roughly 4,000
+            # output tokens. At 3,000 the tool call was cut off part-way and
+            # whatever had not been emitted yet silently came back as "not
+            # stated" -- so a detailed quote lost its later answers while a
+            # sparse one kept all of them, which reads as the reader ignoring
+            # the materials on some quotes and not others.
+            max_tokens=16000,
             temperature=0,   # reading a document, not composing one
-            tools=[_reader_tool()],
+            tools=[_reader_tool(keys_for(roof_type) if roof_type else None)],
             tool_choice={"type": "tool", "name": "read_roofing_proposal"},
             messages=[{"role": "user", "content": _blocks(data, spoken)}],
         )
     except Exception as e:
         return None, "%s: %s" % (type(e).__name__, str(e)[:200])
+    # A truncated tool call still arrives as a tool_use block with whatever
+    # parsed, which is why this failed quietly before. Treat it as the failure
+    # it is rather than passing half a reading off as a whole one.
+    if getattr(resp, "stop_reason", "") == "max_tokens":
+        return None, ("the reader ran out of room before it finished this "
+                      "document -- nothing has been filled in, so the quote is "
+                      "yours to complete by hand")
     for block in getattr(resp, "content", []) or []:
         if getattr(block, "type", "") == "tool_use":
             return dict(getattr(block, "input", {}) or {}), ""
@@ -511,7 +526,7 @@ def store_upload(project, fileobj):
 _READ_LOCK = threading.Lock()
 
 
-def read_queued(project_id, jobs):
+def read_queued(project_id, jobs, roof_type=""):
     """Read stored proposals and turn each into a quote. Runs off-request.
 
     db.connect() opens its own connection per call and the only Flask-bound
@@ -522,7 +537,7 @@ def read_queued(project_id, jobs):
         for upload_id, data, name in jobs:
             patch = {}
             try:
-                fields, err = read_proposal(data, name)
+                fields, err = read_proposal(data, name, roof_type=roof_type)
                 if err or not fields:
                     patch = {"status": "unread", "error": (err or "")[:300]}
                 elif fields.get("unreadable"):
@@ -740,7 +755,9 @@ def _ingest_files(project, files):
             except Exception:
                 pass
     if jobs:
-        t = threading.Thread(target=read_queued, args=(project["id"], jobs),
+        t = threading.Thread(target=read_queued,
+                             args=(project["id"], jobs,
+                                   (project.get("roof_type") or "").strip().lower()),
                              name="roofread", daemon=True)
         t.start()
     return done
