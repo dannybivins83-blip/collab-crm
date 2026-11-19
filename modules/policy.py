@@ -28,6 +28,27 @@ from flask import Blueprint, render_template
 
 bp = Blueprint("policy", __name__)
 
+
+# The shared footer links the live demo and the acquisition page from variables
+# each view had to remember to pass. Four views did; these two did not, and the
+# links rendered as href="" -- the exact empty-footer defect a previous audit
+# had already caught and seen fixed. A view should not be able to reintroduce
+# it by forgetting, so the footer's own URLs are supplied app-wide and any view
+# that passes its own still wins.
+@bp.app_context_processor
+def _footer_urls():
+    from flask import url_for
+    try:
+        from modules.demos import DEMO_SLUG
+        demo = url_for("demo.portal", slug=DEMO_SLUG)
+    except Exception:
+        demo = "/demo/roof-portal"
+    try:
+        acquire = url_for("demo.acquire")
+    except Exception:
+        acquire = "/acquire"
+    return {"demo_url": demo, "acquire_url": acquire}
+
 # The one fact that is a business decision rather than an observable property
 # of the code. Kept here so it is changed in one place.
 CONTACT_EMAIL = "info@collaborativeconceptsfl.com"
