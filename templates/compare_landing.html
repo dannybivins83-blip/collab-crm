@@ -2,7 +2,14 @@
 {# Homeowner-facing front door. Chrome + tokens come from portal_base; the nav
    is overridden because the roofer sales nav is the wrong pitch for someone
    holding three bids. No price claims and no contractor ranking anywhere on
-   this page — we do not see their roof and we are not advising on it. #}
+   this page — we do not see their roof and we are not advising on it.
+
+   Visual system is the 2026-11-18 design handoff: warm page surface, ink navy,
+   gold action, a serif italic second line on the headline, and a roof plate per
+   system. The handoff shipped photographs credited to another roofing company's
+   website with no licence field anywhere in its manifest, so those images and
+   that credit line are not used here; the plates below are drawn from the same
+   four systems and are ours. #}
 {% block head %}
 <title>Compare Roof Quotes Side by Side — MyRoofPortal</title>
 <meta name="description" content="Three roofing quotes, three different roofs. Put them side by side on one spec sheet, see exactly what each one leaves out, and get the questions to ask before you sign. Free.">
@@ -29,222 +36,446 @@
 
 {% block nav %}
 <nav class="nav" id="nav" aria-label="Primary">
-  <a href="#why">Why bids differ</a>
-  <a href="#sheet">The spec sheet</a>
-  <a href="#track">Track the job</a>
+  <a href="#systems">Roof systems</a>
+  <a href="#sheet">What gets compared</a>
+  <a href="#how">How it works</a>
 </nav>
 {% endblock %}
-{% block headercta %}<a href="#start" class="cta-gold">Start free</a>{% endblock %}
+{# "Compare my quotes" plus the wordmark plus the Menu button is wider than a
+   375px phone, and the header is the element that sets the document width, so
+   the whole page scrolled sideways. The short label keeps the action. #}
+{% block headercta %}<a href="#start" class="cta-gold"><span class="lbl-long">Compare my quotes</span><span class="lbl-short">Start free</span></a>{% endblock %}
 
 {% block style %}
-  .ho-hero{background:var(--navy-950);color:#fff;padding:76px 0 84px}
-  .ho-hero h1{font-size:clamp(34px,4.4vw,56px);line-height:1.06;margin:0 0 20px;letter-spacing:-.02em}
-  .ho-hero h1 .g{color:var(--gold-500)}
-  .ho-hero p.lede{font-size:clamp(17px,1.6vw,21px);line-height:1.55;color:rgb(255 255 255/.82);max-width:62ch;margin:0 0 30px}
-  .ho-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:52px;align-items:start}
+  /* The design handoff's palette, applied at :root so the shared header and
+     footer re-skin with the page rather than fighting it. Each page renders
+     its own <style>, so this is scoped to this page despite the selector. */
+  :root{
+    --navy-950:#08212e; --navy-900:#143746; --navy-800:#1d4858;
+    --gold-500:#d9a52e; --gold-100:#fff2cf;
+    --teal-600:#0d6867; --teal-500:#0d6867;
+    --warm-50:#f7f8fa;
+    --slate-700:#263e4a; --slate-500:#526672; --line:#dbe3e7;
+    --tint:#eceee9;
+    --serif:Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif;
+  }
 
-  /* The sample comparison. It is the product's own output, so it has to read
-     as a grid at a glance and still work on a phone, where it scrolls inside
-     its own box rather than widening the page. */
-  .sample{margin:0;background:#fff;border-radius:var(--r-md);padding:18px;
-          box-shadow:var(--shadow-lg);color:var(--navy-950)}
-  .scap{font-size:13.5px;line-height:1.5;margin:0 0 14px;color:var(--slate-700)}
-  .scap b{color:var(--navy-950)}
-  .scap span{display:block;color:var(--slate-500);font-size:12.5px;margin-top:2px}
+  /* The shared header is navy for the roofer pages. On the warm homeowner
+     surface that bar reads as another site's chrome, so this page wears the
+     light header from the design handoff -- same markup, restyled. */
+  .hdr{background:rgb(247 248 250/.97);backdrop-filter:blur(12px);
+       border-bottom:1px solid rgb(8 33 46/.09);box-shadow:none}
+  .hdr .brand{color:var(--navy-950);display:inline-flex;align-items:center;gap:0}
+  .hdr .brand span{color:var(--teal-600)}
+  /* The wordmark alone had no mark beside it. This is the chevron from the
+     brand kit, inlined so the header needs no extra request. */
+  .hdr .brand::before{content:"";flex:none;width:34px;height:34px;border-radius:9px;
+       margin-right:11px;
+       background:var(--navy-950) no-repeat center/19px 19px;
+       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d9a52e' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 13 12 6l8 7'/%3E%3Cpath d='M4 18l8-7 8 7'/%3E%3C/svg%3E")}
+  .hdr .nav a{color:var(--slate-700)}
+  .hdr .nav a:hover{color:var(--teal-600)}
+  .hdr .navtoggle{color:var(--navy-950);border-color:var(--line)}
+
+  .lbl-short{display:none}
+
+  /* ---- shared furniture ------------------------------------------------ */
+  .eyebrow-rule{display:flex;align-items:center;gap:12px;margin:0 0 22px;
+       font-size:11px;font-weight:750;letter-spacing:.14em;text-transform:uppercase;
+       color:var(--slate-500)}
+  .eyebrow-rule::before{content:"";width:28px;height:2px;background:var(--gold-500);flex:none}
+  .eyebrow-rule.teal{color:var(--teal-600)}
+  .sec{padding:84px 0}
+  .sec.white{background:#fff}
+  .sec.tint{background:var(--tint)}
+  .h2{font-size:clamp(28px,3.2vw,44px);line-height:1.08;letter-spacing:-.035em;margin:0 0 16px}
+  .h2 em{display:block;font-family:var(--serif);font-style:italic;font-weight:400;
+         color:var(--teal-600);letter-spacing:-.02em}
+  .sub{color:var(--slate-500);font-size:17px;line-height:1.65;max-width:62ch;margin:0 0 38px}
+  .split{display:grid;grid-template-columns:1.05fr 1fr;align-items:end;gap:72px;margin-bottom:38px}
+  .split .sub{margin:0 0 3px auto;font-size:16px}
+
+  /* ---- hero ------------------------------------------------------------ */
+  .ho-hero{background:radial-gradient(ellipse at 0 58%,#f0f2ef,transparent 58%),var(--warm-50);
+           padding:72px 0 80px}
+  .ho-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1fr);
+           gap:64px;align-items:center}
+  .ho-hero h1{font-size:clamp(40px,4.7vw,64px);line-height:1.05;letter-spacing:-.045em;
+              margin:0;max-width:11em}
+  .ho-hero h1 em{display:block;font-family:var(--serif);font-style:italic;font-weight:400;
+                 color:var(--teal-600);letter-spacing:-.025em}
+  .ho-hero .lede{font-size:18px;line-height:1.65;color:var(--slate-500);max-width:33em;
+                 margin:26px 0 0}
+  .ctas{display:flex;align-items:center;flex-wrap:wrap;gap:16px 26px;margin-top:32px}
+  .linkbtn{display:inline-flex;align-items:center;gap:10px;min-height:44px;font-size:14px;
+           font-weight:700;color:var(--navy-950)}
+  .linkbtn:hover{color:var(--teal-600)}
+  .hero-note{display:flex;gap:10px;align-items:flex-start;margin:26px 0 0;max-width:36em;
+             font-size:12.5px;line-height:1.6;color:var(--slate-500)}
+  .hero-note .ck{flex:none;display:inline-flex;align-items:center;justify-content:center;
+       width:18px;height:18px;border:1px solid #9aadaa;border-radius:50%;
+       font-size:10px;color:var(--teal-600);margin-top:1px}
+
+  /* The hero visual is the product's own output rather than a stock roof: a
+     comparison tool whose front page shows a comparison is making the only
+     claim it can actually keep. */
+  .sample{margin:0;background:#fff;border-radius:14px;overflow:hidden;
+          box-shadow:0 22px 55px rgb(8 33 46/.16);border:1px solid rgb(8 33 46/.08)}
+  .sample-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
+              padding:16px 20px 14px;border-bottom:1px solid var(--line)}
+  .sample-top b{font-size:14px;color:var(--navy-950)}
+  .tag{display:inline-block;background:var(--gold-100);color:#745000;border:1px solid #e9d59b;
+       border-radius:5px;font-size:9.5px;line-height:1.4;font-weight:700;text-transform:uppercase;
+       letter-spacing:.07em;padding:4px 7px;white-space:nowrap}
+  .totals{display:grid;grid-template-columns:1.25fr repeat(3,1fr);background:var(--navy-950);
+          color:#fff;padding:16px 20px;gap:10px;align-items:end}
+  .totals .lb{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+              color:rgb(255 255 255/.6);display:block;margin-bottom:5px}
+  .totals .rowlab{font-size:14px;font-weight:700}
+  .totals .amt{font-size:21px;font-weight:800;letter-spacing:-.02em;
+               font-variant-numeric:tabular-nums}
   .stw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table.st{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
-  table.st th,table.st td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);
-                          vertical-align:top}
-  table.st thead th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;
-                    color:var(--slate-500);border-bottom:2px solid var(--line);white-space:nowrap}
-  table.st tbody th{font-weight:650;color:var(--navy-950);white-space:nowrap}
-  table.st tr.price td{font-weight:800;font-size:17px;font-variant-numeric:tabular-nums;
-                       background:var(--warm-50)}
-  table.st tr.askrow th,table.st tr.askrow td{border-bottom:0;font-size:12.5px;
-                       color:var(--slate-700);background:var(--gold-100)}
+  table.st{border-collapse:collapse;width:100%;min-width:540px;font-size:13px}
+  table.st th,table.st td{text-align:left;padding:11px 20px;vertical-align:middle;
+                          border-bottom:1px solid var(--line)}
+  /* The nowrap value cells claim their width first, which squeezed the label
+     column until "Decking allowance" broke across two lines. A floor on the
+     label column stops that; the box scrolls on a phone instead. */
+  table.st tbody th{font-weight:700;color:var(--navy-950);min-width:172px}
+  table.st td{white-space:nowrap}
+  table.st tbody th small{display:block;font-weight:400;font-size:11.5px;color:var(--slate-500);
+                          margin-top:2px;letter-spacing:0}
+  table.st tr:last-child th,table.st tr:last-child td{border-bottom:0}
+  .val{font-weight:700;color:var(--navy-950);font-size:14px;white-space:nowrap}
   /* Four states, not one red cross: "excluded" and "not stated" are different
      problems and lead to different questions. */
-  .s{font-style:normal;display:inline-block;font-size:12.5px;font-weight:650;
-     padding:3px 9px;border-radius:999px;line-height:1.35}
-  .s.y{background:rgb(23 132 91/.13);color:#0c5c3f}
-  .s.n{background:rgb(184 68 59/.12);color:var(--danger)}
-  .s.a{background:rgb(215 164 56/.2);color:#7a5b10}
-  .s.q{background:var(--line);color:var(--slate-700)}
-  .skey{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 0}
-  .sfoot{margin:12px 0 0;font-size:13px;color:var(--slate-500);line-height:1.55}
-  .sec{padding:76px 0}
-  .sec.alt{background:#fff}
-  .h2{font-size:clamp(26px,2.8vw,38px);margin:0 0 14px;letter-spacing:-.01em}
-  .sub{color:var(--slate-500);font-size:17.5px;line-height:1.6;max-width:68ch;margin:0 0 34px}
+  .s{font-style:normal;display:inline-flex;align-items:center;gap:6px;font-size:11.5px;
+     font-weight:650;padding:4px 10px;border-radius:6px;line-height:1.35;white-space:nowrap}
+  .s::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+  .s.y{background:#e9f4f0;color:var(--teal-600)}
+  .s.n{background:#f9eeeb;color:#8b3c32}
+  .s.a{background:#fff4da;color:#795400}
+  .s.q{background:#f1f4f5;color:#536571}
+  .sfoot{margin:0;padding:13px 20px;background:var(--warm-50);border-top:1px solid var(--line);
+         font-size:11.5px;line-height:1.55;color:var(--slate-500)}
 
-  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
-  .card{background:var(--warm-50);border:1px solid var(--line);border-radius:var(--r-md);padding:24px}
-  .sec.alt .card{background:var(--warm-50)}
-  .card h3{margin:0 0 9px;font-size:17px}
-  .card p{margin:0;color:var(--slate-700);font-size:15px;line-height:1.6}
+  /* ---- roof system selector -------------------------------------------- */
+  .systems{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+  .sys{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);
+       border-radius:12px;overflow:hidden;transition:transform .18s,box-shadow .18s,border-color .18s}
+  .sys:hover,.sys:focus-visible{transform:translateY(-2px);border-color:#c3ced4;
+       box-shadow:0 14px 34px rgb(8 33 46/.10)}
+  .sys .plate{display:block;width:100%;height:auto;aspect-ratio:2/1}
+  .sys .body{padding:18px 20px 20px}
+  .sys .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .sys h3{font-size:19px;letter-spacing:-.02em;margin:0;color:var(--navy-950)}
+  .sys .arrow{flex:none;color:var(--slate-500);font-size:17px;line-height:1}
+  .sys:hover .arrow{color:var(--teal-600)}
+  .sys p{margin:6px 0 0;font-size:13.5px;line-height:1.5;color:var(--slate-500)}
+
+  /* ---- reasons + spec groups ------------------------------------------- */
+  .rcards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .rcard{background:var(--warm-50);border:1px solid var(--line);border-radius:12px;padding:26px}
+  .sec.white .rcard{background:var(--warm-50)}
+  .rcard h3{margin:0 0 9px;font-size:17.5px;letter-spacing:-.015em}
+  .rcard p{margin:0;color:var(--slate-700);font-size:14.5px;line-height:1.6}
   .num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
        border-radius:50%;background:var(--navy-950);color:var(--gold-500);font-weight:800;
-       font-size:14px;margin-bottom:12px}
+       font-size:14px;margin-bottom:14px}
 
-  /* Spec sheet preview — grouped exactly as the real tool groups it. */
-  .groups{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
-  .group{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:20px 22px}
-  .sec.alt .group{background:var(--warm-50)}
-  .group h3 em{font-style:normal;color:var(--slate-500);font-weight:600;text-transform:none;letter-spacing:0}
-  .group h3{margin:0 0 12px;font-size:15px;text-transform:uppercase;letter-spacing:.06em;
-            color:var(--teal-600)}
-  .group ul{list-style:none;margin:0;padding:0;display:grid;gap:9px}
-  .group li{font-size:14.5px;line-height:1.45;display:flex;gap:9px;align-items:flex-start;
+  /* Groups hold wildly different numbers of questions, and stretching each one
+     to its row-mate left a card that was mostly empty box. */
+  .groups{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;align-items:start}
+  .group{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 24px}
+  .sec.white .group{background:var(--warm-50)}
+  .group h3{margin:0 0 13px;font-size:12px;text-transform:uppercase;letter-spacing:.1em;
+            color:var(--teal-600);font-weight:750}
+  .group h3 em{font-style:normal;color:var(--slate-500);font-weight:600;
+               text-transform:none;letter-spacing:0}
+  .group ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+  .group li{font-size:14.5px;line-height:1.5;display:flex;gap:10px;align-items:flex-start;
             color:var(--slate-700)}
   .group li b{color:var(--navy-950);font-weight:650}
   .tick{flex:none;color:var(--gold-500);font-weight:800}
 
-  .steps{display:grid;gap:2px;background:var(--line);border-radius:var(--r-md);overflow:hidden;
-         border:1px solid var(--line)}
-  .step{background:#fff;padding:15px 20px;display:flex;gap:14px;align-items:center;font-size:15px}
-  .sec.alt .step{background:var(--warm-50)}
-  .step .dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--teal-500)}
-  .step b{font-weight:650}
+  /* ---- numbered steps + stages ----------------------------------------- */
+  .hsteps{display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
+  .hstep{padding-top:22px;border-top:1px solid var(--line)}
+  .hstep .n{display:block;color:var(--teal-600);font-size:13px;font-weight:750;margin-bottom:26px}
+  .hstep h3{font-size:19px;margin:0 0 8px;letter-spacing:-.02em}
+  .hstep p{margin:0;color:var(--slate-500);font-size:14.5px;line-height:1.6}
 
-  /* Start box */
-  .start{background:var(--navy-950);color:#fff;border-radius:var(--r-lg);padding:40px;
-         box-shadow:var(--shadow-lg)}
-  .start h2{margin:0 0 10px;font-size:clamp(24px,2.4vw,32px)}
-  .start p{color:rgb(255 255 255/.78);margin:0 0 22px;font-size:16px;line-height:1.6}
-  .f{display:grid;gap:12px;max-width:440px}
-  .f input{width:100%;padding:14px 15px;border-radius:var(--r-sm);border:1px solid rgb(255 255 255/.22);
-           background:rgb(255 255 255/.07);color:#fff;font:inherit;font-size:16px}
-  .f input::placeholder{color:rgb(255 255 255/.5)}
+  .stages{display:grid;gap:2px;background:var(--line);border-radius:12px;overflow:hidden;
+          border:1px solid var(--line)}
+  .stage{background:#fff;padding:15px 20px;display:flex;gap:14px;align-items:center;font-size:15px}
+  .sec.white .stage{background:var(--warm-50)}
+  .stage .dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--teal-600)}
+  .stage b{font-weight:650}
+
+  /* ---- start form ------------------------------------------------------- */
+  .startwrap{display:grid;grid-template-columns:1.08fr .92fr;gap:34px;align-items:start}
+  .start{background:#fff;border:1px solid var(--line);border-radius:14px;padding:32px;
+         box-shadow:0 18px 48px rgb(8 33 46/.07)}
+  .start h2{margin:0 0 8px;font-size:clamp(23px,2.3vw,30px);letter-spacing:-.03em}
+  .start > p{color:var(--slate-500);margin:0 0 24px;font-size:15px;line-height:1.6}
+  .fl{display:block;font-size:13px;font-weight:700;color:var(--navy-950);margin:0 0 9px}
+  /* The roof picker sits ahead of the files because the sheet it fills in is
+     different per system -- asking after the upload would mean re-reading. */
+  .rt{display:flex;flex-wrap:wrap;gap:9px;margin:0}
+  .rt input{position:absolute;opacity:0;pointer-events:none}
+  .rt label{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:10px 16px;
+            border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;
+            font-size:14px;font-weight:650;color:var(--navy-950);
+            transition:border-color .15s,background .15s}
+  .rt label:hover{border-color:#aebcc3}
+  .rt input:checked + label{border-color:var(--teal-600);background:#e9f4f0;color:var(--teal-600)}
+  .rt input:focus-visible + label{outline:2px solid var(--sky-500);outline-offset:2px}
+  .drop{display:block;border:1.5px dashed #b9c6cd;border-radius:12px;padding:20px;cursor:pointer;
+        background:var(--warm-50)}
+  .drop:hover,.drop:focus-within{border-color:var(--gold-500);background:#fffaf0}
+  .drop .dt{display:block;font-weight:750;font-size:16px;color:var(--navy-950)}
+  .drop .ds{display:block;font-size:13.5px;color:var(--slate-500);margin-top:4px;line-height:1.5}
+  .drop input[type=file]{display:block;margin-top:13px;font-size:13.5px;width:100%;
+        color:var(--slate-700)}
+  .drop .dn{display:block;font-size:12.5px;color:var(--slate-500);margin-top:9px}
+  .f{display:grid;gap:16px}
+  .f input[type=text],.f input[type=email]{width:100%;padding:14px 15px;border-radius:8px;
+           border:1px solid var(--line);background:#fff;color:var(--navy-950);font:inherit;
+           font-size:16px}
+  .f input::placeholder{color:#8d9aa2}
   .f button{min-height:54px;font-size:17px}
-  .fine{font-size:13px;color:rgb(255 255 255/.55);margin:14px 0 0;line-height:1.5}
-  /* Upload is the first thing in the box: the homeowner already has the PDFs,
-     and typing 22 lines by hand is why most comparisons never get finished. */
-  .drop{display:block;border:1.5px dashed rgb(255 255 255/.34);border-radius:var(--r-md);
-        padding:18px 16px;cursor:pointer;background:rgb(255 255 255/.05)}
-  .drop:hover,.drop:focus-within{border-color:var(--gold-500);background:rgb(255 255 255/.09)}
-  .drop .dt{display:block;font-weight:700;font-size:16px;color:#fff}
-  .drop .ds{display:block;font-size:13.5px;color:rgb(255 255 255/.66);margin-top:3px;line-height:1.45}
-  .drop input[type=file]{display:block;margin-top:11px;font-size:13.5px;color:rgb(255 255 255/.8);width:100%}
-  .drop .dn{display:block;font-size:12.5px;color:rgb(255 255 255/.5);margin-top:9px}
-  .err{background:rgb(184 68 59/.18);border:1px solid var(--danger);color:#ffd9d5;
-       padding:11px 14px;border-radius:var(--r-sm);font-size:14.5px;margin:0 0 16px}
+  .fine{font-size:12.5px;color:var(--slate-500);margin:18px 0 0;line-height:1.6}
+  .err{background:#f9eeeb;border:1px solid #d8a79f;color:#8b3c32;padding:12px 15px;
+       border-radius:8px;font-size:14.5px;margin:0 0 20px}
+  .aside{background:var(--navy-950);color:#fff;border-radius:14px;padding:30px}
+  .aside h3{margin:0 0 16px;font-size:19px;color:#fff;letter-spacing:-.02em}
+  .aside ul{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+  .aside li{display:flex;gap:12px;font-size:14.5px;line-height:1.55;color:rgb(255 255 255/.82)}
+  .aside li b{color:#fff;font-weight:650}
+  .aside .ck{flex:none;color:var(--gold-500);font-weight:800}
 
-  /* The sample needs 520px to stay a grid. Between the old 980px stack point
-     and about 1024px the column was squeezed under that and the comparison
-     scrolled sideways -- which is exactly the reading work this table exists
-     to remove. Stack sooner and give it the full width. */
+  /* ---- closing band ------------------------------------------------------ */
+  .band{background:var(--navy-950);color:#fff;border-radius:14px;padding:44px 48px;
+        display:flex;align-items:center;justify-content:space-between;gap:34px;flex-wrap:wrap}
+  .band h2{margin:0 0 8px;font-size:clamp(25px,2.7vw,36px);color:#fff;letter-spacing:-.035em}
+  .band p{margin:0;color:rgb(255 255 255/.76);font-size:16px}
+
   @media(max-width:1100px){
-    .ho-grid{grid-template-columns:1fr;gap:38px}
-    .cards,.groups{grid-template-columns:1fr}
-    .start{padding:28px}
+    .ho-grid,.split,.startwrap{grid-template-columns:1fr;gap:38px}
+    .split{align-items:start}
+    .split .sub{margin:0}
+    .systems{grid-template-columns:repeat(2,1fr)}
+    .rcards,.groups,.hsteps{grid-template-columns:1fr}
+    .hsteps{gap:28px}
+  }
+  @media(max-width:479px){
+    /* Three fixed items in one header row do not fit a 375px phone, and the
+       mark is the one that carries no information the wordmark lacks. */
+    .hdr .wrap{gap:12px}
+    .hdr .brand::before{display:none}
+    .hdr .brand{font-size:18px}
+    .hdr .cta-gold .lbl-long{display:none}
+    .hdr .cta-gold .lbl-short{display:inline}
+  }
+  @media(max-width:640px){
+    .sec{padding:60px 0}
+    .systems{grid-template-columns:1fr}
+    .start,.aside,.band{padding:24px}
+    .totals{grid-template-columns:1fr;gap:14px}
+    .totals .amt{font-size:19px}
   }
 {% endblock %}
 
 {% block body %}
 
+{#- Roof plates. Drawn, not photographed: we are not a roofer and have no job
+    photographs of our own, and the handoff's images carried another company's
+    credit line with no licence recorded. Each plate shows the one detail that
+    tells its system apart at a glance. -#}
+{% macro plate(kind) -%}
+<svg class="plate" viewBox="0 0 320 160" role="img" aria-label="{{ kind|capitalize }} roof"
+     preserveAspectRatio="xMidYMid slice" focusable="false">
+  <defs>
+    <linearGradient id="sky-{{ kind }}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8eef2"/><stop offset="1" stop-color="#f4f7f8"/>
+    </linearGradient>
+    {% if kind == 'tile' %}
+    <pattern id="p-{{ kind }}" width="26" height="18" patternUnits="userSpaceOnUse">
+      <rect width="26" height="18" fill="#c4714f"/>
+      <path d="M0 18a13 13 0 0 1 26 0z" fill="#d88863"/>
+      <path d="M0 18a13 13 0 0 1 26 0M-26 18a13 13 0 0 1 26 0M26 18a13 13 0 0 1 26 0"
+            fill="none" stroke="#9c5339" stroke-width="1.4"/>
+    </pattern>
+    {% elif kind == 'shingle' %}
+    <pattern id="p-{{ kind }}" width="36" height="30" patternUnits="userSpaceOnUse">
+      <rect width="36" height="30" fill="#55646d"/>
+      <rect y="1" width="36" height="13" fill="#6b7b85"/>
+      <rect y="16" width="36" height="13" fill="#63737d"/>
+      <path d="M0 15h36M0 30h36" stroke="#44515a" stroke-width="1.5"/>
+      <path d="M9 1v13M27 1v13" stroke="#4d5c65" stroke-width="1.6"/>
+      <path d="M0 16v13M18 16v13" stroke="#4d5c65" stroke-width="1.6"/>
+    </pattern>
+    {% elif kind == 'metal' %}
+    <pattern id="p-{{ kind }}" width="24" height="20" patternUnits="userSpaceOnUse">
+      <rect width="24" height="20" fill="#49575f"/>
+      <rect x="9" width="5" height="20" fill="#7d8c95"/>
+      <rect x="11" width="1.4" height="20" fill="#2f3b43"/>
+    </pattern>
+    {% else %}
+    <pattern id="p-{{ kind }}" width="44" height="44" patternUnits="userSpaceOnUse">
+      <rect width="44" height="44" fill="#d9ded9"/>
+      <path d="M0 .8h44M0 22.8h44" stroke="#c3c9c4" stroke-width="1.8"/>
+    </pattern>
+    {% endif %}
+  </defs>
+  <rect width="320" height="160" fill="url(#sky-{{ kind }})"/>
+  {% if kind == 'flat' %}
+    {# Low-slope reads as a plane you look across, with the parapet and the drain
+       that make edge metal and drainage the questions that matter on it. #}
+    <rect x="0" y="54" width="320" height="84" fill="url(#p-flat)"/>
+    <rect x="0" y="45" width="320" height="10" fill="#b9c0bb"/>
+    <rect x="0" y="41" width="320" height="5" fill="#9aa39e"/>
+    <circle cx="236" cy="104" r="12" fill="#9aa39e"/>
+    <circle cx="236" cy="104" r="5.5" fill="#6f7a76"/>
+    <rect x="0" y="138" width="320" height="22" fill="#e7eae7"/>
+  {% else %}
+    {# Pitched systems read as two planes meeting at a ridge, so the courses and
+       the fastening are both visible. #}
+    <path d="M160 40 320 116v26H0v-26z" fill="url(#p-{{ kind }})"/>
+    <path d="M160 40 320 116v9L160 52 0 125v-9z" fill="#ffffff" opacity=".18"/>
+    <path d="M160 40 320 116M160 40 0 116" stroke="#2c3940" stroke-width="2.8" fill="none"/>
+    <rect x="0" y="142" width="320" height="7" fill="#c9d1d4"/>
+    <rect x="0" y="149" width="320" height="11" fill="#eceeec"/>
+  {% endif %}
+</svg>
+{%- endmacro %}
+
 <section class="ho-hero">
   <div class="wrap ho-grid">
     <div>
-      <span class="eyebrow">Free · No contractor sees this</span>
-      <h1>Three roof quotes.<br>Three <span class="g">different roofs</span>.</h1>
-      <p class="lede">The prices aren't different because one contractor is greedy. They're
-        different because the quotes don't cover the same work — and the cheapest one is
-        usually the shortest one. Put all three on the same spec sheet and the gaps show up
-        on their own.</p>
+      <p class="eyebrow-rule">South Florida roofing</p>
+      <h1>Know what's in your roof quote <em>before you sign.</em></h1>
+      <p class="lede">See which materials and repairs each roofer includes. Get the
+        questions to ask before you choose.</p>
       <div class="ctas">
-        <a href="#start" class="btn btn-sky">Compare my quotes</a>
-        <a href="#sheet" class="btn btn-outline-gold">See what gets compared</a>
+        <a href="#start" class="btn cta-gold">Compare my quotes &rarr;</a>
+        <a href="#sheet" class="linkbtn">See what gets compared <span aria-hidden="true">&#8599;</span></a>
       </div>
+      <p class="hero-note"><span class="ck" aria-hidden="true">&#10003;</span>
+        <span>Free. No contractor is contacted, nothing is shared, and nobody calls you.</span></p>
     </div>
 
-    {# The product is a side-by-side, so the hero IS one. Three stacked cards
-       made a reader hold one quote in their head while finding the matching
-       line in the next -- the exact work the tool exists to remove. Labels are
-       the four states the sheet actually records, because a single red x was
-       doing duty for "excluded", "not stated" and "no price given", which are
+    {# The product is a side-by-side, so the hero is one. The labels are the four
+       states the sheet actually records, because a single red cross was doing
+       duty for "excluded", "not stated" and "no price given", which are
        different problems with different answers. #}
     <figure class="sample" aria-labelledby="sampleCap">
-      <figcaption id="sampleCap" class="scap">
-        <b>A worked example.</b> Three real-shaped quotes for one roof.
-        <span>Sample figures, not a price guide.</span>
+      <figcaption class="sample-top">
+        <b id="sampleCap">Decking allowance, three quotes for one roof</b>
+        <span class="tag">Illustrative sample</span>
       </figcaption>
+      <div class="totals">
+        <span class="rowlab"><span class="lb">Proposal overview</span>Quoted total</span>
+        <span><span class="lb">Quote A</span><span class="amt">$11,400</span></span>
+        <span><span class="lb">Quote B</span><span class="amt">$16,900</span></span>
+        <span><span class="lb">Quote C</span><span class="amt">$14,200</span></span>
+      </div>
       <div class="stw">
         <table class="st">
-          <thead>
-            <tr>
-              <th scope="col">Same roof, three quotes</th>
-              <th scope="col">Quote A</th>
-              <th scope="col">Quote B</th>
-              <th scope="col">Quote C</th>
-            </tr>
-          </thead>
           <tbody>
-            <tr class="price">
-              <th scope="row">Price as quoted</th>
-              <td>$11,400</td><td>$16,900</td><td>$14,200</td>
-            </tr>
             <tr>
-              <th scope="row">Tear-off</th>
+              <th scope="row">Decking allowance<small>Sheets included in the quote</small></th>
               <td><i class="s q">Not stated</i></td>
-              <td><i class="s y">Full, to the deck</i></td>
-              <td><i class="s y">Full, to the deck</i></td>
+              <td><span class="val">3 sheets</span></td>
+              <td><i class="s a">Priced as needed</i></td>
             </tr>
             <tr>
-              <th scope="row">Rotten decking</th>
-              <td><i class="s n">No allowance</i></td>
-              <td><i class="s y">3 sheets, then $95 each</i></td>
-              <td><i class="s a">&ldquo;Priced as needed&rdquo;</i></td>
-            </tr>
-            <tr>
-              <th scope="row">Flashing</th>
-              <td><i class="s n">Re-used</i></td>
-              <td><i class="s y">All new</i></td>
-              <td><i class="s y">All new</i></td>
-            </tr>
-            <tr>
-              <th scope="row">Workmanship warranty</th>
+              <th scope="row">Additional decking rate<small>Price for each extra sheet</small></th>
               <td><i class="s q">Not stated</i></td>
-              <td><i class="s y">10 years, transferable</i></td>
-              <td><i class="s y">2 years</i></td>
+              <td><span class="val">$95 per sheet</span></td>
+              <td><i class="s q">Not stated</i></td>
             </tr>
-            <tr class="askrow">
-              <th scope="row">What to ask</th>
-              <td>What does each replacement sheet cost?</td>
-              <td>Does the $95 include labor and disposal?</td>
-              <td>Can the per-sheet price go in writing before I sign?</td>
+            <tr>
+              <th scope="row">Workmanship warranty<small>Written coverage term</small></th>
+              <td><i class="s q">Not stated</i></td>
+              <td><span class="val">10 years</span></td>
+              <td><span class="val">2 years</span></td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="skey">
-        <i class="s y">In writing</i><i class="s n">Excluded</i>
-        <i class="s a">Allowance</i><i class="s q">Not stated</i>
-      </p>
-      <p class="sfoot">The cheapest quote is the one that says least. Which is cheapest
-        once all three cover the same work is the question &mdash; and it is answerable.</p>
+      <p class="sfoot">&ldquo;Not stated&rdquo; means the written proposal leaves the item
+        open. Ask for it in writing before you compare final costs.</p>
     </figure>
+  </div>
 </section>
 
-<section class="sec" id="why">
+<section class="sec white" id="systems">
   <div class="wrap">
-    <h2 class="h2">Why the numbers don't line up</h2>
-    <p class="sub">A roof quote is a one-page number sitting on top of about twenty decisions.
-      Contractors who make those decisions explicitly look expensive next to contractors
-      who leave them out — right up until the work starts.</p>
-    <div class="cards">
-      <div class="card">
+    <div class="split">
+      <h2 class="h2">What kind of roof are you comparing?</h2>
+      <p class="sub">Choose a system to see its questions. The sheet follows your roof &mdash;
+        a tile job and a shingle job are not asked the same things.</p>
+    </div>
+    <div class="systems">
+      <a class="sys" href="#start" data-roof="tile">
+        {{ plate('tile') }}
+        <span class="body">
+          <span class="row"><h3>Tile</h3><span class="arrow" aria-hidden="true">&rarr;</span></span>
+          <p>Underlayment and tile attachment</p>
+        </span>
+      </a>
+      <a class="sys" href="#start" data-roof="shingle">
+        {{ plate('shingle') }}
+        <span class="body">
+          <span class="row"><h3>Shingle</h3><span class="arrow" aria-hidden="true">&rarr;</span></span>
+          <p>Starter strips and warranty options</p>
+        </span>
+      </a>
+      <a class="sys" href="#start" data-roof="metal">
+        {{ plate('metal') }}
+        <span class="body">
+          <span class="row"><h3>Metal</h3><span class="arrow" aria-hidden="true">&rarr;</span></span>
+          <p>Panel profile and fastener details</p>
+        </span>
+      </a>
+      <a class="sys" href="#start" data-roof="flat">
+        {{ plate('flat') }}
+        <span class="body">
+          <span class="row"><h3>Flat / low-slope</h3><span class="arrow" aria-hidden="true">&rarr;</span></span>
+          <p>Membranes, drainage and flashing</p>
+        </span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="sec tint" id="why">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <p class="eyebrow-rule teal">Why the numbers differ</p>
+        <h2 class="h2">The cheapest quote <em>is the shortest one.</em></h2>
+      </div>
+      <p class="sub">A roof quote is a one-page number sitting on top of about twenty
+        decisions. Contractors who make those decisions explicitly look expensive next to
+        contractors who leave them out &mdash; right up until the work starts.</p>
+    </div>
+    <div class="rcards">
+      <div class="rcard">
         <span class="num">1</span>
         <h3>What's left off isn't visible</h3>
-        <p>Nothing on a short quote says "re-using your old flashing" or "no allowance for
-          rotten wood." It just isn't there, and there's no line to compare it against.</p>
+        <p>Nothing on a short quote says &ldquo;re-using your old flashing&rdquo; or
+          &ldquo;no allowance for rotten wood.&rdquo; It just isn't there, and there's no
+          line to compare it against.</p>
       </div>
-      <div class="card">
+      <div class="rcard">
         <span class="num">2</span>
         <h3>The open items land on you later</h3>
-        <p>"Decking priced as needed" is not a price. Once the old roof is off and the crew
-          is on site, you're negotiating from the worst possible position.</p>
+        <p>&ldquo;Decking priced as needed&rdquo; is not a price. Once the old roof is off
+          and the crew is on site, you're negotiating from the worst possible position.</p>
       </div>
-      <div class="card">
+      <div class="rcard">
         <span class="num">3</span>
         <h3>Warranties have conditions nobody reads</h3>
         <p>The long manufacturer warranty usually needs a certified installer and a
@@ -254,21 +485,25 @@
   </div>
 </section>
 
-<section class="sec alt" id="sheet">
+<section class="sec" id="sheet">
   <div class="wrap">
-    <h2 class="h2">The spec sheet — {{ spec_count }} line items</h2>
-    <p class="sub">The sheet follows your roof: a tile job gets asked about adhesive foam
-      patterns and underlayment laps, a shingle job about starter strip and ridge cap.
-      For each quote you mark whether the contractor put the line in writing.
-      Anything that isn't a clear yes becomes a question, worded for you to ask on the phone.
-      You'll know which quote is actually cheapest once they all cover the same roof.</p>
+    <div class="split">
+      <div>
+        <p class="eyebrow-rule teal">The spec sheet &middot; {{ spec_count }} line items</p>
+        <h2 class="h2">What to ask <em>before the roof goes on.</em></h2>
+      </div>
+      <p class="sub">For each quote you mark whether the contractor put the line in
+        writing. Anything that isn't a clear yes becomes a question, worded for you to ask
+        on the phone. You'll know which quote is actually cheapest once they all cover the
+        same roof.</p>
+    </div>
     <div class="groups">
       {% for g in spec %}
       <div class="group">
         <h3>{{ g.name }}{% if 'all' not in g.types %} <em>&middot; {{ g.types|join(', ') }} roofs</em>{% endif %}</h3>
         <ul>
           {% for i in g['items'] if i.featured %}
-          <li><span class="tick">&#10003;</span><span><b>{{ i.label }}</b>{% if i.why %} — {{ i.why }}{% endif %}</span></li>
+          <li><span class="tick">&#10003;</span><span><b>{{ i.label }}</b>{% if i.ask %} &mdash; {{ i.ask }}{% endif %}</span></li>
           {% endfor %}
         </ul>
       </div>
@@ -277,47 +512,116 @@
   </div>
 </section>
 
+<section class="sec white" id="how">
+  <div class="wrap">
+    <h2 class="h2" style="margin-bottom:38px">How the comparison works</h2>
+    <div class="hsteps">
+      <div class="hstep">
+        <span class="n">01</span>
+        <h3>Add a proposal</h3>
+        <p>Start with a PDF or a photo. Add another proposal whenever you have one &mdash;
+          or read it out loud and we'll write it down.</p>
+      </div>
+      <div class="hstep">
+        <span class="n">02</span>
+        <h3>Review the details</h3>
+        <p>Check the products, allowances and prices against the contractor's own wording.
+          Nothing is treated as fact until you confirm it.</p>
+      </div>
+      <div class="hstep">
+        <span class="n">03</span>
+        <h3>Ask for written answers</h3>
+        <p>Take a short question list back to each roofer before you sign, worded so the
+          answer has to be specific.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="sec" id="track">
   <div class="wrap">
-    <h2 class="h2">Then keep track of the job</h2>
-    <p class="sub">Picking a contractor is the middle of it, not the end. Your workspace
-      follows the job to the finish, and tells you what you should have in your hand at
-      each stage.</p>
-    <div class="steps">
+    <div class="split">
+      <h2 class="h2">Then keep track of the job</h2>
+      <p class="sub">Picking a contractor is the middle of it, not the end. Your workspace
+        follows the job to the finish, and tells you what you should have in your hand at
+        each stage.</p>
+    </div>
+    <div class="stages">
       {% for s in stages %}
-      <div class="step"><span class="dot"></span><span><b>{{ s.label }}</b> — {{ s.todo[0] }}</span></div>
+      <div class="stage"><span class="dot"></span><span><b>{{ s.label }}</b> &mdash; {{ s.todo[0] }}</span></div>
       {% endfor %}
     </div>
   </div>
 </section>
 
-<section class="sec alt" id="start">
-  <div class="wrap">
+<section class="sec white" id="start">
+  <div class="wrap startwrap">
     <div class="start">
       {% if request.args.get('err') %}
-      <p class="err">That doesn't look like an email address — try again and we'll send your link.</p>
+      <p class="err">That doesn't look like an email address &mdash; try again and we'll send your link.</p>
       {% endif %}
       <h2>Start your comparison</h2>
-      <p>Your email is the key to your workspace, so you can come back to it from your
-        phone while a contractor is standing in your driveway.</p>
+      <p>Start with one written proposal. Add others to compare the details side by side.</p>
       <form class="f" method="post" enctype="multipart/form-data"
             action="{{ url_for('compare.landing_upload') }}">
+        <div>
+          <span class="fl" id="rtLabel">Roof type</span>
+          <div class="rt" role="radiogroup" aria-labelledby="rtLabel">
+            {% for key, label in [('tile','Tile'),('shingle','Shingle'),('metal','Metal'),
+                                  ('flat','Flat / low-slope'),('','Not sure')] %}
+            <input type="radio" name="roof_type" id="rt-{{ key or 'any' }}" value="{{ key }}"
+                   {% if not key %}checked{% endif %}>
+            <label for="rt-{{ key or 'any' }}">{{ label }}</label>
+            {% endfor %}
+          </div>
+        </div>
         <label class="drop" for="quotes">
-          <span class="dt">Upload your quotes</span>
-          <span class="ds">PDFs or photos of the paperwork &mdash; up to 6. We read them and fill the sheet in for you.</span>
+          <span class="dt">Drop your proposals here</span>
+          <span class="ds">PDFs or photos of the paperwork &mdash; up to 6. We read them and
+            fill the sheet in for you.</span>
           <input id="quotes" name="quotes" type="file" accept="application/pdf,.pdf,image/*" multiple>
           <span class="dn" id="dropNote">No files chosen &mdash; on a phone this opens your camera too.</span>
         </label>
         <input type="text" name="name" placeholder="Your name (optional)" autocomplete="name">
         <input type="email" name="email" required placeholder="you@email.com" autocomplete="email">
         <input type="text" name="address" placeholder="Property address (optional)" autocomplete="street-address">
-        <button class="btn cta-gold" type="submit">Read my quotes</button>
+        <button class="btn cta-gold" type="submit">Start my comparison &rarr;</button>
       </form>
-      <p class="fine">We read what each PDF puts in writing and fill in the sheet &mdash;
-        then you check it before anything is compared. Nothing is treated as fact until
-        you say so. No contractor is contacted and nothing is shared. We don't sell your
-        details, we don't bid on your roof, and nobody calls you. If you already started,
-        enter the same email to get back in.</p>
+      <p class="fine">Your email is the key to your workspace, so you can come back to it
+        from your phone while a contractor is standing in your driveway. We read what each
+        PDF puts in writing and fill in the sheet &mdash; then you check it before anything
+        is compared. Nothing is treated as fact until you say so. We don't sell your
+        details, we don't bid on your roof, and nobody calls you.</p>
+    </div>
+
+    <aside class="aside">
+      <h3>What you'll see</h3>
+      <ul>
+        <li><span class="ck" aria-hidden="true">&#10003;</span>
+          <span><b>A line-by-line view</b> of what each proposal includes, in the
+            contractor's own wording.</span></li>
+        <li><span class="ck" aria-hidden="true">&#10003;</span>
+          <span><b>Four states per line</b> &mdash; in writing, excluded, an allowance, or
+            not stated at all. They are different problems.</span></li>
+        <li><span class="ck" aria-hidden="true">&#10003;</span>
+          <span><b>A question list per quote</b>, worded so the answer has to be specific
+            enough to compare.</span></li>
+        <li><span class="ck" aria-hidden="true">&#10003;</span>
+          <span><b>Every gap flagged</b> where one quote covers something the others
+            leave open.</span></li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="band">
+      <div>
+        <h2>Have a roof quote in hand?</h2>
+        <p>Start with one proposal. Add more when you're ready.</p>
+      </div>
+      <a href="#start" class="btn cta-gold">Compare my quotes &rarr;</a>
     </div>
   </div>
 </section>
@@ -327,12 +631,22 @@
 // after a pick is the commonest reason someone submits an empty form.
 (function () {
   var i = document.getElementById('quotes'), n = document.getElementById('dropNote');
-  if (!i || !n) return;
-  i.addEventListener('change', function () {
-    var f = i.files;
-    n.textContent = !f || !f.length
-      ? 'No files chosen — on a phone this opens your camera too.'
-      : (f.length === 1 ? f[0].name : f.length + ' files ready to read');
+  if (i && n) {
+    i.addEventListener('change', function () {
+      var f = i.files;
+      n.textContent = !f || !f.length
+        ? 'No files chosen \u2014 on a phone this opens your camera too.'
+        : (f.length === 1 ? f[0].name : f.length + ' files ready to read');
+    });
+  }
+  // The roof cards are the same choice as the picker in the form, so clicking
+  // one should arrive at the form with that answer already given rather than
+  // asking the same question again further down the page.
+  Array.prototype.forEach.call(document.querySelectorAll('.sys[data-roof]'), function (a) {
+    a.addEventListener('click', function () {
+      var r = document.getElementById('rt-' + a.getAttribute('data-roof'));
+      if (r) { r.checked = true; }
+    });
   });
 })();
 </script>

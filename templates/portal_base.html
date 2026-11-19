@@ -207,7 +207,11 @@ footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
      reading links and no way to start. Keep it, just smaller. */
   .hdr .cta-gold{padding:9px 14px;font-size:14px}
 }
-@media(max-width:479px){.btn,.cta-gold{width:100%}.ctas{flex-direction:column}}
+/* width:100% is for the in-body buttons. Applied to the header CTA it stretched
+   a flex child in a one-line row and pushed the document past the viewport, so
+   every page scrolled sideways on a phone. */
+@media(max-width:479px){.btn,.cta-gold{width:100%}.hdr .cta-gold{width:auto}
+  .ctas{flex-direction:column}}
 
 /* --- roofer page additions, same tokens --- */
 .painrow{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}

@@ -571,6 +571,15 @@ def landing():
                            acquire_url="/acquire")
 
 
+def _posted_roof_type():
+    """The front page now asks which system before the files go up, because the
+    sheet it fills in is different per system. "Not sure" posts empty, which is
+    a real answer -- it means ask everything -- so it is stored as empty rather
+    than rejected."""
+    rt = (request.form.get("roof_type") or "").strip().lower()
+    return rt if rt in ROOF_TYPE_KEYS else ""
+
+
 @bp.route("/compare/start", methods=["POST"], endpoint="start")
 def start():
     email = (request.form.get("email") or "").strip()[:200]
@@ -589,6 +598,7 @@ def start():
         "created": db.now(), "token": token, "email": email, "name": name,
         "address": (request.form.get("address") or "").strip()[:200],
         "city": "", "state": "", "zip": "", "stage": "comparing", "notes": "",
+        "roof_type": _posted_roof_type(),
         "source_host": (request.host or "")[:120], "last_seen": db.now()})
     _log("compare_start")
     return redirect(url_for("compare.project", token=token))
@@ -602,10 +612,17 @@ def landing_upload():
     email = (request.form.get("email") or "").strip()[:200]
     if not _EMAIL_RE.match(email):
         return redirect(url_for("compare.landing") + "?err=1#start")
+    rt = _posted_roof_type()
     prior = db.all_rows("ho_projects", "email=?", (email,), "id DESC", 1)
     if prior:
         p = prior[0]
-        db.update("ho_projects", p["id"], last_seen=db.now())
+        # Returning with an answer fills a blank, but never overwrites a system
+        # the homeowner already set inside their own workspace.
+        fields = {"last_seen": db.now()}
+        if rt and not (p.get("roof_type") or "").strip():
+            fields["roof_type"] = rt
+        db.update("ho_projects", p["id"], **fields)
+        p = db.all_rows("ho_projects", "id=?", (p["id"],), "id DESC", 1)[0]
     else:
         token = _tok()
         db.insert("ho_projects", {
@@ -613,6 +630,7 @@ def landing_upload():
             "name": (request.form.get("name") or "").strip()[:120],
             "address": (request.form.get("address") or "").strip()[:200],
             "city": "", "state": "", "zip": "", "stage": "comparing", "notes": "",
+            "roof_type": rt,
             "source_host": (request.host or "")[:120], "last_seen": db.now()})
         p = db.all_rows("ho_projects", "token=?", (token,), "id DESC", 1)[0]
     n = _ingest_files(p, request.files.getlist("quotes"))
