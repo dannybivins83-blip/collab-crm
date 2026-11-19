@@ -203,6 +203,20 @@
   .q .arrow{flex:none;color:var(--slate-500);font-size:18px}
   .q:hover .arrow{color:var(--teal-600)}
   .askphoto{margin:26px 0 0}
+  /* The direct-to-deck question is about something you can only see in section,
+     so it gets a drawing rather than another roof photograph. */
+  .assembly{margin:26px 0 0;padding:18px 20px;background:#fff;border:1px solid var(--line);
+            border-radius:12px}
+  .assembly figcaption{font-size:11px;font-weight:750;letter-spacing:.1em;
+       text-transform:uppercase;color:var(--teal-600);margin-bottom:13px}
+  .asm-pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .asm svg{width:100%;height:auto;border-radius:8px;display:block;background:#eef2f4}
+  .asm b{display:block;font-size:14.5px;color:var(--navy-950);margin:9px 0 2px;
+         letter-spacing:-.01em}
+  .asm span{display:block;font-size:13px;line-height:1.5;color:var(--slate-500)}
+  .assembly > p{margin:14px 0 0;font-size:13px;line-height:1.55;color:var(--slate-500)}
+  @media(max-width:560px){.asm-pair{grid-template-columns:1fr;gap:18px}}
+
   /* The underlayment photo has a manufacturer's name printed across the roll.
      The questions on this page were deliberately de-branded, because a
      homeowner may be holding three quotes naming three different brands, so
@@ -493,6 +507,50 @@
         tile job is not asked the same things as a shingle job.</p>
       <p style="margin:22px 0 0"><a href="#start" class="linkbtn">Start my comparison
         <span aria-hidden="true">&rarr;</span></a></p>
+      {# Two quotes can both say "underlayment" and mean these two different
+         things. No photograph we hold shows both, and a photograph of one is
+         not a comparison, so this is drawn -- a cross-section of each, to the
+         same scale, which is the only way the difference is visible at all. #}
+      <figure class="assembly">
+        <figcaption>Two ways the same word is used</figcaption>
+        <div class="asm-pair">
+          <div class="asm">
+            <svg viewBox="0 0 220 104" role="img"
+                 aria-label="Cross-section: deck, mechanically fastened base sheet, then a cap sheet">
+              <rect x="0" y="70" width="220" height="30" fill="#c8b393"/>
+              <path d="M0 70h220M0 78h220M0 86h220" stroke="#b09a79" stroke-width="1.2"/>
+              <rect x="0" y="56" width="220" height="14" fill="#6f7f8a"/>
+              <rect x="0" y="44" width="220" height="12" fill="#39474f"/>
+              {% for x in [18, 58, 98, 138, 178] %}
+              <circle cx="{{ x }}" cy="63" r="4" fill="#d9a52e"/>
+              <rect x="{{ x - 1 }}" y="63" width="2" height="9" fill="#9a7512"/>
+              {% endfor %}
+              <text x="6" y="40" font-size="9" fill="#39474f" font-weight="700">Cap sheet</text>
+              <text x="6" y="53" font-size="8" fill="#fff" font-weight="700">Base sheet, fastened</text>
+              <text x="6" y="97" font-size="8" fill="#6b5436" font-weight="700">Roof deck</text>
+            </svg>
+            <b>Base sheet first</b>
+            <span>A fastened sheet goes down, then the cap bonds to it. Two layers.</span>
+          </div>
+          <div class="asm">
+            <svg viewBox="0 0 220 104" role="img"
+                 aria-label="Cross-section: deck with a single membrane adhered straight onto it">
+              <rect x="0" y="70" width="220" height="30" fill="#c8b393"/>
+              <path d="M0 70h220M0 78h220M0 86h220" stroke="#b09a79" stroke-width="1.2"/>
+              <rect x="0" y="56" width="220" height="14" fill="#39474f"/>
+              <path d="M0 70h220" stroke="#0d6867" stroke-width="3" stroke-dasharray="6 4"/>
+              <text x="6" y="52" font-size="9" fill="#39474f" font-weight="700">Membrane</text>
+              <text x="6" y="66" font-size="8" fill="#fff" font-weight="700">Adhered to the deck</text>
+              <text x="6" y="97" font-size="8" fill="#6b5436" font-weight="700">Roof deck</text>
+            </svg>
+            <b>Direct to deck</b>
+            <span>One membrane sticks straight to the wood. No sheet underneath.</span>
+          </div>
+        </div>
+        <p>Both get called &ldquo;underlayment&rdquo;. Which one a quote means changes what it
+          costs, what the manufacturer will warrant and what happens when the deck moves.
+          A drawing, not a photograph of your roof.</p>
+      </figure>
       <figure class="askphoto">
         {{ photo('under') }}
         <figcaption>Underlayment and edge details go on before the tile does, which is

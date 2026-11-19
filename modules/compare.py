@@ -1025,10 +1025,20 @@ def landing():
     # ones that move money on every job.
     pool = [i for g in SPEC for i in g["items"] if i.get("featured") and i.get("ask")]
     general = ["vet_15", "vet_26", "vet_31", "vet_07"]
-    by_key = {i["key"]: i for i in pool}
+    # Two lead every set regardless of roof. Whether the company is licensed AND
+    # insured is the one question that applies before any roofing detail does,
+    # and direct-to-deck versus a fastened base sheet is the assembly decision
+    # that separates two tile quotes that otherwise read the same.
+    LEAD = ["vet_02", "vet_13"]
+    by_key = {i["key"]: i for g in SPEC for i in g["items"] for i in [i]
+              if i.get("ask")}
 
     def _four(rt):
         out, seen = [], set()
+        for k in LEAD:
+            i = by_key.get(k)
+            if i and (not rt or rt in (i.get("types") or ())):
+                out.append(i); seen.add(k)
         if rt:
             # Most specific first: a line tagged for this roof alone says more
             # about it than one shared with two others. Without this a membrane
