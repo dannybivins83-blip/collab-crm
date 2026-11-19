@@ -9,21 +9,100 @@
 <meta name="robots" content="noindex,nofollow">
 {% endblock %}
 
+{% block brand %}
+<a href="/" class="brand brand-lockup">
+  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 13 12 6l8 7"/><path d="M4 18l8-7 8 7"/>
+  </svg>MyRoofPortal</a>
+{% endblock %}
+
 {% block nav %}
 <nav class="nav" id="nav" aria-label="Primary">
-  <a href="#compare">Compare</a>
-  <a href="#questions">Questions to ask</a>
-  <a href="#quotes">My quotes</a>
+  <a href="#compare">Workspace</a>
   <a href="#track">Track the job</a>
 </nav>
 {% endblock %}
 {% block headercta %}<a href="#add" class="cta-gold">Add a quote</a>{% endblock %}
 
 {% block style %}
-  .pg{padding:34px 0 80px}
-  .ph{background:var(--navy-950);color:#fff;padding:30px 0 34px;margin-bottom:34px}
-  .ph h1{margin:0 0 6px;font-size:clamp(23px,2.5vw,32px);letter-spacing:-.01em}
-  .ph p{margin:0;color:rgb(255 255 255/.7);font-size:15px}
+  /* Same design-handoff tokens as the front page, so the workspace a homeowner
+     lands in is visibly the same product they started from. */
+  :root{
+    --navy-950:#08212e; --navy-900:#143746; --navy-800:#1d4858;
+    --gold-500:#d9a52e; --gold-100:#fff2cf;
+    --teal-600:#0d6867; --teal-500:#0d6867;
+    --warm-50:#f6f7f2;
+    --slate-700:#263e4a; --slate-500:#526672; --line:#dbe3e7;
+    --serif:Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif;
+  }
+  .hdr{background:rgb(246 247 242/.97);backdrop-filter:blur(12px);
+       border-bottom:1px solid rgb(8 33 46/.09);box-shadow:none}
+  .hdr .wrap{height:80px}
+  .brand-lockup{display:inline-flex;align-items:center;gap:11px;color:var(--navy-950);
+       font-size:23px;font-weight:800;letter-spacing:-.03em}
+  .brand-lockup svg{flex:none;width:38px;height:38px;padding:9px;border-radius:11px;
+       background:var(--navy-950);color:#fff;box-sizing:border-box}
+  .hdr .nav a{color:var(--slate-700);font-weight:600}
+  .hdr .nav a:hover{color:var(--teal-600)}
+  .hdr .navtoggle{color:var(--navy-950);border-color:var(--line)}
+
+  .pg{padding:30px 0 80px}
+  /* The page head is the mockup's: title and one line of purpose on the left,
+     the roof this comparison is about on the right. */
+  .ph{padding:34px 0 26px}
+  .ph .wrap{display:flex;align-items:flex-start;justify-content:space-between;gap:30px;
+            flex-wrap:wrap}
+  .ph h1{margin:0 0 8px;font-size:clamp(28px,3.1vw,42px);letter-spacing:-.04em;
+         color:var(--navy-950)}
+  .ph p{margin:0;color:var(--slate-500);font-size:16px;max-width:52ch}
+  .roofchip{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);
+            border-radius:12px;padding:12px;min-width:258px;box-shadow:0 2px 10px rgb(8 33 46/.04)}
+  .roofchip img{width:84px;height:62px;object-fit:cover;border-radius:8px;flex:none}
+  .roofchip .lb{display:block;font-size:10px;font-weight:750;letter-spacing:.12em;
+                text-transform:uppercase;color:var(--slate-500);margin-bottom:3px}
+  .roofchip b{display:block;font-size:19px;letter-spacing:-.025em;color:var(--navy-950)}
+  .roofchip small{display:block;font-size:13px;color:var(--slate-500);margin-top:1px}
+
+  /* Scope / contractor / questions, as the mockup separates them. Without
+     JavaScript every panel simply stays visible. */
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line);
+        padding-bottom:0;margin:0 0 26px}
+  .tabs button{display:inline-flex;align-items:center;gap:9px;background:transparent;
+       border:0;border-radius:9px 9px 0 0;padding:13px 19px;font-size:14.5px;font-weight:650;
+       color:var(--slate-500);cursor:pointer;position:relative;top:1px}
+  .tabs button:hover{color:var(--navy-950)}
+  .tabs button[aria-selected="true"]{background:var(--navy-950);color:#fff}
+  .tabs button i{font-style:normal;font-size:14px;opacity:.8}
+
+  /* The quoted totals, as the mockup's dark overview strip. */
+  .totals{display:grid;background:var(--navy-950);color:#fff;border-radius:12px 12px 0 0;
+          padding:18px 22px;gap:14px;align-items:end;margin:0}
+  .totals .lb{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.11em;
+       text-transform:uppercase;color:rgb(255 255 255/.6);margin-bottom:6px}
+  .totals .rowlab{font-size:15px;font-weight:700}
+  .totals .amt{font-size:25px;font-weight:800;letter-spacing:-.025em;
+               font-variant-numeric:tabular-nums}
+  .totals .badge{display:inline-flex;align-items:center;justify-content:center;width:19px;
+       height:19px;border-radius:50%;background:rgb(255 255 255/.16);color:#fff;
+       font-size:10px;font-weight:800;flex:none}
+
+  @media(max-width:640px){
+    /* The column count is written inline because it follows the number of
+       quotes, so overriding it needs the weight. On a phone the totals read
+       down the page instead of being squeezed across it. */
+    .totals{grid-template-columns:1fr!important;gap:16px;border-radius:12px}
+    .totals .amt{font-size:22px}
+    .ph .wrap{gap:18px}
+    .roofchip{min-width:0;width:100%}
+    .tabs button{padding:12px 14px;font-size:13.5px}
+  }
+  @media(max-width:479px){
+    .hdr .wrap{gap:12px;height:72px}
+    .brand-lockup{font-size:18px;gap:8px}
+    .brand-lockup svg{width:32px;height:32px;padding:7px}
+    .hdr .cta-gold{width:auto;padding:9px 13px;font-size:13.5px}
+  }
   .blk{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);
        padding:26px 28px;margin-bottom:24px}
   .blk h2{margin:0 0 6px;font-size:21px;letter-spacing:-.01em}
@@ -42,8 +121,16 @@
   table.cmp td.k{font-weight:650;color:var(--navy-950);width:34%}
   .gh{background:var(--warm-50);font-weight:800;font-size:12.5px;text-transform:uppercase;
       letter-spacing:.07em;color:var(--teal-600)}
-  .mk{font-weight:800;font-size:16px}
-  .mk.y{color:var(--success)} .mk.n{color:var(--danger)} .mk.q{color:var(--slate-500)}
+  /* A tick, a cross and a question mark made "excluded" and "not stated" look
+     like the same problem. They are not: one is a decision the contractor made
+     and the other is a question nobody has answered yet. The copy spec asks for
+     these four to be distinguishable, so each carries its own word. */
+  .mk{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;
+      padding:4px 10px;border-radius:6px;line-height:1.35;white-space:nowrap}
+  .mk::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+  .mk.y{background:#e9f4f0;color:var(--teal-600)}
+  .mk.n{background:#f9eeeb;color:#8b3c32}
+  .mk.q{background:#f1f4f5;color:#536571}
   .det{display:block;color:var(--slate-500);font-size:13px;margin-top:2px;font-weight:400}
   .pricerow td{font-weight:800;font-size:17px;font-variant-numeric:tabular-nums;
                background:var(--warm-50)}
@@ -182,14 +269,45 @@
 
 {% block body %}
 
+{% set ROOFPIC = {'tile':('south-florida-plan-baseline.webp','Tile roof'),
+                  'shingle':('shingle-roof-wear-signs.webp','Shingle roof'),
+                  'metal':('south-florida-plan-storm.webp','Metal roof'),
+                  'flat':('ponding-water-flat-roof.webp','Flat / low-slope roof')} %}
 <div class="ph">
   <div class="wrap">
-    <h1>{{ p.name or 'Your' }}{% if not p.name %}{% else %}&rsquo;s{% endif %} roof comparison</h1>
-    <p>{{ p.address or 'Bookmark this page — the link in your email is the way back in.' }}</p>
+    <div>
+      <h1>Compare your proposals</h1>
+      <p>{% if quotes %}Review the same scope items across
+         {{ quotes|length }} written quote{{ '' if quotes|length == 1 else 's' }}.{% else %}
+         Add your quotes and the same scope items line up across all of them.{% endif %}
+         {% if p.address %}<br>{{ p.address }}{% endif %}</p>
+    </div>
+    {# The roof the sheet is following. It is the one fact that changes which
+       questions get asked, so it belongs where it can be seen and corrected. #}
+    {% if roof_type in ROOFPIC %}
+    <a class="roofchip" href="#compare">
+      <img src="{{ url_for('static', filename='img/roof/' + ROOFPIC[roof_type][0]) }}"
+           alt="{{ ROOFPIC[roof_type][1] }}" loading="lazy" decoding="async">
+      <span>
+        <span class="lb">Roof system</span>
+        <b>{{ ROOFPIC[roof_type][1] }}</b>
+        <small>{{ counts.featured }} key questions</small>
+      </span>
+    </a>
+    {% endif %}
   </div>
 </div>
 
 <div class="wrap pg">
+
+  {# Scope / contractor / questions, as the mockup separates them. The panels
+     are the sections that already exist; without JavaScript they all stay
+     visible and the page reads exactly as it did before. #}
+  <div class="tabs" role="tablist" id="wsTabs" hidden>
+    <button type="button" role="tab" data-panel="compare" aria-selected="true"><i aria-hidden="true">&#9636;</i>Scope</button>
+    <button type="button" role="tab" data-panel="quotes" aria-selected="false"><i aria-hidden="true">&#9783;</i>Contractor &amp; evidence</button>
+    <button type="button" role="tab" data-panel="questions" aria-selected="false"><i aria-hidden="true">?</i>Questions</button>
+  </div>
 
   {# ---------------- where the quotes disagree ---------------- #}
   <section class="blk" id="compare">
@@ -237,14 +355,23 @@
     {% endif %}
 
     {% if quotes %}
-    <div class="tw" style="margin-top:24px">
+    {# The quoted totals, read first and kept out of the scrolling table so the
+       numbers being compared never scroll away from the lines explaining them. #}
+    <div class="totals" style="margin-top:24px;grid-template-columns:1.2fr repeat({{ quotes|length }},1fr)">
+      <span class="rowlab"><span class="lb">Proposal overview</span>Quoted total</span>
+      {% for q in quotes %}
+      <span>
+        <span class="lb"><span class="badge">{{ loop.index0 | string | replace('0','A') | replace('1','B') | replace('2','C') | replace('3','D') | replace('4','E') }}</span>{{ q.contractor }}</span>
+        <span class="amt">{{ q.price or '&mdash;' | safe }}</span>
+      </span>
+      {% endfor %}
+    </div>
+    <div class="tw" style="margin-top:0">
       <table class="cmp">
         <thead>
           <tr><th>Line item</th>{% for q in quotes %}<th>{{ q.contractor }}</th>{% endfor %}</tr>
         </thead>
         <tbody>
-          <tr class="pricerow"><td class="k">Price as quoted</td>
-            {% for q in quotes %}<td>{{ q.price or '—' }}</td>{% endfor %}</tr>
           {% for g in spec %}
             <tr><td class="gh" colspan="{{ quotes|length + 1 }}">{{ g.name }}</td></tr>
             {% for i in g['items'] %}
@@ -254,9 +381,9 @@
                 {% set cell = q._spec.get(i.key) or {} %}
                 {% set v = cell.get('v') or '?' %}
                 <td>
-                  {% if v == 'yes' %}<span class="mk y" title="In writing">&#10003;</span>
-                  {% elif v == 'no' %}<span class="mk n" title="Not included">&times;</span>
-                  {% else %}<span class="mk q" title="Not addressed">?</span>{% endif %}
+                  {% if v == 'yes' %}<span class="mk y">Included</span>
+                  {% elif v == 'no' %}<span class="mk n">Excluded</span>
+                  {% else %}<span class="mk q">Not stated</span>{% endif %}
                   {% if cell.get('d') %}<span class="det">{{ cell.get('d') }}</span>{% endif %}
                 </td>
               {% endfor %}
@@ -293,7 +420,6 @@
               <span class="pill {{ 'no' if g.state == 'no' else 'q' }}">{{ 'Excluded' if g.state == 'no' else 'Not addressed' }}</span>
               &ldquo;{{ g.ask }}&rdquo;
             </div>
-            {% if g.why %}<div class="why">{{ g.why }}</div>{% endif %}
             {% if g.evidence %}
             <div class="eviq"><b>Ask to see:</b> {{ g.evidence | join('; ') }}</div>
             {% endif %}
@@ -570,6 +696,39 @@
       if (d) d.value = (spec[k] || {}).d || '';
     });
     document.getElementById('add').scrollIntoView({ behavior: 'smooth' });
+  });
+})();
+</script>
+
+<script>
+// Tabs are added by script and the bar starts hidden, so a visitor without
+// JavaScript keeps every panel on the page rather than losing two thirds of it.
+(function () {
+  var bar = document.getElementById('wsTabs');
+  if (!bar) { return; }
+  var panels = {};
+  ['compare', 'quotes', 'questions'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) { panels[id] = el.closest('section') || el; }
+  });
+  if (Object.keys(panels).length < 3) { return; }
+  bar.hidden = false;
+  function show(name) {
+    Object.keys(panels).forEach(function (k) { panels[k].hidden = (k !== name); });
+    Array.prototype.forEach.call(bar.querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-selected', String(b.getAttribute('data-panel') === name));
+    });
+  }
+  Array.prototype.forEach.call(bar.querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () { show(b.getAttribute('data-panel')); });
+  });
+  show('compare');
+  // A link to a hidden panel has to open it, or the anchor goes nowhere.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) { return; }
+    var id = a.getAttribute('href').slice(1);
+    if (panels[id]) { show(id); }
   });
 })();
 </script>

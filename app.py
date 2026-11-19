@@ -292,7 +292,13 @@ def uploads(subpath):
 
 @app.route("/favicon.ico")
 def favicon():
-    return ("", 204)
+    # This returned 204 for the whole life of the site, which browsers take as
+    # "there is deliberately no icon" and cache, so every tab showed the blank
+    # page glyph. Serve the real file; the <link> tags prefer the SVG.
+    from flask import send_from_directory
+    return send_from_directory(app.static_folder, "brand/favicon.ico",
+                               mimetype="image/x-icon",
+                               max_age=60 * 60 * 24 * 7)
 
 
 # --- Deploy health / version probe ------------------------------------------

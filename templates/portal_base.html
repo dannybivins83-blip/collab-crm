@@ -11,6 +11,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+{# The site has never declared an icon, so every tab showed the browser's
+   blank page glyph. SVG first for the sharp one, .ico for everything that
+   still asks for /favicon.ico by habit. #}
+<link rel="icon" href="{{ url_for('static', filename='brand/favicon.svg') }}" type="image/svg+xml">
+<link rel="icon" href="{{ url_for('static', filename='brand/favicon.ico') }}" sizes="any">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}">
 <style>
 :root{
   --navy-950:#071c2b; --navy-900:#0d2b3a; --navy-800:#123a4c;
