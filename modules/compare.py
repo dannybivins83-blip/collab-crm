@@ -154,7 +154,7 @@ STAGES = [
                "Note the permit number",
                "Check it's issued before anyone starts"]),
     dict(key="scheduled", label="Materials ordered and scheduled",
-         todo=["Confirm the shingle line and color on the delivery ticket",
+         todo=["Check the delivery ticket: the product and color match what you agreed",
                "Move cars, patio furniture and anything on the walls",
                "Agree where the dumpster goes"]),
     dict(key="install", label="Install under way",
@@ -166,7 +166,8 @@ STAGES = [
                "Walk the property for nails and damage before final payment",
                "Hold final payment until the inspection is signed off"]),
     dict(key="done", label="Done — paperwork in hand",
-         todo=["Manufacturer warranty registered, with the certificate emailed to you",
+         todo=["The written manufacturer warranty and your proof of purchase, kept together",
+               "If your warranty program requires registration, confirm it was filed",
                "Written workmanship warranty",
                "Final invoice marked paid in full",
                "Closed permit"]),
@@ -524,6 +525,14 @@ def _quotes_for(pid):
     return db.all_rows("ho_quotes", "project_id=?", (pid,), "id ASC")
 
 
+def _demo_slug():
+    try:
+        from modules.demos import DEMO_SLUG
+        return DEMO_SLUG
+    except Exception:
+        return "roof-portal"
+
+
 def _log(kind, path=""):
     try:
         db.insert("portal_events", {
@@ -554,8 +563,12 @@ def landing():
     except Exception:
         pass
     _log("compare_view")
+    # portal_base's footer links these; without them the anchors render
+    # href="" and silently go nowhere.
     return render_template("compare_landing.html", spec=SPEC,
-                           spec_count=len(SPEC_KEYS), stages=STAGES)
+                           spec_count=len(SPEC_KEYS), stages=STAGES,
+                           demo_url="/demo/%s" % _demo_slug(),
+                           acquire_url="/acquire")
 
 
 @bp.route("/compare/start", methods=["POST"], endpoint="start")

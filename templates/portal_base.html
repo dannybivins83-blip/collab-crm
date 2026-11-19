@@ -203,7 +203,9 @@ footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
     flex-direction:column;gap:0;padding:8px 24px 18px;border-bottom:1px solid rgb(255 255 255/.12)}
   .nav.open a{padding:13px 0;border-bottom:1px solid rgb(255 255 255/.08)}
   .navtoggle{display:block}
-  .hdr .cta-gold{display:none}
+  /* The CTA used to vanish under 1023px, leaving a phone visitor with three
+     reading links and no way to start. Keep it, just smaller. */
+  .hdr .cta-gold{padding:9px 14px;font-size:14px}
 }
 @media(max-width:479px){.btn,.cta-gold{width:100%}.ctas{flex-direction:column}}
 
@@ -288,6 +290,13 @@ footer .flinks a:hover{color:#fff}
 <script>
   (function () {
     var b = document.getElementById('navBtn'), n = document.getElementById('nav');
+  // Jumping to a section left the menu open on top of it.
+  n && n.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('a')) {
+      n.classList.remove('open');
+      b && b.setAttribute('aria-expanded', 'false');
+    }
+  });
     if (b && n) b.addEventListener('click', function () {
       var open = n.classList.toggle('open');
       b.setAttribute('aria-expanded', open ? 'true' : 'false');

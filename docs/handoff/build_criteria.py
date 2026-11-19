@@ -59,6 +59,26 @@ _DOC_REF = re.compile(
     re.I)
 
 
+# comparison_rule is addressed to the comparison ENGINE ("Record the seller...",
+# "Compare documented active qualification...", "Split each cost into its own
+# comparison field"). That is machine direction, not homeowner guidance, and on
+# the page it reads like leaked internals. A line keeps its `why` only if it
+# explains something to the reader.
+_ENGINE_VOICE = re.compile(
+    r"^(record|compare|split|flag|treat|preserve|capture|list|map|store|tag|"
+    r"normali[sz]e|score|rank)\b", re.I)
+
+
+def homeowner_voice(text):
+    """Drop sentences written at the tool; keep sentences written at a person."""
+    if not text:
+        return ""
+    keep = [s.strip() for s in re.split(r"(?<=[.])\s+", text)
+            if s.strip() and not _ENGINE_VOICE.match(s.strip())]
+    out = " ".join(keep).strip()
+    return out if len(out) > 25 else ""
+
+
 def clean(text):
     """Strip document scaffolding from a sentence and tidy what is left."""
     if not text:
@@ -124,7 +144,7 @@ for name, cats in GROUPS:
                 "key": key,
                 "label": debrand(clean_label(c.get("label"))),
                 "ask": debrand((c.get("neutral_public_question") or c.get("question") or "").strip()),
-                "why": debrand(clean(why)),
+                "why": homeowner_voice(debrand(clean(why))),
                 "warn": debrand(warn),
                 "evidence": [debrand(e.strip()) for e in (c.get("evidence_to_request") or []) if e.strip()],
                 "types": tuple(sorted(rts)) or ("tile", "shingle", "metal", "flat"),
