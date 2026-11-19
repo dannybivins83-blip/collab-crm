@@ -1089,13 +1089,14 @@ def start():
     if not _EMAIL_RE.match(email):
         return redirect(url_for("compare.landing") + "?err=1#start")
     name = (request.form.get("name") or "").strip()[:120]
-    # One workspace per e-mail: coming back with the same address returns the
-    # project instead of silently starting an empty second one.
-    prior = db.all_rows("ho_projects", "email=?", (email,), "id DESC", 1)
-    if prior:
-        db.update("ho_projects", prior[0]["id"], last_seen=db.now())
-        _log("compare_return")
-        return redirect(url_for("compare.project", token=prior[0]["token"]))
+    # An e-mail address is not a secret. Returning somebody's workspace to
+    # anyone who types their address handed over their uploaded proposals and
+    # their property address to whoever guessed it -- and there is no mail
+    # going out, so there was not even a notification. The link is the key; an
+    # address that already has a workspace is told to use it.
+    if db.all_rows("ho_projects", "email=?", (email,), "id DESC", 1):
+        _log("compare_exists")
+        return redirect(url_for("compare.landing") + "?exists=1#start")
     token = _tok()
     db.insert("ho_projects", {
         "created": db.now(), "token": token, "email": email, "name": name,
@@ -1122,17 +1123,15 @@ def landing_upload():
     if email and not _EMAIL_RE.match(email):
         return redirect(url_for("compare.landing") + "?err=1#start")
     rt = _posted_roof_type()
-    prior = db.all_rows("ho_projects", "email=?", (email,), "id DESC", 1) if email else []
-    if prior:
-        p = prior[0]
-        # Returning with an answer fills a blank, but never overwrites a system
-        # the homeowner already set inside their own workspace.
-        fields = {"last_seen": db.now()}
-        if rt and not (p.get("roof_type") or "").strip():
-            fields["roof_type"] = rt
-        db.update("ho_projects", p["id"], **fields)
-        p = db.all_rows("ho_projects", "id=?", (p["id"],), "id DESC", 1)[0]
-    else:
+    # An e-mail address is not a secret. Returning somebody's workspace to
+    # anyone who types their address handed over their uploaded proposals and
+    # their property address to whoever guessed it -- and there is no mail
+    # going out, so there was not even a notification. The link is the key; an
+    # address that already has a workspace is told to use it.
+    if email and db.all_rows("ho_projects", "email=?", (email,), "id DESC", 1):
+        _log("compare_exists")
+        return redirect(url_for("compare.landing") + "?exists=1#start")
+    if True:
         token = _tok()
         db.insert("ho_projects", {
             "created": db.now(), "token": token, "email": email,

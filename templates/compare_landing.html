@@ -662,8 +662,12 @@
     <div class="panel">
       <div class="pad">
         {% if request.args.get('err') %}
-        <p class="err">That doesn&rsquo;t look like an email address &mdash; try again and
-          we&rsquo;ll send your link.</p>
+        <p class="err">That doesn&rsquo;t look like an email address &mdash; try again.</p>
+        {% endif %}
+        {% if request.args.get('exists') %}
+        <p class="err">A comparison already exists for that address. Open it from the link
+          you saved &mdash; an email address is not a password, so we will not open
+          somebody&rsquo;s paperwork for whoever types it.</p>
         {% endif %}
         <h2>Your proposal</h2>
         <form class="f" method="post" enctype="multipart/form-data" data-reads
@@ -693,7 +697,7 @@
             <span class="fl"><label for="hoEmail">Email address</label></span>
             <input id="hoEmail" type="email" name="email" required placeholder="you@example.com"
                    autocomplete="email">
-            <span class="dn" style="display:block;margin-top:8px;font-size:12.5px;color:var(--slate-500)">Use this email to return to your comparison.</span>
+            <span class="dn" style="display:block;margin-top:8px;font-size:12.5px;color:var(--slate-500)">So we have a way to reach you about this comparison. Save the link too &mdash; that is what opens it.</span>
           </div>
           <input type="text" name="name" placeholder="Your name (optional)" autocomplete="name">
           <input type="text" name="address" placeholder="Property address (optional)"
@@ -705,8 +709,8 @@
             minute</span> &mdash; keep this page open and it will move on by itself.</span>
         </p>
         </form>
-        <p class="fine">Your email is the key to your workspace, so you can come back to it
-          from your phone while a contractor is standing in your driveway. Nothing is
+        <p class="fine">Bookmark the page you land on &mdash; that link is what opens your
+          comparison, so keep it the way you would keep a key. Nothing is
           treated as fact until you confirm it. We don&rsquo;t sell your details, we
           don&rsquo;t bid on your roof, and nobody calls you.
           <a href="/privacy" style="color:var(--teal-600);text-decoration:underline">How we

@@ -538,9 +538,11 @@
   <form class="needemail" method="post"
         action="{{ url_for('compare.set_email', token=p.token) }}">
     <div>
-      <b>Save your way back in.</b>
-      <span>Right now this page exists only at the address in your browser. Add an email
-        and you can reopen it from your phone while a contractor is in your driveway.</span>
+      <b>Bookmark this page.</b>
+      <span>The link in your browser is what opens this comparison &mdash; save it, or send
+        it to yourself, before you close the tab. Adding an email below gives us a way to
+        reach you about it; it will not open the page on its own, because an address is
+        not a password.</span>
       {% if request.args.get('emailerr') %}
       <span class="ne-err">That doesn&rsquo;t look like an email address &mdash; try again.</span>
       {% endif %}
