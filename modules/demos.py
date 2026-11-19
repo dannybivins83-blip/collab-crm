@@ -850,6 +850,10 @@ def sitemap():
     # deliberately absent; /acquire is the indexed acquisition page.
     urls = [(base + "/", "weekly", None),
             (base + "/roofers", "weekly", None),
+            # Google asks for a reachable privacy policy for OAuth, and a policy
+            # nobody can find is not published.
+            (base + "/privacy", "yearly", None),
+            (base + "/terms", "yearly", None),
             (base + "/acquire", "weekly", None),
             (base + "/demo/%s" % DEMO_SLUG, "weekly", None),
             (base + "/blog", "weekly", None)]

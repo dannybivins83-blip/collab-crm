@@ -1,0 +1,179 @@
+{% extends "portal_base.html" %}
+{# Written against the code, not from a template. See modules/policy.py for the
+   list of things that were checked and where. #}
+{% block head %}
+<title>Privacy — MyRoofPortal</title>
+<meta name="description" content="What MyRoofPortal collects when you compare roofing quotes, where it is stored, who else sees it, and how to have it deleted.">
+<link rel="canonical" href="https://myroofportal.com/privacy">
+{% endblock %}
+
+{% block brand %}
+<a href="/" class="brand brand-lockup">
+  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 13 12 6l8 7"/><path d="M4 18l8-7 8 7"/>
+  </svg>MyRoofPortal</a>
+{% endblock %}
+{% block nav %}
+<nav class="nav" id="nav" aria-label="Primary">
+  <a href="/">Compare quotes</a>
+  <a href="/terms">Terms</a>
+</nav>
+{% endblock %}
+{# The full label plus the wordmark plus the menu button is wider than a
+   375px phone, and the header sets the document width. #}
+{% block headercta %}<a href="/#start" class="cta-gold"><span class="lbl-long">Compare my quotes</span><span class="lbl-short">Compare</span></a>{% endblock %}
+
+{% block style %}
+  :root{
+    --navy-950:#08212e; --navy-900:#143746; --gold-500:#d9a52e; --gold-100:#fff2cf;
+    --teal-600:#0d6867; --warm-50:#f6f7f2;
+    --slate-700:#263e4a; --slate-500:#526672; --line:#dbe3e7;
+    --serif:Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif;
+  }
+  .hdr{background:rgb(246 247 242/.97);backdrop-filter:blur(12px);
+       border-bottom:1px solid rgb(8 33 46/.09);box-shadow:none}
+  .hdr .wrap{height:80px}
+  .brand-lockup{display:inline-flex;align-items:center;gap:11px;color:var(--navy-950);
+       font-size:23px;font-weight:800;letter-spacing:-.03em}
+  .brand-lockup svg{flex:none;width:38px;height:38px;padding:9px;border-radius:11px;
+       background:var(--navy-950);color:#fff;box-sizing:border-box}
+  .hdr .nav a{color:var(--slate-700);font-weight:600}
+  .hdr .nav a:hover{color:var(--teal-600)}
+  .hdr .navtoggle{color:var(--navy-950);border-color:var(--line)}
+
+  .doc{max-width:760px;margin:0 auto;padding:54px 0 90px}
+  .doc h1{font-size:clamp(32px,3.6vw,46px);letter-spacing:-.04em;margin:0 0 10px}
+  .doc h1 em{display:block;font-family:var(--serif);font-style:italic;font-weight:400;
+             color:var(--teal-600);letter-spacing:-.02em}
+  .doc .upd{color:var(--slate-500);font-size:14px;margin:0 0 34px}
+  .doc h2{font-size:21px;letter-spacing:-.025em;margin:40px 0 12px}
+  .doc p,.doc li{font-size:16.5px;line-height:1.7;color:var(--slate-700)}
+  .doc p{margin:0 0 15px}
+  .doc ul{margin:0 0 15px;padding-left:22px}
+  .doc li{margin-bottom:9px}
+  .doc a{color:var(--teal-600);text-decoration:underline}
+  .doc strong{color:var(--navy-950)}
+  /* The three promises the rest of the site makes. They are the reason this
+     page exists, so they lead it rather than hiding in a paragraph. */
+  .promises{display:grid;gap:11px;margin:0 0 30px;padding:24px 26px;background:#fff;
+            border:1px solid var(--line);border-radius:13px}
+  .promises p{margin:0;font-size:16px}
+  .promises b{color:var(--navy-950)}
+  .note{background:var(--gold-100);border:1px solid #e9d59b;border-radius:11px;
+        padding:17px 20px;margin:0 0 15px}
+  .note p{margin:0;color:#6b4e08;font-size:15.5px}
+  @media(max-width:640px){.doc{padding:36px 0 60px}}
+  .lbl-short{display:none}
+  @media(max-width:479px){
+    .hdr .wrap{gap:12px;height:72px}
+    .brand-lockup{font-size:18px;gap:8px}
+    .brand-lockup svg{width:32px;height:32px;padding:7px}
+    .hdr .cta-gold{width:auto;padding:9px 13px;font-size:13.5px}
+    .hdr .cta-gold .lbl-long{display:none}
+    .hdr .cta-gold .lbl-short{display:inline}
+  }
+{% endblock %}
+
+{% block body %}
+<div class="wrap">
+  <div class="doc">
+    <h1>Privacy <em>in plain words.</em></h1>
+    <p class="upd">MyRoofPortal is operated by Collaborative Concept LLC, Lantana, Florida.
+      Last updated 19&nbsp;November&nbsp;2026.</p>
+
+    <div class="promises">
+      <p><b>We do not sell your details.</b> Not to contractors, not to anyone.</p>
+      <p><b>We do not bid on your roof.</b> We are not a roofing company and we take no
+        commission from one.</p>
+      <p><b>Nobody calls you.</b> No contractor is contacted and no lead is passed on.</p>
+    </div>
+
+    <p>Those three sentences appear on the comparison page, so the rest of this document
+      explains exactly what happens to your information and where the promises are kept by
+      the way the software is built rather than by policy alone.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><strong>Your email address.</strong> It is how you get back into your workspace.
+        It is required for nothing else.</li>
+      <li><strong>Your name and property address</strong>, if you choose to give them. Both
+        are optional and the comparison works without them.</li>
+      <li><strong>The proposals you upload</strong> — the PDFs or photographs of the quotes
+        your contractors gave you — along with whatever we read out of them and anything
+        you correct or type in yourself.</li>
+      <li><strong>Which roof system you tell us you have</strong>, because it decides which
+        questions the sheet asks.</li>
+    </ul>
+
+    <h2>Who else sees it</h2>
+    <div class="note">
+      <p>Your proposal is read by an artificial-intelligence model, which means the
+        document leaves our server. We think that is the single most important thing on
+        this page, so it is the first thing in this section rather than the last.</p>
+    </div>
+    <ul>
+      <li><strong>Anthropic</strong> receives the file you upload so that its Claude model
+        can read it and fill in the sheet. It is sent for that purpose and that purpose
+        alone. Anthropic states that it does not train its models on business customers'
+        API data.</li>
+      <li><strong>Render</strong> hosts the site and stores the database and your uploaded
+        files on servers in the United States.</li>
+      <li><strong>Google Fonts.</strong> Our pages load typefaces from Google, so your
+        browser contacts Google directly and Google can see your IP address and which page
+        you were on. We get nothing back from that request.</li>
+    </ul>
+    <p>That is the complete list. There is no advertising network, no analytics product, no
+      data broker, and no contractor on it.</p>
+
+    <h2>Who does not see it</h2>
+    <p>Roofing contractors. The part of the system that holds your comparison is separate
+      from everything else, and nothing copies a comparison into a sales, lead or contact
+      list. It is not that we choose not to pass your details on — there is no route that
+      would do it.</p>
+
+    <h2>How we measure the site</h2>
+    <p>We count page views using our own records, not a third-party tracker. Each entry
+      holds the kind of page, the path, the page you arrived from, your browser's
+      user-agent string and the site's own hostname. It does <strong>not</strong> hold your
+      IP address or your email, and a visit to your private workspace is recorded against a
+      masked path rather than the link that opens it.</p>
+    <p>We set no advertising or tracking cookies. The site uses a session cookie only if
+      you sign in to a contractor account, which homeowners do not have.</p>
+
+    <h2>How your workspace is protected</h2>
+    <p>Your comparison lives at a long, unguessable web address. Anyone holding that link
+      can open it, so treat it like a key: it is in the address bar and in any email you
+      forwarded it to. There is no password, which is deliberate — it is how you get back
+      in from your phone while a contractor is standing in your driveway.</p>
+
+    <h2>How long we keep it</h2>
+    <p>A comparison is useful while you are choosing and is dead weight afterwards. We keep
+      a workspace for {{ retention_months }} months after you last open it, then delete it
+      and the proposals in it. You can have it removed sooner by asking.</p>
+
+    <h2>What you can do</h2>
+    <ul>
+      <li><strong>Delete a quote</strong> yourself, at any time, from your workspace.</li>
+      <li><strong>Have everything deleted</strong> — the workspace, the uploaded files and
+        the record of them — by emailing <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>
+        from the address you signed up with, or by writing to the address below.</li>
+      <li><strong>Ask for a copy</strong> of what we hold about you, the same way.</li>
+    </ul>
+    <p>We will act on a deletion request within 30 days and will confirm when it is done.</p>
+
+    <h2>Children</h2>
+    <p>The site is for homeowners arranging work on a property. It is not directed at
+      children and we do not knowingly collect information from anyone under 13.</p>
+
+    <h2>Changes</h2>
+    <p>If what the software does changes, this page changes with it, and the date at the
+      top moves. We will not quietly widen what we do with your information.</p>
+
+    <h2>Contact</h2>
+    <p>Collaborative Concept LLC, 513&nbsp;W&nbsp;Drew&nbsp;St, Lantana, FL&nbsp;33462 &middot;
+      (561)&nbsp;475-8615 &middot; <a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
+    <p><a href="/terms">Terms of use</a></p>
+  </div>
+</div>
+{% endblock %}

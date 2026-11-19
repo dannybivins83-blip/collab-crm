@@ -1,0 +1,141 @@
+{% extends "portal_base.html" %}
+{# Short on purpose. Terms that nobody reads protect nobody; these say the few
+   things that are actually true of this product. #}
+{% block head %}
+<title>Terms of use — MyRoofPortal</title>
+<meta name="description" content="The terms for using MyRoofPortal's roofing quote comparison: free for homeowners, not professional advice, and no ranking of contractors.">
+<link rel="canonical" href="https://myroofportal.com/terms">
+{% endblock %}
+
+{% block brand %}
+<a href="/" class="brand brand-lockup">
+  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 13 12 6l8 7"/><path d="M4 18l8-7 8 7"/>
+  </svg>MyRoofPortal</a>
+{% endblock %}
+{% block nav %}
+<nav class="nav" id="nav" aria-label="Primary">
+  <a href="/">Compare quotes</a>
+  <a href="/privacy">Privacy</a>
+</nav>
+{% endblock %}
+{# The full label plus the wordmark plus the menu button is wider than a
+   375px phone, and the header sets the document width. #}
+{% block headercta %}<a href="/#start" class="cta-gold"><span class="lbl-long">Compare my quotes</span><span class="lbl-short">Compare</span></a>{% endblock %}
+
+{% block style %}
+  :root{
+    --navy-950:#08212e; --navy-900:#143746; --gold-500:#d9a52e; --gold-100:#fff2cf;
+    --teal-600:#0d6867; --warm-50:#f6f7f2;
+    --slate-700:#263e4a; --slate-500:#526672; --line:#dbe3e7;
+    --serif:Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif;
+  }
+  .hdr{background:rgb(246 247 242/.97);backdrop-filter:blur(12px);
+       border-bottom:1px solid rgb(8 33 46/.09);box-shadow:none}
+  .hdr .wrap{height:80px}
+  .brand-lockup{display:inline-flex;align-items:center;gap:11px;color:var(--navy-950);
+       font-size:23px;font-weight:800;letter-spacing:-.03em}
+  .brand-lockup svg{flex:none;width:38px;height:38px;padding:9px;border-radius:11px;
+       background:var(--navy-950);color:#fff;box-sizing:border-box}
+  .hdr .nav a{color:var(--slate-700);font-weight:600}
+  .hdr .nav a:hover{color:var(--teal-600)}
+  .hdr .navtoggle{color:var(--navy-950);border-color:var(--line)}
+
+  .doc{max-width:760px;margin:0 auto;padding:54px 0 90px}
+  .doc h1{font-size:clamp(32px,3.6vw,46px);letter-spacing:-.04em;margin:0 0 10px}
+  .doc h1 em{display:block;font-family:var(--serif);font-style:italic;font-weight:400;
+             color:var(--teal-600);letter-spacing:-.02em}
+  .doc .upd{color:var(--slate-500);font-size:14px;margin:0 0 34px}
+  .doc h2{font-size:21px;letter-spacing:-.025em;margin:40px 0 12px}
+  .doc p,.doc li{font-size:16.5px;line-height:1.7;color:var(--slate-700)}
+  .doc p{margin:0 0 15px}
+  .doc ul{margin:0 0 15px;padding-left:22px}
+  .doc li{margin-bottom:9px}
+  .doc a{color:var(--teal-600);text-decoration:underline}
+  .doc strong{color:var(--navy-950)}
+  .note{background:var(--gold-100);border:1px solid #e9d59b;border-radius:11px;
+        padding:17px 20px;margin:0 0 15px}
+  .note p{margin:0;color:#6b4e08;font-size:15.5px}
+  @media(max-width:640px){.doc{padding:36px 0 60px}}
+  .lbl-short{display:none}
+  @media(max-width:479px){
+    .hdr .wrap{gap:12px;height:72px}
+    .brand-lockup{font-size:18px;gap:8px}
+    .brand-lockup svg{width:32px;height:32px;padding:7px}
+    .hdr .cta-gold{width:auto;padding:9px 13px;font-size:13.5px}
+    .hdr .cta-gold .lbl-long{display:none}
+    .hdr .cta-gold .lbl-short{display:inline}
+  }
+{% endblock %}
+
+{% block body %}
+<div class="wrap">
+  <div class="doc">
+    <h1>Terms of use <em>kept short.</em></h1>
+    <p class="upd">MyRoofPortal is operated by Collaborative Concept LLC, Lantana, Florida.
+      Last updated 19&nbsp;November&nbsp;2026.</p>
+
+    <h2>It is free for homeowners</h2>
+    <p>Comparing your roofing quotes costs nothing. There is no trial, no card, and nothing
+      to cancel. If that ever changes we will say so before you are asked for anything, and
+      not after.</p>
+
+    <h2>What this is</h2>
+    <p>It is a reading aid. You give it the proposals you were handed, it puts them on one
+      sheet, and it shows you which lines each one puts in writing and which it leaves
+      open. The value is in the questions it hands back to you.</p>
+
+    <h2>What this is not</h2>
+    <div class="note">
+      <p>We are not roofing contractors, engineers, lawyers, insurance adjusters or your
+        agent. Nothing here is professional advice, and no line on the sheet is a finding
+        about your roof, which we have never seen.</p>
+    </div>
+    <ul>
+      <li><strong>We do not rank contractors.</strong> A quote that says less is a quote
+        with more open questions; that is a fact about the document, not a judgement about
+        the company that wrote it.</li>
+      <li><strong>We do not price work</strong> or tell you what a roof should cost.</li>
+      <li><strong>We do not decide anything for you.</strong> Which quote to accept is
+        yours to choose.</li>
+    </ul>
+
+    <h2>Check what the reader wrote down</h2>
+    <p>Your proposals are read by software, and software misreads things. Everything it
+      fills in is marked unchecked until you confirm it, and you can correct any line. Do
+      not rely on a reading you have not checked against the paperwork in your hand. If a
+      line matters to your decision, confirm it with the contractor in writing.</p>
+
+    <h2>Use it for your own roof</h2>
+    <p>Upload proposals that were given to you for work on a property you own or are
+      responsible for. Do not upload anyone else's documents, and do not use the site to
+      harvest competitors' pricing.</p>
+
+    <h2>Your workspace link</h2>
+    <p>Your comparison opens to anyone holding its web address, so share it carefully. We
+      cannot tell who is using a link, and if you forward it, that is a decision you have
+      made about your own information.</p>
+
+    <h2>Availability and liability</h2>
+    <p>The site is provided as it is. We do not promise it will be available without
+      interruption or that a reading will be complete or accurate. To the extent the law
+      allows, Collaborative Concept LLC is not liable for losses arising from a roofing
+      decision you make, from a contractor's work, or from a reading you did not check.
+      Nothing here limits any liability that cannot lawfully be limited.</p>
+
+    <h2>Ending it</h2>
+    <p>Stop using the site whenever you like, and ask us to delete your workspace — the
+      <a href="/privacy">privacy page</a> says how. We may withdraw access to anyone using
+      the site to misuse other people's documents.</p>
+
+    <h2>Governing law</h2>
+    <p>These terms are governed by the law of the State of Florida.</p>
+
+    <h2>Contact</h2>
+    <p>Collaborative Concept LLC, 513&nbsp;W&nbsp;Drew&nbsp;St, Lantana, FL&nbsp;33462 &middot;
+      (561)&nbsp;475-8615 &middot; <a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
+    <p><a href="/privacy">Privacy</a></p>
+  </div>
+</div>
+{% endblock %}

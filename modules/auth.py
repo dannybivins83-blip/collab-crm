@@ -95,6 +95,7 @@ PUBLIC = {"auth.login", "auth.google_login", "auth.google_callback",
           # Homeowner quote comparison. Entirely public: the homeowner has no
           # CRM login and never gets one. /c/<token> is gated by the unguessable
           # token in their own link, the same way the job portal works.
+          "policy.privacy", "policy.terms",
           "compare.landing", "compare.start", "compare.project",
           "compare.save_quote", "compare.del_quote", "compare.dedupe",
           "compare.set_stage",
