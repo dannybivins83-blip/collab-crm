@@ -202,10 +202,15 @@
        display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .q .arrow{flex:none;color:var(--slate-500);font-size:18px}
   .q:hover .arrow{color:var(--teal-600)}
-  .askphoto{margin:26px 0 0}
+  /* The copy sits beside the cards; the pictures run full width underneath. */
+  .asklower{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;
+            margin-top:30px}
+  .asklower > figure{margin:0}
+  @media(max-width:860px){.asklower{grid-template-columns:1fr;gap:26px}}
+  .askphoto{margin:0}
   /* The direct-to-deck question is about something you can only see in section,
      so it gets a drawing rather than another roof photograph. */
-  .assembly{margin:26px 0 0;padding:18px 20px;background:#fff;border:1px solid var(--line);
+  .assembly{margin:0;padding:18px 20px;background:#fff;border:1px solid var(--line);
             border-radius:12px}
   .assembly figcaption{font-size:11px;font-weight:750;letter-spacing:.1em;
        text-transform:uppercase;color:var(--teal-600);margin-bottom:13px}
@@ -507,55 +512,6 @@
         tile job is not asked the same things as a shingle job.</p>
       <p style="margin:22px 0 0"><a href="#start" class="linkbtn">Start my comparison
         <span aria-hidden="true">&rarr;</span></a></p>
-      {# Two quotes can both say "underlayment" and mean these two different
-         things. No photograph we hold shows both, and a photograph of one is
-         not a comparison, so this is drawn -- a cross-section of each, to the
-         same scale, which is the only way the difference is visible at all. #}
-      <figure class="assembly">
-        <figcaption>Two ways the same word is used</figcaption>
-        <div class="asm-pair">
-          <div class="asm">
-            <svg viewBox="0 0 220 104" role="img"
-                 aria-label="Cross-section: deck, mechanically fastened base sheet, then a cap sheet">
-              <rect x="0" y="70" width="220" height="30" fill="#c8b393"/>
-              <path d="M0 70h220M0 78h220M0 86h220" stroke="#b09a79" stroke-width="1.2"/>
-              <rect x="0" y="56" width="220" height="14" fill="#6f7f8a"/>
-              <rect x="0" y="44" width="220" height="12" fill="#39474f"/>
-              {% for x in [18, 58, 98, 138, 178] %}
-              <circle cx="{{ x }}" cy="63" r="4" fill="#d9a52e"/>
-              <rect x="{{ x - 1 }}" y="63" width="2" height="9" fill="#9a7512"/>
-              {% endfor %}
-              <text x="6" y="40" font-size="9" fill="#39474f" font-weight="700">Cap sheet</text>
-              <text x="6" y="53" font-size="8" fill="#fff" font-weight="700">Base sheet, fastened</text>
-              <text x="6" y="97" font-size="8" fill="#6b5436" font-weight="700">Roof deck</text>
-            </svg>
-            <b>Base sheet first</b>
-            <span>A fastened sheet goes down, then the cap bonds to it. Two layers.</span>
-          </div>
-          <div class="asm">
-            <svg viewBox="0 0 220 104" role="img"
-                 aria-label="Cross-section: deck with a single membrane adhered straight onto it">
-              <rect x="0" y="70" width="220" height="30" fill="#c8b393"/>
-              <path d="M0 70h220M0 78h220M0 86h220" stroke="#b09a79" stroke-width="1.2"/>
-              <rect x="0" y="56" width="220" height="14" fill="#39474f"/>
-              <path d="M0 70h220" stroke="#0d6867" stroke-width="3" stroke-dasharray="6 4"/>
-              <text x="6" y="52" font-size="9" fill="#39474f" font-weight="700">Membrane</text>
-              <text x="6" y="66" font-size="8" fill="#fff" font-weight="700">Adhered to the deck</text>
-              <text x="6" y="97" font-size="8" fill="#6b5436" font-weight="700">Roof deck</text>
-            </svg>
-            <b>Direct to deck</b>
-            <span>One membrane sticks straight to the wood. No sheet underneath.</span>
-          </div>
-        </div>
-        <p>Both get called &ldquo;underlayment&rdquo;. Which one a quote means changes what it
-          costs, what the manufacturer will warrant and what happens when the deck moves.
-          A drawing, not a photograph of your roof.</p>
-      </figure>
-      <figure class="askphoto">
-        {{ photo('under') }}
-        <figcaption>Underlayment and edge details go on before the tile does, which is
-          why they are easier to ask about than to inspect afterwards.</figcaption>
-      </figure>
     </div>
     {# One set per system, all rendered, one shown. Clicking a roof card above
        swaps them, so the promise the cards make is the promise the page keeps
@@ -578,6 +534,61 @@
       {% endfor %}
     </div>
     {% endfor %}
+  </div>
+
+  {# The two pictures were stacked under the copy, which made that column
+     914px tall against 323px of cards and left most of the right-hand side
+     empty. Side by side underneath, they fill the width they were wasting. #}
+  <div class="wrap asklower">
+    {# Two quotes can both say "underlayment" and mean these two different
+       things. No photograph we hold shows both, and a photograph of one is
+       not a comparison, so this is drawn -- a cross-section of each, to the
+       same scale, which is the only way the difference is visible at all. #}
+    <figure class="assembly">
+      <figcaption>Two ways the same word is used</figcaption>
+      <div class="asm-pair">
+        <div class="asm">
+          <svg viewBox="0 0 220 104" role="img"
+               aria-label="Cross-section: deck, mechanically fastened base sheet, then a cap sheet">
+            <rect x="0" y="70" width="220" height="30" fill="#c8b393"/>
+            <path d="M0 70h220M0 78h220M0 86h220" stroke="#b09a79" stroke-width="1.2"/>
+            <rect x="0" y="56" width="220" height="14" fill="#6f7f8a"/>
+            <rect x="0" y="44" width="220" height="12" fill="#39474f"/>
+            {% for x in [18, 58, 98, 138, 178] %}
+            <circle cx="{{ x }}" cy="63" r="4" fill="#d9a52e"/>
+            <rect x="{{ x - 1 }}" y="63" width="2" height="9" fill="#9a7512"/>
+            {% endfor %}
+            <text x="6" y="40" font-size="9" fill="#39474f" font-weight="700">Cap sheet</text>
+            <text x="6" y="53" font-size="8" fill="#fff" font-weight="700">Base sheet, fastened</text>
+            <text x="6" y="97" font-size="8" fill="#6b5436" font-weight="700">Roof deck</text>
+          </svg>
+          <b>Base sheet first</b>
+          <span>A fastened sheet goes down, then the cap bonds to it. Two layers.</span>
+        </div>
+        <div class="asm">
+          <svg viewBox="0 0 220 104" role="img"
+               aria-label="Cross-section: deck with a single membrane adhered straight onto it">
+            <rect x="0" y="70" width="220" height="30" fill="#c8b393"/>
+            <path d="M0 70h220M0 78h220M0 86h220" stroke="#b09a79" stroke-width="1.2"/>
+            <rect x="0" y="56" width="220" height="14" fill="#39474f"/>
+            <path d="M0 70h220" stroke="#0d6867" stroke-width="3" stroke-dasharray="6 4"/>
+            <text x="6" y="52" font-size="9" fill="#39474f" font-weight="700">Membrane</text>
+            <text x="6" y="66" font-size="8" fill="#fff" font-weight="700">Adhered to the deck</text>
+            <text x="6" y="97" font-size="8" fill="#6b5436" font-weight="700">Roof deck</text>
+          </svg>
+          <b>Direct to deck</b>
+          <span>One membrane sticks straight to the wood. No sheet underneath.</span>
+        </div>
+      </div>
+      <p>Both get called &ldquo;underlayment&rdquo;. Which one a quote means changes what it
+        costs, what the manufacturer will warrant and what happens when the deck moves.
+        A drawing, not a photograph of your roof.</p>
+    </figure>
+    <figure class="askphoto">
+      {{ photo('under') }}
+      <figcaption>Underlayment and edge details go on before the tile does, which is
+        why they are easier to ask about than to inspect afterwards.</figcaption>
+    </figure>
   </div>
 </section>
 
