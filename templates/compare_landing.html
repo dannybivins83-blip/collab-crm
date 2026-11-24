@@ -230,6 +230,32 @@
                 display:block;border-radius:12px}
   .askphoto figcaption{font-size:12px;color:var(--slate-500);padding:10px 2px 0;line-height:1.5}
 
+
+  /* ---- one job, in order ----------------------------------------------- */
+  .jobseq{list-style:none;margin:34px 0 0;padding:0;display:grid;
+          grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:jstep}
+  .jstep{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;
+         display:flex;flex-direction:column}
+  .jstep img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#eef2f4}
+  .jbody{padding:17px 19px 19px;display:flex;flex-direction:column;flex:1 1 auto}
+  /* The step number is generated, so the order can never drift out of step
+     with the order the photographs are listed in. */
+  .jtag{counter-increment:jstep;font-style:normal;font-size:11px;font-weight:750;
+        letter-spacing:.09em;text-transform:uppercase;color:var(--teal-600);
+        display:block;margin-bottom:6px}
+  .jtag::before{content:counter(jstep) ". "}
+  .jstep b{font-size:16.5px;letter-spacing:-.02em;color:var(--navy-950);line-height:1.3}
+  .jstep p{margin:7px 0 0;font-size:14px;line-height:1.55;color:var(--slate-500)}
+  .jask{margin-top:auto!important;padding-top:13px;font-size:13.5px!important;
+        line-height:1.5!important;color:var(--slate-700)!important}
+  .jask span{display:inline-block;font-size:10.5px;font-weight:750;letter-spacing:.09em;
+             text-transform:uppercase;color:#795400;background:var(--gold-100);
+             border-radius:5px;padding:2px 7px;margin-right:7px;vertical-align:1px}
+  .jnote{margin:26px 0 0;font-size:13px;line-height:1.6;color:var(--slate-500);
+         max-width:62ch}
+  @media(max-width:980px){.jobseq{grid-template-columns:repeat(2,1fr);gap:20px}}
+  @media(max-width:620px){.jobseq{grid-template-columns:1fr;gap:18px}}
+
   /* ---- reasons --------------------------------------------------------- */
   .rcards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
   .rcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:25px}
@@ -589,6 +615,77 @@
       <figcaption>Underlayment and edge details go on before the tile does, which is
         why they are easier to ask about than to inspect afterwards.</figcaption>
     </figure>
+  </div>
+</section>
+
+{# The questions on this page describe things that are buried by the time a
+   homeowner can stand in the driveway and look. These are photographs of one
+   real South Florida tile re-roof, in the order the work happened, so each
+   question has a picture of the thing it is asking about. #}
+<section class="sec white" id="work">
+  <div class="wrap">
+    <div class="split">
+      <h2 class="h2">What you are paying for <em>is covered up by Friday.</em></h2>
+      <p class="ctx">One real re-roof, in order. Almost everything that decides whether a
+        roof lasts is underneath the tile, and it is only visible for about a day.</p>
+    </div>
+
+    <ol class="jobseq">
+      {% for f, step, title, what, asks in [
+        ('deck-rot-valley', 'Tear-off',
+         'The deck, once the old roof is off',
+         'Rotted plywood either side of the valley, cut back to sound wood. Nobody knew
+          this was here when the quote was written.',
+         'Ask what the quote allows for replacing bad decking, and the price per sheet
+          after that.'),
+        ('wall-flashing-rot', 'Tear-off',
+         'Where the roof runs into the wall',
+         'The deck edge and the old flashing at the stucco, both gone. This is the join
+          that leaks first and the one a finished roof hides completely.',
+         'Ask whether new flashing is included at every wall and chimney, or only
+          &ldquo;reuse existing&rdquo;.'),
+        ('anchor-sheet', 'Underlayment',
+         'The base sheet goes down first',
+         'A base sheet fastened to the deck on a set pattern &mdash; those are plates, in
+          rows. The valley is woven in as it is laid, not cut in afterwards.',
+         'Ask whether the quote is a base sheet plus a cap, or a single layer stuck
+          straight to the wood.'),
+        ('two-ply', 'Underlayment',
+         'Then the second ply over it',
+         'Fastened base sheet on the left, self-adhered cap sheet rolling out over it on
+          the right. Two plies, which is not what every quote on this street means by
+          &ldquo;underlayment&rdquo;.',
+         'Ask how many plies, and get the answer written on the quote rather than said
+          in the driveway.'),
+        ('valley-metal', 'Valleys',
+         'The valley ends up with four layers',
+         'Both planes woven through the valley, so the underlayment doubles where the
+          water concentrates, with the valley metal set on top of it.',
+         'Ask whether valley metal is new, and what gauge.'),
+        ('hip-ridge-metal', 'Hips and ridges',
+         'Lines popped, hip and ridge metal set',
+         'Chalk lines snapped off the measurements, then the hip and ridge framing metal
+          fixed to them. The tile that goes on next only sits as straight as this does.',
+         'Ask what the quote includes for hip and ridge &mdash; it is usually a separate
+          line and sometimes no line at all.'),
+      ] %}
+      <li class="jstep">
+        <img src="{{ url_for('static', filename='img/roof/job/' + f + '.webp') }}"
+             alt="{{ title }}" loading="lazy" decoding="async">
+        <div class="jbody">
+          <i class="jtag">{{ step }}</i>
+          <b>{{ title }}</b>
+          <p>{{ what|safe }}</p>
+          <p class="jask"><span>Ask</span>{{ asks|safe }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+
+    <p class="jnote">Photographs from one job we documented as it was built. Manufacturers'
+      names are legible on the materials because that is what was on the roof that week
+      &mdash; nothing on this page favors a brand, and your three quotes may each name a
+      different one.</p>
   </div>
 </section>
 
