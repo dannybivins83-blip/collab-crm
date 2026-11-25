@@ -61,11 +61,12 @@ RETENTION_MONTHS = 18
 
 @bp.route("/privacy", endpoint="privacy")
 def privacy():
-    return render_template("policy_privacy.html",
+    return render_template("policy_privacy.html", beacon_kind="policy_view",
                            contact_email=CONTACT_EMAIL,
                            retention_months=RETENTION_MONTHS)
 
 
 @bp.route("/terms", endpoint="terms")
 def terms():
-    return render_template("policy_terms.html", contact_email=CONTACT_EMAIL)
+    return render_template("policy_terms.html", beacon_kind="policy_view",
+                           contact_email=CONTACT_EMAIL)

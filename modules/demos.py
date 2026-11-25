@@ -91,7 +91,13 @@ for _t, _c, _d in (("portal_offers", "spam", "INTEGER DEFAULT 0"),
                    ("portal_leads", "spam", "INTEGER DEFAULT 0"),
                    ("portal_leads", "spam_reason", "TEXT"),
                    ("demo_access_requests", "spam", "INTEGER DEFAULT 0"),
-                   ("demo_access_requests", "spam_reason", "TEXT")):
+                   ("demo_access_requests", "spam_reason", "TEXT"),
+                   # Which plan the contractor clicked, and the city a Territory
+                   # plan would actually be exclusive in. Both buttons posted the
+                   # same blank form, so neither was ever captured -- and the
+                   # whole Territory offer is city exclusivity.
+                   ("portal_leads", "plan", "TEXT"),
+                   ("portal_leads", "city", "TEXT")):
     try:
         db._ensure_column(_t, _c, _d)
     except Exception:
@@ -540,7 +546,7 @@ ADDON_CATS = [
         {"name": "Ridge Vent + Attic Ventilation", "price": "$650", "unit": "", "blurb": "Cooler attic, longer roof life", "badge": "Recommended", "img": "demo/addons/13-ridge-vent-attic-ventilation.webp"},
         {"name": "Hurricane-Rated Skylights", "price": "$1,200", "unit": "each", "blurb": "Natural light, impact-rated", "badge": "", "img": "demo/addons/14-hurricane-rated-skylights.webp"},
         {"name": "Peel-&-Stick Underlayment Upgrade", "price": "$900", "unit": "", "blurb": "Max secondary water barrier", "badge": "Popular", "img": "demo/addons/15-peel-stick-underlayment-upgrade.webp"},
-        {"name": "Extended 25-Yr Workmanship Warranty", "price": "$450", "unit": "", "blurb": "Double your coverage", "badge": "", "img": "demo/addons/16-extended-25yr-workmanship-warranty.webp"},
+        {"name": "Extended 20-Yr Workmanship Warranty", "price": "$450", "unit": "", "blurb": "Double your 10-year coverage", "badge": "", "img": "demo/addons/16-extended-25yr-workmanship-warranty.webp"},
     ]},
 ]
 
@@ -590,7 +596,7 @@ def portal_view(slug):
         {"name": "Roofing Agreement", "kind": "Contract", "status": "signed"},
         {"name": "Notice of Commencement", "kind": "NOC", "status": "sign"},
         {"name": "Palm Beach County Permit", "kind": "Permit", "status": "sign"},
-        {"name": "25-Year Workmanship Warranty", "kind": "Warranty", "status": "ready"},
+        {"name": "10-Year Workmanship Warranty", "kind": "Warranty", "status": "ready"},
     ]
     # Instacart-style add-on marketplace — browse & "Add" upgrades to your project.
     addon_cats = ADDON_CATS
@@ -890,6 +896,8 @@ def landing_lead():
     company = (f.get("company") or "").strip()[:160]
     email = (f.get("email") or "").strip()[:200]
     phone = (f.get("phone") or "").strip()[:40]
+    plan = (f.get("plan") or "").strip()[:40]
+    city = (f.get("city") or "").strip()[:120]
     # The lead form is on the roofer front page; /licensing still carries a copy.
     base = url_for("demo.roofer_landing") if _on_demo_host() else url_for("demo.landing_licensing")
     # Require a name plus at least one way to reach them.
@@ -907,16 +915,28 @@ def landing_lead():
                                   % (request.host or "myroofportal.com"), "",
                                   "Name:    %s" % name, "Company: %s" % (company or "-"),
                                   "Email:   %s" % (email or "-"),
-                                  "Phone:   %s" % (phone or "-"), "",
+                                  "Phone:   %s" % (phone or "-"),
+                                  "Plan:    %s" % (plan or "-"),
+                                  "City:    %s" % (city or "-"), "",
                                   "Full list: /portal-sales/inbox"]))
     row = {"created": db.now(), "name": name, "company": company,
-           "email": email, "phone": phone,
+           "email": email, "phone": phone, "plan": plan, "city": city,
            "source_host": (request.host or "")[:120],
            "notified": 1 if sent else 0}
-    try:
-        db.insert("portal_leads", dict(row, spam=1 if is_spam else 0,
-                                       spam_reason=(",".join(reasons))[:200]))
-    except Exception:
-        db.insert("portal_leads", row)
+    # A lead is never allowed to fall on the floor because a column is missing
+    # on this host. Try the richest row, then drop the optional fields a step at
+    # a time, and keep the name/contact row as the last thing standing.
+    _base = {k: row[k] for k in ("created", "name", "company", "email", "phone",
+                                 "source_host", "notified") if k in row}
+    for _attempt in (dict(row, spam=1 if is_spam else 0,
+                          spam_reason=(",".join(reasons))[:200]),
+                     row, _base):
+        try:
+            db.insert("portal_leads", _attempt)
+            break
+        except Exception:
+            continue
+    else:
+        _log_event("lead_insert_failed")
     _log_event("lead_spam" if is_spam else "lead_submit")
     return redirect(base + "?thanks=1#get-started")

@@ -1,4 +1,6 @@
 {% extends "portal_base.html" %}
+{# The one page in this set that really is a contractor page. #}
+{% set beacon_kind = "roofer_view" %}
 {# The roofer-facing front door (myroofportal.com/). Chrome + tokens live in
    portal_base.html; this file is the page's <head> tags and its sections. #}
 {% block head %}
@@ -37,6 +39,14 @@
     "priceSpecification":{"@type":"UnitPriceSpecification","price":"4997","priceCurrency":"USD","unitText":"year"}}]}
 ]}
 </script>
+{% endblock %}
+
+{% block style %}
+  /* The plan select has to sit beside the text inputs without looking like a
+     different form. */
+  .form select{width:100%;padding:11px 13px;border:1px solid #d7dee3;border-radius:9px;
+               background:#fff;font:inherit;font-size:15px;color:#13303d}
+  .fhint{display:block;margin-top:6px;font-size:12.5px;line-height:1.45;color:#5d7079}
 {% endblock %}
 
 {% block body %}
@@ -162,7 +172,7 @@
           <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Data migration from your current system</li>
           <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Hosting, updates and support</li>
         </ul>
-        <a class="btn btn-sky" href="#get-started">Claim a Founding Spot</a>
+        <a class="btn btn-sky" href="#get-started" data-plan="founding">Claim a Founding Spot</a>
       </div>
       <div class="tier">
         <h3>Territory Exclusive</h3>
@@ -174,7 +184,7 @@
           <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Priority support and feature requests</li>
           <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Co-branded launch assets for your sales team</li>
         </ul>
-        <a class="btn btn-outline-gold" href="#get-started">Lock My Territory</a>
+        <a class="btn btn-outline-gold" href="#get-started" data-plan="territory">Lock My Territory</a>
       </div>
     </div>
     <p class="guar">14-day money-back guarantee. No long-term contract.</p>
@@ -227,11 +237,52 @@
           <label for="f-phone">Phone</label>
           <input id="f-phone" name="phone" type="tel" autocomplete="tel" placeholder="(555) 123-4567">
         </div>
+        {# Territory Exclusive is a promise about one city. Asking for the plan
+           and the city is the difference between a lead somebody can act on and
+           a name with no idea which of the two offers it came from. #}
+        <div class="fgroup">
+          <label for="f-plan">Which plan</label>
+          <select id="f-plan" name="plan">
+            <option value="">Not sure yet &mdash; tell me more</option>
+            <option value="founding">Founding Member &mdash; $1,997/year</option>
+            <option value="territory">Territory Exclusive &mdash; $4,997/year</option>
+          </select>
+        </div>
+        <div class="fgroup">
+          <label for="f-city">Your city</label>
+          <input id="f-city" name="city" type="text" autocomplete="address-level2"
+                 placeholder="Boca Raton, FL">
+          <span class="fhint" id="cityhint">Territory Exclusive is exclusive to one
+            city, so we need to know which one.</span>
+        </div>
         <button class="btn btn-sky" type="submit">Send it over</button>
       </form>
     </div>
   </div>
 </section>
+
+<script>
+/* Clicking a price button carries that choice into the form. The select is a
+   real field, so this only pre-fills it -- with the script blocked the form
+   still works and the contractor picks the plan themselves. */
+(function () {
+  var sel = document.getElementById('f-plan');
+  var hint = document.getElementById('cityhint');
+  if (!sel) return;
+  function sync() {
+    if (hint) hint.style.display = sel.value === 'territory' ? '' : 'none';
+  }
+  Array.prototype.forEach.call(
+    document.querySelectorAll('a[data-plan]'), function (a) {
+      a.addEventListener('click', function () {
+        sel.value = a.getAttribute('data-plan');
+        sync();
+      });
+    });
+  sel.addEventListener('change', sync);
+  sync();
+})();
+</script>
 
 <section id="faq">
   <div class="wrap">

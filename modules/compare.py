@@ -99,6 +99,7 @@ db._COLCACHE.clear()
 # from and how much authority that source has. Regenerate with
 # scratchpad/build_criteria.py; never hand-edit compare_criteria.py.
 from modules.compare_criteria import SPEC   # noqa: E402
+from modules import compare_scope          # noqa: E402
 
 SPEC_INDEX = {i["key"]: i for g in SPEC for i in g["items"]}
 SPEC_KEYS = [i["key"] for g in SPEC for i in g["items"]]
@@ -111,23 +112,33 @@ ROOF_TYPE_KEYS = [k for k, _ in ROOF_TYPES]
 
 
 def spec_for(roof_type):
-    """The groups that apply to this roof. Common groups always; a type-specific
-    group only for its own type. An unknown or missing type shows everything,
-    because hiding a question is worse than asking one that does not apply."""
+    """The groups that apply to this roof, and inside them only the criteria
+    that apply. An unknown or missing type shows everything, because hiding a
+    question is worse than asking one that does not apply.
+
+    The groups themselves are generated and bind a roof type to a whole group,
+    which only the metal group actually uses -- so the per-criterion scoping in
+    compare_scope sits on top. Without it a tile homeowner was asked about
+    shingle nail counts and flat-roof leak response, and the answers came back
+    "Not stated" because no tile proposal mentions either."""
     rt = (roof_type or "").strip().lower()
     if rt not in ROOF_TYPE_KEYS or rt == "unsure":
         return list(SPEC)
     out = []
     for g in SPEC:
         types = g.get("types") or ("all",)
-        if "all" in types or rt in types:
-            out.append(g)
+        if not ("all" in types or rt in types):
+            continue
+        items = [i for i in g["items"] if compare_scope.applies(i, rt)]
+        if items:
+            out.append(dict(g, items=items))
     return out
 
 
 def keys_for(roof_type, featured_only=False):
+    rt = (roof_type or "").strip().lower()
     return [i["key"] for g in spec_for(roof_type) for i in g["items"]
-            if not featured_only or i.get("featured")]
+            if not featured_only or compare_scope.is_featured(i, rt)]
 
 
 def spec_view(roof_type, show_all=False):
@@ -135,9 +146,10 @@ def spec_view(roof_type, show_all=False):
     too many to hand-fill, so the default is the FEATURED subset for this roof
     and "show everything" opens the rest. A group with nothing featured in it
     disappears rather than rendering empty."""
+    rt = (roof_type or "").strip().lower()
     out = []
     for g in spec_for(roof_type):
-        items = g["items"] if show_all else [i for i in g["items"] if i.get("featured")]
+        items = g["items"] if show_all else             [i for i in g["items"] if compare_scope.is_featured(i, rt)]
         if items:
             out.append(dict(g, items=items))
     return out
@@ -1068,6 +1080,7 @@ def landing():
     questions_by_roof = {rt: _carded(_four(rt))
                          for rt in ROOF_TYPE_KEYS if rt != "unsure"}
     return render_template("compare_landing.html", spec=SPEC,
+                           beacon_kind="homeowner_view",
                            spec_count=len(SPEC_KEYS), stages=STAGES,
                            questions=questions, questions_by_roof=questions_by_roof,
                            demo_url="/demo/%s" % _demo_slug(),
@@ -1245,7 +1258,8 @@ def project(token):
     # empty workspace seconds after uploading and concludes it failed.
     reading = [u for u in uploads if (u.get("status") or "") == "queued"]
     return render_template(
-        "compare_project.html", p=p, quotes=view, reading=len(reading),
+        "compare_project.html", beacon_kind="homeowner_workspace",
+        p=p, quotes=view, reading=len(reading),
         dupes=sum(len(g) - 1 for g in duplicate_groups(quotes)),
         scores=scoreboard(quotes, rt), detail=disagreement_detail(quotes, rt),
         licenses=license_audit(quotes),

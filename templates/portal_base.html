@@ -334,7 +334,10 @@ footer .flinks a:hover{color:#fff}
         else { fetch("/portal-sales/ev", { method: "POST", body: f, keepalive: true }); }
       } catch (e) { /* tracking must never break the page */ }
     }
-    hit("{{ beacon_kind|default('roofer_view') }}");
+    {# A page that forgets to name itself must not land in the contractor
+       funnel: the default is a neutral page view, and roofer_view is set
+       explicitly by the pages that really are contractor pages. #}
+    hit("{{ beacon_kind|default('page_view') }}");
     document.addEventListener("click", function (ev) {
       var a = ev.target && ev.target.closest ? ev.target.closest("a,button") : null;
       if (!a) return;
